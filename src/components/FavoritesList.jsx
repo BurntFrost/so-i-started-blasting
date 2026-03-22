@@ -17,7 +17,7 @@ export function FavoritesList({ favoriteIds, scenes, onSelect, onRemove, onClose
 
         {favoriteScenes.length === 0 ? (
           <p className="favorites-empty">
-            No favorites yet. Start blasting and save the ones you love.
+            No favorites yet. Keep blasting and save the ones you love.
           </p>
         ) : (
           <div className="favorites-list">
