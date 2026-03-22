@@ -1,4 +1,5 @@
 import { useState, useCallback, useRef } from "react";
+import { matchesFilter } from "../data/filters.js";
 
 export function useRandomScene(scenes) {
   const [current, setCurrent] = useState(null);
@@ -9,7 +10,7 @@ export function useRandomScene(scenes) {
       const pool =
         category === "all"
           ? scenes
-          : scenes.filter((s) => s.categories.includes(category));
+          : scenes.filter((s) => matchesFilter(s, category));
 
       if (pool.length === 0) return null;
 
