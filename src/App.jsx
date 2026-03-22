@@ -1,10 +1,9 @@
-import { useState, useEffect, useCallback, useMemo } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { SCENES } from "./data/scenes.js";
-import { CATEGORIES } from "./data/categories.js";
 import { useRandomScene } from "./hooks/useRandomScene.js";
 import { useFavorites } from "./hooks/useFavorites.js";
 import { ScenePlayer } from "./components/ScenePlayer.jsx";
-import { CategoryBar } from "./components/CategoryBar.jsx";
+import { FilterDropdown } from "./components/FilterDropdown.jsx";
 import { NeonButton } from "./components/NeonButton.jsx";
 import { Toast } from "./components/Toast.jsx";
 import { FavoritesList } from "./components/FavoritesList.jsx";
@@ -66,15 +65,16 @@ const CSS = `
   }
 
   .title {
-    font-family: "Special Elite", cursive;
-    font-size: clamp(1.4rem, 3vw, 2rem);
-    color: var(--neon-red);
+    font-family: monospace;
+    font-size: clamp(1.2rem, 3vw, 1.6rem);
+    color: var(--neon-green);
     text-shadow:
-      0 0 10px rgba(255, 23, 68, 0.5),
-      0 0 40px rgba(255, 23, 68, 0.2);
-    letter-spacing: 0.02em;
+      0 0 10px rgba(57, 255, 20, 0.5),
+      0 0 40px rgba(57, 255, 20, 0.2);
+    letter-spacing: 4px;
     line-height: 1;
     white-space: nowrap;
+    text-transform: uppercase;
   }
 
   .subtitle {
@@ -106,55 +106,39 @@ const CSS = `
     background: rgba(255, 23, 68, 0.08);
   }
 
-  /* Category bar */
-  .category-bar {
-    display: flex;
-    gap: 8px;
-    overflow-x: auto;
-    padding: 4px 0 16px;
-    scrollbar-width: none;
-    justify-content: center;
-  }
-
-  .category-bar::-webkit-scrollbar {
-    display: none;
-  }
-
-  .category-chip {
+  .header-right {
     display: flex;
     align-items: center;
-    gap: 5px;
-    padding: 6px 12px;
-    border-radius: 20px;
-    border: 1px solid var(--border);
+    gap: 8px;
+  }
+
+  /* Filter dropdown */
+  .filter-dropdown {
     background: var(--bg-1);
     color: var(--text-1);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    padding: 6px 12px;
     font-size: 0.8rem;
     font-family: "Inter", sans-serif;
     cursor: pointer;
-    white-space: nowrap;
-    transition: all 0.2s;
+    appearance: none;
+    -webkit-appearance: none;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%236b6350' stroke-width='2'%3E%3Cpath d='M6 9l6 6 6-6'/%3E%3C/svg%3E");
+    background-repeat: no-repeat;
+    background-position: right 8px center;
+    padding-right: 28px;
   }
 
-  .category-chip:hover {
-    border-color: var(--chip-color, var(--text-1));
+  .filter-dropdown:hover {
+    border-color: var(--neon-green);
     color: var(--text-0);
   }
 
-  .chip-active {
-    border-color: var(--chip-color);
-    color: var(--chip-color);
-    text-shadow: 0 0 8px var(--chip-color);
-    box-shadow: 0 0 12px color-mix(in srgb, var(--chip-color) 20%, transparent);
-  }
-
-  .chip-icon {
-    font-size: 1rem;
-  }
-
-  .chip-count {
-    font-size: 0.7rem;
-    opacity: 0.6;
+  .filter-dropdown:focus {
+    outline: none;
+    border-color: var(--neon-green);
+    box-shadow: 0 0 8px rgba(57, 255, 20, 0.2);
   }
 
   /* ═══ CRT Television ═══ */
@@ -445,10 +429,10 @@ const CSS = `
   .scene-quote {
     font-family: "Special Elite", cursive;
     font-size: clamp(1.2rem, 3vw, 1.6rem);
-    color: var(--neon-yellow);
-    text-shadow: 0 0 15px rgba(255, 214, 0, 0.2);
+    color: var(--neon-green);
+    text-shadow: 0 0 15px rgba(57, 255, 20, 0.2);
     line-height: 1.4;
-    border-left: 3px solid var(--neon-yellow);
+    border-left: 3px solid var(--neon-green);
     padding-left: 16px;
     margin: 0;
   }
@@ -460,7 +444,24 @@ const CSS = `
     padding-left: 19px;
   }
 
-  .episode-tag {
+  .scene-tags {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    padding-left: 19px;
+    margin-top: 8px;
+  }
+
+  .tag-pill {
+    font-size: 0.7rem;
+    padding: 2px 8px;
+    border-radius: 4px;
+    border: 1px solid;
+    background: rgba(255, 255, 255, 0.03);
+    font-family: "Inter", sans-serif;
+  }
+
+  .source-tag {
     font-size: 0.75rem;
     color: var(--text-2);
     font-family: "Inter", sans-serif;
@@ -709,16 +710,6 @@ export function App() {
     getNext("all");
   }, []);
 
-  const sceneCounts = useMemo(() => {
-    const counts = { all: SCENES.length };
-    for (const key of Object.keys(CATEGORIES)) {
-      if (key !== "all") {
-        counts[key] = SCENES.filter((s) => s.categories.includes(key)).length;
-      }
-    }
-    return counts;
-  }, []);
-
   const handleBlast = useCallback(() => {
     getNext(activeCategory);
   }, [getNext, activeCategory]);
@@ -751,22 +742,22 @@ export function App() {
       <div className="app">
         <header className="header">
           <div className="header-left">
-            <h1 className="title">So I Started Blasting</h1>
-            <span className="subtitle">Random Frank Reynolds Scenes</span>
+            <h1 className="title">Channel Zero</h1>
+            <span className="subtitle">We're experiencing technical difficulties.</span>
           </div>
-          <button
-            className="fav-toggle"
-            onClick={() => setShowFavorites(true)}
-          >
-            ♥ Favorites ({favoriteIds.length})
-          </button>
+          <div className="header-right">
+            <FilterDropdown
+              active={activeCategory}
+              onSelect={handleCategorySelect}
+            />
+            <button
+              className="fav-toggle"
+              onClick={() => setShowFavorites(true)}
+            >
+              ♥ ({favoriteIds.length})
+            </button>
+          </div>
         </header>
-
-        <CategoryBar
-          active={activeCategory}
-          onSelect={handleCategorySelect}
-          sceneCounts={sceneCounts}
-        />
 
         <ScenePlayer
           scene={current}
@@ -774,7 +765,7 @@ export function App() {
           onToggleFavorite={handleToggleFavorite}
         />
 
-        <NeonButton onClick={handleBlast} label="Blast Me Again" />
+        <NeonButton onClick={handleBlast} label="⚡ Blast Me" />
 
         <Toast message={toastMessage} onDone={() => setToastMessage(null)} />
 
