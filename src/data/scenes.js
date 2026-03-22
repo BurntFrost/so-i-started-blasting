@@ -121,7 +121,7 @@ export const SCENES = [
   },
   {
     id: "numa-numa",
-    videoId: "KmtzQCSh6xk",
+    videoId: "Cqd1Gvq-RBY",
     start: 0,
     end: 30,
     quote: "Ma-ia-hii, ma-ia-huu, ma-ia-haa, ma-ia-ha-ha!",
@@ -143,7 +143,7 @@ export const SCENES = [
   },
   {
     id: "all-your-base",
-    videoId: "jQE66WA2s-A",
+    videoId: "8fvTxv46ano",
     start: 0,
     end: 25,
     quote: "All your base are belong to us.",
@@ -165,7 +165,7 @@ export const SCENES = [
   },
   {
     id: "dramatic-chipmunk",
-    videoId: "a1Y73sPHKxw",
+    videoId: "y8Kyi0WNg40",
     start: 0,
     end: 6,
     quote: "DUN DUN DUNNN.",
@@ -360,7 +360,7 @@ export const SCENES = [
   },
   {
     id: "he-need-some-milk",
-    videoId: "e_vFCmv9KO4",
+    videoId: "vG2I7r4qlEA",
     start: 0,
     end: 20,
     quote: "He need some milk!",
@@ -393,7 +393,7 @@ export const SCENES = [
   },
   {
     id: "yodeling-walmart-kid",
-    videoId: "gjcl4jEhEXw",
+    videoId: "jlmNwjdYVnk",
     start: 0,
     end: 30,
     quote: "I want to be a lovesick bluuuues!",
