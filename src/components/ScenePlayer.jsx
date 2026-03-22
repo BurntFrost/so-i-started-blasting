@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef } from "react";
+import { getFilterByKey } from "../data/filters.js";
 
 export function ScenePlayer({ scene, isFavorite, onToggleFavorite }) {
   const [transitioning, setTransitioning] = useState(false);
@@ -22,7 +23,7 @@ export function ScenePlayer({ scene, isFavorite, onToggleFavorite }) {
 
   if (!displayScene) return null;
 
-  const embedUrl = `https://www.youtube.com/embed/${displayScene.videoId}?start=${displayScene.start}&end=${displayScene.end}&autoplay=1&rel=0&modestbranding=1`;
+  const embedUrl = `https://www.youtube.com/embed/${displayScene.videoId}?start=${displayScene.start}&end=${displayScene.end}&autoplay=1&mute=1&rel=0&modestbranding=1&enablejsapi=1`;
 
   return (
     <div className="scene-player">
@@ -59,7 +60,7 @@ export function ScenePlayer({ scene, isFavorite, onToggleFavorite }) {
             </div>
           </div>
           <div className="tv-controls">
-            <span className="tv-brand">Paddy's Pub</span>
+            <span className="tv-brand">Channel Zero</span>
             <div className="tv-knobs">
               <div className="tv-led" />
               <div className="tv-knob" />
@@ -77,9 +78,26 @@ export function ScenePlayer({ scene, isFavorite, onToggleFavorite }) {
         <div className="scene-info-text">
           <blockquote className="scene-quote">"{scene.quote}"</blockquote>
           <p className="scene-description">{scene.description}</p>
-          <span className="episode-tag">
-            S{scene.episode.season}E{scene.episode.episode} — "
-            {scene.episode.title}"
+          <div className="scene-tags">
+            {scene.vibes.map((v) => {
+              const filter = getFilterByKey(v);
+              return filter ? (
+                <span key={v} className="tag-pill" style={{ color: filter.color, borderColor: filter.color }}>
+                  {filter.label}
+                </span>
+              ) : null;
+            })}
+            {(() => {
+              const eraFilter = getFilterByKey(scene.era);
+              return eraFilter ? (
+                <span className="tag-pill" style={{ color: eraFilter.color, borderColor: eraFilter.color }}>
+                  {eraFilter.label}
+                </span>
+              ) : null;
+            })()}
+          </div>
+          <span className="source-tag">
+            {scene.source.title} ({scene.source.year})
           </span>
         </div>
         <div className="scene-actions">
