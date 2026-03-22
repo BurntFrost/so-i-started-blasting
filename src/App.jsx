@@ -21,6 +21,8 @@ const CSS = `
     --text-0: #e8e4d8;
     --text-1: #a09880;
     --text-2: #6b6350;
+    --tv-bezel: #2a2520;
+    --tv-body: #1a1814;
     font-family: "Inter", system-ui, sans-serif;
     color: var(--text-0);
   }
@@ -42,40 +44,48 @@ const CSS = `
   }
 
   .app {
-    max-width: 700px;
+    max-width: 1100px;
     margin: 0 auto;
-    padding: 24px 16px 80px;
+    padding: 20px 24px 60px;
   }
 
-  /* Header */
+  /* Header — compact inline bar */
   .header {
-    text-align: center;
-    margin-bottom: 24px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 16px;
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+
+  .header-left {
+    display: flex;
+    align-items: baseline;
+    gap: 12px;
   }
 
   .title {
     font-family: "Special Elite", cursive;
-    font-size: clamp(1.8rem, 5vw, 2.8rem);
+    font-size: clamp(1.4rem, 3vw, 2rem);
     color: var(--neon-red);
     text-shadow:
       0 0 10px rgba(255, 23, 68, 0.5),
       0 0 40px rgba(255, 23, 68, 0.2);
     letter-spacing: 0.02em;
-    line-height: 1.1;
+    line-height: 1;
+    white-space: nowrap;
   }
 
   .subtitle {
     font-family: "Special Elite", cursive;
-    font-size: 0.9rem;
-    color: var(--text-1);
-    margin-top: 4px;
+    font-size: 0.75rem;
+    color: var(--text-2);
+    display: none;
   }
 
-  .header-actions {
-    display: flex;
-    justify-content: center;
-    gap: 12px;
-    margin-top: 12px;
+  @media (min-width: 600px) {
+    .subtitle { display: inline; }
   }
 
   .fav-toggle {
@@ -85,9 +95,10 @@ const CSS = `
     padding: 6px 14px;
     border-radius: 6px;
     cursor: pointer;
-    font-size: 0.85rem;
+    font-size: 0.8rem;
     font-family: "Inter", sans-serif;
     transition: all 0.2s;
+    white-space: nowrap;
   }
 
   .fav-toggle:hover {
@@ -100,8 +111,9 @@ const CSS = `
     display: flex;
     gap: 8px;
     overflow-x: auto;
-    padding: 4px 0 12px;
+    padding: 4px 0 16px;
     scrollbar-width: none;
+    justify-content: center;
   }
 
   .category-bar::-webkit-scrollbar {
@@ -145,39 +157,294 @@ const CSS = `
     opacity: 0.6;
   }
 
-  /* Scene player */
-  .scene-player {
-    margin-top: 8px;
+  /* ═══ CRT Television ═══ */
+  .crt-tv {
+    position: relative;
+    max-width: 960px;
+    margin: 0 auto;
   }
 
-  .video-wrapper {
+  /* TV outer body */
+  .tv-body {
+    background: linear-gradient(
+      180deg,
+      #3a3430 0%,
+      #2a2520 8%,
+      #1a1814 50%,
+      #12100e 100%
+    );
+    border-radius: 24px;
+    padding: 28px 28px 20px;
+    box-shadow:
+      0 8px 40px rgba(0, 0, 0, 0.6),
+      0 2px 0 rgba(255, 255, 255, 0.03) inset,
+      0 -2px 8px rgba(0, 0, 0, 0.4);
+    border: 1px solid rgba(255, 255, 255, 0.04);
+  }
+
+  /* Screen bezel — thick dark frame */
+  .tv-bezel {
+    background: #0c0a08;
+    border-radius: 12px;
+    padding: 6px;
+    box-shadow:
+      inset 0 2px 8px rgba(0, 0, 0, 0.8),
+      inset 0 0 2px rgba(0, 0, 0, 0.9);
+  }
+
+  /* The screen itself */
+  .tv-screen {
     position: relative;
     width: 100%;
     padding-bottom: 56.25%;
     border-radius: 8px;
     overflow: hidden;
-    border: 2px solid var(--border);
-    box-shadow:
-      inset 0 0 30px rgba(0, 0, 0, 0.5),
-      0 4px 20px rgba(0, 0, 0, 0.4);
+    background: #000;
   }
 
-  .video-wrapper iframe {
+  /* CRT scanline overlay */
+  .tv-screen::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    background: repeating-linear-gradient(
+      0deg,
+      transparent,
+      transparent 2px,
+      rgba(0, 0, 0, 0.15) 2px,
+      rgba(0, 0, 0, 0.15) 4px
+    );
+    pointer-events: none;
+    z-index: 2;
+    border-radius: 8px;
+  }
+
+  /* Screen reflection/glare */
+  .tv-screen::before {
+    content: "";
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 40%;
+    background: linear-gradient(
+      180deg,
+      rgba(255, 255, 255, 0.03) 0%,
+      transparent 100%
+    );
+    pointer-events: none;
+    z-index: 3;
+    border-radius: 8px 8px 0 0;
+  }
+
+  .tv-screen iframe {
     position: absolute;
     top: 0;
     left: 0;
     width: 100%;
     height: 100%;
     border: none;
+    z-index: 1;
+  }
+
+  /* TV controls bar under screen */
+  .tv-controls {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 12px 8px 4px;
+  }
+
+  .tv-brand {
+    font-family: "Inter", sans-serif;
+    font-size: 0.65rem;
+    font-weight: 700;
+    letter-spacing: 0.3em;
+    text-transform: uppercase;
+    color: #4a4540;
+  }
+
+  .tv-knobs {
+    display: flex;
+    gap: 12px;
+    align-items: center;
+  }
+
+  .tv-knob {
+    width: 18px;
+    height: 18px;
+    border-radius: 50%;
+    background: radial-gradient(circle at 40% 35%, #4a4540, #1a1814);
+    border: 1px solid rgba(255, 255, 255, 0.06);
+    box-shadow:
+      0 1px 3px rgba(0, 0, 0, 0.5),
+      inset 0 1px 1px rgba(255, 255, 255, 0.05);
+  }
+
+  .tv-led {
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    background: var(--neon-red);
+    box-shadow: 0 0 6px var(--neon-red);
+    animation: led-blink 3s ease-in-out infinite;
+  }
+
+  @keyframes led-blink {
+    0%, 90%, 100% { opacity: 1; }
+    95% { opacity: 0.3; }
+  }
+
+  /* ═══ Channel Change Transition ═══ */
+  .tv-transition {
+    position: absolute;
+    inset: 0;
+    z-index: 10;
+    animation: channel-change 0.9s steps(1) forwards;
+  }
+
+  /* VHS static / snow */
+  .tv-static {
+    position: absolute;
+    inset: 0;
+    background:
+      repeating-radial-gradient(circle at 17% 32%, white 0px, transparent 1px),
+      repeating-radial-gradient(circle at 62% 88%, white 0px, transparent 1px),
+      repeating-radial-gradient(circle at 89% 13%, white 0px, transparent 1px);
+    background-size: 3px 3px, 4px 4px, 2px 2px;
+    opacity: 0;
+    animation: static-flicker 0.9s steps(4) forwards;
+    mix-blend-mode: screen;
+  }
+
+  @keyframes static-flicker {
+    0%   { opacity: 1; background-position: 0 0, 50px 50px, 20px 30px; }
+    15%  { opacity: 0.9; background-position: 10px 5px, 30px 20px, 40px 10px; }
+    30%  { opacity: 0.7; background-position: 5px 15px, 45px 35px, 15px 45px; }
+    50%  { opacity: 0.5; background-position: 20px 10px, 10px 40px, 35px 20px; }
+    70%  { opacity: 0.3; background-position: 8px 8px, 25px 15px, 50px 5px; }
+    85%  { opacity: 0.15; }
+    100% { opacity: 0; }
+  }
+
+  /* SMPTE color bars — the classic TV test pattern */
+  .tv-color-bars {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    opacity: 0;
+    animation: bars-flash 0.9s steps(1) forwards;
+  }
+
+  .tv-color-bars > div {
+    flex: 1;
+    height: 100%;
+  }
+
+  @keyframes bars-flash {
+    0%   { opacity: 0; }
+    8%   { opacity: 1; }
+    25%  { opacity: 1; }
+    30%  { opacity: 0; }
+    100% { opacity: 0; }
+  }
+
+  /* Vertical hold roll — the screen "flipping" */
+  .tv-vhold {
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(
+      0deg,
+      transparent 0%,
+      transparent 35%,
+      rgba(255, 255, 255, 0.06) 40%,
+      #000 42%,
+      #000 58%,
+      rgba(255, 255, 255, 0.06) 60%,
+      transparent 65%,
+      transparent 100%
+    );
+    animation: vhold-roll 0.9s ease-in-out forwards;
+    opacity: 0;
+  }
+
+  @keyframes vhold-roll {
+    0%   { opacity: 0; transform: translateY(100%); }
+    30%  { opacity: 1; transform: translateY(100%); }
+    55%  { opacity: 1; transform: translateY(-100%); }
+    70%  { opacity: 1; transform: translateY(-200%); }
+    75%  { opacity: 0; }
+    100% { opacity: 0; }
+  }
+
+  /* Channel number display */
+  .tv-channel-num {
+    position: absolute;
+    top: 16px;
+    right: 20px;
+    font-family: "Special Elite", monospace;
+    font-size: 1.8rem;
+    color: #0f0;
+    text-shadow: 0 0 8px rgba(0, 255, 0, 0.6);
+    opacity: 0;
+    animation: channel-num-show 0.9s steps(1) forwards;
+    z-index: 5;
+  }
+
+  @keyframes channel-num-show {
+    0%   { opacity: 0; }
+    5%   { opacity: 1; }
+    50%  { opacity: 1; }
+    55%  { opacity: 0; }
+    100% { opacity: 0; }
+  }
+
+  /* Master sequence: briefly flash white, then static + bars, then clear */
+  @keyframes channel-change {
+    0%   { background: white; }
+    3%   { background: black; }
+    90%  { background: transparent; }
+    100% { background: transparent; opacity: 0; }
+  }
+
+  /* TV legs/stand */
+  .tv-stand {
+    display: flex;
+    justify-content: center;
+    gap: 120px;
+    margin-top: -2px;
+  }
+
+  .tv-leg {
+    width: 40px;
+    height: 12px;
+    background: linear-gradient(180deg, #2a2520, #1a1814);
+    border-radius: 0 0 6px 6px;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
+  }
+
+  /* Scene info — below TV */
+  .scene-player {
+    margin-top: 0;
   }
 
   .scene-info {
-    padding: 16px 0;
+    max-width: 960px;
+    margin: 0 auto;
+    padding: 20px 8px 0;
+    display: flex;
+    align-items: flex-start;
+    gap: 16px;
+  }
+
+  .scene-info-text {
+    flex: 1;
+    min-width: 0;
   }
 
   .scene-quote {
     font-family: "Special Elite", cursive;
-    font-size: clamp(1.1rem, 3vw, 1.5rem);
+    font-size: clamp(1.2rem, 3vw, 1.6rem);
     color: var(--neon-yellow);
     text-shadow: 0 0 15px rgba(255, 214, 0, 0.2);
     line-height: 1.4;
@@ -189,15 +456,7 @@ const CSS = `
   .scene-description {
     color: var(--text-1);
     font-size: 0.85rem;
-    margin-top: 8px;
-    padding-left: 19px;
-  }
-
-  .scene-meta {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    margin-top: 12px;
+    margin-top: 6px;
     padding-left: 19px;
   }
 
@@ -205,12 +464,23 @@ const CSS = `
     font-size: 0.75rem;
     color: var(--text-2);
     font-family: "Inter", sans-serif;
+    padding-left: 19px;
+    display: block;
+    margin-top: 6px;
+  }
+
+  .scene-actions {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 4px;
+    padding-top: 4px;
   }
 
   .fav-btn {
     background: none;
     border: none;
-    font-size: 1.4rem;
+    font-size: 1.6rem;
     cursor: pointer;
     color: var(--text-2);
     transition: all 0.2s;
@@ -227,11 +497,11 @@ const CSS = `
   .neon-btn {
     display: block;
     width: 100%;
-    max-width: 320px;
-    margin: 20px auto 0;
-    padding: 14px 28px;
+    max-width: 360px;
+    margin: 24px auto 0;
+    padding: 16px 32px;
     font-family: "Special Elite", cursive;
-    font-size: 1.3rem;
+    font-size: 1.4rem;
     color: #fff;
     background: linear-gradient(135deg, #b71c1c, #d32f2f);
     border: 2px solid var(--neon-red);
@@ -413,6 +683,18 @@ const CSS = `
   .card-remove:hover {
     color: var(--neon-red);
   }
+
+  /* Responsive */
+  @media (max-width: 600px) {
+    .tv-body {
+      border-radius: 16px;
+      padding: 16px 16px 12px;
+    }
+    .tv-stand { gap: 60px; }
+    .tv-leg { width: 28px; }
+    .scene-info { flex-direction: column; gap: 8px; }
+    .scene-actions { flex-direction: row; }
+  }
 `;
 
 export function App() {
@@ -468,16 +750,16 @@ export function App() {
       <style>{CSS}</style>
       <div className="app">
         <header className="header">
-          <h1 className="title">So I Started Blasting</h1>
-          <p className="subtitle">Random Frank Reynolds Scenes</p>
-          <div className="header-actions">
-            <button
-              className="fav-toggle"
-              onClick={() => setShowFavorites(true)}
-            >
-              ♥ Favorites ({favoriteIds.length})
-            </button>
+          <div className="header-left">
+            <h1 className="title">So I Started Blasting</h1>
+            <span className="subtitle">Random Frank Reynolds Scenes</span>
           </div>
+          <button
+            className="fav-toggle"
+            onClick={() => setShowFavorites(true)}
+          >
+            ♥ Favorites ({favoriteIds.length})
+          </button>
         </header>
 
         <CategoryBar
