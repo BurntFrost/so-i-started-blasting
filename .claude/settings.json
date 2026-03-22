@@ -1,0 +1,14 @@
+{
+  "hooks": {
+    "PreCommit": [
+      {
+        "matcher": "package-lock.json",
+        "command": "echo 'Blocked: Do not edit lock files directly' && exit 1"
+      },
+      {
+        "matcher": "yarn.lock",
+        "command": "echo 'Blocked: Do not edit lock files directly' && exit 1"
+      }
+    ]
+  }
+}
