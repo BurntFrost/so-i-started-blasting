@@ -13,6 +13,9 @@ export const FILTERS = [
   { key: "chaotic-good",      label: "Chaotic Good",      type: "vibe", color: "#14b8a6" },
   { key: "iconic-cinema",     label: "Iconic Cinema",     type: "vibe", color: "#eab308" },
   { key: "unhinged-shorts",   label: "Unhinged Shorts",   type: "vibe", color: "#06b6d4" },
+  { key: "unhinged",          label: "Unhinged",          type: "vibe", color: "#ff6b6b" },
+  { key: "epic-fight-scenes", label: "Epic Fight Scenes", type: "vibe", color: "#f59e0b" },
+  { key: "synchronicity",     label: "Synchronicity",     type: "vibe", color: "#818cf8" },
   // Eras
   { key: "early-internet",    label: "Early Internet",    type: "era",  color: "#8b5cf6" },
   { key: "viral-classics",    label: "Viral Classics",    type: "era",  color: "#ec4899" },
