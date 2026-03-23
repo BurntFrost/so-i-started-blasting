@@ -420,55 +420,65 @@ const CSS = `
     box-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
   }
 
-  /* Scene info — above TV */
+  /* Scene player wrapper */
   .scene-player {
     margin-top: 0;
   }
 
-  .scene-info {
-    width: 90vw;
-    max-width: 90vw;
-    margin: 0 auto;
-    padding: 0 8px 16px;
+  /* ─── Now-playing info bar (inside TV body) ─── */
+  .tv-info-bar {
     display: flex;
     align-items: flex-start;
-    gap: 16px;
+    gap: 12px;
+    padding: 14px 12px 12px;
+    margin-top: 4px;
+    border-top: 1px solid rgba(255, 255, 255, 0.04);
+    border-bottom: 1px solid rgba(255, 255, 255, 0.04);
+    background: rgba(0, 0, 0, 0.25);
+    border-radius: 4px;
   }
 
-  .scene-info-text {
+  .tv-info-text {
     flex: 1;
     min-width: 0;
   }
 
   .scene-quote {
     font-family: "Special Elite", cursive;
-    font-size: clamp(1.2rem, 3vw, 1.6rem);
+    font-size: clamp(0.95rem, 2vw, 1.2rem);
     color: var(--neon-green);
-    text-shadow: 0 0 15px rgba(57, 255, 20, 0.2);
-    line-height: 1.4;
-    border-left: 3px solid var(--neon-green);
-    padding-left: 16px;
+    text-shadow: 0 0 12px rgba(57, 255, 20, 0.2);
+    line-height: 1.35;
+    border-left: 2px solid var(--neon-green);
+    padding-left: 12px;
     margin: 0;
   }
 
   .scene-description {
     color: var(--text-1);
-    font-size: 0.85rem;
+    font-size: 0.8rem;
+    margin-top: 4px;
+    padding-left: 14px;
+  }
+
+  .tv-info-meta {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 8px;
+    padding-left: 14px;
     margin-top: 6px;
-    padding-left: 19px;
   }
 
   .scene-tags {
     display: flex;
     flex-wrap: wrap;
-    gap: 6px;
-    padding-left: 19px;
-    margin-top: 8px;
+    gap: 5px;
   }
 
   .tag-pill {
-    font-size: 0.7rem;
-    padding: 2px 8px;
+    font-size: 0.65rem;
+    padding: 1px 7px;
     border-radius: 4px;
     border: 1px solid;
     background: rgba(255, 255, 255, 0.03);
@@ -476,30 +486,20 @@ const CSS = `
   }
 
   .source-tag {
-    font-size: 0.75rem;
+    font-size: 0.7rem;
     color: var(--text-2);
     font-family: "Inter", sans-serif;
-    padding-left: 19px;
-    display: block;
-    margin-top: 6px;
-  }
-
-  .scene-actions {
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    gap: 4px;
-    padding-top: 4px;
   }
 
   .fav-btn {
     background: none;
     border: none;
-    font-size: 1.6rem;
+    font-size: 1.4rem;
     cursor: pointer;
     color: var(--text-2);
     transition: all 0.2s;
-    padding: 4px;
+    padding: 2px 4px;
+    flex-shrink: 0;
   }
 
   .fav-btn:hover,
@@ -704,8 +704,8 @@ const CSS = `
     }
     .tv-stand { gap: 60px; }
     .tv-leg { width: 28px; }
-    .scene-info { flex-direction: column; gap: 8px; }
-    .scene-actions { flex-direction: row; }
+    .tv-info-bar { flex-direction: column; gap: 6px; }
+    .fav-btn { align-self: flex-start; }
   }
 `;
 

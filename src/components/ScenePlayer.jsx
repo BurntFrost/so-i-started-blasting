@@ -123,43 +123,6 @@ export function ScenePlayer({ scene, isFavorite, onToggleFavorite, hasInteracted
 
   return (
     <div className="scene-player">
-      <div className="scene-info">
-        <div className="scene-info-text">
-          <blockquote className="scene-quote">"{scene.quote}"</blockquote>
-          <p className="scene-description">{scene.description}</p>
-          <div className="scene-tags">
-            {scene.vibes.map((v) => {
-              const filter = getFilterByKey(v);
-              return filter ? (
-                <span key={v} className="tag-pill" style={{ color: filter.color, borderColor: filter.color }}>
-                  {filter.label}
-                </span>
-              ) : null;
-            })}
-            {(() => {
-              const eraFilter = getFilterByKey(scene.era);
-              return eraFilter ? (
-                <span className="tag-pill" style={{ color: eraFilter.color, borderColor: eraFilter.color }}>
-                  {eraFilter.label}
-                </span>
-              ) : null;
-            })()}
-          </div>
-          <span className="source-tag">
-            {scene.source.title} ({scene.source.year})
-          </span>
-        </div>
-        <div className="scene-actions">
-          <button
-            className={`fav-btn ${isFavorite ? "fav-active" : ""}`}
-            onClick={() => onToggleFavorite(scene.id)}
-            aria-label={isFavorite ? "Remove from favorites" : "Add to favorites"}
-          >
-            {isFavorite ? "♥" : "♡"}
-          </button>
-        </div>
-      </div>
-
       <div className="crt-tv">
         <div className="tv-body">
           <div className="tv-bezel">
@@ -185,6 +148,44 @@ export function ScenePlayer({ scene, isFavorite, onToggleFavorite, hasInteracted
               )}
             </div>
           </div>
+
+          <div className="tv-info-bar">
+            <div className="tv-info-text">
+              <blockquote className="scene-quote">"{scene.quote}"</blockquote>
+              <p className="scene-description">{scene.description}</p>
+              <div className="tv-info-meta">
+                <div className="scene-tags">
+                  {scene.vibes.map((v) => {
+                    const filter = getFilterByKey(v);
+                    return filter ? (
+                      <span key={v} className="tag-pill" style={{ color: filter.color, borderColor: filter.color }}>
+                        {filter.label}
+                      </span>
+                    ) : null;
+                  })}
+                  {(() => {
+                    const eraFilter = getFilterByKey(scene.era);
+                    return eraFilter ? (
+                      <span className="tag-pill" style={{ color: eraFilter.color, borderColor: eraFilter.color }}>
+                        {eraFilter.label}
+                      </span>
+                    ) : null;
+                  })()}
+                </div>
+                <span className="source-tag">
+                  {scene.source.title} ({scene.source.year})
+                </span>
+              </div>
+            </div>
+            <button
+              className={`fav-btn ${isFavorite ? "fav-active" : ""}`}
+              onClick={() => onToggleFavorite(scene.id)}
+              aria-label={isFavorite ? "Remove from favorites" : "Add to favorites"}
+            >
+              {isFavorite ? "♥" : "♡"}
+            </button>
+          </div>
+
           <div className="tv-controls">
             <span className="tv-brand">Channel Zero</span>
             <button className="tv-blast-btn" onClick={onBlast}>⚡ Blast Me</button>
