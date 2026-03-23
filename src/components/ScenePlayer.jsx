@@ -92,14 +92,43 @@ export function ScenePlayer({ scene, isFavorite, onToggleFavorite, hasInteracted
             player.playVideo();
           },
           onError(event) {
-            // Codes 100=not found, 101/150=not embeddable, 5=HTML5 error
             if (cancelled) return;
-            onBlast?.();
+            const code = event.data;
+            // 100=not found, 101/150=not embeddable → skip to next
+            // 5=HTML5 error → transient, don't auto-advance
+            if (code === 100 || code === 101 || code === 150) {
+              onBlast?.();
+            }
           },
           onStateChange(event) {
-            // State 0 = ended — auto-advance to next clip
             if (cancelled) return;
-            if (event.data === 0) onBlast?.();
+            const player = event.target;
+
+            // Unmute on play — catches cases where browser re-mutes after onReady
+            if (event.data === 1 && hasInteractedRef.current) {
+              try {
+                if (player.isMuted?.()) {
+                  player.unMute();
+                  player.setVolume(100);
+                }
+              } catch {}
+            }
+
+            // State 0 = ended — auto-advance, but guard against spurious ends
+            if (event.data === 0) {
+              if (displayScene.end) {
+                try {
+                  const currentTime = player.getCurrentTime?.();
+                  if (currentTime != null && currentTime < displayScene.end - 5) {
+                    // Video "ended" but we're nowhere near the clip end — restart
+                    player.seekTo(displayScene.start || 0);
+                    player.playVideo();
+                    return;
+                  }
+                } catch {}
+              }
+              onBlast?.();
+            }
           },
         },
       });
