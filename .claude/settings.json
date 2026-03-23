@@ -3,23 +3,32 @@
     "PreToolUse": [
       {
         "matcher": "Edit|Write",
-        "command": "case \"$CLAUDE_FILE_PATH\" in *.env|*.env.*) echo 'Blocked: Do not edit .env files — they may contain secrets' && exit 1;; esac"
+        "hooks": [
+          {
+            "type": "command",
+            "command": "case \"$CLAUDE_FILE_PATH\" in *.env|*.env.*) echo 'Blocked: Do not edit .env files — they may contain secrets' && exit 1;; esac"
+          }
+        ]
+      },
+      {
+        "matcher": "Edit|Write",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "case \"$CLAUDE_FILE_PATH\" in *package-lock.json|*yarn.lock|*pnpm-lock.yaml) echo 'Blocked: Do not edit lock files directly' && exit 1;; esac"
+          }
+        ]
       }
     ],
     "PostToolUse": [
       {
         "matcher": "Edit|Write",
-        "command": "case \"$CLAUDE_FILE_PATH\" in *.jsx|*.js|*.ts|*.tsx|*.json|*.css|*.md) npx prettier --write \"$CLAUDE_FILE_PATH\" 2>/dev/null;; esac; exit 0"
-      }
-    ],
-    "PreCommit": [
-      {
-        "matcher": "package-lock.json",
-        "command": "echo 'Blocked: Do not edit lock files directly' && exit 1"
-      },
-      {
-        "matcher": "yarn.lock",
-        "command": "echo 'Blocked: Do not edit lock files directly' && exit 1"
+        "hooks": [
+          {
+            "type": "command",
+            "command": "case \"$CLAUDE_FILE_PATH\" in *.jsx|*.js|*.ts|*.tsx|*.json|*.css|*.md) npx prettier --write \"$CLAUDE_FILE_PATH\" 2>/dev/null;; esac; exit 0"
+          }
+        ]
       }
     ]
   }
