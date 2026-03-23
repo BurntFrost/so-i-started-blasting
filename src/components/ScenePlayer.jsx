@@ -18,7 +18,7 @@ function loadYTApi() {
   return ytApiReady;
 }
 
-export function ScenePlayer({ scene, isFavorite, onToggleFavorite, hasInteracted, onVideoPlay }) {
+export function ScenePlayer({ scene, isFavorite, onToggleFavorite, hasInteracted }) {
   const [transitioning, setTransitioning] = useState(false);
   const [displayScene, setDisplayScene] = useState(scene);
   const prevIdRef = useRef(null);
@@ -28,9 +28,6 @@ export function ScenePlayer({ scene, isFavorite, onToggleFavorite, hasInteracted
   // Keep latest values in refs to avoid stale closures in YT callbacks
   const hasInteractedRef = useRef(hasInteracted);
   hasInteractedRef.current = hasInteracted;
-  const onVideoPlayRef = useRef(onVideoPlay);
-  onVideoPlayRef.current = onVideoPlay;
-
   // ─── Channel-change transition ───
   useEffect(() => {
     if (!scene) return;
@@ -94,12 +91,7 @@ export function ScenePlayer({ scene, isFavorite, onToggleFavorite, hasInteracted
             }
             player.playVideo();
           },
-          onStateChange(event) {
-            // YT.PlayerState.PLAYING === 1
-            if (event.data === 1) {
-              onVideoPlayRef.current?.();
-            }
-          },
+          onStateChange() {},
         },
       });
     });
