@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useRef } from "react";
+import { useState, useCallback } from "react";
 import { SCENES } from "./data/scenes.js";
 import { useRandomScene } from "./hooks/useRandomScene.js";
 import { useFavorites } from "./hooks/useFavorites.js";
@@ -186,23 +186,6 @@ const CSS = `
     border-radius: 8px;
     overflow: hidden;
     background: #000;
-  }
-
-  /* CRT scanline overlay */
-  .tv-screen::after {
-    content: "";
-    position: absolute;
-    inset: 0;
-    background: repeating-linear-gradient(
-      0deg,
-      transparent,
-      transparent 2px,
-      rgba(0, 0, 0, 0.15) 2px,
-      rgba(0, 0, 0, 0.15) 4px
-    );
-    pointer-events: none;
-    z-index: 2;
-    border-radius: 8px;
   }
 
   /* Screen reflection/glare */
@@ -806,6 +789,61 @@ const CSS = `
     .tv-info-bar { flex-direction: column; gap: 6px; }
     .fav-btn { align-self: flex-start; }
   }
+
+  /* Splash screen */
+  .splash {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    min-height: 100dvh;
+    gap: 32px;
+    text-align: center;
+    padding: 24px;
+  }
+
+  .splash-title {
+    font-family: monospace;
+    font-size: clamp(2rem, 6vw, 4rem);
+    color: var(--neon-green);
+    text-shadow:
+      0 0 10px rgba(57, 255, 20, 0.5),
+      0 0 40px rgba(57, 255, 20, 0.2);
+    letter-spacing: 6px;
+    text-transform: uppercase;
+    line-height: 1.1;
+  }
+
+  .splash-subtitle {
+    font-family: "Special Elite", cursive;
+    color: var(--text-2);
+    font-size: clamp(0.9rem, 2vw, 1.1rem);
+  }
+
+  .splash-enter {
+    background: none;
+    border: 2px solid var(--neon-green);
+    color: var(--neon-green);
+    padding: 16px 48px;
+    border-radius: 8px;
+    cursor: pointer;
+    font-family: monospace;
+    font-size: clamp(1rem, 2.5vw, 1.3rem);
+    letter-spacing: 3px;
+    text-transform: uppercase;
+    transition: all 0.2s;
+    animation: pulse-glow 2s ease-in-out infinite;
+  }
+
+  .splash-enter:hover {
+    background: rgba(57, 255, 20, 0.1);
+    box-shadow: 0 0 20px rgba(57, 255, 20, 0.3);
+  }
+
+  @keyframes pulse-glow {
+    0%, 100% { box-shadow: 0 0 8px rgba(57, 255, 20, 0.2); }
+    50% { box-shadow: 0 0 20px rgba(57, 255, 20, 0.4); }
+  }
 `;
 
 export function App() {
@@ -817,12 +855,9 @@ export function App() {
   const [showHistory, setShowHistory] = useState(false);
   const [toastMessage, setToastMessage] = useState(null);
   const [hasInteracted, setHasInteracted] = useState(false);
-  const initRef = useRef(false);
 
-  // Load first scene on mount
-  useEffect(() => {
-    if (initRef.current) return;
-    initRef.current = true;
+  const handleEnter = useCallback(() => {
+    setHasInteracted(true);
     const first = getNext("all");
     if (first) addToHistory(first.id);
   }, [getNext, addToHistory]);
@@ -870,6 +905,21 @@ export function App() {
     clearHistory();
     setToastMessage("History cleared");
   }, [clearHistory]);
+
+  if (!hasInteracted) {
+    return (
+      <>
+        <style>{CSS}</style>
+        <div className="splash">
+          <h1 className="splash-title">Channel Zero</h1>
+          <p className="splash-subtitle">We're experiencing technical difficulties.</p>
+          <button className="splash-enter" onClick={handleEnter}>
+            ⚡ Start Blasting
+          </button>
+        </div>
+      </>
+    );
+  }
 
   return (
     <>
