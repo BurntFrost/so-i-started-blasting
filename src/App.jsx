@@ -518,46 +518,92 @@ const CSS = `
     text-shadow: 0 0 10px rgba(255, 23, 68, 0.5);
   }
 
-  /* Blast button — built into TV controls */
+  /* Blast button — the big CTA */
   .tv-blast-btn {
     font-family: "Special Elite", cursive;
-    font-size: 0.95rem;
+    font-size: 1.15rem;
+    font-weight: 700;
     color: #fff;
-    background: linear-gradient(135deg, #b71c1c, #d32f2f);
-    border: 1px solid var(--neon-red);
-    border-radius: 6px;
+    background: linear-gradient(135deg, #c62828, #e53935, #c62828);
+    background-size: 200% 200%;
+    border: 2px solid var(--neon-red);
+    border-radius: 8px;
     cursor: pointer;
-    padding: 6px 20px;
-    transition: all 0.2s;
+    padding: 10px 28px;
+    transition: all 0.2s ease;
     box-shadow:
-      0 0 10px rgba(255, 23, 68, 0.3),
-      0 0 20px rgba(255, 23, 68, 0.1);
-    animation: pulse-glow 2s ease-in-out infinite;
-    letter-spacing: 0.05em;
+      0 0 12px rgba(255, 23, 68, 0.4),
+      0 0 24px rgba(255, 23, 68, 0.15),
+      inset 0 1px 0 rgba(255, 255, 255, 0.15);
+    animation: blast-pulse 2s ease-in-out infinite, blast-shimmer 3s ease-in-out infinite;
+    letter-spacing: 0.08em;
+    text-shadow: 0 0 8px rgba(255, 23, 68, 0.6);
+    position: relative;
+    overflow: hidden;
+  }
+
+  /* Shine sweep across button */
+  .tv-blast-btn::after {
+    content: "";
+    position: absolute;
+    top: -50%;
+    left: -75%;
+    width: 50%;
+    height: 200%;
+    background: linear-gradient(
+      90deg,
+      transparent,
+      rgba(255, 255, 255, 0.15),
+      transparent
+    );
+    transform: skewX(-20deg);
+    animation: blast-shine 4s ease-in-out infinite;
+    pointer-events: none;
   }
 
   .tv-blast-btn:hover {
-    transform: scale(1.05);
+    transform: scale(1.08);
+    background: linear-gradient(135deg, #d32f2f, #ff1744, #d32f2f);
+    border-color: #ff5252;
     box-shadow:
-      0 0 15px rgba(255, 23, 68, 0.5),
-      0 0 30px rgba(255, 23, 68, 0.2);
+      0 0 20px rgba(255, 23, 68, 0.6),
+      0 0 40px rgba(255, 23, 68, 0.3),
+      0 0 60px rgba(255, 23, 68, 0.1),
+      inset 0 1px 0 rgba(255, 255, 255, 0.2);
+    text-shadow: 0 0 12px rgba(255, 255, 255, 0.4);
   }
 
   .tv-blast-btn:active {
-    transform: scale(0.95);
+    transform: scale(0.96);
+    box-shadow:
+      0 0 8px rgba(255, 23, 68, 0.5),
+      inset 0 2px 4px rgba(0, 0, 0, 0.3);
   }
 
-  @keyframes pulse-glow {
+  @keyframes blast-pulse {
     0%, 100% {
       box-shadow:
-        0 0 10px rgba(255, 23, 68, 0.3),
-        0 0 20px rgba(255, 23, 68, 0.1);
+        0 0 12px rgba(255, 23, 68, 0.4),
+        0 0 24px rgba(255, 23, 68, 0.15),
+        inset 0 1px 0 rgba(255, 255, 255, 0.15);
     }
     50% {
       box-shadow:
-        0 0 18px rgba(255, 23, 68, 0.5),
-        0 0 35px rgba(255, 23, 68, 0.2);
+        0 0 20px rgba(255, 23, 68, 0.55),
+        0 0 40px rgba(255, 23, 68, 0.25),
+        0 0 60px rgba(255, 23, 68, 0.1),
+        inset 0 1px 0 rgba(255, 255, 255, 0.15);
     }
+  }
+
+  @keyframes blast-shimmer {
+    0%, 100% { background-position: 0% 50%; }
+    50% { background-position: 100% 50%; }
+  }
+
+  @keyframes blast-shine {
+    0%, 100% { left: -75%; }
+    50% { left: 125%; }
   }
 
   /* Toast */
