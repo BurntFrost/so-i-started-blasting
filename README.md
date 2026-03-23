@@ -1,6 +1,6 @@
 # 📺 Channel Zero
 
-A pirate-TV-themed random video viewer showcasing the internet's funniest, strangest, and most iconic clips. Surf through 70+ clips spanning internet history — from Dancing Baby (1996) to Coffin Dance (2020) — on a retro CRT TV with 90s channel-change transitions. Videos auto-advance when they end, so you can sit back and let the chaos wash over you.
+A pirate-TV-themed random video viewer showcasing the internet's funniest, strangest, and most iconic clips. Surf through 159 clips spanning internet history — from Dancing Baby (1996) to CT's Challenge moments — on a retro CRT TV with 90s channel-change transitions. Videos auto-advance when they end, so you can sit back and let the chaos wash over you.
 
 *"We're experiencing technical difficulties."*
 
@@ -8,30 +8,32 @@ A pirate-TV-themed random video viewer showcasing the internet's funniest, stran
 
 ## What It Does
 
-- **Random clips** — Loads a random internet video on every visit, muted autoplay
-- **Auto-advance** — When a clip finishes, the next one loads automatically
+- **Splash screen** — "Start Blasting" entry screen enables unmuted autoplay
+- **Random clips** — Loads a random internet video, auto-advances when it ends
 - **Blast again** — Hit **⚡ Blast Me** to channel-surf to another clip (avoids repeats)
-- **Filter by vibe** — Chaotic Energy, Legendary Fails, Weird Flex, Unhinged Wisdom, Pure Nostalgia, Wholesome Chaos, Cursed Content, Musical Mayhem
+- **Filter by vibe** — Chaotic Energy, Legendary Fails, Weird Flex, Unhinged Wisdom, Pure Nostalgia, Wholesome Chaos, Cursed Content, Musical Mayhem, Dangerous, Disturbing, Chaotic Good, Iconic Cinema, Unhinged Shorts, Unhinged, Epic Fight Scenes, Synchronicity
 - **Filter by era** — Ancient Web (pre-2000), Early Internet (2000–2007), Viral Classics (2007–2015), Modern Chaos (2015+)
 - **Favorites** — Save clips to a favorites list (persisted in localStorage)
+- **Watch history** — Browse your last 50 watched clips with timestamps (persisted in localStorage)
 - **Error recovery** — Unavailable or non-embeddable videos auto-skip to the next clip
-- **CRT TV frame** — Retro bezel, scanlines, knobs, and channel-change transitions with static, color bars, and vertical hold roll
-- **Integrated UI** — Scene info and blast button are built into the TV body
+- **CRT TV frame** — Retro bezel, knobs, and channel-change transitions with static, color bars, and vertical hold roll
+- **Integrated UI** — Scene info, blast button, and favorite toggle built into the TV body
 
 ## How to Use It
 
-1. Visit the site — a random clip starts playing in the CRT TV
-2. Click **⚡ Blast Me** (in the TV controls) to load another random clip
+1. Click **⚡ Start Blasting** on the splash screen — this enables audio
+2. Click **⚡ Blast Me** to channel-surf to another random clip
 3. Use the **dropdown** in the header to filter by vibe or era
 4. Click the **♡ heart** on any clip to save it to favorites
 5. Click **♥** in the header to view and replay your saved clips
-6. Or just let clips auto-play one after another
+6. Click **📼 History** to browse your recently watched clips
+7. Or just let clips auto-play one after another
 
 ## How It Works
 
 ### Architecture
 
-The app is a single-page React app with no backend. Clips are defined in a static data file with YouTube video IDs, timestamps, quotes, and metadata. The YouTube IFrame API handles playback — when a video ends (state `0`) or errors out (codes 100/101/150), the app automatically advances to the next random clip. A random selection hook ensures you don't see the same clip twice in a row. Favorites persist in localStorage.
+The app is a single-page React app with no backend. Clips are defined in a static data file with YouTube video IDs, timestamps, quotes, and metadata. The YouTube IFrame API handles playback — when a video ends (state `0`) or errors out (codes 100/101/150), the app automatically advances to the next random clip. A random selection hook keeps a recency buffer of 5 to prevent repeats. Favorites and watch history persist in localStorage.
 
 ### Tech Stack
 
@@ -41,7 +43,7 @@ The app is a single-page React app with no backend. Clips are defined in a stati
 | Build | Vite 8 |
 | Styling | CSS-in-JS (template literal in App.jsx) |
 | Video | YouTube IFrame API with timestamp clipping |
-| Storage | localStorage for favorites |
+| Storage | localStorage for favorites + watch history |
 | Hosting | GitHub Pages |
 | CI/CD | GitHub Actions (auto-deploy on push to `main`) |
 
@@ -50,19 +52,21 @@ The app is a single-page React app with no backend. Clips are defined in a stati
 ```
 src/
 ├── data/
-│   ├── scenes.js            # 70+ curated internet clips with metadata
+│   ├── scenes.js            # 159 curated internet clips with metadata
 │   └── filters.js           # Vibe and era filter definitions + matching logic
 ├── hooks/
-│   ├── useRandomScene.js    # Random selection with no-repeat queue
-│   └── useFavorites.js      # localStorage persistence
+│   ├── useRandomScene.js    # Random selection with recency buffer (avoids repeats)
+│   ├── useFavorites.js      # localStorage-backed favorites
+│   └── useWatchHistory.js   # localStorage-backed watch history (max 50)
 ├── components/
 │   ├── ScenePlayer.jsx      # CRT TV frame + YouTube player + info bar + controls
 │   ├── FilterDropdown.jsx   # Vibe/era filter dropdown
-│   ├── NeonButton.jsx       # Blast button component
+│   ├── NeonButton.jsx       # Styled button component
 │   ├── FavoritesList.jsx    # Slide-in favorites panel
-│   ├── SceneCard.jsx        # Compact clip card for favorites
+│   ├── HistoryList.jsx      # Slide-in watch history panel
+│   ├── SceneCard.jsx        # Compact clip card for favorites/history
 │   └── Toast.jsx            # Notification toasts
-├── App.jsx                  # Main app + all styles
+├── App.jsx                  # Main app + all styles (CSS-in-JS)
 └── main.jsx                 # Entry point
 ```
 
@@ -84,7 +88,7 @@ Each clip in `src/data/scenes.js` looks like:
 }
 ```
 
-**Vibe tags:** `chaotic-energy`, `legendary-fails`, `weird-flex`, `unhinged-wisdom`, `pure-nostalgia`, `wholesome-chaos`, `cursed-content`, `musical-mayhem`
+**Vibe tags:** `chaotic-energy`, `legendary-fails`, `weird-flex`, `unhinged-wisdom`, `pure-nostalgia`, `wholesome-chaos`, `cursed-content`, `musical-mayhem`, `dangerous`, `disturbing`, `chaotic-good`, `iconic-cinema`, `unhinged-shorts`, `unhinged`, `epic-fight-scenes`, `synchronicity`
 
 **Era tags:** `ancient-web`, `early-internet`, `viral-classics`, `modern-chaos`
 
@@ -106,4 +110,4 @@ npm run build      # production build to dist/
 
 ### Design
 
-Pirate TV aesthetic — dark background (`#0a0a08`), neon green (`#39ff14`) branding, `Special Elite` typewriter font for quotes, CRT TV frame with scanlines and channel-change transitions (white flash → static → SMPTE color bars → vertical hold roll), noise texture overlay. Scene info and controls are built into the TV body as distinct sections — an info bar (quote, description, tags, favorite) and a controls strip (branding, blast button, knobs).
+Pirate TV aesthetic — dark background (`#0a0a08`), neon green (`#39ff14`) branding, `Special Elite` typewriter font for quotes, CRT TV frame with channel-change transitions (white flash → static → SMPTE color bars → vertical hold roll), noise texture overlay. Scene info and controls are built into the TV body as distinct sections — an info bar (quote, description, tags, favorite) and a controls strip (branding, knobs, LED indicator).
