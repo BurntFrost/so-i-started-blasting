@@ -43,7 +43,7 @@ const CSS = `
   }
 
   .app {
-    max-width: 1100px;
+    max-width: 1400px;
     margin: 0 auto;
     padding: 20px 24px 60px;
   }
@@ -144,7 +144,7 @@ const CSS = `
   /* ═══ CRT Television ═══ */
   .crt-tv {
     position: relative;
-    max-width: 960px;
+    max-width: 1200px;
     margin: 0 auto;
   }
 
@@ -229,6 +229,19 @@ const CSS = `
     height: 100%;
     border: none;
     z-index: 1;
+  }
+
+  /* YT IFrame API player container */
+  .yt-player-container {
+    position: absolute;
+    inset: 0;
+    z-index: 1;
+  }
+
+  .yt-player-container iframe {
+    width: 100% !important;
+    height: 100% !important;
+    border: none !important;
   }
 
   /* TV controls bar under screen */
@@ -413,7 +426,7 @@ const CSS = `
   }
 
   .scene-info {
-    max-width: 960px;
+    max-width: 1200px;
     margin: 0 auto;
     padding: 20px 8px 0;
     display: flex;
@@ -685,6 +698,40 @@ const CSS = `
     color: var(--neon-red);
   }
 
+  /* ═══ Theater Mode ═══ */
+  .theater-backdrop {
+    position: fixed;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.88);
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+    z-index: 100;
+    cursor: pointer;
+    animation: theater-in 0.4s ease;
+  }
+
+  @keyframes theater-in {
+    from { opacity: 0; }
+    to { opacity: 1; }
+  }
+
+  /* Elevate the player + button above the backdrop */
+  .app.theater-active .scene-player {
+    position: relative;
+    z-index: 101;
+  }
+
+  .app.theater-active .neon-btn {
+    position: relative;
+    z-index: 101;
+  }
+
+  /* Dim the header behind the backdrop */
+  .app.theater-active .header {
+    position: relative;
+    z-index: 99;
+  }
+
   /* Responsive */
   @media (max-width: 600px) {
     .tv-body {
@@ -704,18 +751,36 @@ export function App() {
   const [activeCategory, setActiveCategory] = useState("all");
   const [showFavorites, setShowFavorites] = useState(false);
   const [toastMessage, setToastMessage] = useState(null);
+  const [hasInteracted, setHasInteracted] = useState(false);
+  const [theaterMode, setTheaterMode] = useState(false);
 
   // Load first scene on mount
   useEffect(() => {
     getNext("all");
   }, []);
 
+  // Escape key exits theater mode
+  useEffect(() => {
+    const handleKeyDown = (e) => {
+      if (e.key === "Escape" && theaterMode) setTheaterMode(false);
+    };
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [theaterMode]);
+
+  // Called by ScenePlayer when YouTube player starts playing
+  const handleVideoPlay = useCallback(() => {
+    setTheaterMode(true);
+  }, []);
+
   const handleBlast = useCallback(() => {
+    setHasInteracted(true);
     getNext(activeCategory);
   }, [getNext, activeCategory]);
 
   const handleCategorySelect = useCallback(
     (category) => {
+      setHasInteracted(true);
       setActiveCategory(category);
       getNext(category);
     },
@@ -732,6 +797,7 @@ export function App() {
   );
 
   const handleFavoriteSelect = useCallback((scene) => {
+    setHasInteracted(true);
     setShowFavorites(false);
     getNext("all");
   }, [getNext]);
@@ -739,7 +805,10 @@ export function App() {
   return (
     <>
       <style>{CSS}</style>
-      <div className="app">
+      <div className={`app ${theaterMode ? "theater-active" : ""}`}>
+        {theaterMode && (
+          <div className="theater-backdrop" onClick={() => setTheaterMode(false)} />
+        )}
         <header className="header">
           <div className="header-left">
             <h1 className="title">Channel Zero</h1>
@@ -763,6 +832,8 @@ export function App() {
           scene={current}
           isFavorite={current ? isFavorite(current.id) : false}
           onToggleFavorite={handleToggleFavorite}
+          hasInteracted={hasInteracted}
+          onVideoPlay={handleVideoPlay}
         />
 
         <NeonButton onClick={handleBlast} label="⚡ Blast Me" />

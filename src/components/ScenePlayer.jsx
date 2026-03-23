@@ -1,11 +1,37 @@
 import { useState, useEffect, useRef } from "react";
 import { getFilterByKey } from "../data/filters.js";
 
-export function ScenePlayer({ scene, isFavorite, onToggleFavorite }) {
+// ─── YouTube IFrame API loader (singleton) ───
+let ytApiReady = null;
+function loadYTApi() {
+  if (ytApiReady) return ytApiReady;
+  ytApiReady = new Promise((resolve) => {
+    if (window.YT?.Player) {
+      resolve(window.YT);
+      return;
+    }
+    window.onYouTubeIframeAPIReady = () => resolve(window.YT);
+    const script = document.createElement("script");
+    script.src = "https://www.youtube.com/iframe_api";
+    document.head.appendChild(script);
+  });
+  return ytApiReady;
+}
+
+export function ScenePlayer({ scene, isFavorite, onToggleFavorite, hasInteracted, onVideoPlay }) {
   const [transitioning, setTransitioning] = useState(false);
   const [displayScene, setDisplayScene] = useState(scene);
   const prevIdRef = useRef(null);
+  const playerRef = useRef(null);
+  const containerRef = useRef(null);
 
+  // Keep latest values in refs to avoid stale closures in YT callbacks
+  const hasInteractedRef = useRef(hasInteracted);
+  hasInteractedRef.current = hasInteracted;
+  const onVideoPlayRef = useRef(onVideoPlay);
+  onVideoPlayRef.current = onVideoPlay;
+
+  // ─── Channel-change transition ───
   useEffect(() => {
     if (!scene) return;
     if (prevIdRef.current && prevIdRef.current !== scene.id) {
@@ -21,9 +47,82 @@ export function ScenePlayer({ scene, isFavorite, onToggleFavorite }) {
     prevIdRef.current = scene.id;
   }, [scene]);
 
-  if (!displayScene) return null;
+  // ─── Create/recreate YT player when scene changes ───
+  useEffect(() => {
+    if (!displayScene || transitioning) return;
 
-  const embedUrl = `https://www.youtube.com/embed/${displayScene.videoId}?start=${displayScene.start}&end=${displayScene.end}&autoplay=1&mute=1&rel=0&modestbranding=1&enablejsapi=1`;
+    let cancelled = false;
+
+    loadYTApi().then(() => {
+      if (cancelled) return;
+
+      // Tear down previous player
+      if (playerRef.current) {
+        try { playerRef.current.destroy(); } catch {}
+        playerRef.current = null;
+      }
+
+      // Fresh div — YT.Player replaces the target element with an iframe
+      const container = containerRef.current;
+      if (!container) return;
+      container.innerHTML = "";
+      const div = document.createElement("div");
+      container.appendChild(div);
+
+      playerRef.current = new window.YT.Player(div, {
+        width: "100%",
+        height: "100%",
+        videoId: displayScene.videoId,
+        playerVars: {
+          start: displayScene.start,
+          end: displayScene.end,
+          autoplay: 1,
+          mute: hasInteractedRef.current ? 0 : 1,
+          rel: 0,
+          modestbranding: 1,
+          playsinline: 1,
+          vq: "hd2160",
+          enablejsapi: 1,
+        },
+        events: {
+          onReady(event) {
+            if (cancelled) return;
+            const player = event.target;
+            if (hasInteractedRef.current) {
+              player.unMute();
+              player.setVolume(100);
+            }
+            player.playVideo();
+          },
+          onStateChange(event) {
+            // YT.PlayerState.PLAYING === 1
+            if (event.data === 1) {
+              onVideoPlayRef.current?.();
+            }
+          },
+        },
+      });
+    });
+
+    return () => {
+      cancelled = true;
+      if (playerRef.current) {
+        try { playerRef.current.destroy(); } catch {}
+        playerRef.current = null;
+      }
+    };
+  }, [displayScene?.id, transitioning]);
+
+  // ─── Unmute + max volume the instant the user first interacts ───
+  useEffect(() => {
+    if (!hasInteracted || !playerRef.current) return;
+    try {
+      playerRef.current.unMute();
+      playerRef.current.setVolume(100);
+    } catch {}
+  }, [hasInteracted]);
+
+  if (!displayScene) return null;
 
   return (
     <div className="scene-player">
@@ -31,14 +130,7 @@ export function ScenePlayer({ scene, isFavorite, onToggleFavorite }) {
         <div className="tv-body">
           <div className="tv-bezel">
             <div className="tv-screen">
-              <iframe
-                key={displayScene.id}
-                src={embedUrl}
-                title={displayScene.quote}
-                allow="autoplay; encrypted-media"
-                allowFullScreen
-                loading="lazy"
-              />
+              <div ref={containerRef} className="yt-player-container" />
               {transitioning && (
                 <div className="tv-transition">
                   <div className="tv-static" />
