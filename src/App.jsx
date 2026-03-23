@@ -438,6 +438,15 @@ const CSS = `
     border-radius: 4px;
   }
 
+  .tv-info-actions {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 8px;
+    flex-shrink: 0;
+    align-self: center;
+  }
+
   .tv-info-text {
     flex: 1;
     min-width: 0;
@@ -499,7 +508,6 @@ const CSS = `
     color: var(--text-2);
     transition: all 0.2s;
     padding: 2px 4px;
-    flex-shrink: 0;
   }
 
   .fav-btn:hover,

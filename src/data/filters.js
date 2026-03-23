@@ -1,13 +1,18 @@
 export const FILTERS = [
   // Vibes
-  { key: "chaotic-energy",   label: "Chaotic Energy",   type: "vibe", color: "#ef4444" },
-  { key: "legendary-fails",  label: "Legendary Fails",  type: "vibe", color: "#f97316" },
-  { key: "weird-flex",       label: "Weird Flex",       type: "vibe", color: "#84cc16" },
-  { key: "unhinged-wisdom",  label: "Unhinged Wisdom",  type: "vibe", color: "#22d3ee" },
+  { key: "chaotic-energy",    label: "Chaotic Energy",    type: "vibe", color: "#ef4444" },
+  { key: "legendary-fails",   label: "Legendary Fails",   type: "vibe", color: "#f97316" },
+  { key: "weird-flex",        label: "Weird Flex",        type: "vibe", color: "#84cc16" },
+  { key: "unhinged-wisdom",   label: "Unhinged Wisdom",   type: "vibe", color: "#22d3ee" },
+  { key: "pure-nostalgia",    label: "Pure Nostalgia",    type: "vibe", color: "#f472b6" },
+  { key: "wholesome-chaos",   label: "Wholesome Chaos",   type: "vibe", color: "#34d399" },
+  { key: "cursed-content",    label: "Cursed Content",    type: "vibe", color: "#a855f7" },
+  { key: "musical-mayhem",    label: "Musical Mayhem",    type: "vibe", color: "#fb923c" },
   // Eras
-  { key: "early-internet",   label: "Early Internet",   type: "era",  color: "#8b5cf6" },
-  { key: "viral-classics",   label: "Viral Classics",   type: "era",  color: "#ec4899" },
-  { key: "modern-chaos",     label: "Modern Chaos",     type: "era",  color: "#ffd600" },
+  { key: "early-internet",    label: "Early Internet",    type: "era",  color: "#8b5cf6" },
+  { key: "viral-classics",    label: "Viral Classics",    type: "era",  color: "#ec4899" },
+  { key: "modern-chaos",      label: "Modern Chaos",      type: "era",  color: "#ffd600" },
+  { key: "ancient-web",       label: "Ancient Web",       type: "era",  color: "#94a3b8" },
 ];
 
 export const getFilterByKey = (key) => FILTERS.find((f) => f.key === key);

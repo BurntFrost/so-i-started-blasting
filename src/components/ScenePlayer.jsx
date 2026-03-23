@@ -96,7 +96,11 @@ export function ScenePlayer({ scene, isFavorite, onToggleFavorite, hasInteracted
             if (cancelled) return;
             onBlast?.();
           },
-          onStateChange() {},
+          onStateChange(event) {
+            // State 0 = ended — auto-advance to next clip
+            if (cancelled) return;
+            if (event.data === 0) onBlast?.();
+          },
         },
       });
     });
@@ -177,18 +181,20 @@ export function ScenePlayer({ scene, isFavorite, onToggleFavorite, hasInteracted
                 </span>
               </div>
             </div>
-            <button
-              className={`fav-btn ${isFavorite ? "fav-active" : ""}`}
-              onClick={() => onToggleFavorite(scene.id)}
-              aria-label={isFavorite ? "Remove from favorites" : "Add to favorites"}
-            >
-              {isFavorite ? "♥" : "♡"}
-            </button>
+            <div className="tv-info-actions">
+              <button className="tv-blast-btn" onClick={onBlast}>⚡ Blast Me</button>
+              <button
+                className={`fav-btn ${isFavorite ? "fav-active" : ""}`}
+                onClick={() => onToggleFavorite(scene.id)}
+                aria-label={isFavorite ? "Remove from favorites" : "Add to favorites"}
+              >
+                {isFavorite ? "♥" : "♡"}
+              </button>
+            </div>
           </div>
 
           <div className="tv-controls">
             <span className="tv-brand">Channel Zero</span>
-            <button className="tv-blast-btn" onClick={onBlast}>⚡ Blast Me</button>
             <div className="tv-knobs">
               <div className="tv-led" />
               <div className="tv-knob" />
