@@ -16,6 +16,9 @@ export const FILTERS = [
   { key: "unhinged",          label: "Unhinged",          type: "vibe", color: "#ff6b6b" },
   { key: "epic-fight-scenes", label: "Epic Fight Scenes", type: "vibe", color: "#f59e0b" },
   { key: "synchronicity",     label: "Synchronicity",     type: "vibe", color: "#818cf8" },
+  { key: "awkward-gold",       label: "Awkward Gold",       type: "vibe", color: "#c084fc" },
+  { key: "funny-revenge",     label: "Funny Revenge",     type: "vibe", color: "#d946ef" },
+  { key: "epic-recovery",     label: "Epic Recovery",     type: "vibe", color: "#4ade80" },
   // Eras
   { key: "early-internet",    label: "Early Internet",    type: "era",  color: "#8b5cf6" },
   { key: "viral-classics",    label: "Viral Classics",    type: "era",  color: "#ec4899" },
