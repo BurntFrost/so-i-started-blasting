@@ -12,6 +12,7 @@ export const FILTERS = [
   { key: "disturbing",        label: "Disturbing",        type: "vibe", color: "#7c3aed" },
   { key: "chaotic-good",      label: "Chaotic Good",      type: "vibe", color: "#14b8a6" },
   { key: "iconic-cinema",     label: "Iconic Cinema",     type: "vibe", color: "#eab308" },
+  { key: "unhinged-shorts",   label: "Unhinged Shorts",   type: "vibe", color: "#06b6d4" },
   // Eras
   { key: "early-internet",    label: "Early Internet",    type: "era",  color: "#8b5cf6" },
   { key: "viral-classics",    label: "Viral Classics",    type: "era",  color: "#ec4899" },
