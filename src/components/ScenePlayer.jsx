@@ -28,6 +28,8 @@ export function ScenePlayer({ scene, isFavorite, onToggleFavorite, hasInteracted
   // Keep latest values in refs to avoid stale closures in YT callbacks
   const hasInteractedRef = useRef(hasInteracted);
   hasInteractedRef.current = hasInteracted;
+  const onBlastRef = useRef(onBlast);
+  onBlastRef.current = onBlast;
   // ─── Channel-change transition ───
   useEffect(() => {
     if (!scene) return;
@@ -97,7 +99,7 @@ export function ScenePlayer({ scene, isFavorite, onToggleFavorite, hasInteracted
             // 100=not found, 101/150=not embeddable → skip to next
             // 5=HTML5 error → transient, don't auto-advance
             if (code === 100 || code === 101 || code === 150) {
-              onBlast?.();
+              onBlastRef.current?.();
             }
           },
           onStateChange(event) {
@@ -114,18 +116,19 @@ export function ScenePlayer({ scene, isFavorite, onToggleFavorite, hasInteracted
 
             // State 0 = ended — auto-advance, but guard against spurious ends
             if (event.data === 0) {
-              if (displayScene.end) {
-                try {
-                  const currentTime = player.getCurrentTime?.();
-                  if (currentTime != null && currentTime < displayScene.end - 5) {
-                    // Video "ended" but we're nowhere near the clip end — restart
-                    player.seekTo(displayScene.start || 0);
-                    player.playVideo();
-                    return;
-                  }
-                } catch {}
+              try {
+                const currentTime = player.getCurrentTime?.();
+                if (displayScene.end && currentTime != null && currentTime < displayScene.end - 5) {
+                  // Spurious "ended" — nowhere near the clip end, restart instead
+                  player.seekTo(displayScene.start || 0);
+                  player.playVideo();
+                  return;
+                }
+                // Clip legitimately ended — advance
+                onBlastRef.current?.();
+              } catch {
+                // Can't determine playback position — safe default is don't advance
               }
-              onBlast?.();
             }
           },
         },

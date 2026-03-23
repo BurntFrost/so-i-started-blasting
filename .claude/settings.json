@@ -1,5 +1,17 @@
 {
   "hooks": {
+    "PreToolUse": [
+      {
+        "matcher": "Edit|Write",
+        "command": "case \"$CLAUDE_FILE_PATH\" in *.env|*.env.*) echo 'Blocked: Do not edit .env files — they may contain secrets' && exit 1;; esac"
+      }
+    ],
+    "PostToolUse": [
+      {
+        "matcher": "Edit|Write",
+        "command": "case \"$CLAUDE_FILE_PATH\" in *.jsx|*.js|*.ts|*.tsx|*.json|*.css|*.md) npx prettier --write \"$CLAUDE_FILE_PATH\" 2>/dev/null;; esac; exit 0"
+      }
+    ],
     "PreCommit": [
       {
         "matcher": "package-lock.json",
