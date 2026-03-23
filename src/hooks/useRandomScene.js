@@ -31,5 +31,5 @@ export function useRandomScene(scenes) {
     [scenes],
   );
 
-  return { current, getNext };
+  return { current, getNext, setCurrent };
 }

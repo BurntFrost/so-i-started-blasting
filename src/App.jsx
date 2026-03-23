@@ -2,10 +2,12 @@ import { useState, useEffect, useCallback } from "react";
 import { SCENES } from "./data/scenes.js";
 import { useRandomScene } from "./hooks/useRandomScene.js";
 import { useFavorites } from "./hooks/useFavorites.js";
+import { useWatchHistory } from "./hooks/useWatchHistory.js";
 import { ScenePlayer } from "./components/ScenePlayer.jsx";
 import { FilterDropdown } from "./components/FilterDropdown.jsx";
 import { Toast } from "./components/Toast.jsx";
 import { FavoritesList } from "./components/FavoritesList.jsx";
+import { HistoryList } from "./components/HistoryList.jsx";
 
 const CSS = `
   :root {
@@ -704,6 +706,49 @@ const CSS = `
     color: var(--neon-red);
   }
 
+  /* History panel extras */
+  .history-clear-btn {
+    background: none;
+    border: 1px solid var(--border);
+    color: var(--text-2);
+    padding: 4px 12px;
+    border-radius: 4px;
+    font-size: 0.7rem;
+    font-family: "Inter", sans-serif;
+    cursor: pointer;
+    margin-bottom: 12px;
+    transition: all 0.2s;
+  }
+
+  .history-clear-btn:hover {
+    border-color: var(--neon-red);
+    color: var(--neon-red);
+  }
+
+  .history-time {
+    color: var(--text-2);
+    font-style: italic;
+  }
+
+  .history-toggle {
+    background: none;
+    border: 1px solid var(--border);
+    color: var(--text-1);
+    padding: 6px 14px;
+    border-radius: 6px;
+    cursor: pointer;
+    font-size: 0.8rem;
+    font-family: "Inter", sans-serif;
+    transition: all 0.2s;
+    white-space: nowrap;
+  }
+
+  .history-toggle:hover {
+    border-color: var(--neon-yellow);
+    background: rgba(255, 214, 0, 0.08);
+    color: var(--neon-yellow);
+  }
+
   /* Responsive */
   @media (max-width: 600px) {
     .tv-body {
@@ -718,30 +763,35 @@ const CSS = `
 `;
 
 export function App() {
-  const { current, getNext } = useRandomScene(SCENES);
+  const { current, getNext, setCurrent } = useRandomScene(SCENES);
   const { favoriteIds, isFavorite, toggleFavorite } = useFavorites();
+  const { history, addToHistory, clearHistory } = useWatchHistory();
   const [activeCategory, setActiveCategory] = useState("all");
   const [showFavorites, setShowFavorites] = useState(false);
+  const [showHistory, setShowHistory] = useState(false);
   const [toastMessage, setToastMessage] = useState(null);
   const [hasInteracted, setHasInteracted] = useState(false);
 
   // Load first scene on mount
   useEffect(() => {
-    getNext("all");
+    const first = getNext("all");
+    if (first) addToHistory(first.id);
   }, []);
 
   const handleBlast = useCallback(() => {
     setHasInteracted(true);
-    getNext(activeCategory);
-  }, [getNext, activeCategory]);
+    const next = getNext(activeCategory);
+    if (next) addToHistory(next.id);
+  }, [getNext, activeCategory, addToHistory]);
 
   const handleCategorySelect = useCallback(
     (category) => {
       setHasInteracted(true);
       setActiveCategory(category);
-      getNext(category);
+      const next = getNext(category);
+      if (next) addToHistory(next.id);
     },
-    [getNext],
+    [getNext, addToHistory],
   );
 
   const handleToggleFavorite = useCallback(
@@ -756,8 +806,21 @@ export function App() {
   const handleFavoriteSelect = useCallback((scene) => {
     setHasInteracted(true);
     setShowFavorites(false);
-    getNext("all");
-  }, [getNext]);
+    setCurrent(scene);
+    addToHistory(scene.id);
+  }, [setCurrent, addToHistory]);
+
+  const handleHistorySelect = useCallback((scene) => {
+    setHasInteracted(true);
+    setShowHistory(false);
+    setCurrent(scene);
+    addToHistory(scene.id);
+  }, [setCurrent, addToHistory]);
+
+  const handleClearHistory = useCallback(() => {
+    clearHistory();
+    setToastMessage("History cleared");
+  }, [clearHistory]);
 
   return (
     <>
@@ -773,6 +836,12 @@ export function App() {
               active={activeCategory}
               onSelect={handleCategorySelect}
             />
+            <button
+              className="history-toggle"
+              onClick={() => setShowHistory(true)}
+            >
+              📼 History
+            </button>
             <button
               className="fav-toggle"
               onClick={() => setShowFavorites(true)}
@@ -799,6 +868,16 @@ export function App() {
             onSelect={handleFavoriteSelect}
             onRemove={handleToggleFavorite}
             onClose={() => setShowFavorites(false)}
+          />
+        )}
+
+        {showHistory && (
+          <HistoryList
+            history={history}
+            scenes={SCENES}
+            onSelect={handleHistorySelect}
+            onClear={handleClearHistory}
+            onClose={() => setShowHistory(false)}
           />
         )}
       </div>
