@@ -30,10 +30,14 @@ export function ScenePlayer({ scene, isFavorite, onToggleFavorite, hasInteracted
   hasInteractedRef.current = hasInteracted;
   const onBlastRef = useRef(onBlast);
   onBlastRef.current = onBlast;
+  const displaySceneRef = useRef(displayScene);
+  displaySceneRef.current = displayScene;
+  const channelNumRef = useRef(null);
   // ─── Channel-change transition ───
   useEffect(() => {
     if (!scene) return;
     if (prevIdRef.current && prevIdRef.current !== scene.id) {
+      channelNumRef.current = Math.floor(Math.random() * 60) + 2;
       setTransitioning(true);
       const timer = setTimeout(() => {
         setDisplayScene(scene);
@@ -87,6 +91,11 @@ export function ScenePlayer({ scene, isFavorite, onToggleFavorite, hasInteracted
           onReady(event) {
             if (cancelled) return;
             const player = event.target;
+            // Request highest available quality
+            try {
+              const levels = player.getAvailableQualityLevels?.();
+              if (levels?.length) player.setPlaybackQuality(levels[0]);
+            } catch {}
             if (hasInteractedRef.current) {
               player.unMute();
               player.setVolume(100);
@@ -106,23 +115,36 @@ export function ScenePlayer({ scene, isFavorite, onToggleFavorite, hasInteracted
             if (cancelled) return;
             const player = event.target;
 
-            // On play — always max volume and unmute if user has interacted
-            if (event.data === 1 && hasInteractedRef.current) {
+            // On play — max quality, max volume, unmute
+            if (event.data === 1) {
               try {
-                player.unMute();
-                player.setVolume(100);
+                const levels = player.getAvailableQualityLevels?.();
+                if (levels?.length) player.setPlaybackQuality(levels[0]);
               } catch {}
+              if (hasInteractedRef.current) {
+                try {
+                  player.unMute();
+                  player.setVolume(100);
+                } catch {}
+              }
             }
 
             // State 0 = ended — auto-advance, but guard against spurious ends
             if (event.data === 0) {
+              const ds = displaySceneRef.current;
               try {
                 const currentTime = player.getCurrentTime?.();
-                if (displayScene.end && currentTime != null && currentTime < displayScene.end - 5) {
-                  // Spurious "ended" — nowhere near the clip end, restart instead
-                  player.seekTo(displayScene.start || 0);
-                  player.playVideo();
-                  return;
+                // If we can't get a valid time, don't advance — spurious event
+                if (!Number.isFinite(currentTime)) return;
+                if (ds.end) {
+                  const clipDuration = ds.end - (ds.start || 0);
+                  const threshold = Math.min(5, clipDuration / 2);
+                  if (currentTime < ds.end - threshold) {
+                    // Spurious "ended" — nowhere near the clip end, restart instead
+                    player.seekTo(ds.start || 0);
+                    player.playVideo();
+                    return;
+                  }
                 }
                 // Clip legitimately ended — advance
                 onBlastRef.current?.();
@@ -176,7 +198,7 @@ export function ScenePlayer({ scene, isFavorite, onToggleFavorite, hasInteracted
                   </div>
                   <div className="tv-vhold" />
                   <div className="tv-channel-num">
-                    CH {Math.floor(Math.random() * 60) + 2}
+                    CH {channelNumRef.current}
                   </div>
                 </div>
               )}
@@ -185,11 +207,11 @@ export function ScenePlayer({ scene, isFavorite, onToggleFavorite, hasInteracted
 
           <div className="tv-info-bar">
             <div className="tv-info-text">
-              <blockquote className="scene-quote">"{scene.quote}"</blockquote>
-              <p className="scene-description">{scene.description}</p>
+              <blockquote className="scene-quote">"{displayScene.quote}"</blockquote>
+              <p className="scene-description">{displayScene.description}</p>
               <div className="tv-info-meta">
                 <div className="scene-tags">
-                  {scene.vibes.map((v) => {
+                  {displayScene.vibes.map((v) => {
                     const filter = getFilterByKey(v);
                     return filter ? (
                       <span key={v} className="tag-pill" style={{ color: filter.color, borderColor: filter.color }}>
@@ -198,7 +220,7 @@ export function ScenePlayer({ scene, isFavorite, onToggleFavorite, hasInteracted
                     ) : null;
                   })}
                   {(() => {
-                    const eraFilter = getFilterByKey(scene.era);
+                    const eraFilter = getFilterByKey(displayScene.era);
                     return eraFilter ? (
                       <span className="tag-pill" style={{ color: eraFilter.color, borderColor: eraFilter.color }}>
                         {eraFilter.label}
@@ -207,7 +229,7 @@ export function ScenePlayer({ scene, isFavorite, onToggleFavorite, hasInteracted
                   })()}
                 </div>
                 <span className="source-tag">
-                  {scene.source.title} ({scene.source.year})
+                  {displayScene.source.title} ({displayScene.source.year})
                 </span>
               </div>
             </div>
@@ -215,7 +237,7 @@ export function ScenePlayer({ scene, isFavorite, onToggleFavorite, hasInteracted
               <button className="tv-blast-btn" onClick={onBlast}>⚡ Blast Me</button>
               <button
                 className={`fav-btn ${isFavorite ? "fav-active" : ""}`}
-                onClick={() => onToggleFavorite(scene.id)}
+                onClick={() => onToggleFavorite(displayScene.id)}
                 aria-label={isFavorite ? "Remove from favorites" : "Add to favorites"}
               >
                 {isFavorite ? "♥" : "♡"}

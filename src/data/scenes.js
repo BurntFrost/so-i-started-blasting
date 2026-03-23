@@ -882,7 +882,7 @@ export const SCENES = [
     description: "R. Lee Ermey delivers the most iconic drill sergeant performance in cinema history.",
     vibes: ["chaotic-energy", "unhinged-wisdom"],
     era: "viral-classics",
-    source: { title: "Full Metal Jacket - Drill Sergeant", year: 2008 },
+    source: { title: "Full Metal Jacket", year: 1987 },
   },
   {
     id: "ramsay-lamb-sauce",

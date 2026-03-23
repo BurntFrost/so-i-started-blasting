@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { SCENES } from "./data/scenes.js";
 import { useRandomScene } from "./hooks/useRandomScene.js";
 import { useFavorites } from "./hooks/useFavorites.js";
@@ -771,12 +771,15 @@ export function App() {
   const [showHistory, setShowHistory] = useState(false);
   const [toastMessage, setToastMessage] = useState(null);
   const [hasInteracted, setHasInteracted] = useState(false);
+  const initRef = useRef(false);
 
   // Load first scene on mount
   useEffect(() => {
+    if (initRef.current) return;
+    initRef.current = true;
     const first = getNext("all");
     if (first) addToHistory(first.id);
-  }, []);
+  }, [getNext, addToHistory]);
 
   const handleBlast = useCallback(() => {
     setHasInteracted(true);
