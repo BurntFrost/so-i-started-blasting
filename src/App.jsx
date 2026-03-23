@@ -4,7 +4,6 @@ import { useRandomScene } from "./hooks/useRandomScene.js";
 import { useFavorites } from "./hooks/useFavorites.js";
 import { ScenePlayer } from "./components/ScenePlayer.jsx";
 import { FilterDropdown } from "./components/FilterDropdown.jsx";
-import { NeonButton } from "./components/NeonButton.jsx";
 import { Toast } from "./components/Toast.jsx";
 import { FavoritesList } from "./components/FavoritesList.jsx";
 
@@ -421,7 +420,7 @@ const CSS = `
     box-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
   }
 
-  /* Scene info — below TV */
+  /* Scene info — above TV */
   .scene-player {
     margin-top: 0;
   }
@@ -430,7 +429,7 @@ const CSS = `
     width: 90vw;
     max-width: 90vw;
     margin: 0 auto;
-    padding: 20px 8px 0;
+    padding: 0 8px 16px;
     display: flex;
     align-items: flex-start;
     gap: 16px;
@@ -509,48 +508,45 @@ const CSS = `
     text-shadow: 0 0 10px rgba(255, 23, 68, 0.5);
   }
 
-  /* Neon button */
-  .neon-btn {
-    display: block;
-    width: 100%;
-    max-width: 360px;
-    margin: 24px auto 0;
-    padding: 16px 32px;
+  /* Blast button — built into TV controls */
+  .tv-blast-btn {
     font-family: "Special Elite", cursive;
-    font-size: 1.4rem;
+    font-size: 0.95rem;
     color: #fff;
     background: linear-gradient(135deg, #b71c1c, #d32f2f);
-    border: 2px solid var(--neon-red);
-    border-radius: 8px;
+    border: 1px solid var(--neon-red);
+    border-radius: 6px;
     cursor: pointer;
+    padding: 6px 20px;
     transition: all 0.2s;
     box-shadow:
-      0 0 15px rgba(255, 23, 68, 0.3),
-      0 0 30px rgba(255, 23, 68, 0.1);
+      0 0 10px rgba(255, 23, 68, 0.3),
+      0 0 20px rgba(255, 23, 68, 0.1);
     animation: pulse-glow 2s ease-in-out infinite;
+    letter-spacing: 0.05em;
   }
 
-  .neon-btn:hover {
-    transform: scale(1.03);
+  .tv-blast-btn:hover {
+    transform: scale(1.05);
     box-shadow:
-      0 0 20px rgba(255, 23, 68, 0.5),
-      0 0 50px rgba(255, 23, 68, 0.2);
+      0 0 15px rgba(255, 23, 68, 0.5),
+      0 0 30px rgba(255, 23, 68, 0.2);
   }
 
-  .neon-btn:active {
-    transform: scale(0.98);
+  .tv-blast-btn:active {
+    transform: scale(0.95);
   }
 
   @keyframes pulse-glow {
     0%, 100% {
       box-shadow:
-        0 0 15px rgba(255, 23, 68, 0.3),
-        0 0 30px rgba(255, 23, 68, 0.1);
+        0 0 10px rgba(255, 23, 68, 0.3),
+        0 0 20px rgba(255, 23, 68, 0.1);
     }
     50% {
       box-shadow:
-        0 0 25px rgba(255, 23, 68, 0.5),
-        0 0 50px rgba(255, 23, 68, 0.2);
+        0 0 18px rgba(255, 23, 68, 0.5),
+        0 0 35px rgba(255, 23, 68, 0.2);
     }
   }
 
@@ -783,9 +779,8 @@ export function App() {
           isFavorite={current ? isFavorite(current.id) : false}
           onToggleFavorite={handleToggleFavorite}
           hasInteracted={hasInteracted}
+          onBlast={handleBlast}
         />
-
-        <NeonButton onClick={handleBlast} label="⚡ Blast Me" />
 
         <Toast message={toastMessage} onDone={() => setToastMessage(null)} />
 

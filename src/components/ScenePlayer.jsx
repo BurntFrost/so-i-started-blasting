@@ -18,7 +18,7 @@ function loadYTApi() {
   return ytApiReady;
 }
 
-export function ScenePlayer({ scene, isFavorite, onToggleFavorite, hasInteracted }) {
+export function ScenePlayer({ scene, isFavorite, onToggleFavorite, hasInteracted, onBlast }) {
   const [transitioning, setTransitioning] = useState(false);
   const [displayScene, setDisplayScene] = useState(scene);
   const prevIdRef = useRef(null);
@@ -91,6 +91,11 @@ export function ScenePlayer({ scene, isFavorite, onToggleFavorite, hasInteracted
             }
             player.playVideo();
           },
+          onError(event) {
+            // Codes 100=not found, 101/150=not embeddable, 5=HTML5 error
+            if (cancelled) return;
+            onBlast?.();
+          },
           onStateChange() {},
         },
       });
@@ -118,46 +123,6 @@ export function ScenePlayer({ scene, isFavorite, onToggleFavorite, hasInteracted
 
   return (
     <div className="scene-player">
-      <div className="crt-tv">
-        <div className="tv-body">
-          <div className="tv-bezel">
-            <div className="tv-screen">
-              <div ref={containerRef} className="yt-player-container" />
-              {transitioning && (
-                <div className="tv-transition">
-                  <div className="tv-static" />
-                  <div className="tv-color-bars">
-                    <div style={{ background: "#fff" }} />
-                    <div style={{ background: "#ff0" }} />
-                    <div style={{ background: "#0ff" }} />
-                    <div style={{ background: "#0f0" }} />
-                    <div style={{ background: "#f0f" }} />
-                    <div style={{ background: "#f00" }} />
-                    <div style={{ background: "#00f" }} />
-                  </div>
-                  <div className="tv-vhold" />
-                  <div className="tv-channel-num">
-                    CH {Math.floor(Math.random() * 60) + 2}
-                  </div>
-                </div>
-              )}
-            </div>
-          </div>
-          <div className="tv-controls">
-            <span className="tv-brand">Channel Zero</span>
-            <div className="tv-knobs">
-              <div className="tv-led" />
-              <div className="tv-knob" />
-              <div className="tv-knob" />
-            </div>
-          </div>
-        </div>
-        <div className="tv-stand">
-          <div className="tv-leg" />
-          <div className="tv-leg" />
-        </div>
-      </div>
-
       <div className="scene-info">
         <div className="scene-info-text">
           <blockquote className="scene-quote">"{scene.quote}"</blockquote>
@@ -192,6 +157,47 @@ export function ScenePlayer({ scene, isFavorite, onToggleFavorite, hasInteracted
           >
             {isFavorite ? "♥" : "♡"}
           </button>
+        </div>
+      </div>
+
+      <div className="crt-tv">
+        <div className="tv-body">
+          <div className="tv-bezel">
+            <div className="tv-screen">
+              <div ref={containerRef} className="yt-player-container" />
+              {transitioning && (
+                <div className="tv-transition">
+                  <div className="tv-static" />
+                  <div className="tv-color-bars">
+                    <div style={{ background: "#fff" }} />
+                    <div style={{ background: "#ff0" }} />
+                    <div style={{ background: "#0ff" }} />
+                    <div style={{ background: "#0f0" }} />
+                    <div style={{ background: "#f0f" }} />
+                    <div style={{ background: "#f00" }} />
+                    <div style={{ background: "#00f" }} />
+                  </div>
+                  <div className="tv-vhold" />
+                  <div className="tv-channel-num">
+                    CH {Math.floor(Math.random() * 60) + 2}
+                  </div>
+                </div>
+              )}
+            </div>
+          </div>
+          <div className="tv-controls">
+            <span className="tv-brand">Channel Zero</span>
+            <button className="tv-blast-btn" onClick={onBlast}>⚡ Blast Me</button>
+            <div className="tv-knobs">
+              <div className="tv-led" />
+              <div className="tv-knob" />
+              <div className="tv-knob" />
+            </div>
+          </div>
+        </div>
+        <div className="tv-stand">
+          <div className="tv-leg" />
+          <div className="tv-leg" />
         </div>
       </div>
     </div>
