@@ -442,9 +442,9 @@ const CSS = `
 
   .tv-info-actions {
     display: flex;
-    flex-direction: column;
+    flex-direction: row;
     align-items: center;
-    gap: 8px;
+    gap: 10px;
     flex-shrink: 0;
     align-self: center;
   }

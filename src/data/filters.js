@@ -8,6 +8,10 @@ export const FILTERS = [
   { key: "wholesome-chaos",   label: "Wholesome Chaos",   type: "vibe", color: "#34d399" },
   { key: "cursed-content",    label: "Cursed Content",    type: "vibe", color: "#a855f7" },
   { key: "musical-mayhem",    label: "Musical Mayhem",    type: "vibe", color: "#fb923c" },
+  { key: "dangerous",         label: "Dangerous",         type: "vibe", color: "#dc2626" },
+  { key: "disturbing",        label: "Disturbing",        type: "vibe", color: "#7c3aed" },
+  { key: "chaotic-good",      label: "Chaotic Good",      type: "vibe", color: "#14b8a6" },
+  { key: "iconic-cinema",     label: "Iconic Cinema",     type: "vibe", color: "#eab308" },
   // Eras
   { key: "early-internet",    label: "Early Internet",    type: "era",  color: "#8b5cf6" },
   { key: "viral-classics",    label: "Viral Classics",    type: "era",  color: "#ec4899" },

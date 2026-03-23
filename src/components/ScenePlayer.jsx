@@ -104,13 +104,11 @@ export function ScenePlayer({ scene, isFavorite, onToggleFavorite, hasInteracted
             if (cancelled) return;
             const player = event.target;
 
-            // Unmute on play — catches cases where browser re-mutes after onReady
+            // On play — always max volume and unmute if user has interacted
             if (event.data === 1 && hasInteractedRef.current) {
               try {
-                if (player.isMuted?.()) {
-                  player.unMute();
-                  player.setVolume(100);
-                }
+                player.unMute();
+                player.setVolume(100);
               } catch {}
             }
 
