@@ -28,10 +28,11 @@ src/
 ## Storage & History
 
 - **Key:** `sisb-blast-history`
-- **Format:** Ordered array of scene IDs, most recent last: `["started-blasting", "rum-ham", ...]`
+- **Format:** Ordered array of scene IDs, oldest first, most recent last: `["oldest-play", ..., "most-recent-play"]`
 - **Cap:** 200 entries (trimmed from front on write)
 - **Separate from watch history:** `sisb-watch-history` (UI panel, max 50) is untouched
 - **Stale entries:** Scene IDs no longer in `scenes.js` are silently skipped during scoring
+- **Validation on load:** If the stored value is not an array of strings, discard it and start fresh
 
 No timestamps — position in the array is the recency signal.
 
@@ -62,17 +63,21 @@ if playsAgo < cooldown  → playsAgo / cooldown
 ### Vibe diversity (0.3)
 
 ```
-recentVibes = all vibes from last 5 plays (Set)
+vibeWindow = min(5, pool.length - 1)
+recentVibes = all vibes from last vibeWindow plays (Set)
 overlapCount = candidate vibes that appear in recentVibes
-vibeScore = 1 - (overlapCount / candidate.vibes.length)
+vibeScore = candidate.vibes.length === 0
+  ? 1.0
+  : 1 - (overlapCount / candidate.vibes.length)
 ```
 
 ### Era diversity (0.1)
 
 ```
-recentEras = eras of last 3 plays
+eraWindow = min(3, pool.length - 1)
+recentEras = eras of last eraWindow plays
 matchCount = occurrences of candidate's era in recentEras
-eraScore = 1 - (matchCount / 3)
+eraScore = eraWindow === 0 ? 1.0 : 1 - (matchCount / eraWindow)
 ```
 
 ### Random jitter (0.2)
@@ -92,6 +97,8 @@ finalScore = (0.4 * recency) + (0.3 * vibeDiversity) + (0.1 * eraDiversity) + (0
 ## Engine Module API (`src/engine/blastEngine.js`)
 
 Pure functions — no React, no side effects.
+
+`pool` is the filtered candidate list; `allScenes` is the full catalog needed to resolve history IDs to their vibe/era metadata.
 
 ```js
 scoreScene(scene, history, pool, allScenes)  → number
@@ -121,10 +128,21 @@ getRecentEras(history, allScenes, window)  → string[]
 useBlastEngine(scenes) → { current, getNext, setCurrent }
 ```
 
-- Loads `sisb-blast-history` from localStorage on mount (into `useRef`)
+- **Initial state:** `current` starts as `null`, matching `useRandomScene` behavior. `App.jsx` calls `getNext([])` on mount to pick the first scene.
+- Loads `sisb-blast-history` from localStorage on mount (into `useRef`), validates shape
 - `getNext(filters)` → filters pool → `pickNext` → `recordPlay` → save to localStorage → update state
-- `setCurrent` for favorites/history panel picks (bypasses scoring)
+- `setCurrent(scene)` for favorites/history panel picks — bypasses scoring but **does** call `recordPlay` so the engine knows the user just watched this clip and won't immediately serve it again
 - Same API shape as `useRandomScene` — drop-in replacement
+
+**Caller responsibility:** `App.jsx` still calls `addToHistory(scene.id)` after `getNext` for the UI watch history panel (`sisb-watch-history`). The blast engine's internal history (`sisb-blast-history`) is separate and managed by the hook. No changes needed to `addToHistory` call sites.
+
+### Graceful degradation
+
+When the filtered pool is very small (e.g., 3 clips):
+- Cooldown becomes `floor(3 * 0.5) = 1` — minimal but functional
+- Vibe/era windows clamp to `min(window, pool.length - 1)` — prevents penalizing all candidates equally
+- If pool has only 1 clip, all scoring is bypassed and that clip is returned directly
+- The random jitter (20% weight) ensures variety even when all scoring factors converge
 
 ## Integration
 
