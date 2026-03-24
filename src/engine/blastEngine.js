@@ -33,9 +33,9 @@ export function buildSceneMap(allScenes) {
  * Collect all vibes from the last `window` plays.
  * Uses pre-built sceneMap; skips stale/missing IDs.
  */
-export function getRecentVibes(history, sceneMap, window) {
+export function getRecentVibes(history, sceneMap, count) {
   const vibes = new Set();
-  const recent = history.slice(-window);
+  const recent = history.slice(-count);
   for (const id of recent) {
     const scene = sceneMap.get(id);
     if (scene) scene.vibes.forEach((v) => vibes.add(v));
@@ -47,8 +47,8 @@ export function getRecentVibes(history, sceneMap, window) {
  * Return eras of the last `window` plays.
  * Uses pre-built sceneMap; skips stale/missing IDs.
  */
-export function getRecentEras(history, sceneMap, window) {
-  const recent = history.slice(-window);
+export function getRecentEras(history, sceneMap, count) {
+  const recent = history.slice(-count);
   return recent
     .map((id) => sceneMap.get(id))
     .filter(Boolean)
@@ -73,7 +73,7 @@ export function recordPlay(history, sceneId) {
  *   eraDiversity  (0.1) — overlap of candidate era with last 3 plays
  *   random        (0.2) — jitter to prevent deterministic ordering
  */
-export function scoreScene(scene, history, pool, sceneMap) {
+export function scoreScene(scene, history, pool, { recentVibes, recentEras }) {
   const cooldown = Math.floor(pool.length * COOLDOWN_RATIO);
 
   // --- Recency ---
@@ -86,25 +86,21 @@ export function scoreScene(scene, history, pool, sceneMap) {
   }
 
   // --- Vibe diversity ---
-  const vibeWindow = Math.min(VIBE_WINDOW, pool.length - 1);
   let vibeDiversity;
-  if (vibeWindow <= 0 || scene.vibes.length === 0) {
+  if (!recentVibes || scene.vibes.length === 0) {
     vibeDiversity = 1.0;
   } else {
-    const recentVibes = getRecentVibes(history, sceneMap, vibeWindow);
     const overlapCount = scene.vibes.filter((v) => recentVibes.has(v)).length;
     vibeDiversity = 1 - overlapCount / scene.vibes.length;
   }
 
   // --- Era diversity ---
-  const eraWindow = Math.min(ERA_WINDOW, pool.length - 1);
   let eraDiversity;
-  if (eraWindow <= 0) {
+  if (!recentEras || recentEras.length === 0) {
     eraDiversity = 1.0;
   } else {
-    const recentEras = getRecentEras(history, sceneMap, eraWindow);
     const matchCount = recentEras.filter((e) => e === scene.era).length;
-    eraDiversity = 1 - matchCount / eraWindow;
+    eraDiversity = 1 - matchCount / recentEras.length;
   }
 
   // --- Random jitter ---
@@ -127,11 +123,16 @@ export function pickNext(pool, history, allScenes) {
   if (pool.length === 1) return pool[0];
 
   const sceneMap = buildSceneMap(allScenes);
+  const vibeWindow = Math.min(VIBE_WINDOW, pool.length - 1);
+  const eraWindow = Math.min(ERA_WINDOW, pool.length - 1);
+  const recentVibes = vibeWindow > 0 ? getRecentVibes(history, sceneMap, vibeWindow) : null;
+  const recentEras = eraWindow > 0 ? getRecentEras(history, sceneMap, eraWindow) : null;
+
   let best = null;
   let bestScore = -1;
 
   for (const scene of pool) {
-    const score = scoreScene(scene, history, pool, sceneMap);
+    const score = scoreScene(scene, history, pool, { recentVibes, recentEras });
     if (score > bestScore) {
       bestScore = score;
       best = scene;

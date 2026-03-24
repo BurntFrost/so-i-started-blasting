@@ -40,6 +40,7 @@ export function useBlastEngine(scenes) {
       if (pool.length === 0) return null;
 
       const pick = pickNext(pool, historyRef.current, scenes);
+      if (!pick) return null;
       historyRef.current = recordPlay(historyRef.current, pick.id);
       saveHistory(historyRef.current);
       setCurrentState(pick);
