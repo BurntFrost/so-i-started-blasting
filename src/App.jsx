@@ -3,11 +3,17 @@ import { SCENES } from "./data/scenes.js";
 import { useBlastEngine } from "./hooks/useBlastEngine.js";
 import { useFavorites } from "./hooks/useFavorites.js";
 import { useWatchHistory } from "./hooks/useWatchHistory.js";
+import { useApiKey } from "./hooks/useApiKey.js";
+import { useAiDiscovery, getAllScenesForLookup } from "./hooks/useAiDiscovery.js";
 import { ScenePlayer } from "./components/ScenePlayer.jsx";
 import { FilterBar } from "./components/FilterBar.jsx";
 import { Toast } from "./components/Toast.jsx";
 import { FavoritesList } from "./components/FavoritesList.jsx";
 import { HistoryList } from "./components/HistoryList.jsx";
+import { ServicePanel } from "./components/ServicePanel.jsx";
+import { ChannelDial } from "./components/ChannelDial.jsx";
+import { VHSSlot } from "./components/VHSSlot.jsx";
+import { TapeShelf } from "./components/TapeShelf.jsx";
 
 const CSS = `
   :root {
@@ -950,6 +956,884 @@ const CSS = `
     0%, 100% { box-shadow: 0 0 8px rgba(57, 255, 20, 0.2); }
     50% { box-shadow: 0 0 20px rgba(57, 255, 20, 0.4); }
   }
+
+  /* ═══ 3D TV Flip Container ═══ */
+  .tv-flip-container {
+    perspective: 1200px;
+  }
+
+  .tv-flip-inner {
+    position: relative;
+    transform-style: preserve-3d;
+    transition: transform 0.6s ease;
+  }
+
+  .tv-flip-inner.flipped {
+    transform: rotateY(180deg);
+  }
+
+  .tv-flip-inner.flipped .tv-front {
+    pointer-events: none;
+  }
+
+  .tv-front {
+    backface-visibility: hidden;
+    position: relative;
+  }
+
+  .tv-back {
+    backface-visibility: hidden;
+    transform: rotateY(180deg);
+    position: absolute;
+    inset: 0;
+    background:
+      repeating-linear-gradient(
+        45deg,
+        rgba(255,255,255,0.008) 0px,
+        rgba(255,255,255,0.008) 1px,
+        transparent 1px,
+        transparent 6px
+      ),
+      linear-gradient(180deg, #1e1c18 0%, #1a1814 40%, #141210 100%);
+    border-radius: 24px;
+    border: 1px solid rgba(255, 255, 255, 0.04);
+    box-shadow:
+      0 8px 40px rgba(0, 0, 0, 0.6),
+      inset 0 1px 0 rgba(255, 255, 255, 0.02);
+    overflow: hidden;
+  }
+
+  /* ═══ Service Panel ═══ */
+  .service-panel {
+    padding: 28px 32px 24px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 20px;
+    min-height: 200px;
+    position: relative;
+  }
+
+  /* Corner screw heads */
+  .service-screws {
+    position: absolute;
+    inset: 12px;
+    pointer-events: none;
+  }
+
+  .service-screw {
+    position: absolute;
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+    background: radial-gradient(circle at 35% 30%, #4a4540, #1a1814);
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.6);
+  }
+
+  .service-screw:nth-child(1) { top: 0; left: 0; }
+  .service-screw:nth-child(2) { top: 0; right: 0; }
+  .service-screw:nth-child(3) { bottom: 0; left: 0; }
+  .service-screw:nth-child(4) { bottom: 0; right: 0; }
+
+  /* Product sticker */
+  .service-sticker {
+    font-family: monospace;
+    font-size: 0.7rem;
+    background: #ddd8c0;
+    color: #1a1814;
+    padding: 8px 14px;
+    border-radius: 3px;
+    border: 1px solid #b8b090;
+    transform: rotate(-2deg);
+    box-shadow:
+      0 2px 6px rgba(0, 0, 0, 0.4),
+      inset 0 1px 0 rgba(255, 255, 255, 0.6);
+    line-height: 1.7;
+    letter-spacing: 0.05em;
+    text-align: center;
+  }
+
+  .sticker-model {
+    font-weight: 700;
+    letter-spacing: 0.12em;
+    font-size: 0.75rem;
+  }
+
+  .sticker-serial {
+    color: #444;
+    font-size: 0.65rem;
+  }
+
+  .sticker-warning {
+    font-size: 0.6rem;
+    color: #8b0000;
+    letter-spacing: 0.08em;
+  }
+
+  /* Port section */
+  .service-port-section {
+    width: 100%;
+    max-width: 460px;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+  }
+
+  .service-port-label-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+
+  .service-port-header {
+    font-family: monospace;
+    font-size: 0.7rem;
+    color: var(--text-1);
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+  }
+
+  /* The port/socket input wrapper */
+  .service-port {
+    background: #0a0a08;
+    border: 2px solid #5a4e30;
+    border-radius: 4px;
+    padding: 10px 14px;
+    box-shadow:
+      inset 0 2px 8px rgba(0, 0, 0, 0.8),
+      inset 0 0 4px rgba(0, 0, 0, 0.5),
+      0 1px 0 rgba(255, 200, 50, 0.08);
+    display: flex;
+    align-items: center;
+  }
+
+  .service-port-input {
+    font-family: monospace;
+    font-size: 0.85rem;
+    background: transparent;
+    color: var(--neon-green);
+    border: none;
+    outline: none;
+    width: 100%;
+    caret-color: var(--neon-green);
+    letter-spacing: 0.05em;
+  }
+
+  .service-port-input::placeholder {
+    color: var(--text-2);
+    letter-spacing: 0.05em;
+  }
+
+  .service-port-connected-key {
+    font-family: monospace;
+    font-size: 0.85rem;
+    color: var(--neon-green);
+    letter-spacing: 0.05em;
+  }
+
+  /* Status label */
+  .service-label {
+    font-family: monospace;
+    font-size: 0.65rem;
+    letter-spacing: 0.1em;
+    color: var(--text-2);
+    text-transform: uppercase;
+    min-height: 1em;
+    text-align: center;
+  }
+
+  /* Status LEDs */
+  .service-led {
+    display: inline-block;
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+    flex-shrink: 0;
+  }
+
+  .led-red {
+    background: var(--neon-red);
+    box-shadow: 0 0 6px var(--neon-red);
+  }
+
+  .led-yellow {
+    background: var(--neon-yellow);
+    box-shadow: 0 0 6px var(--neon-yellow);
+    animation: led-pulse 1s ease-in-out infinite;
+  }
+
+  .led-green {
+    background: var(--neon-green);
+    box-shadow: 0 0 8px var(--neon-green), 0 0 14px rgba(57, 255, 20, 0.3);
+  }
+
+  @keyframes led-pulse {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.3; }
+  }
+
+  /* Disconnect button */
+  .service-disconnect-btn {
+    background: none;
+    border: 1px solid rgba(255, 23, 68, 0.3);
+    color: var(--neon-red);
+    font-family: monospace;
+    font-size: 0.7rem;
+    padding: 4px 12px;
+    border-radius: 3px;
+    cursor: pointer;
+    letter-spacing: 0.08em;
+    align-self: center;
+    transition: all 0.2s;
+  }
+
+  .service-disconnect-btn:hover {
+    background: rgba(255, 23, 68, 0.1);
+    border-color: var(--neon-red);
+  }
+
+  /* Flip back button */
+  .service-back-btn {
+    background: none;
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    color: var(--text-2);
+    font-family: monospace;
+    font-size: 0.65rem;
+    padding: 5px 14px;
+    border-radius: 3px;
+    cursor: pointer;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    transition: all 0.2s;
+    margin-top: 4px;
+  }
+
+  .service-back-btn:hover {
+    border-color: var(--text-1);
+    color: var(--text-0);
+  }
+
+  /* Wrench trigger button on TV front */
+  .tv-flip-trigger {
+    position: absolute;
+    bottom: 10px;
+    right: 10px;
+    background: transparent;
+    border: 1px solid transparent;
+    color: var(--text-2);
+    font-size: 0.85rem;
+    width: 26px;
+    height: 26px;
+    border-radius: 4px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.2s;
+    opacity: 0.4;
+    z-index: 2;
+  }
+
+  .tv-flip-trigger:hover {
+    border-color: var(--text-2);
+    opacity: 1;
+    background: rgba(255, 255, 255, 0.04);
+  }
+
+  /* ═══ Channel Dial ═══ */
+  .channel-dial {
+    position: absolute;
+    right: -72px;
+    top: 50%;
+    transform: translateY(-50%);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 6px;
+    z-index: 10;
+  }
+
+  .dial-unpowered {
+    opacity: 0.3;
+    pointer-events: none;
+    cursor: default;
+  }
+
+  /* Outer ring with tick marks */
+  .dial-outer {
+    position: relative;
+    width: 88px;
+    height: 88px;
+  }
+
+  /* Tick marks positioned around the outer ring */
+  .dial-ticks {
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+  }
+
+  .dial-tick {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    width: 2px;
+    height: 8px;
+    background: #4a4540;
+    transform-origin: 50% 44px;
+    transform: translateX(-50%) rotate(var(--tick-angle));
+    border-radius: 1px;
+  }
+
+  .dial-tick-label {
+    position: absolute;
+    top: -14px;
+    left: 50%;
+    transform: translateX(-50%) rotate(calc(-1 * var(--tick-angle)));
+    font-size: 0.45rem;
+    font-family: monospace;
+    color: #4a4540;
+    white-space: nowrap;
+    letter-spacing: 0;
+  }
+
+  .dial-tick-pirate {
+    background: var(--neon-red);
+    height: 10px;
+    width: 2px;
+  }
+
+  .dial-tick-pirate .dial-tick-label {
+    color: var(--neon-red);
+    font-size: 0.7rem;
+    text-shadow: 0 0 6px rgba(255, 23, 68, 0.8);
+  }
+
+  /* The physical knob */
+  .dial-knob {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%) rotate(0deg);
+    width: 50px;
+    height: 50px;
+    border-radius: 50%;
+    background: radial-gradient(circle at 38% 32%, #5a5550 0%, #4a4540 25%, #2a2520 70%, #1a1814 100%);
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    box-shadow:
+      0 3px 10px rgba(0, 0, 0, 0.7),
+      0 1px 0 rgba(255, 255, 255, 0.06) inset,
+      0 -1px 0 rgba(0, 0, 0, 0.5) inset,
+      0 0 0 3px #0f0d0b,
+      0 0 0 4px rgba(255, 255, 255, 0.04);
+    transition: transform 0.4s cubic-bezier(0.34, 1.56, 0.64, 1), box-shadow 0.3s ease;
+    cursor: pointer;
+  }
+
+  .dial-knob.active {
+    /* Rotated to the pirate zone (last tick at ~+150°) */
+    transform: translate(-50%, -50%) rotate(150deg);
+    box-shadow:
+      0 3px 10px rgba(0, 0, 0, 0.7),
+      0 1px 0 rgba(255, 255, 255, 0.06) inset,
+      0 -1px 0 rgba(0, 0, 0, 0.5) inset,
+      0 0 0 3px #0f0d0b,
+      0 0 0 4px rgba(255, 23, 68, 0.2),
+      0 0 16px rgba(255, 23, 68, 0.4),
+      0 0 32px rgba(255, 23, 68, 0.15);
+    animation: dial-knob-pulse 1.5s ease-in-out infinite;
+  }
+
+  @keyframes dial-knob-pulse {
+    0%, 100% {
+      box-shadow:
+        0 3px 10px rgba(0, 0, 0, 0.7),
+        0 1px 0 rgba(255, 255, 255, 0.06) inset,
+        0 -1px 0 rgba(0, 0, 0, 0.5) inset,
+        0 0 0 3px #0f0d0b,
+        0 0 0 4px rgba(255, 23, 68, 0.2),
+        0 0 16px rgba(255, 23, 68, 0.4),
+        0 0 32px rgba(255, 23, 68, 0.15);
+    }
+    50% {
+      box-shadow:
+        0 3px 10px rgba(0, 0, 0, 0.7),
+        0 1px 0 rgba(255, 255, 255, 0.06) inset,
+        0 -1px 0 rgba(0, 0, 0, 0.5) inset,
+        0 0 0 3px #0f0d0b,
+        0 0 0 4px rgba(255, 23, 68, 0.4),
+        0 0 24px rgba(255, 23, 68, 0.6),
+        0 0 48px rgba(255, 23, 68, 0.25);
+    }
+  }
+
+  /* Indicator line on the knob face */
+  .dial-indicator {
+    position: absolute;
+    top: 6px;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 2px;
+    height: 10px;
+    background: linear-gradient(180deg, rgba(255, 255, 255, 0.7), rgba(255, 255, 255, 0.15));
+    border-radius: 1px;
+    box-shadow: 0 0 3px rgba(255, 255, 255, 0.2);
+  }
+
+  /* Pirate zone indicator — sits below/outside the knob */
+  .dial-pirate-zone {
+    position: absolute;
+    bottom: -28px;
+    left: 50%;
+    transform: translateX(-50%);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 2px;
+    cursor: pointer;
+    padding: 4px 8px;
+    border-radius: 4px;
+    border: 1px solid rgba(255, 23, 68, 0.25);
+    background: rgba(255, 23, 68, 0.05);
+    transition: all 0.2s;
+    white-space: nowrap;
+  }
+
+  .dial-pirate-zone:hover {
+    border-color: rgba(255, 23, 68, 0.6);
+    background: rgba(255, 23, 68, 0.12);
+    box-shadow: 0 0 10px rgba(255, 23, 68, 0.25);
+  }
+
+  .dial-pirate-zone.active {
+    border-color: var(--neon-red);
+    background: rgba(255, 23, 68, 0.1);
+    box-shadow:
+      0 0 8px rgba(255, 23, 68, 0.4),
+      0 0 16px rgba(255, 23, 68, 0.15);
+    animation: pirate-zone-pulse 1.5s ease-in-out infinite;
+  }
+
+  .dial-pirate-zone.loading {
+    animation: pirate-scan 0.8s steps(3) infinite;
+  }
+
+  @keyframes pirate-zone-pulse {
+    0%, 100% {
+      box-shadow: 0 0 8px rgba(255, 23, 68, 0.4), 0 0 16px rgba(255, 23, 68, 0.15);
+      border-color: var(--neon-red);
+    }
+    50% {
+      box-shadow: 0 0 16px rgba(255, 23, 68, 0.7), 0 0 32px rgba(255, 23, 68, 0.3);
+      border-color: #ff5252;
+    }
+  }
+
+  @keyframes pirate-scan {
+    0%   { opacity: 1; background: rgba(255, 23, 68, 0.08); }
+    33%  { opacity: 0.6; background: rgba(255, 23, 68, 0.18); }
+    66%  { opacity: 1; background: rgba(255, 23, 68, 0.04); }
+    100% { opacity: 0.8; background: rgba(255, 23, 68, 0.12); }
+  }
+
+  .pirate-icon {
+    font-size: 0.9rem;
+    line-height: 1;
+  }
+
+  .pirate-label {
+    font-family: monospace;
+    font-size: 0.5rem;
+    letter-spacing: 0.15em;
+    color: var(--neon-red);
+    text-transform: uppercase;
+    text-shadow: 0 0 6px rgba(255, 23, 68, 0.6);
+  }
+
+  /* "TUNER" label below the dial */
+  .dial-label {
+    font-family: monospace;
+    font-size: 0.55rem;
+    letter-spacing: 0.2em;
+    color: #4a4540;
+    text-transform: uppercase;
+    margin-top: 32px;
+  }
+
+  /* On small screens, hide the dial (TV body not wide enough to extend) */
+  @media (max-width: 700px) {
+    .channel-dial {
+      display: none;
+    }
+  }
+
+  /* ═══ VHS Slot ═══ */
+  .vhs-slot {
+    position: relative;
+    margin: 10px auto 0;
+    width: 220px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 0;
+  }
+
+  .vhs-unpowered {
+    opacity: 0.3;
+    pointer-events: none;
+    cursor: default;
+  }
+
+  /* The horizontal slit opening */
+  .vhs-slot-slit {
+    width: 100%;
+    height: 6px;
+    background: #0a0a08;
+    border-radius: 2px;
+    box-shadow:
+      inset 0 2px 4px rgba(0, 0, 0, 0.9),
+      inset 0 -1px 2px rgba(0, 0, 0, 0.6),
+      0 1px 0 rgba(255, 255, 255, 0.03);
+    border: 1px solid rgba(0, 0, 0, 0.8);
+    border-bottom-color: rgba(255, 255, 255, 0.04);
+    position: relative;
+    z-index: 2;
+  }
+
+  .vhs-slot-slit-inner {
+    position: absolute;
+    inset: 1px 8px;
+    background: #050504;
+    border-radius: 1px;
+  }
+
+  /* The tape that peeks out below the slot */
+  .vhs-tape {
+    width: 190px;
+    height: 32px;
+    background: linear-gradient(180deg, #2a2520 0%, #1e1c18 60%, #141210 100%);
+    border-radius: 0 0 4px 4px;
+    border: 1px solid rgba(255, 255, 255, 0.06);
+    border-top: none;
+    box-shadow:
+      0 4px 10px rgba(0, 0, 0, 0.5),
+      inset 0 1px 0 rgba(255, 255, 255, 0.04);
+    cursor: pointer;
+    position: relative;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transform: translateY(0);
+    transition: transform 0.4s cubic-bezier(0.34, 1.56, 0.64, 1), box-shadow 0.3s ease;
+    /* Show 10px of tape peeking, rest is behind the slot */
+    margin-top: -22px;
+    padding-top: 22px;
+    overflow: hidden;
+  }
+
+  .vhs-tape:hover:not(:disabled) {
+    box-shadow:
+      0 4px 16px rgba(0, 0, 0, 0.6),
+      0 0 10px rgba(255, 214, 0, 0.08),
+      inset 0 1px 0 rgba(255, 255, 255, 0.06);
+    border-color: rgba(255, 214, 0, 0.15);
+  }
+
+  .vhs-tape.vhs-active {
+    transform: translateY(-18px);
+    box-shadow:
+      0 2px 6px rgba(0, 0, 0, 0.4),
+      0 0 12px rgba(255, 214, 0, 0.12),
+      inset 0 1px 0 rgba(255, 255, 255, 0.06);
+    border-color: rgba(255, 214, 0, 0.2);
+  }
+
+  .vhs-tape.vhs-loading {
+    animation: tape-pulse 0.6s steps(2) infinite;
+  }
+
+  @keyframes tape-pulse {
+    0%   { opacity: 1; }
+    50%  { opacity: 0.55; }
+    100% { opacity: 1; }
+  }
+
+  .vhs-tape-label {
+    font-family: "Special Elite", cursive;
+    font-size: 0.6rem;
+    color: #c8c0a8;
+    letter-spacing: 0.08em;
+    transform: rotate(-1deg);
+    text-transform: uppercase;
+    position: relative;
+    z-index: 1;
+    max-width: 120px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    text-align: center;
+  }
+
+  /* Reel windows on the tape */
+  .vhs-reel {
+    position: absolute;
+    bottom: 5px;
+    width: 18px;
+    height: 14px;
+    border-radius: 50%;
+    background: radial-gradient(circle at 40% 38%, #3a3530 0%, #1a1814 70%);
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    box-shadow: inset 0 1px 3px rgba(0, 0, 0, 0.8);
+  }
+
+  .vhs-reel-left  { left: 28px; }
+  .vhs-reel-right { right: 28px; }
+
+  /* ═══ Tape Shelf ═══ */
+  .tape-shelf {
+    display: flex;
+    gap: 8px;
+    margin-top: 8px;
+    justify-content: center;
+    flex-wrap: wrap;
+  }
+
+  .tape-cassette {
+    position: relative;
+    width: 45px;
+    height: 30px;
+    background: linear-gradient(180deg, #2a2520 0%, #1a1814 100%);
+    border-radius: 3px 3px 4px 4px;
+    border: 1px solid rgba(255, 255, 255, 0.07);
+    box-shadow:
+      0 2px 6px rgba(0, 0, 0, 0.5),
+      inset 0 1px 0 rgba(255, 255, 255, 0.05);
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: transform 0.15s ease, border-color 0.15s ease, box-shadow 0.15s ease;
+    overflow: hidden;
+    /* Reset button styles */
+    padding: 0;
+    font: inherit;
+    outline: none;
+  }
+
+  .tape-cassette:hover {
+    transform: scale(1.08) translateY(-1px);
+    border-color: rgba(255, 214, 0, 0.35);
+    box-shadow:
+      0 4px 10px rgba(0, 0, 0, 0.6),
+      0 0 8px rgba(255, 214, 0, 0.12),
+      inset 0 1px 0 rgba(255, 255, 255, 0.08);
+  }
+
+  .tape-cassette:focus-visible {
+    border-color: var(--neon-yellow);
+    box-shadow:
+      0 0 0 2px rgba(255, 214, 0, 0.3),
+      0 2px 6px rgba(0, 0, 0, 0.5);
+  }
+
+  .tape-cassette-label {
+    font-family: monospace;
+    font-size: 0.38rem;
+    color: #7a7060;
+    letter-spacing: 0.02em;
+    text-transform: uppercase;
+    max-width: 30px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    position: relative;
+    z-index: 1;
+    line-height: 1;
+  }
+
+  .tape-cassette:hover .tape-cassette-label {
+    color: #c8c0a8;
+  }
+
+  /* Small reel windows on cassettes */
+  .tape-cassette-reel {
+    position: absolute;
+    bottom: 3px;
+    width: 8px;
+    height: 7px;
+    border-radius: 50%;
+    background: radial-gradient(circle at 40% 38%, #3a3530 0%, #0f0e0c 80%);
+    border: 1px solid rgba(255, 255, 255, 0.07);
+  }
+
+  .tape-cassette-reel-left  { left: 4px; }
+  .tape-cassette-reel-right { right: 4px; }
+
+  /* ═══ AI Overlay States ═══ */
+
+  /* Shared: full-screen static snow (looping, unlike the one-shot .tv-static) */
+  @keyframes ai-snow-loop {
+    0%   { background-position: 0 0, 50px 50px, 20px 30px; }
+    25%  { background-position: 10px 5px, 30px 20px, 40px 10px; }
+    50%  { background-position: 5px 15px, 45px 35px, 15px 45px; }
+    75%  { background-position: 20px 10px, 10px 40px, 35px 20px; }
+    100% { background-position: 0 0, 50px 50px, 20px 30px; }
+  }
+
+  .ai-static-snow {
+    position: absolute;
+    inset: 0;
+    background:
+      repeating-radial-gradient(circle at 17% 32%, white 0px, transparent 1px),
+      repeating-radial-gradient(circle at 62% 88%, white 0px, transparent 1px),
+      repeating-radial-gradient(circle at 89% 13%, white 0px, transparent 1px);
+    background-size: 3px 3px, 4px 4px, 2px 2px;
+    opacity: 0.55;
+    mix-blend-mode: screen;
+    animation: ai-snow-loop 0.15s steps(4) infinite;
+  }
+
+  /* Dial mode: heavy static overlay */
+  .ai-static-overlay {
+    position: absolute;
+    inset: 0;
+    z-index: 10;
+    background: #000;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  @keyframes ai-text-flicker {
+    0%, 100% { opacity: 1; }
+    30%       { opacity: 0.7; }
+    60%       { opacity: 0.85; }
+  }
+
+  .ai-static-text {
+    position: relative;
+    z-index: 11;
+    font-family: monospace;
+    font-size: 1.2rem;
+    letter-spacing: 0.25em;
+    color: var(--neon-green);
+    text-shadow:
+      0 0 8px rgba(57, 255, 20, 0.8),
+      0 0 20px rgba(57, 255, 20, 0.4);
+    text-transform: uppercase;
+    animation: ai-text-flicker 1.2s ease-in-out infinite;
+  }
+
+  /* Tape mode: blue-screen VCR overlay */
+  .ai-vcr-overlay {
+    position: absolute;
+    inset: 0;
+    z-index: 10;
+    background: #000020;
+    display: flex;
+    align-items: flex-end;
+    justify-content: flex-start;
+  }
+
+  @keyframes ai-tracking-roll {
+    0%   { transform: translateY(110%); }
+    100% { transform: translateY(-110%); }
+  }
+
+  .ai-vcr-tracking {
+    position: absolute;
+    inset: 0;
+    overflow: hidden;
+    pointer-events: none;
+  }
+
+  .ai-vcr-tracking::before,
+  .ai-vcr-tracking::after {
+    content: "";
+    position: absolute;
+    left: 0;
+    right: 0;
+    height: 3px;
+    background: rgba(255, 255, 255, 0.25);
+    animation: ai-tracking-roll 1.8s linear infinite;
+  }
+
+  .ai-vcr-tracking::after {
+    height: 2px;
+    background: rgba(255, 255, 255, 0.15);
+    animation-duration: 2.4s;
+    animation-delay: -0.9s;
+  }
+
+  .ai-vcr-text {
+    position: relative;
+    z-index: 11;
+    font-family: monospace;
+    font-size: 0.75rem;
+    color: #fff;
+    letter-spacing: 0.15em;
+    padding: 10px 14px;
+    text-transform: uppercase;
+  }
+
+  /* Error overlay — reuses .ai-static-snow or .ai-vcr-tracking */
+  .ai-error-overlay {
+    position: absolute;
+    inset: 0;
+    z-index: 10;
+    background: #000;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  @keyframes ai-error-pulse {
+    0%, 100% { opacity: 1; }
+    50%       { opacity: 0.35; }
+  }
+
+  .ai-error-text {
+    position: relative;
+    z-index: 11;
+    font-family: monospace;
+    font-size: 1rem;
+    letter-spacing: 0.15em;
+    color: var(--neon-red);
+    text-shadow:
+      0 0 8px rgba(255, 23, 68, 0.8),
+      0 0 20px rgba(255, 23, 68, 0.4);
+    text-transform: uppercase;
+    text-align: center;
+    padding: 0 16px;
+    animation: ai-error-pulse 1s ease-in-out infinite;
+  }
+
+  /* Blast button — dimmed AI mode variant */
+  .tv-blast-btn-ai {
+    background: linear-gradient(135deg, #3a3530, #4a4540, #3a3530) !important;
+    background-size: 200% 200% !important;
+    border-color: #5a5550 !important;
+    color: #a09880 !important;
+    text-shadow: none !important;
+    box-shadow:
+      0 0 4px rgba(0, 0, 0, 0.4),
+      inset 0 1px 0 rgba(255, 255, 255, 0.05) !important;
+    animation: none !important;
+  }
+
+  .tv-blast-btn-ai::after {
+    display: none;
+  }
+
+  .tv-blast-btn-ai:hover {
+    transform: scale(1.03) !important;
+    border-color: #7a7060 !important;
+    color: var(--text-0) !important;
+    box-shadow:
+      0 0 8px rgba(255, 255, 255, 0.05),
+      inset 0 1px 0 rgba(255, 255, 255, 0.07) !important;
+  }
 `;
 
 export function App() {
@@ -961,6 +1845,17 @@ export function App() {
   const [showHistory, setShowHistory] = useState(false);
   const [toastMessage, setToastMessage] = useState(null);
   const [hasInteracted, setHasInteracted] = useState(false);
+
+  const { apiKey, keyStatus, hasKey, setApiKey, clearApiKey } = useApiKey();
+  const [showServicePanel, setShowServicePanel] = useState(false);
+
+  const {
+    aiMode, currentAiScene,
+    dialLoading, dialStreamDone,
+    tapeData, tapeLoading, tapeStreamDone,
+    tapeShelf, aiError,
+    spinDial, insertTape, playSavedTape, advanceAi, exitAiMode,
+  } = useAiDiscovery(apiKey, history, favoriteIds, activeFilters);
 
   const handleEnter = useCallback(() => {
     setHasInteracted(true);
@@ -1021,6 +1916,39 @@ export function App() {
     setToastMessage("History cleared");
   }, [clearHistory]);
 
+  // When a clip ends in AI mode, advance to next clip. If AI mode ended naturally, load a fresh curated scene.
+  const handleAiEnd = useCallback(() => {
+    const ended = advanceAi();
+    if (ended) {
+      const next = getNext(activeFilters);
+      if (next) addToHistory(next.id);
+    }
+  }, [advanceAi, getNext, activeFilters, addToHistory]);
+
+  // When user clicks Blast Me button during AI mode to exit manually
+  const handleExitAi = useCallback(() => {
+    exitAiMode();
+    const next = getNext(activeFilters);
+    if (next) addToHistory(next.id);
+  }, [exitAiMode, getNext, activeFilters, addToHistory]);
+
+  // Dial and tape handlers with key gate — flip to service panel if no key
+  const handleDialSpin = useCallback(() => {
+    if (!hasKey) {
+      setShowServicePanel(true);
+      return;
+    }
+    spinDial();
+  }, [hasKey, spinDial]);
+
+  const handleTapeInsert = useCallback(() => {
+    if (!hasKey) {
+      setShowServicePanel(true);
+      return;
+    }
+    insertTape();
+  }, [hasKey, insertTape]);
+
   if (!hasInteracted) {
     return (
       <>
@@ -1067,21 +1995,68 @@ export function App() {
           onClear={handleFilterClear}
         />
 
-        <ScenePlayer
-          scene={current}
-          nextScene={nextUp}
-          isFavorite={current ? isFavorite(current.id) : false}
-          onToggleFavorite={handleToggleFavorite}
-          hasInteracted={hasInteracted}
-          onBlast={handleBlast}
-        />
+        <div className="tv-flip-container">
+          <div className={`tv-flip-inner ${showServicePanel ? "flipped" : ""}`}>
+            <div className="tv-front">
+              <ScenePlayer
+                scene={aiMode ? currentAiScene : current}
+                nextScene={aiMode ? null : nextUp}
+                isFavorite={
+                  (aiMode ? currentAiScene : current)
+                    ? isFavorite((aiMode ? currentAiScene : current).id)
+                    : false
+                }
+                onToggleFavorite={handleToggleFavorite}
+                hasInteracted={hasInteracted}
+                onBlast={aiMode ? handleAiEnd : handleBlast}
+                aiMode={aiMode}
+                aiLoading={aiMode === "dial" ? dialLoading : tapeLoading}
+                aiError={aiError}
+                onExitAi={handleExitAi}
+              />
+              <ChannelDial
+                powered={hasKey}
+                active={aiMode === "dial"}
+                loading={dialLoading}
+                onSpin={handleDialSpin}
+              />
+              <VHSSlot
+                powered={hasKey}
+                active={aiMode === "tape"}
+                loading={tapeLoading}
+                tapeName={tapeData?.name}
+                onInsert={handleTapeInsert}
+              />
+              <TapeShelf
+                tapes={tapeShelf}
+                onPlay={playSavedTape}
+              />
+              <button
+                className="tv-flip-trigger"
+                onClick={() => setShowServicePanel(!showServicePanel)}
+                title="Service Panel"
+              >
+                🔧
+              </button>
+            </div>
+            <div className="tv-back">
+              <ServicePanel
+                apiKey={apiKey}
+                keyStatus={keyStatus}
+                onSubmitKey={setApiKey}
+                onClearKey={clearApiKey}
+                onClose={() => setShowServicePanel(false)}
+              />
+            </div>
+          </div>
+        </div>
 
         <Toast message={toastMessage} onDone={() => setToastMessage(null)} />
 
         {showFavorites && (
           <FavoritesList
             favoriteIds={favoriteIds}
-            scenes={SCENES}
+            scenes={getAllScenesForLookup()}
             onSelect={handleFavoriteSelect}
             onRemove={handleToggleFavorite}
             onClose={() => setShowFavorites(false)}
@@ -1091,7 +2066,7 @@ export function App() {
         {showHistory && (
           <HistoryList
             history={history}
-            scenes={SCENES}
+            scenes={getAllScenesForLookup()}
             onSelect={handleHistorySelect}
             onClear={handleClearHistory}
             onClose={() => setShowHistory(false)}
