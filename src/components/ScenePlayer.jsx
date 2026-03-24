@@ -128,6 +128,16 @@ export function ScenePlayer({
     };
   }, [showKeyPopover]);
 
+  // Show key input when INVALID_KEY error occurs
+  useEffect(() => {
+    if (aiError === "INVALID_KEY") {
+      const timer = setTimeout(() => {
+        setShowKeyInput(true);
+      }, 3100); // slightly after the 3s auto-clear
+      return () => clearTimeout(timer);
+    }
+  }, [aiError]);
+
   // ─── Create main player once on mount, reuse via loadVideoById ───
   useEffect(() => {
     if (!scene) return;
