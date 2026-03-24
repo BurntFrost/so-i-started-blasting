@@ -46,6 +46,10 @@ export function ScenePlayer({
   hasInteractedRef.current = hasInteracted;
   const onBlastRef = useRef(onBlast);
   onBlastRef.current = onBlast;
+  const onAiNextRef = useRef(onAiNext);
+  onAiNextRef.current = onAiNext;
+  const aiModeRef = useRef(aiMode);
+  aiModeRef.current = aiMode;
   // Track the scene actually loaded in the player (not the display scene)
   const playingSceneRef = useRef(scene);
   const channelNumRef = useRef(null);
@@ -201,7 +205,11 @@ export function ScenePlayer({
                     return;
                   }
                 }
-                onBlastRef.current?.();
+                if (aiModeRef.current) {
+                  onAiNextRef.current?.();
+                } else {
+                  onBlastRef.current?.();
+                }
               } catch {}
             }
           },
