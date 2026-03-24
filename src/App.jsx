@@ -953,7 +953,7 @@ const CSS = `
 `;
 
 export function App() {
-  const { current, getNext, setCurrent } = useBlastEngine(SCENES);
+  const { current, nextUp, getNext, setCurrent } = useBlastEngine(SCENES);
   const { favoriteIds, isFavorite, toggleFavorite } = useFavorites();
   const { history, addToHistory, clearHistory } = useWatchHistory();
   const [activeFilters, setActiveFilters] = useState([]);
@@ -1069,6 +1069,7 @@ export function App() {
 
         <ScenePlayer
           scene={current}
+          nextScene={nextUp}
           isFavorite={current ? isFavorite(current.id) : false}
           onToggleFavorite={handleToggleFavorite}
           hasInteracted={hasInteracted}

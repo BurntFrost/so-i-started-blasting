@@ -18,67 +18,73 @@ function loadYTApi() {
   return ytApiReady;
 }
 
-export function ScenePlayer({ scene, isFavorite, onToggleFavorite, hasInteracted, onBlast }) {
+export function ScenePlayer({ scene, nextScene, isFavorite, onToggleFavorite, hasInteracted, onBlast }) {
   const [transitioning, setTransitioning] = useState(false);
   const [displayScene, setDisplayScene] = useState(scene);
   const prevIdRef = useRef(null);
   const playerRef = useRef(null);
   const containerRef = useRef(null);
+  const playerReadyRef = useRef(false);
+
+  // Pre-warm refs
+  const preWarmPlayerRef = useRef(null);
+  const preWarmContainerRef = useRef(null);
+  const preWarmReadyRef = useRef(false);
+  const preWarmSceneIdRef = useRef(null);
 
   // Keep latest values in refs to avoid stale closures in YT callbacks
   const hasInteractedRef = useRef(hasInteracted);
   hasInteractedRef.current = hasInteracted;
   const onBlastRef = useRef(onBlast);
   onBlastRef.current = onBlast;
-  const displaySceneRef = useRef(displayScene);
-  displaySceneRef.current = displayScene;
+  // Track the scene actually loaded in the player (not the display scene)
+  const playingSceneRef = useRef(scene);
   const channelNumRef = useRef(null);
-  // ─── Channel-change transition ───
+
+  // ─── Helpers ───
+  function applyQuality(player) {
+    try {
+      const levels = player.getAvailableQualityLevels?.();
+      if (levels?.length) player.setPlaybackQuality(levels[0]);
+    } catch {}
+  }
+
+  function applyVolume(player) {
+    if (hasInteractedRef.current) {
+      try {
+        player.unMute();
+        player.setVolume(100);
+      } catch {}
+    }
+  }
+
+  // ─── Create main player once on mount, reuse via loadVideoById ───
   useEffect(() => {
     if (!scene) return;
-    if (prevIdRef.current && prevIdRef.current !== scene.id) {
-      channelNumRef.current = Math.floor(Math.random() * 60) + 2;
-      setTransitioning(true);
-      const timer = setTimeout(() => {
-        setDisplayScene(scene);
-        setTransitioning(false);
-      }, 900);
-      return () => clearTimeout(timer);
-    } else {
-      setDisplayScene(scene);
-    }
-    prevIdRef.current = scene.id;
-  }, [scene]);
 
-  // ─── Create/recreate YT player when scene changes ───
-  useEffect(() => {
-    if (!displayScene || transitioning) return;
+    // Player already exists — handled by the scene-change effect
+    if (playerRef.current) return;
 
     let cancelled = false;
 
     loadYTApi().then(() => {
-      if (cancelled) return;
+      if (cancelled || playerRef.current) return;
 
-      // Tear down previous player
-      if (playerRef.current) {
-        try { playerRef.current.destroy(); } catch {}
-        playerRef.current = null;
-      }
-
-      // Fresh div — YT.Player replaces the target element with an iframe
       const container = containerRef.current;
       if (!container) return;
       container.innerHTML = "";
       const div = document.createElement("div");
       container.appendChild(div);
 
+      playingSceneRef.current = scene;
+
       playerRef.current = new window.YT.Player(div, {
         width: "100%",
         height: "100%",
-        videoId: displayScene.videoId,
+        videoId: scene.videoId,
         playerVars: {
-          start: displayScene.start,
-          end: displayScene.end,
+          start: scene.start,
+          end: scene.end,
           autoplay: 1,
           mute: hasInteractedRef.current ? 0 : 1,
           rel: 0,
@@ -90,23 +96,16 @@ export function ScenePlayer({ scene, isFavorite, onToggleFavorite, hasInteracted
         events: {
           onReady(event) {
             if (cancelled) return;
+            playerReadyRef.current = true;
             const player = event.target;
-            // Request highest available quality
-            try {
-              const levels = player.getAvailableQualityLevels?.();
-              if (levels?.length) player.setPlaybackQuality(levels[0]);
-            } catch {}
-            if (hasInteractedRef.current) {
-              player.unMute();
-              player.setVolume(100);
-            }
+            applyQuality(player);
+            applyVolume(player);
             player.playVideo();
           },
           onError(event) {
             if (cancelled) return;
             const code = event.data;
             // 100=not found, 101/150=not embeddable → skip to next
-            // 5=HTML5 error → transient, don't auto-advance
             if (code === 100 || code === 101 || code === 150) {
               onBlastRef.current?.();
             }
@@ -117,40 +116,27 @@ export function ScenePlayer({ scene, isFavorite, onToggleFavorite, hasInteracted
 
             // On play — max quality, max volume, unmute
             if (event.data === 1) {
-              try {
-                const levels = player.getAvailableQualityLevels?.();
-                if (levels?.length) player.setPlaybackQuality(levels[0]);
-              } catch {}
-              if (hasInteractedRef.current) {
-                try {
-                  player.unMute();
-                  player.setVolume(100);
-                } catch {}
-              }
+              applyQuality(player);
+              applyVolume(player);
             }
 
-            // State 0 = ended — auto-advance, but guard against spurious ends
+            // State 0 = ended — auto-advance, guard against spurious ends
             if (event.data === 0) {
-              const ds = displaySceneRef.current;
+              const ds = playingSceneRef.current;
               try {
                 const currentTime = player.getCurrentTime?.();
-                // If we can't get a valid time, don't advance — spurious event
                 if (!Number.isFinite(currentTime)) return;
-                if (ds.end) {
+                if (ds?.end) {
                   const clipDuration = ds.end - (ds.start || 0);
                   const threshold = Math.min(5, clipDuration / 2);
                   if (currentTime < ds.end - threshold) {
-                    // Spurious "ended" — nowhere near the clip end, restart instead
                     player.seekTo(ds.start || 0);
                     player.playVideo();
                     return;
                   }
                 }
-                // Clip legitimately ended — advance
                 onBlastRef.current?.();
-              } catch {
-                // Can't determine playback position — safe default is don't advance
-              }
+              } catch {}
             }
           },
         },
@@ -159,12 +145,120 @@ export function ScenePlayer({ scene, isFavorite, onToggleFavorite, hasInteracted
 
     return () => {
       cancelled = true;
+    };
+  }, [!!scene]); // Only run once when scene first becomes available
+
+  // ─── Scene change: transition + load video in parallel ───
+  useEffect(() => {
+    if (!scene) return;
+
+    if (prevIdRef.current && prevIdRef.current !== scene.id) {
+      channelNumRef.current = Math.floor(Math.random() * 60) + 2;
+      setTransitioning(true);
+
+      // 🔥 Optimization #1 + #3: Reuse player + load DURING transition
+      if (playerRef.current && playerReadyRef.current) {
+        playingSceneRef.current = scene;
+        try {
+          playerRef.current.loadVideoById({
+            videoId: scene.videoId,
+            startSeconds: scene.start,
+            endSeconds: scene.end,
+          });
+          if (hasInteractedRef.current) {
+            playerRef.current.unMute();
+            playerRef.current.setVolume(100);
+          } else {
+            playerRef.current.mute();
+          }
+        } catch {}
+      }
+
+      const timer = setTimeout(() => {
+        setDisplayScene(scene);
+        setTransitioning(false);
+      }, 900);
+      return () => clearTimeout(timer);
+    } else {
+      setDisplayScene(scene);
+    }
+    prevIdRef.current = scene.id;
+  }, [scene]);
+
+  // ─── Pre-warm next scene in hidden player ───
+  useEffect(() => {
+    if (!nextScene || nextScene.id === preWarmSceneIdRef.current) return;
+    // Don't pre-warm the scene that's currently playing
+    if (nextScene.id === playingSceneRef.current?.id) return;
+
+    preWarmSceneIdRef.current = nextScene.id;
+
+    loadYTApi().then(() => {
+      // Reuse existing pre-warm player
+      if (preWarmPlayerRef.current && preWarmReadyRef.current) {
+        try {
+          preWarmPlayerRef.current.loadVideoById({
+            videoId: nextScene.videoId,
+            startSeconds: nextScene.start,
+            endSeconds: nextScene.end,
+          });
+          preWarmPlayerRef.current.mute();
+          // Pause after buffering a few seconds of video data
+          setTimeout(() => {
+            try { preWarmPlayerRef.current?.pauseVideo(); } catch {}
+          }, 3000);
+        } catch {}
+        return;
+      }
+
+      // Create pre-warm player for the first time
+      const container = preWarmContainerRef.current;
+      if (!container) return;
+      container.innerHTML = "";
+      const div = document.createElement("div");
+      container.appendChild(div);
+
+      preWarmPlayerRef.current = new window.YT.Player(div, {
+        width: "1",
+        height: "1",
+        videoId: nextScene.videoId,
+        playerVars: {
+          start: nextScene.start,
+          end: nextScene.end,
+          autoplay: 1,
+          mute: 1,
+          rel: 0,
+          playsinline: 1,
+          enablejsapi: 1,
+        },
+        events: {
+          onReady(event) {
+            preWarmReadyRef.current = true;
+            event.target.mute();
+            event.target.playVideo();
+            // Pause after buffering enough data
+            setTimeout(() => {
+              try { event.target.pauseVideo(); } catch {}
+            }, 3000);
+          },
+        },
+      });
+    });
+  }, [nextScene?.id]);
+
+  // ─── Clean up both players on unmount ───
+  useEffect(() => {
+    return () => {
       if (playerRef.current) {
         try { playerRef.current.destroy(); } catch {}
         playerRef.current = null;
       }
+      if (preWarmPlayerRef.current) {
+        try { preWarmPlayerRef.current.destroy(); } catch {}
+        preWarmPlayerRef.current = null;
+      }
     };
-  }, [displayScene?.id, transitioning]);
+  }, []);
 
   // ─── Unmute + max volume the instant the user first interacts ───
   useEffect(() => {
@@ -179,6 +273,11 @@ export function ScenePlayer({ scene, isFavorite, onToggleFavorite, hasInteracted
 
   return (
     <div className="scene-player">
+      {/* Hidden pre-warm player — loads next video in background */}
+      <div
+        ref={preWarmContainerRef}
+        style={{ position: "absolute", width: 1, height: 1, overflow: "hidden", opacity: 0, pointerEvents: "none" }}
+      />
       <div className="crt-tv">
         <div className="tv-body">
           <div className="tv-bezel">

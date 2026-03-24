@@ -28,7 +28,9 @@ function saveHistory(history) {
 
 export function useBlastEngine(scenes) {
   const [current, setCurrentState] = useState(null);
+  const [nextUp, setNextUp] = useState(null);
   const historyRef = useRef(loadHistory());
+  const nextUpRef = useRef(null);
 
   const getNext = useCallback(
     (filters = []) => {
@@ -39,11 +41,23 @@ export function useBlastEngine(scenes) {
 
       if (pool.length === 0) return null;
 
-      const pick = pickNext(pool, historyRef.current, scenes);
+      // Use pre-computed nextUp if it's still in the filtered pool
+      const preComputed = nextUpRef.current;
+      const pick =
+        preComputed && pool.some((s) => s.id === preComputed.id)
+          ? preComputed
+          : pickNext(pool, historyRef.current, scenes);
       if (!pick) return null;
+
       historyRef.current = recordPlay(historyRef.current, pick.id);
       saveHistory(historyRef.current);
       setCurrentState(pick);
+
+      // Pre-compute the next scene for pre-warming
+      const peeked = pickNext(pool, historyRef.current, scenes);
+      nextUpRef.current = peeked;
+      setNextUp(peeked);
+
       return pick;
     },
     [scenes],
@@ -60,5 +74,5 @@ export function useBlastEngine(scenes) {
     [],
   );
 
-  return { current, getNext, setCurrent };
+  return { current, nextUp, getNext, setCurrent };
 }
