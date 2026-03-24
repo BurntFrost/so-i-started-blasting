@@ -4,7 +4,7 @@ import { useRandomScene } from "./hooks/useRandomScene.js";
 import { useFavorites } from "./hooks/useFavorites.js";
 import { useWatchHistory } from "./hooks/useWatchHistory.js";
 import { ScenePlayer } from "./components/ScenePlayer.jsx";
-import { FilterDropdown } from "./components/FilterDropdown.jsx";
+import { FilterBar } from "./components/FilterBar.jsx";
 import { Toast } from "./components/Toast.jsx";
 import { FavoritesList } from "./components/FavoritesList.jsx";
 import { HistoryList } from "./components/HistoryList.jsx";
@@ -113,33 +113,139 @@ const CSS = `
     gap: 8px;
   }
 
-  /* Filter dropdown */
-  .filter-dropdown {
-    background: var(--bg-1);
-    color: var(--text-1);
-    border: 1px solid var(--border);
-    border-radius: 6px;
-    padding: 6px 12px;
-    font-size: 0.8rem;
+  /* Filter bar */
+  .filter-bar {
+    width: 100%;
+    margin-top: 12px;
+  }
+
+  .filter-bar-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 8px;
+    padding: 0 2px;
+  }
+
+  .filter-pool-count {
+    font-size: 0.75rem;
+    color: var(--text-2);
+    font-variant-numeric: tabular-nums;
+  }
+
+  .filter-clear {
+    background: none;
+    border: none;
+    color: var(--text-2);
+    font-size: 0.7rem;
+    cursor: pointer;
+    padding: 2px 6px;
+    border-radius: 4px;
+    font-family: "Inter", sans-serif;
+    transition: all 0.15s;
+  }
+
+  .filter-clear:hover {
+    color: var(--neon-red);
+    background: rgba(255, 23, 68, 0.1);
+  }
+
+  .filter-bar-scroll {
+    display: flex;
+    gap: 16px;
+    overflow-x: auto;
+    padding-bottom: 8px;
+    scrollbar-width: thin;
+    scrollbar-color: var(--bg-2) transparent;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  .filter-bar-scroll::-webkit-scrollbar {
+    height: 4px;
+  }
+
+  .filter-bar-scroll::-webkit-scrollbar-track {
+    background: transparent;
+  }
+
+  .filter-bar-scroll::-webkit-scrollbar-thumb {
+    background: var(--bg-2);
+    border-radius: 2px;
+  }
+
+  .filter-group {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    flex-shrink: 0;
+  }
+
+  .filter-group-label {
+    font-size: 0.65rem;
+    color: var(--text-2);
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    white-space: nowrap;
+  }
+
+  .filter-pills {
+    display: flex;
+    gap: 4px;
+    flex-wrap: wrap;
+    max-width: 280px;
+  }
+
+  .filter-pill {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    padding: 3px 8px;
+    border-radius: 999px;
+    border: 1px solid var(--pill-color, var(--border));
+    background: var(--pill-bg, transparent);
+    color: var(--pill-color, var(--text-1));
+    font-size: 0.68rem;
     font-family: "Inter", sans-serif;
     cursor: pointer;
-    appearance: none;
-    -webkit-appearance: none;
-    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%236b6350' stroke-width='2'%3E%3Cpath d='M6 9l6 6 6-6'/%3E%3C/svg%3E");
-    background-repeat: no-repeat;
-    background-position: right 8px center;
-    padding-right: 28px;
+    transition: all 0.15s;
+    white-space: nowrap;
+    opacity: 0.6;
   }
 
-  .filter-dropdown:hover {
-    border-color: var(--neon-green);
-    color: var(--text-0);
+  .filter-pill:hover {
+    opacity: 1;
+    background: var(--pill-bg);
   }
 
-  .filter-dropdown:focus {
-    outline: none;
-    border-color: var(--neon-green);
-    box-shadow: 0 0 8px rgba(57, 255, 20, 0.2);
+  .filter-pill.active {
+    opacity: 1;
+    background: var(--pill-color);
+    color: #000;
+    font-weight: 600;
+    box-shadow: 0 0 10px var(--pill-glow, transparent);
+    border-color: var(--pill-color);
+  }
+
+  .pill-count {
+    font-size: 0.6rem;
+    opacity: 0.7;
+    font-weight: 400;
+    font-variant-numeric: tabular-nums;
+  }
+
+  .filter-pill.active .pill-count {
+    opacity: 0.8;
+  }
+
+  .filter-pill.empty {
+    opacity: 0.25;
+    pointer-events: none;
+  }
+
+  @media (max-width: 599px) {
+    .filter-pills {
+      max-width: 200px;
+    }
   }
 
   /* ═══ CRT Television ═══ */
@@ -850,7 +956,7 @@ export function App() {
   const { current, getNext, setCurrent } = useRandomScene(SCENES);
   const { favoriteIds, isFavorite, toggleFavorite } = useFavorites();
   const { history, addToHistory, clearHistory } = useWatchHistory();
-  const [activeCategory, setActiveCategory] = useState("all");
+  const [activeFilters, setActiveFilters] = useState([]);
   const [showFavorites, setShowFavorites] = useState(false);
   const [showHistory, setShowHistory] = useState(false);
   const [toastMessage, setToastMessage] = useState(null);
@@ -858,25 +964,34 @@ export function App() {
 
   const handleEnter = useCallback(() => {
     setHasInteracted(true);
-    const first = getNext("all");
+    const first = getNext([]);
     if (first) addToHistory(first.id);
   }, [getNext, addToHistory]);
 
   const handleBlast = useCallback(() => {
     setHasInteracted(true);
-    const next = getNext(activeCategory);
+    const next = getNext(activeFilters);
     if (next) addToHistory(next.id);
-  }, [getNext, activeCategory, addToHistory]);
+  }, [getNext, activeFilters, addToHistory]);
 
-  const handleCategorySelect = useCallback(
-    (category) => {
+  const handleFilterToggle = useCallback(
+    (key) => {
       setHasInteracted(true);
-      setActiveCategory(category);
-      const next = getNext(category);
-      if (next) addToHistory(next.id);
+      const next = activeFilters.includes(key)
+        ? activeFilters.filter((k) => k !== key)
+        : [...activeFilters, key];
+      setActiveFilters(next);
+      const scene = getNext(next);
+      if (scene) addToHistory(scene.id);
     },
-    [getNext, addToHistory],
+    [getNext, addToHistory, activeFilters],
   );
+
+  const handleFilterClear = useCallback(() => {
+    setActiveFilters([]);
+    const scene = getNext([]);
+    if (scene) addToHistory(scene.id);
+  }, [getNext, addToHistory]);
 
   const handleToggleFavorite = useCallback(
     (id) => {
@@ -931,10 +1046,6 @@ export function App() {
             <span className="subtitle">We're experiencing technical difficulties.</span>
           </div>
           <div className="header-right">
-            <FilterDropdown
-              active={activeCategory}
-              onSelect={handleCategorySelect}
-            />
             <button
               className="history-toggle"
               onClick={() => setShowHistory(true)}
@@ -949,6 +1060,12 @@ export function App() {
             </button>
           </div>
         </header>
+
+        <FilterBar
+          active={activeFilters}
+          onToggle={handleFilterToggle}
+          onClear={handleFilterClear}
+        />
 
         <ScenePlayer
           scene={current}

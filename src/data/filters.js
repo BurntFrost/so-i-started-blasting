@@ -1,24 +1,27 @@
 export const FILTERS = [
-  // Vibes
-  { key: "chaotic-energy",    label: "Chaotic Energy",    type: "vibe", color: "#ef4444" },
-  { key: "legendary-fails",   label: "Legendary Fails",   type: "vibe", color: "#f97316" },
-  { key: "weird-flex",        label: "Weird Flex",        type: "vibe", color: "#84cc16" },
-  { key: "unhinged-wisdom",   label: "Unhinged Wisdom",   type: "vibe", color: "#22d3ee" },
-  { key: "pure-nostalgia",    label: "Pure Nostalgia",    type: "vibe", color: "#f472b6" },
-  { key: "wholesome-chaos",   label: "Wholesome Chaos",   type: "vibe", color: "#34d399" },
-  { key: "cursed-content",    label: "Cursed Content",    type: "vibe", color: "#a855f7" },
-  { key: "musical-mayhem",    label: "Musical Mayhem",    type: "vibe", color: "#fb923c" },
-  { key: "dangerous",         label: "Dangerous",         type: "vibe", color: "#dc2626" },
-  { key: "disturbing",        label: "Disturbing",        type: "vibe", color: "#7c3aed" },
-  { key: "chaotic-good",      label: "Chaotic Good",      type: "vibe", color: "#14b8a6" },
-  { key: "iconic-cinema",     label: "Iconic Cinema",     type: "vibe", color: "#eab308" },
-  { key: "unhinged-shorts",   label: "Unhinged Shorts",   type: "vibe", color: "#06b6d4" },
-  { key: "unhinged",          label: "Unhinged",          type: "vibe", color: "#ff6b6b" },
-  { key: "epic-fight-scenes", label: "Epic Fight Scenes", type: "vibe", color: "#f59e0b" },
-  { key: "synchronicity",     label: "Synchronicity",     type: "vibe", color: "#818cf8" },
-  { key: "awkward-gold",       label: "Awkward Gold",       type: "vibe", color: "#c084fc" },
-  { key: "funny-revenge",     label: "Funny Revenge",     type: "vibe", color: "#d946ef" },
-  { key: "epic-recovery",     label: "Epic Recovery",     type: "vibe", color: "#4ade80" },
+  // 🔥 Intense
+  { key: "chaotic-energy",    label: "Chaotic Energy",    type: "vibe", group: "intense", color: "#ef4444" },
+  { key: "dangerous",         label: "Dangerous",         type: "vibe", group: "intense", color: "#dc2626" },
+  { key: "epic-fight-scenes", label: "Epic Fight Scenes", type: "vibe", group: "intense", color: "#f59e0b" },
+  { key: "disturbing",        label: "Disturbing",        type: "vibe", group: "intense", color: "#7c3aed" },
+  // 🤪 Unhinged
+  { key: "unhinged",          label: "Unhinged",          type: "vibe", group: "unhinged", color: "#ff6b6b" },
+  { key: "unhinged-wisdom",   label: "Unhinged Wisdom",   type: "vibe", group: "unhinged", color: "#22d3ee" },
+  { key: "unhinged-shorts",   label: "Unhinged Shorts",   type: "vibe", group: "unhinged", color: "#06b6d4" },
+  { key: "cursed-content",    label: "Cursed Content",    type: "vibe", group: "unhinged", color: "#a855f7" },
+  { key: "weird-flex",        label: "Weird Flex",        type: "vibe", group: "unhinged", color: "#84cc16" },
+  // 😌 Good Vibes
+  { key: "wholesome-chaos",   label: "Wholesome Chaos",   type: "vibe", group: "good-vibes", color: "#34d399" },
+  { key: "chaotic-good",      label: "Chaotic Good",      type: "vibe", group: "good-vibes", color: "#14b8a6" },
+  { key: "pure-nostalgia",    label: "Pure Nostalgia",    type: "vibe", group: "good-vibes", color: "#f472b6" },
+  { key: "awkward-gold",      label: "Awkward Gold",      type: "vibe", group: "good-vibes", color: "#c084fc" },
+  { key: "epic-recovery",     label: "Epic Recovery",     type: "vibe", group: "good-vibes", color: "#4ade80" },
+  // 🎬 Entertainment
+  { key: "iconic-cinema",     label: "Iconic Cinema",     type: "vibe", group: "entertainment", color: "#eab308" },
+  { key: "legendary-fails",   label: "Legendary Fails",   type: "vibe", group: "entertainment", color: "#f97316" },
+  { key: "musical-mayhem",    label: "Musical Mayhem",    type: "vibe", group: "entertainment", color: "#fb923c" },
+  { key: "synchronicity",     label: "Synchronicity",     type: "vibe", group: "entertainment", color: "#818cf8" },
+  { key: "funny-revenge",     label: "Funny Revenge",     type: "vibe", group: "entertainment", color: "#d946ef" },
   // Eras
   { key: "early-internet",    label: "Early Internet",    type: "era",  color: "#8b5cf6" },
   { key: "viral-classics",    label: "Viral Classics",    type: "era",  color: "#ec4899" },
@@ -26,13 +29,32 @@ export const FILTERS = [
   { key: "ancient-web",       label: "Ancient Web",       type: "era",  color: "#94a3b8" },
 ];
 
+export const VIBE_GROUPS = [
+  { key: "intense",       label: "🔥 Intense",       color: "#ef4444" },
+  { key: "unhinged",      label: "🤪 Unhinged",      color: "#ff6b6b" },
+  { key: "good-vibes",    label: "😌 Good Vibes",    color: "#34d399" },
+  { key: "entertainment", label: "🎬 Entertainment", color: "#eab308" },
+];
+
 export const getFilterByKey = (key) => FILTERS.find((f) => f.key === key);
 
+export const getVibesByGroup = (groupKey) =>
+  FILTERS.filter((f) => f.type === "vibe" && f.group === groupKey);
+
+/** Check if a scene matches ALL active filters (AND logic). */
+export const matchesFilters = (scene, filterKeys) => {
+  if (!filterKeys || filterKeys.length === 0) return true;
+  return filterKeys.every((key) => {
+    const filter = getFilterByKey(key);
+    if (!filter) return true;
+    if (filter.type === "vibe") return scene.vibes.includes(key);
+    if (filter.type === "era") return scene.era === key;
+    return true;
+  });
+};
+
+/** @deprecated Use matchesFilters (plural) instead */
 export const matchesFilter = (scene, filterKey) => {
   if (filterKey === "all") return true;
-  const filter = getFilterByKey(filterKey);
-  if (!filter) return true;
-  if (filter.type === "vibe") return scene.vibes.includes(filterKey);
-  if (filter.type === "era") return scene.era === filterKey;
-  return true;
+  return matchesFilters(scene, [filterKey]);
 };
