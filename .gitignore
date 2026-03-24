@@ -7,3 +7,7 @@ dist/
 .DS_Store
 .vite/
 .superpowers/
+.vercel
+.claude/settings.local.json
+.playwright-mcp/
+/*.png
