@@ -972,6 +972,10 @@ const CSS = `
     transform: rotateY(180deg);
   }
 
+  .tv-flip-inner.flipped .tv-front {
+    pointer-events: none;
+  }
+
   .tv-front {
     backface-visibility: hidden;
     position: relative;
