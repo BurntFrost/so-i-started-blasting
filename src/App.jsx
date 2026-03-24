@@ -1659,6 +1659,171 @@ const CSS = `
 
   .tape-cassette-reel-left  { left: 4px; }
   .tape-cassette-reel-right { right: 4px; }
+
+  /* ═══ AI Overlay States ═══ */
+
+  /* Shared: full-screen static snow (looping, unlike the one-shot .tv-static) */
+  @keyframes ai-snow-loop {
+    0%   { background-position: 0 0, 50px 50px, 20px 30px; }
+    25%  { background-position: 10px 5px, 30px 20px, 40px 10px; }
+    50%  { background-position: 5px 15px, 45px 35px, 15px 45px; }
+    75%  { background-position: 20px 10px, 10px 40px, 35px 20px; }
+    100% { background-position: 0 0, 50px 50px, 20px 30px; }
+  }
+
+  .ai-static-snow {
+    position: absolute;
+    inset: 0;
+    background:
+      repeating-radial-gradient(circle at 17% 32%, white 0px, transparent 1px),
+      repeating-radial-gradient(circle at 62% 88%, white 0px, transparent 1px),
+      repeating-radial-gradient(circle at 89% 13%, white 0px, transparent 1px);
+    background-size: 3px 3px, 4px 4px, 2px 2px;
+    opacity: 0.55;
+    mix-blend-mode: screen;
+    animation: ai-snow-loop 0.15s steps(4) infinite;
+  }
+
+  /* Dial mode: heavy static overlay */
+  .ai-static-overlay {
+    position: absolute;
+    inset: 0;
+    z-index: 10;
+    background: #000;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  @keyframes ai-text-flicker {
+    0%, 100% { opacity: 1; }
+    30%       { opacity: 0.7; }
+    60%       { opacity: 0.85; }
+  }
+
+  .ai-static-text {
+    position: relative;
+    z-index: 11;
+    font-family: monospace;
+    font-size: 1.2rem;
+    letter-spacing: 0.25em;
+    color: var(--neon-green);
+    text-shadow:
+      0 0 8px rgba(57, 255, 20, 0.8),
+      0 0 20px rgba(57, 255, 20, 0.4);
+    text-transform: uppercase;
+    animation: ai-text-flicker 1.2s ease-in-out infinite;
+  }
+
+  /* Tape mode: blue-screen VCR overlay */
+  .ai-vcr-overlay {
+    position: absolute;
+    inset: 0;
+    z-index: 10;
+    background: #000020;
+    display: flex;
+    align-items: flex-end;
+    justify-content: flex-start;
+  }
+
+  @keyframes ai-tracking-roll {
+    0%   { transform: translateY(110%); }
+    100% { transform: translateY(-110%); }
+  }
+
+  .ai-vcr-tracking {
+    position: absolute;
+    inset: 0;
+    overflow: hidden;
+    pointer-events: none;
+  }
+
+  .ai-vcr-tracking::before,
+  .ai-vcr-tracking::after {
+    content: "";
+    position: absolute;
+    left: 0;
+    right: 0;
+    height: 3px;
+    background: rgba(255, 255, 255, 0.25);
+    animation: ai-tracking-roll 1.8s linear infinite;
+  }
+
+  .ai-vcr-tracking::after {
+    height: 2px;
+    background: rgba(255, 255, 255, 0.15);
+    animation-duration: 2.4s;
+    animation-delay: -0.9s;
+  }
+
+  .ai-vcr-text {
+    position: relative;
+    z-index: 11;
+    font-family: monospace;
+    font-size: 0.75rem;
+    color: #fff;
+    letter-spacing: 0.15em;
+    padding: 10px 14px;
+    text-transform: uppercase;
+  }
+
+  /* Error overlay — reuses .ai-static-snow or .ai-vcr-tracking */
+  .ai-error-overlay {
+    position: absolute;
+    inset: 0;
+    z-index: 10;
+    background: #000;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  @keyframes ai-error-pulse {
+    0%, 100% { opacity: 1; }
+    50%       { opacity: 0.35; }
+  }
+
+  .ai-error-text {
+    position: relative;
+    z-index: 11;
+    font-family: monospace;
+    font-size: 1rem;
+    letter-spacing: 0.15em;
+    color: var(--neon-red);
+    text-shadow:
+      0 0 8px rgba(255, 23, 68, 0.8),
+      0 0 20px rgba(255, 23, 68, 0.4);
+    text-transform: uppercase;
+    text-align: center;
+    padding: 0 16px;
+    animation: ai-error-pulse 1s ease-in-out infinite;
+  }
+
+  /* Blast button — dimmed AI mode variant */
+  .tv-blast-btn-ai {
+    background: linear-gradient(135deg, #3a3530, #4a4540, #3a3530) !important;
+    background-size: 200% 200% !important;
+    border-color: #5a5550 !important;
+    color: #a09880 !important;
+    text-shadow: none !important;
+    box-shadow:
+      0 0 4px rgba(0, 0, 0, 0.4),
+      inset 0 1px 0 rgba(255, 255, 255, 0.05) !important;
+    animation: none !important;
+  }
+
+  .tv-blast-btn-ai::after {
+    display: none;
+  }
+
+  .tv-blast-btn-ai:hover {
+    transform: scale(1.03) !important;
+    border-color: #7a7060 !important;
+    color: var(--text-0) !important;
+    box-shadow:
+      0 0 8px rgba(255, 255, 255, 0.05),
+      inset 0 1px 0 rgba(255, 255, 255, 0.07) !important;
+  }
 `;
 
 export function App() {

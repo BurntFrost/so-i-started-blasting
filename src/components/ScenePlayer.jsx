@@ -18,7 +18,7 @@ function loadYTApi() {
   return ytApiReady;
 }
 
-export function ScenePlayer({ scene, nextScene, isFavorite, onToggleFavorite, hasInteracted, onBlast }) {
+export function ScenePlayer({ scene, nextScene, isFavorite, onToggleFavorite, hasInteracted, onBlast, aiMode, aiLoading, aiError, onExitAi }) {
   const [transitioning, setTransitioning] = useState(false);
   const [displayScene, setDisplayScene] = useState(scene);
   const prevIdRef = useRef(null);
@@ -301,6 +301,42 @@ export function ScenePlayer({ scene, nextScene, isFavorite, onToggleFavorite, ha
                   </div>
                 </div>
               )}
+
+              {/* AI scanning static — heavy persistent static for dial mode */}
+              {aiMode === "dial" && aiLoading && (
+                <div className="ai-static-overlay">
+                  <div className="ai-static-snow" />
+                  <div className="ai-static-text">SCANNING...</div>
+                </div>
+              )}
+
+              {/* VCR loading — blue screen with tracking lines for tape mode */}
+              {aiMode === "tape" && aiLoading && (
+                <div className="ai-vcr-overlay">
+                  <div className="ai-vcr-tracking" />
+                  <div className="ai-vcr-text">LOADING TAPE...</div>
+                </div>
+              )}
+
+              {/* Error overlays */}
+              {aiError === "SIGNAL_LOST" && (
+                <div className="ai-error-overlay">
+                  <div className="ai-static-snow" />
+                  <div className="ai-error-text">SIGNAL LOST — TRY AGAIN</div>
+                </div>
+              )}
+              {aiError === "DEAD_AIR" && (
+                <div className="ai-error-overlay">
+                  <div className="ai-static-snow" />
+                  <div className="ai-error-text">DEAD AIR — SPIN AGAIN</div>
+                </div>
+              )}
+              {aiError === "BAD_TAPE" && (
+                <div className="ai-error-overlay">
+                  <div className="ai-vcr-tracking" />
+                  <div className="ai-error-text">BAD TAPE — EJECT AND TRY AGAIN</div>
+                </div>
+              )}
             </div>
           </div>
 
@@ -333,7 +369,14 @@ export function ScenePlayer({ scene, nextScene, isFavorite, onToggleFavorite, ha
               </div>
             </div>
             <div className="tv-info-actions">
-              <button className="tv-blast-btn" onClick={onBlast}>⚡ Blast Me</button>
+              <button
+                className={`tv-blast-btn ${aiMode ? "tv-blast-btn-ai" : ""}`}
+                onClick={aiMode ? onExitAi : onBlast}
+              >
+                {aiMode === "dial" ? "📡 SCANNING..."
+                  : aiMode === "tape" ? "📼 PLAYING TAPE..."
+                  : "⚡ Blast Me"}
+              </button>
               <button
                 className={`fav-btn ${isFavorite ? "fav-active" : ""}`}
                 onClick={() => onToggleFavorite(displayScene.id)}
