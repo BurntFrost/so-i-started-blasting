@@ -14,10 +14,10 @@ export function useApiKey() {
   const [apiKey, setApiKeyState] = useState(loadKey);
   // Start as "connected" if a saved key exists — avoids a validation call on every page load.
   // Trade-off: if the key was revoked since last visit, UI shows green LED until next API call fails.
-  // This is acceptable because the real validation happens on first dial/tape use.
+  // This is acceptable because the real validation happens on first dial use.
   const [keyStatus, setKeyStatus] = useState(
     loadKey() ? "connected" : "empty",
-  ); // "empty" | "validating" | "connected" | "invalid"
+  ); // "empty" | "validating" | "connected" | "invalid" | "error"
 
   const setApiKey = useCallback(async (key) => {
     if (!key) {
@@ -47,7 +47,7 @@ export function useApiKey() {
         setKeyStatus("invalid");
       }
     } catch {
-      setKeyStatus("invalid");
+      setKeyStatus("error");
     }
   }, []);
 
