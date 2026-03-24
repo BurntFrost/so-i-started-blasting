@@ -1457,6 +1457,208 @@ const CSS = `
       display: none;
     }
   }
+
+  /* ═══ VHS Slot ═══ */
+  .vhs-slot {
+    position: relative;
+    margin: 10px auto 0;
+    width: 220px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 0;
+  }
+
+  .vhs-unpowered {
+    opacity: 0.3;
+    pointer-events: none;
+    cursor: default;
+  }
+
+  /* The horizontal slit opening */
+  .vhs-slot-slit {
+    width: 100%;
+    height: 6px;
+    background: #0a0a08;
+    border-radius: 2px;
+    box-shadow:
+      inset 0 2px 4px rgba(0, 0, 0, 0.9),
+      inset 0 -1px 2px rgba(0, 0, 0, 0.6),
+      0 1px 0 rgba(255, 255, 255, 0.03);
+    border: 1px solid rgba(0, 0, 0, 0.8);
+    border-bottom-color: rgba(255, 255, 255, 0.04);
+    position: relative;
+    z-index: 2;
+  }
+
+  .vhs-slot-slit-inner {
+    position: absolute;
+    inset: 1px 8px;
+    background: #050504;
+    border-radius: 1px;
+  }
+
+  /* The tape that peeks out below the slot */
+  .vhs-tape {
+    width: 190px;
+    height: 32px;
+    background: linear-gradient(180deg, #2a2520 0%, #1e1c18 60%, #141210 100%);
+    border-radius: 0 0 4px 4px;
+    border: 1px solid rgba(255, 255, 255, 0.06);
+    border-top: none;
+    box-shadow:
+      0 4px 10px rgba(0, 0, 0, 0.5),
+      inset 0 1px 0 rgba(255, 255, 255, 0.04);
+    cursor: pointer;
+    position: relative;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transform: translateY(0);
+    transition: transform 0.4s cubic-bezier(0.34, 1.56, 0.64, 1), box-shadow 0.3s ease;
+    /* Show 10px of tape peeking, rest is behind the slot */
+    margin-top: -22px;
+    padding-top: 22px;
+    overflow: hidden;
+  }
+
+  .vhs-tape:hover:not(:disabled) {
+    box-shadow:
+      0 4px 16px rgba(0, 0, 0, 0.6),
+      0 0 10px rgba(255, 214, 0, 0.08),
+      inset 0 1px 0 rgba(255, 255, 255, 0.06);
+    border-color: rgba(255, 214, 0, 0.15);
+  }
+
+  .vhs-tape.vhs-active {
+    transform: translateY(-18px);
+    box-shadow:
+      0 2px 6px rgba(0, 0, 0, 0.4),
+      0 0 12px rgba(255, 214, 0, 0.12),
+      inset 0 1px 0 rgba(255, 255, 255, 0.06);
+    border-color: rgba(255, 214, 0, 0.2);
+  }
+
+  .vhs-tape.vhs-loading {
+    animation: tape-pulse 0.6s steps(2) infinite;
+  }
+
+  @keyframes tape-pulse {
+    0%   { opacity: 1; }
+    50%  { opacity: 0.55; }
+    100% { opacity: 1; }
+  }
+
+  .vhs-tape-label {
+    font-family: "Special Elite", cursive;
+    font-size: 0.6rem;
+    color: #c8c0a8;
+    letter-spacing: 0.08em;
+    transform: rotate(-1deg);
+    text-transform: uppercase;
+    position: relative;
+    z-index: 1;
+    max-width: 120px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    text-align: center;
+  }
+
+  /* Reel windows on the tape */
+  .vhs-reel {
+    position: absolute;
+    bottom: 5px;
+    width: 18px;
+    height: 14px;
+    border-radius: 50%;
+    background: radial-gradient(circle at 40% 38%, #3a3530 0%, #1a1814 70%);
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    box-shadow: inset 0 1px 3px rgba(0, 0, 0, 0.8);
+  }
+
+  .vhs-reel-left  { left: 28px; }
+  .vhs-reel-right { right: 28px; }
+
+  /* ═══ Tape Shelf ═══ */
+  .tape-shelf {
+    display: flex;
+    gap: 8px;
+    margin-top: 8px;
+    justify-content: center;
+    flex-wrap: wrap;
+  }
+
+  .tape-cassette {
+    position: relative;
+    width: 45px;
+    height: 30px;
+    background: linear-gradient(180deg, #2a2520 0%, #1a1814 100%);
+    border-radius: 3px 3px 4px 4px;
+    border: 1px solid rgba(255, 255, 255, 0.07);
+    box-shadow:
+      0 2px 6px rgba(0, 0, 0, 0.5),
+      inset 0 1px 0 rgba(255, 255, 255, 0.05);
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: transform 0.15s ease, border-color 0.15s ease, box-shadow 0.15s ease;
+    overflow: hidden;
+    /* Reset button styles */
+    padding: 0;
+    font: inherit;
+    outline: none;
+  }
+
+  .tape-cassette:hover {
+    transform: scale(1.08) translateY(-1px);
+    border-color: rgba(255, 214, 0, 0.35);
+    box-shadow:
+      0 4px 10px rgba(0, 0, 0, 0.6),
+      0 0 8px rgba(255, 214, 0, 0.12),
+      inset 0 1px 0 rgba(255, 255, 255, 0.08);
+  }
+
+  .tape-cassette:focus-visible {
+    border-color: var(--neon-yellow);
+    box-shadow:
+      0 0 0 2px rgba(255, 214, 0, 0.3),
+      0 2px 6px rgba(0, 0, 0, 0.5);
+  }
+
+  .tape-cassette-label {
+    font-family: monospace;
+    font-size: 0.38rem;
+    color: #7a7060;
+    letter-spacing: 0.02em;
+    text-transform: uppercase;
+    max-width: 30px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    position: relative;
+    z-index: 1;
+    line-height: 1;
+  }
+
+  .tape-cassette:hover .tape-cassette-label {
+    color: #c8c0a8;
+  }
+
+  /* Small reel windows on cassettes */
+  .tape-cassette-reel {
+    position: absolute;
+    bottom: 3px;
+    width: 8px;
+    height: 7px;
+    border-radius: 50%;
+    background: radial-gradient(circle at 40% 38%, #3a3530 0%, #0f0e0c 80%);
+    border: 1px solid rgba(255, 255, 255, 0.07);
+  }
+
+  .tape-cassette-reel-left  { left: 4px; }
+  .tape-cassette-reel-right { right: 4px; }
 `;
 
 export function App() {
