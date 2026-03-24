@@ -1,6 +1,6 @@
 import { useState, useCallback } from "react";
 import { SCENES } from "./data/scenes.js";
-import { useRandomScene } from "./hooks/useRandomScene.js";
+import { useBlastEngine } from "./hooks/useBlastEngine.js";
 import { useFavorites } from "./hooks/useFavorites.js";
 import { useWatchHistory } from "./hooks/useWatchHistory.js";
 import { ScenePlayer } from "./components/ScenePlayer.jsx";
@@ -953,7 +953,7 @@ const CSS = `
 `;
 
 export function App() {
-  const { current, getNext, setCurrent } = useRandomScene(SCENES);
+  const { current, getNext, setCurrent } = useBlastEngine(SCENES);
   const { favoriteIds, isFavorite, toggleFavorite } = useFavorites();
   const { history, addToHistory, clearHistory } = useWatchHistory();
   const [activeFilters, setActiveFilters] = useState([]);
