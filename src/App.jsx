@@ -1230,6 +1230,233 @@ const CSS = `
     opacity: 1;
     background: rgba(255, 255, 255, 0.04);
   }
+
+  /* ═══ Channel Dial ═══ */
+  .channel-dial {
+    position: absolute;
+    right: -72px;
+    top: 50%;
+    transform: translateY(-50%);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 6px;
+    z-index: 10;
+  }
+
+  .dial-unpowered {
+    opacity: 0.3;
+    pointer-events: none;
+    cursor: default;
+  }
+
+  /* Outer ring with tick marks */
+  .dial-outer {
+    position: relative;
+    width: 88px;
+    height: 88px;
+  }
+
+  /* Tick marks positioned around the outer ring */
+  .dial-ticks {
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+  }
+
+  .dial-tick {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    width: 2px;
+    height: 8px;
+    background: #4a4540;
+    transform-origin: 50% 44px;
+    transform: translateX(-50%) rotate(var(--tick-angle));
+    border-radius: 1px;
+  }
+
+  .dial-tick-label {
+    position: absolute;
+    top: -14px;
+    left: 50%;
+    transform: translateX(-50%) rotate(calc(-1 * var(--tick-angle)));
+    font-size: 0.45rem;
+    font-family: monospace;
+    color: #4a4540;
+    white-space: nowrap;
+    letter-spacing: 0;
+  }
+
+  .dial-tick-pirate {
+    background: var(--neon-red);
+    height: 10px;
+    width: 2px;
+  }
+
+  .dial-tick-pirate .dial-tick-label {
+    color: var(--neon-red);
+    font-size: 0.7rem;
+    text-shadow: 0 0 6px rgba(255, 23, 68, 0.8);
+  }
+
+  /* The physical knob */
+  .dial-knob {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%) rotate(0deg);
+    width: 50px;
+    height: 50px;
+    border-radius: 50%;
+    background: radial-gradient(circle at 38% 32%, #5a5550 0%, #4a4540 25%, #2a2520 70%, #1a1814 100%);
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    box-shadow:
+      0 3px 10px rgba(0, 0, 0, 0.7),
+      0 1px 0 rgba(255, 255, 255, 0.06) inset,
+      0 -1px 0 rgba(0, 0, 0, 0.5) inset,
+      0 0 0 3px #0f0d0b,
+      0 0 0 4px rgba(255, 255, 255, 0.04);
+    transition: transform 0.4s cubic-bezier(0.34, 1.56, 0.64, 1), box-shadow 0.3s ease;
+    cursor: pointer;
+  }
+
+  .dial-knob.active {
+    /* Rotated to the pirate zone (last tick at ~+150°) */
+    transform: translate(-50%, -50%) rotate(150deg);
+    box-shadow:
+      0 3px 10px rgba(0, 0, 0, 0.7),
+      0 1px 0 rgba(255, 255, 255, 0.06) inset,
+      0 -1px 0 rgba(0, 0, 0, 0.5) inset,
+      0 0 0 3px #0f0d0b,
+      0 0 0 4px rgba(255, 23, 68, 0.2),
+      0 0 16px rgba(255, 23, 68, 0.4),
+      0 0 32px rgba(255, 23, 68, 0.15);
+    animation: dial-knob-pulse 1.5s ease-in-out infinite;
+  }
+
+  @keyframes dial-knob-pulse {
+    0%, 100% {
+      box-shadow:
+        0 3px 10px rgba(0, 0, 0, 0.7),
+        0 1px 0 rgba(255, 255, 255, 0.06) inset,
+        0 -1px 0 rgba(0, 0, 0, 0.5) inset,
+        0 0 0 3px #0f0d0b,
+        0 0 0 4px rgba(255, 23, 68, 0.2),
+        0 0 16px rgba(255, 23, 68, 0.4),
+        0 0 32px rgba(255, 23, 68, 0.15);
+    }
+    50% {
+      box-shadow:
+        0 3px 10px rgba(0, 0, 0, 0.7),
+        0 1px 0 rgba(255, 255, 255, 0.06) inset,
+        0 -1px 0 rgba(0, 0, 0, 0.5) inset,
+        0 0 0 3px #0f0d0b,
+        0 0 0 4px rgba(255, 23, 68, 0.4),
+        0 0 24px rgba(255, 23, 68, 0.6),
+        0 0 48px rgba(255, 23, 68, 0.25);
+    }
+  }
+
+  /* Indicator line on the knob face */
+  .dial-indicator {
+    position: absolute;
+    top: 6px;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 2px;
+    height: 10px;
+    background: linear-gradient(180deg, rgba(255, 255, 255, 0.7), rgba(255, 255, 255, 0.15));
+    border-radius: 1px;
+    box-shadow: 0 0 3px rgba(255, 255, 255, 0.2);
+  }
+
+  /* Pirate zone indicator — sits below/outside the knob */
+  .dial-pirate-zone {
+    position: absolute;
+    bottom: -28px;
+    left: 50%;
+    transform: translateX(-50%);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 2px;
+    cursor: pointer;
+    padding: 4px 8px;
+    border-radius: 4px;
+    border: 1px solid rgba(255, 23, 68, 0.25);
+    background: rgba(255, 23, 68, 0.05);
+    transition: all 0.2s;
+    white-space: nowrap;
+  }
+
+  .dial-pirate-zone:hover {
+    border-color: rgba(255, 23, 68, 0.6);
+    background: rgba(255, 23, 68, 0.12);
+    box-shadow: 0 0 10px rgba(255, 23, 68, 0.25);
+  }
+
+  .dial-pirate-zone.active {
+    border-color: var(--neon-red);
+    background: rgba(255, 23, 68, 0.1);
+    box-shadow:
+      0 0 8px rgba(255, 23, 68, 0.4),
+      0 0 16px rgba(255, 23, 68, 0.15);
+    animation: pirate-zone-pulse 1.5s ease-in-out infinite;
+  }
+
+  .dial-pirate-zone.loading {
+    animation: pirate-scan 0.8s steps(3) infinite;
+  }
+
+  @keyframes pirate-zone-pulse {
+    0%, 100% {
+      box-shadow: 0 0 8px rgba(255, 23, 68, 0.4), 0 0 16px rgba(255, 23, 68, 0.15);
+      border-color: var(--neon-red);
+    }
+    50% {
+      box-shadow: 0 0 16px rgba(255, 23, 68, 0.7), 0 0 32px rgba(255, 23, 68, 0.3);
+      border-color: #ff5252;
+    }
+  }
+
+  @keyframes pirate-scan {
+    0%   { opacity: 1; background: rgba(255, 23, 68, 0.08); }
+    33%  { opacity: 0.6; background: rgba(255, 23, 68, 0.18); }
+    66%  { opacity: 1; background: rgba(255, 23, 68, 0.04); }
+    100% { opacity: 0.8; background: rgba(255, 23, 68, 0.12); }
+  }
+
+  .pirate-icon {
+    font-size: 0.9rem;
+    line-height: 1;
+  }
+
+  .pirate-label {
+    font-family: monospace;
+    font-size: 0.5rem;
+    letter-spacing: 0.15em;
+    color: var(--neon-red);
+    text-transform: uppercase;
+    text-shadow: 0 0 6px rgba(255, 23, 68, 0.6);
+  }
+
+  /* "TUNER" label below the dial */
+  .dial-label {
+    font-family: monospace;
+    font-size: 0.55rem;
+    letter-spacing: 0.2em;
+    color: #4a4540;
+    text-transform: uppercase;
+    margin-top: 32px;
+  }
+
+  /* On small screens, hide the dial (TV body not wide enough to extend) */
+  @media (max-width: 700px) {
+    .channel-dial {
+      display: none;
+    }
+  }
 `;
 
 export function App() {
