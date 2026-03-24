@@ -950,6 +950,286 @@ const CSS = `
     0%, 100% { box-shadow: 0 0 8px rgba(57, 255, 20, 0.2); }
     50% { box-shadow: 0 0 20px rgba(57, 255, 20, 0.4); }
   }
+
+  /* ═══ 3D TV Flip Container ═══ */
+  .tv-flip-container {
+    perspective: 1200px;
+  }
+
+  .tv-flip-inner {
+    position: relative;
+    transform-style: preserve-3d;
+    transition: transform 0.6s ease;
+  }
+
+  .tv-flip-inner.flipped {
+    transform: rotateY(180deg);
+  }
+
+  .tv-front {
+    backface-visibility: hidden;
+    position: relative;
+  }
+
+  .tv-back {
+    backface-visibility: hidden;
+    transform: rotateY(180deg);
+    position: absolute;
+    inset: 0;
+    background:
+      repeating-linear-gradient(
+        45deg,
+        rgba(255,255,255,0.008) 0px,
+        rgba(255,255,255,0.008) 1px,
+        transparent 1px,
+        transparent 6px
+      ),
+      linear-gradient(180deg, #1e1c18 0%, #1a1814 40%, #141210 100%);
+    border-radius: 24px;
+    border: 1px solid rgba(255, 255, 255, 0.04);
+    box-shadow:
+      0 8px 40px rgba(0, 0, 0, 0.6),
+      inset 0 1px 0 rgba(255, 255, 255, 0.02);
+    overflow: hidden;
+  }
+
+  /* ═══ Service Panel ═══ */
+  .service-panel {
+    padding: 28px 32px 24px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 20px;
+    min-height: 200px;
+    position: relative;
+  }
+
+  /* Corner screw heads */
+  .service-screws {
+    position: absolute;
+    inset: 12px;
+    pointer-events: none;
+  }
+
+  .service-screw {
+    position: absolute;
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+    background: radial-gradient(circle at 35% 30%, #4a4540, #1a1814);
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.6);
+  }
+
+  .service-screw:nth-child(1) { top: 0; left: 0; }
+  .service-screw:nth-child(2) { top: 0; right: 0; }
+  .service-screw:nth-child(3) { bottom: 0; left: 0; }
+  .service-screw:nth-child(4) { bottom: 0; right: 0; }
+
+  /* Product sticker */
+  .service-sticker {
+    font-family: monospace;
+    font-size: 0.7rem;
+    background: #ddd8c0;
+    color: #1a1814;
+    padding: 8px 14px;
+    border-radius: 3px;
+    border: 1px solid #b8b090;
+    transform: rotate(-2deg);
+    box-shadow:
+      0 2px 6px rgba(0, 0, 0, 0.4),
+      inset 0 1px 0 rgba(255, 255, 255, 0.6);
+    line-height: 1.7;
+    letter-spacing: 0.05em;
+    text-align: center;
+  }
+
+  .sticker-model {
+    font-weight: 700;
+    letter-spacing: 0.12em;
+    font-size: 0.75rem;
+  }
+
+  .sticker-serial {
+    color: #444;
+    font-size: 0.65rem;
+  }
+
+  .sticker-warning {
+    font-size: 0.6rem;
+    color: #8b0000;
+    letter-spacing: 0.08em;
+  }
+
+  /* Port section */
+  .service-port-section {
+    width: 100%;
+    max-width: 460px;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+  }
+
+  .service-port-label-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+
+  .service-port-header {
+    font-family: monospace;
+    font-size: 0.7rem;
+    color: var(--text-1);
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+  }
+
+  /* The port/socket input wrapper */
+  .service-port {
+    background: #0a0a08;
+    border: 2px solid #5a4e30;
+    border-radius: 4px;
+    padding: 10px 14px;
+    box-shadow:
+      inset 0 2px 8px rgba(0, 0, 0, 0.8),
+      inset 0 0 4px rgba(0, 0, 0, 0.5),
+      0 1px 0 rgba(255, 200, 50, 0.08);
+    display: flex;
+    align-items: center;
+  }
+
+  .service-port-input {
+    font-family: monospace;
+    font-size: 0.85rem;
+    background: transparent;
+    color: var(--neon-green);
+    border: none;
+    outline: none;
+    width: 100%;
+    caret-color: var(--neon-green);
+    letter-spacing: 0.05em;
+  }
+
+  .service-port-input::placeholder {
+    color: var(--text-2);
+    letter-spacing: 0.05em;
+  }
+
+  .service-port-connected-key {
+    font-family: monospace;
+    font-size: 0.85rem;
+    color: var(--neon-green);
+    letter-spacing: 0.05em;
+  }
+
+  /* Status label */
+  .service-label {
+    font-family: monospace;
+    font-size: 0.65rem;
+    letter-spacing: 0.1em;
+    color: var(--text-2);
+    text-transform: uppercase;
+    min-height: 1em;
+    text-align: center;
+  }
+
+  /* Status LEDs */
+  .service-led {
+    display: inline-block;
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+    flex-shrink: 0;
+  }
+
+  .led-red {
+    background: var(--neon-red);
+    box-shadow: 0 0 6px var(--neon-red);
+  }
+
+  .led-yellow {
+    background: var(--neon-yellow);
+    box-shadow: 0 0 6px var(--neon-yellow);
+    animation: led-pulse 1s ease-in-out infinite;
+  }
+
+  .led-green {
+    background: var(--neon-green);
+    box-shadow: 0 0 8px var(--neon-green), 0 0 14px rgba(57, 255, 20, 0.3);
+  }
+
+  @keyframes led-pulse {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.3; }
+  }
+
+  /* Disconnect button */
+  .service-disconnect-btn {
+    background: none;
+    border: 1px solid rgba(255, 23, 68, 0.3);
+    color: var(--neon-red);
+    font-family: monospace;
+    font-size: 0.7rem;
+    padding: 4px 12px;
+    border-radius: 3px;
+    cursor: pointer;
+    letter-spacing: 0.08em;
+    align-self: center;
+    transition: all 0.2s;
+  }
+
+  .service-disconnect-btn:hover {
+    background: rgba(255, 23, 68, 0.1);
+    border-color: var(--neon-red);
+  }
+
+  /* Flip back button */
+  .service-back-btn {
+    background: none;
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    color: var(--text-2);
+    font-family: monospace;
+    font-size: 0.65rem;
+    padding: 5px 14px;
+    border-radius: 3px;
+    cursor: pointer;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    transition: all 0.2s;
+    margin-top: 4px;
+  }
+
+  .service-back-btn:hover {
+    border-color: var(--text-1);
+    color: var(--text-0);
+  }
+
+  /* Wrench trigger button on TV front */
+  .tv-flip-trigger {
+    position: absolute;
+    bottom: 10px;
+    right: 10px;
+    background: transparent;
+    border: 1px solid transparent;
+    color: var(--text-2);
+    font-size: 0.85rem;
+    width: 26px;
+    height: 26px;
+    border-radius: 4px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.2s;
+    opacity: 0.4;
+    z-index: 2;
+  }
+
+  .tv-flip-trigger:hover {
+    border-color: var(--text-2);
+    opacity: 1;
+    background: rgba(255, 255, 255, 0.04);
+  }
 `;
 
 export function App() {
