@@ -3,11 +3,17 @@ import { SCENES } from "./data/scenes.js";
 import { useBlastEngine } from "./hooks/useBlastEngine.js";
 import { useFavorites } from "./hooks/useFavorites.js";
 import { useWatchHistory } from "./hooks/useWatchHistory.js";
+import { useApiKey } from "./hooks/useApiKey.js";
+import { useAiDiscovery, getAllScenesForLookup } from "./hooks/useAiDiscovery.js";
 import { ScenePlayer } from "./components/ScenePlayer.jsx";
 import { FilterBar } from "./components/FilterBar.jsx";
 import { Toast } from "./components/Toast.jsx";
 import { FavoritesList } from "./components/FavoritesList.jsx";
 import { HistoryList } from "./components/HistoryList.jsx";
+import { ServicePanel } from "./components/ServicePanel.jsx";
+import { ChannelDial } from "./components/ChannelDial.jsx";
+import { VHSSlot } from "./components/VHSSlot.jsx";
+import { TapeShelf } from "./components/TapeShelf.jsx";
 
 const CSS = `
   :root {
@@ -1836,6 +1842,17 @@ export function App() {
   const [toastMessage, setToastMessage] = useState(null);
   const [hasInteracted, setHasInteracted] = useState(false);
 
+  const { apiKey, keyStatus, hasKey, setApiKey, clearApiKey } = useApiKey();
+  const [showServicePanel, setShowServicePanel] = useState(false);
+
+  const {
+    aiMode, currentAiScene,
+    dialLoading, dialStreamDone,
+    tapeData, tapeLoading, tapeStreamDone,
+    tapeShelf, aiError,
+    spinDial, insertTape, playSavedTape, advanceAi, exitAiMode,
+  } = useAiDiscovery(apiKey, history, favoriteIds, activeFilters);
+
   const handleEnter = useCallback(() => {
     setHasInteracted(true);
     const first = getNext([]);
@@ -1895,6 +1912,39 @@ export function App() {
     setToastMessage("History cleared");
   }, [clearHistory]);
 
+  // When a clip ends in AI mode, advance to next clip. If AI mode ended naturally, load a fresh curated scene.
+  const handleAiEnd = useCallback(() => {
+    const ended = advanceAi();
+    if (ended) {
+      const next = getNext(activeFilters);
+      if (next) addToHistory(next.id);
+    }
+  }, [advanceAi, getNext, activeFilters, addToHistory]);
+
+  // When user clicks Blast Me button during AI mode to exit manually
+  const handleExitAi = useCallback(() => {
+    exitAiMode();
+    const next = getNext(activeFilters);
+    if (next) addToHistory(next.id);
+  }, [exitAiMode, getNext, activeFilters, addToHistory]);
+
+  // Dial and tape handlers with key gate — flip to service panel if no key
+  const handleDialSpin = useCallback(() => {
+    if (!hasKey) {
+      setShowServicePanel(true);
+      return;
+    }
+    spinDial();
+  }, [hasKey, spinDial]);
+
+  const handleTapeInsert = useCallback(() => {
+    if (!hasKey) {
+      setShowServicePanel(true);
+      return;
+    }
+    insertTape();
+  }, [hasKey, insertTape]);
+
   if (!hasInteracted) {
     return (
       <>
@@ -1941,21 +1991,68 @@ export function App() {
           onClear={handleFilterClear}
         />
 
-        <ScenePlayer
-          scene={current}
-          nextScene={nextUp}
-          isFavorite={current ? isFavorite(current.id) : false}
-          onToggleFavorite={handleToggleFavorite}
-          hasInteracted={hasInteracted}
-          onBlast={handleBlast}
-        />
+        <div className="tv-flip-container">
+          <div className={`tv-flip-inner ${showServicePanel ? "flipped" : ""}`}>
+            <div className="tv-front">
+              <ScenePlayer
+                scene={aiMode ? currentAiScene : current}
+                nextScene={aiMode ? null : nextUp}
+                isFavorite={
+                  (aiMode ? currentAiScene : current)
+                    ? isFavorite((aiMode ? currentAiScene : current).id)
+                    : false
+                }
+                onToggleFavorite={handleToggleFavorite}
+                hasInteracted={hasInteracted}
+                onBlast={aiMode ? handleAiEnd : handleBlast}
+                aiMode={aiMode}
+                aiLoading={aiMode === "dial" ? dialLoading : tapeLoading}
+                aiError={aiError}
+                onExitAi={handleExitAi}
+              />
+              <ChannelDial
+                powered={hasKey}
+                active={aiMode === "dial"}
+                loading={dialLoading}
+                onSpin={handleDialSpin}
+              />
+              <VHSSlot
+                powered={hasKey}
+                active={aiMode === "tape"}
+                loading={tapeLoading}
+                tapeName={tapeData?.name}
+                onInsert={handleTapeInsert}
+              />
+              <TapeShelf
+                tapes={tapeShelf}
+                onPlay={playSavedTape}
+              />
+              <button
+                className="tv-flip-trigger"
+                onClick={() => setShowServicePanel(!showServicePanel)}
+                title="Service Panel"
+              >
+                🔧
+              </button>
+            </div>
+            <div className="tv-back">
+              <ServicePanel
+                apiKey={apiKey}
+                keyStatus={keyStatus}
+                onSubmitKey={setApiKey}
+                onClearKey={clearApiKey}
+                onClose={() => setShowServicePanel(false)}
+              />
+            </div>
+          </div>
+        </div>
 
         <Toast message={toastMessage} onDone={() => setToastMessage(null)} />
 
         {showFavorites && (
           <FavoritesList
             favoriteIds={favoriteIds}
-            scenes={SCENES}
+            scenes={getAllScenesForLookup()}
             onSelect={handleFavoriteSelect}
             onRemove={handleToggleFavorite}
             onClose={() => setShowFavorites(false)}
@@ -1965,7 +2062,7 @@ export function App() {
         {showHistory && (
           <HistoryList
             history={history}
-            scenes={SCENES}
+            scenes={getAllScenesForLookup()}
             onSelect={handleHistorySelect}
             onClear={handleClearHistory}
             onClose={() => setShowHistory(false)}
