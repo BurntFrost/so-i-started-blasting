@@ -18,9 +18,18 @@ function loadYTApi() {
   return ytApiReady;
 }
 
-export function ScenePlayer({ scene, nextScene, isFavorite, onToggleFavorite, hasInteracted, onBlast, aiMode, aiLoading, aiError, onExitAi }) {
+export function ScenePlayer({
+  scene, nextScene, isFavorite, onToggleFavorite, hasInteracted,
+  onBlast, onAiPick, onAiNext, onExitAi,
+  aiMode, aiLoading, aiWaiting, aiError,
+  hasKey, keyStatus, onSubmitKey, onClearKey,
+}) {
   const [transitioning, setTransitioning] = useState(false);
   const [displayScene, setDisplayScene] = useState(scene);
+  const [showKeyInput, setShowKeyInput] = useState(false);
+  const [keyInputValue, setKeyInputValue] = useState("");
+  const [showKeyPopover, setShowKeyPopover] = useState(false);
+  const keyInputRef = useRef(null);
   const prevIdRef = useRef(null);
   const playerRef = useRef(null);
   const containerRef = useRef(null);
@@ -57,6 +66,63 @@ export function ScenePlayer({ scene, nextScene, isFavorite, onToggleFavorite, ha
       } catch {}
     }
   }
+
+  // ─── AI Key Input Handlers ───
+  function handleAiPickClick() {
+    if (!hasKey) {
+      setShowKeyInput((prev) => !prev);
+      return;
+    }
+    onAiPick?.();
+  }
+
+  function handleKeySubmit(key) {
+    if (!key.trim()) return;
+    onSubmitKey?.(key.trim());
+  }
+
+  function handleKeyPaste(e) {
+    const text = e.clipboardData.getData("text").trim();
+    if (text) {
+      e.preventDefault();
+      setKeyInputValue(text);
+      handleKeySubmit(text);
+    }
+  }
+
+  function handleKeyInputKeyDown(e) {
+    if (e.key === "Enter") handleKeySubmit(keyInputValue);
+    if (e.key === "Escape") setShowKeyInput(false);
+  }
+
+  // Auto-focus key input when shown
+  useEffect(() => {
+    if (showKeyInput) keyInputRef.current?.focus();
+  }, [showKeyInput]);
+
+  // Auto-trigger AI after successful key connection
+  const prevKeyStatus = useRef(keyStatus);
+  useEffect(() => {
+    if (prevKeyStatus.current === "validating" && keyStatus === "connected") {
+      setShowKeyInput(false);
+      setKeyInputValue("");
+      onAiPick?.();
+    }
+    prevKeyStatus.current = keyStatus;
+  }, [keyStatus, onAiPick]);
+
+  // Close key popover on outside click or Escape
+  useEffect(() => {
+    if (!showKeyPopover) return;
+    function handleClick() { setShowKeyPopover(false); }
+    function handleKeyDown(e) { if (e.key === "Escape") setShowKeyPopover(false); }
+    document.addEventListener("click", handleClick);
+    document.addEventListener("keydown", handleKeyDown);
+    return () => {
+      document.removeEventListener("click", handleClick);
+      document.removeEventListener("keydown", handleKeyDown);
+    };
+  }, [showKeyPopover]);
 
   // ─── Create main player once on mount, reuse via loadVideoById ───
   useEffect(() => {
@@ -310,31 +376,23 @@ export function ScenePlayer({ scene, nextScene, isFavorite, onToggleFavorite, ha
                 </div>
               )}
 
-              {/* VCR loading — blue screen with tracking lines for tape mode */}
-              {aiMode === "tape" && aiLoading && (
-                <div className="ai-vcr-overlay">
-                  <div className="ai-vcr-tracking" />
-                  <div className="ai-vcr-text">LOADING TAPE...</div>
-                </div>
-              )}
-
               {/* Error overlays */}
               {aiError === "SIGNAL_LOST" && (
                 <div className="ai-error-overlay">
                   <div className="ai-static-snow" />
-                  <div className="ai-error-text">SIGNAL LOST — TRY AGAIN</div>
+                  <div className="ai-error-text">COULDN'T FIND CLIPS — TRY AGAIN</div>
                 </div>
               )}
               {aiError === "DEAD_AIR" && (
                 <div className="ai-error-overlay">
                   <div className="ai-static-snow" />
-                  <div className="ai-error-text">DEAD AIR — SPIN AGAIN</div>
+                  <div className="ai-error-text">NO CLIPS FOUND — TRY AGAIN</div>
                 </div>
               )}
-              {aiError === "BAD_TAPE" && (
+              {aiError === "INVALID_KEY" && (
                 <div className="ai-error-overlay">
-                  <div className="ai-vcr-tracking" />
-                  <div className="ai-error-text">BAD TAPE — EJECT AND TRY AGAIN</div>
+                  <div className="ai-static-snow" />
+                  <div className="ai-error-text">API KEY EXPIRED — RECONNECT</div>
                 </div>
               )}
             </div>
@@ -342,7 +400,10 @@ export function ScenePlayer({ scene, nextScene, isFavorite, onToggleFavorite, ha
 
           <div className="tv-info-bar">
             <div className="tv-info-text">
-              <blockquote className="scene-quote">"{displayScene.quote}"</blockquote>
+              <blockquote className="scene-quote">
+                {aiMode && <span className="ai-badge">AI PICK</span>}
+                "{displayScene.quote}"
+              </blockquote>
               <p className="scene-description">{displayScene.description}</p>
               <div className="tv-info-meta">
                 <div className="scene-tags">
@@ -369,14 +430,53 @@ export function ScenePlayer({ scene, nextScene, isFavorite, onToggleFavorite, ha
               </div>
             </div>
             <div className="tv-info-actions">
-              <button
-                className={`tv-blast-btn ${aiMode ? "tv-blast-btn-ai" : ""}`}
-                onClick={aiMode ? onExitAi : onBlast}
-              >
-                {aiMode === "dial" ? "📡 SCANNING..."
-                  : aiMode === "tape" ? "📼 PLAYING TAPE..."
-                  : "⚡ Blast Me"}
-              </button>
+              {aiMode ? (
+                <>
+                  {aiLoading ? (
+                    /* State 3: Scanning — disabled status + Cancel button */
+                    <>
+                      <button className="ai-pick-btn ai-pick-btn-loading" disabled>
+                        ⟳ Scanning...
+                      </button>
+                      <button className="ai-exit-btn" onClick={onExitAi}>
+                        ✕ Cancel
+                      </button>
+                    </>
+                  ) : (
+                    /* State 4: Playing AI clip — Next + Exit buttons */
+                    <>
+                      <button
+                        className="ai-pick-btn"
+                        onClick={onAiNext}
+                        disabled={aiWaiting}
+                      >
+                        {aiWaiting ? "⟳ Loading..." : "⚡ Next AI Clip"}
+                      </button>
+                      <button className="ai-exit-btn" onClick={onExitAi}>
+                        ✕ Exit AI
+                      </button>
+                    </>
+                  )}
+                </>
+              ) : (
+                <>
+                  <button className="tv-blast-btn" onClick={onBlast}>
+                    ⚡ Blast Me
+                  </button>
+                  <button className="ai-pick-btn" onClick={handleAiPickClick}>
+                    ✨ AI Pick
+                  </button>
+                  {hasKey && !showKeyInput && (
+                    <button
+                      className="ai-key-btn"
+                      onClick={(e) => { e.stopPropagation(); setShowKeyPopover((p) => !p); }}
+                      title="Manage API key"
+                    >
+                      🔑
+                    </button>
+                  )}
+                </>
+              )}
               <button
                 className={`fav-btn ${isFavorite ? "fav-active" : ""}`}
                 onClick={() => onToggleFavorite(displayScene.id)}
@@ -385,6 +485,59 @@ export function ScenePlayer({ scene, nextScene, isFavorite, onToggleFavorite, ha
                 {isFavorite ? "♥" : "♡"}
               </button>
             </div>
+
+            {/* Inline API key input */}
+            {showKeyInput && !hasKey && (
+              <div className="ai-key-input">
+                <div className="ai-key-input-row">
+                  <input
+                    ref={keyInputRef}
+                    type="password"
+                    className={`ai-key-field ${keyStatus === "invalid" || keyStatus === "error" ? "ai-key-field-error" : ""}`}
+                    value={keyInputValue}
+                    placeholder="Paste Anthropic API key..."
+                    onChange={(e) => setKeyInputValue(e.target.value)}
+                    onPaste={handleKeyPaste}
+                    onKeyDown={handleKeyInputKeyDown}
+                    disabled={keyStatus === "validating"}
+                    autoComplete="off"
+                    spellCheck={false}
+                  />
+                  <button
+                    className="ai-key-connect-btn"
+                    onClick={() => handleKeySubmit(keyInputValue)}
+                    disabled={keyStatus === "validating" || !keyInputValue.trim()}
+                  >
+                    {keyStatus === "validating" ? "⟳" : "Connect"}
+                  </button>
+                  <button
+                    className="ai-key-dismiss-btn"
+                    onClick={() => { setShowKeyInput(false); setKeyInputValue(""); }}
+                  >
+                    ✕
+                  </button>
+                </div>
+                <div className="ai-key-hint">
+                  {keyStatus === "invalid" && <span className="ai-key-error">Invalid key — try again</span>}
+                  {keyStatus === "error" && <span className="ai-key-error">Connection error — try again</span>}
+                  {keyStatus !== "invalid" && keyStatus !== "error" && (
+                    <span>Key stored locally in your browser. Never sent to us.</span>
+                  )}
+                </div>
+              </div>
+            )}
+
+            {/* Key management popover */}
+            {showKeyPopover && hasKey && (
+              <div className="ai-key-popover" onClick={(e) => e.stopPropagation()}>
+                <span className="ai-key-popover-key">
+                  {"•".repeat(8)}sk-...
+                </span>
+                <button className="ai-key-popover-disconnect" onClick={() => { onClearKey?.(); setShowKeyPopover(false); }}>
+                  Disconnect
+                </button>
+              </div>
+            )}
           </div>
 
           <div className="tv-controls">
