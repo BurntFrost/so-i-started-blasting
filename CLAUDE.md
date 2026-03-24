@@ -31,26 +31,21 @@ src/
 ├── lib/
 │   └── streamClient.js      # fetch + ReadableStream SSE parser
 ├── components/
-│   ├── ScenePlayer.jsx      # YouTube IFrame API player + CRT TV chrome
+│   ├── ScenePlayer.jsx      # YouTube IFrame API player + CRT TV chrome + AI Pick button
 │   ├── FilterDropdown.jsx   # Category selector
 │   ├── FavoritesList.jsx    # Slide-out favorites panel
 │   ├── HistoryList.jsx      # Slide-out watch history panel
 │   ├── SceneCard.jsx        # Card used in favorites/history lists
 │   ├── NeonButton.jsx       # Styled button component
-│   ├── Toast.jsx            # Notification toast
-│   ├── ChannelDial.jsx      # AI channel dial knob
-│   ├── VHSSlot.jsx          # VHS tape slot for AI curated sessions
-│   ├── TapeShelf.jsx        # Saved tape shelf (localStorage persistence)
-│   └── ServicePanel.jsx     # API key entry back panel
+│   └── Toast.jsx            # Notification toast
 └── hooks/
     ├── useRandomScene.js    # Random scene selection with recency buffer (avoids repeats)
     ├── useFavorites.js      # localStorage-backed favorites (key: sisb-favorites)
     ├── useWatchHistory.js   # localStorage-backed history, max 50 (key: sisb-watch-history)
-    ├── useApiKey.js         # localStorage API key management (key: sisb-api-key)
-    └── useAiDiscovery.js    # AI mode state manager (dial, tape, shelf, discoveries)
+    ├── useApiKey.js         # localStorage API key management with error differentiation (key: sisb-api-key)
+    └── useAiDiscovery.js    # AI mode state manager (discoveries)
 api/                         # Vercel serverless functions (AI pipeline)
-├── dial.js                  # SSE endpoint — channel dial discovery
-├── tape.js                  # SSE endpoint — VHS tape generation
+├── dial.js                  # SSE endpoint — AI clip discovery
 ├── validate.js              # API key validation
 └── _lib/
     ├── claude.js            # Claude API client (BYOK)
@@ -106,5 +101,4 @@ New vibes/eras must be added to both `filters.js` (definition) and the relevant 
   - `sisb-favorites`: saved clip IDs
   - `sisb-watch-history`: watch history (max 50)
   - `sisb-api-key`: Claude API key for AI features
-  - `sisb-tapes`: saved VHS tape shelf (max 5)
   - `sisb-ai-discoveries`: rolling AI discovery log (max 50)
