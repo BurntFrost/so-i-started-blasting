@@ -1,4 +1,3 @@
-import { useMemo } from "react";
 import { FILTERS, VIBE_GROUPS, getVibesByGroup } from "../data/filters.js";
 import { SCENES } from "../data/scenes.js";
 import { matchesFilters } from "../data/filters.js";
@@ -18,18 +17,9 @@ function countWithout(filterKey, activeFilters) {
 }
 
 export function FilterBar({ active, onToggle, onClear }) {
-  const poolSize = useMemo(
-    () =>
-      active.length === 0
-        ? SCENES.length
-        : SCENES.filter((s) => matchesFilters(s, active)).length,
-    [active],
-  );
-
   return (
     <div className="filter-bar">
       <div className="filter-bar-header">
-        <span className="filter-pool-count">{poolSize} clips</span>
         {active.length > 0 && (
           <button className="filter-clear" onClick={onClear}>
             ✕ Clear
@@ -62,7 +52,7 @@ export function FilterBar({ active, onToggle, onClear }) {
                       title={isActive ? `Remove ${f.label}` : `${f.label} — ${count} clip${count !== 1 ? "s" : ""}`}
                     >
                       {f.label}
-                      <span className="pill-count">{isActive ? "✓" : count}</span>
+                      {isActive && <span className="pill-count">✓</span>}
                     </button>
                   );
                 })}
@@ -92,7 +82,7 @@ export function FilterBar({ active, onToggle, onClear }) {
                   title={isActive ? `Remove ${f.label}` : `${f.label} — ${count} clip${count !== 1 ? "s" : ""}`}
                 >
                   {f.label}
-                  <span className="pill-count">{isActive ? "✓" : count}</span>
+                  {isActive && <span className="pill-count">✓</span>}
                 </button>
               );
             })}

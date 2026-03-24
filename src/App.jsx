@@ -129,11 +129,6 @@ const CSS = `
     padding: 0 2px;
   }
 
-  .filter-pool-count {
-    font-size: 0.75rem;
-    color: var(--text-2);
-    font-variant-numeric: tabular-nums;
-  }
 
   .filter-clear {
     background: none;
