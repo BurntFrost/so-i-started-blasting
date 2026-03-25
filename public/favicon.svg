@@ -1,0 +1,22 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32">
+  <!-- TV body -->
+  <rect x="3" y="8" width="26" height="19" rx="2" fill="#1a1a18" stroke="#39ff14" stroke-width="1.5"/>
+  <!-- Screen -->
+  <rect x="5.5" y="10.5" width="16" height="13" rx="1" fill="#0a0a08" stroke="#39ff14" stroke-width="0.75" opacity="0.9"/>
+  <!-- Static lines on screen -->
+  <line x1="5.5" y1="13" x2="21.5" y2="13" stroke="#39ff14" stroke-width="0.3" opacity="0.4"/>
+  <line x1="5.5" y1="16" x2="21.5" y2="16" stroke="#39ff14" stroke-width="0.3" opacity="0.3"/>
+  <line x1="5.5" y1="19" x2="21.5" y2="19" stroke="#39ff14" stroke-width="0.3" opacity="0.4"/>
+  <!-- Knobs -->
+  <circle cx="25" cy="14" r="1.5" fill="#39ff14" opacity="0.8"/>
+  <circle cx="25" cy="19" r="1.5" fill="#39ff14" opacity="0.5"/>
+  <!-- Antenna -->
+  <line x1="12" y1="8" x2="8" y2="2" stroke="#39ff14" stroke-width="1.2" stroke-linecap="round"/>
+  <line x1="16" y1="8" x2="22" y2="2" stroke="#39ff14" stroke-width="1.2" stroke-linecap="round"/>
+  <!-- Antenna tips -->
+  <circle cx="8" cy="2" r="1" fill="#39ff14"/>
+  <circle cx="22" cy="2" r="1" fill="#39ff14"/>
+  <!-- Feet -->
+  <rect x="8" y="27" width="3" height="2" rx="0.5" fill="#39ff14" opacity="0.6"/>
+  <rect x="21" y="27" width="3" height="2" rx="0.5" fill="#39ff14" opacity="0.6"/>
+</svg>
