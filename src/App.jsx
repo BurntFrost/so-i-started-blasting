@@ -1,4 +1,4 @@
-import { useState, useCallback } from "react";
+import { useState, useCallback, useEffect } from "react";
 import { SCENES } from "./data/scenes.js";
 import { useBlastEngine } from "./hooks/useBlastEngine.js";
 import { useFavorites } from "./hooks/useFavorites.js";
@@ -940,6 +940,52 @@ const CSS = `
     50% { box-shadow: 0 0 20px rgba(57, 255, 20, 0.4); }
   }
 
+  /* ═══ Edge Config Banners ═══ */
+  .banner-maintenance {
+    background: rgba(255, 23, 68, 0.12);
+    border: 1px solid rgba(255, 23, 68, 0.3);
+    color: var(--neon-red);
+    padding: 10px 16px;
+    border-radius: 6px;
+    font-family: monospace;
+    font-size: 0.85rem;
+    text-align: center;
+    margin-bottom: 12px;
+    letter-spacing: 1px;
+    text-transform: uppercase;
+    text-shadow: 0 0 8px rgba(255, 23, 68, 0.4);
+  }
+
+  .banner-announcement {
+    background: rgba(57, 255, 20, 0.08);
+    border: 1px solid rgba(57, 255, 20, 0.2);
+    color: var(--neon-green);
+    padding: 10px 16px;
+    border-radius: 6px;
+    font-family: monospace;
+    font-size: 0.85rem;
+    text-align: center;
+    margin-bottom: 12px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 12px;
+  }
+
+  .banner-dismiss {
+    background: none;
+    border: none;
+    color: var(--text-2);
+    cursor: pointer;
+    font-size: 1rem;
+    padding: 0 4px;
+    line-height: 1;
+    flex-shrink: 0;
+  }
+  .banner-dismiss:hover {
+    color: var(--text-0);
+  }
+
   /* ═══ AI Pick Button & Key Input ═══ */
   .ai-pick-btn {
     background: linear-gradient(135deg, #6c3ce0, #8b5cf6) !important;
@@ -1253,6 +1299,17 @@ export function App() {
   const [toastMessage, setToastMessage] = useState(null);
   const [hasInteracted, setHasInteracted] = useState(false);
 
+  // Edge Config — runtime config from Vercel dashboard
+  const [siteConfig, setSiteConfig] = useState(null);
+  const [announcementDismissed, setAnnouncementDismissed] = useState(false);
+
+  useEffect(() => {
+    fetch("/api/config")
+      .then((r) => r.ok ? r.json() : null)
+      .catch(() => null)
+      .then((cfg) => { if (cfg) setSiteConfig(cfg); });
+  }, []);
+
   const { apiKey, keyStatus, hasKey, setApiKey, clearApiKey } = useApiKey();
 
   const {
@@ -1265,9 +1322,19 @@ export function App() {
 
   const handleEnter = useCallback(() => {
     setHasInteracted(true);
+    // If a featured clip is configured, play it first
+    const featuredId = siteConfig?.featuredClipId;
+    if (featuredId) {
+      const featured = SCENES.find((s) => s.id === featuredId);
+      if (featured) {
+        setCurrent(featured);
+        addToHistory(featured.id);
+        return;
+      }
+    }
     const first = getNext([]);
     if (first) addToHistory(first.id);
-  }, [getNext, addToHistory]);
+  }, [getNext, addToHistory, siteConfig, setCurrent]);
 
   const handleBlast = useCallback(() => {
     setHasInteracted(true);
@@ -1378,6 +1445,19 @@ export function App() {
           </div>
         </header>
 
+        {siteConfig?.maintenance && (
+          <div className="banner-maintenance">
+            ⚠ Scheduled maintenance — some features may be unavailable
+          </div>
+        )}
+
+        {siteConfig?.announcement && !announcementDismissed && (
+          <div className="banner-announcement">
+            <span>{siteConfig.announcement}</span>
+            <button className="banner-dismiss" onClick={() => setAnnouncementDismissed(true)}>✕</button>
+          </div>
+        )}
+
         <FilterBar
           active={activeFilters}
           onToggle={handleFilterToggle}
@@ -1406,6 +1486,7 @@ export function App() {
           keyStatus={keyStatus}
           onSubmitKey={setApiKey}
           onClearKey={clearApiKey}
+          aiEnabled={siteConfig?.aiEnabled ?? true}
         />
 
         <Toast message={toastMessage} onDone={() => setToastMessage(null)} />

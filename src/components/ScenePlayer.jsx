@@ -7,6 +7,7 @@ export function ScenePlayer({
   onBlast, onAiPick, onAiNext, onExitAi,
   aiMode, aiLoading, aiWaiting, aiError,
   hasKey, keyStatus, onSubmitKey, onClearKey,
+  aiEnabled = true,
 }) {
   const [transitioning, setTransitioning] = useState(false);
   const [displayScene, setDisplayScene] = useState(scene);
@@ -458,10 +459,12 @@ export function ScenePlayer({
                   <button className="tv-blast-btn" onClick={onBlast}>
                     ⚡ Blast Me
                   </button>
-                  <button className="ai-pick-btn" onClick={handleAiPickClick}>
-                    ✨ AI Pick
-                  </button>
-                  {hasKey && !showKeyInput && (
+                  {aiEnabled && (
+                    <button className="ai-pick-btn" onClick={handleAiPickClick}>
+                      ✨ AI Pick
+                    </button>
+                  )}
+                  {aiEnabled && hasKey && !showKeyInput && (
                     <button
                       className="ai-key-btn"
                       onClick={(e) => { e.stopPropagation(); setShowKeyPopover((p) => !p); }}
