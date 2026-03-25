@@ -1,6 +1,12 @@
 // src/players/DailymotionPlayer.js
 // Uses iframe embed — the Dailymotion Library Player SDK requires a partner
 // player ID that is no longer valid. iframe embed is the reliable fallback.
+//
+// Ad blockers frequently break Dailymotion embeds — the player gets stuck on
+// a black screen waiting for ads that will never load. A fallback timer
+// auto-advances after MAX_WAIT_SECONDS to prevent users staring at nothing.
+
+const MAX_WAIT_SECONDS = 8;
 
 export class DailymotionPlayer {
   constructor() {
@@ -8,6 +14,7 @@ export class DailymotionPlayer {
     this._ready = false;
     this._options = null;
     this._endTimer = null;
+    this._fallbackTimer = null;
   }
 
   _buildSrc(videoId, start, muted) {
@@ -22,12 +29,29 @@ export class DailymotionPlayer {
     return `https://www.dailymotion.com/embed/video/${videoId}?${params}`;
   }
 
-  _setupEndTimer(scene) {
+  _clearTimers() {
     clearTimeout(this._endTimer);
+    clearTimeout(this._fallbackTimer);
+  }
+
+  _setupTimers(scene) {
+    this._clearTimers();
     const duration = (scene.end || 30) - (scene.start || 0);
+
+    // Normal end timer — fires onEnded when clip should be done
     this._endTimer = setTimeout(() => {
+      this._clearTimers();
       this._options?.onEnded?.();
     }, duration * 1000);
+
+    // Fallback timer — if DM is stuck on blocked ads, skip after MAX_WAIT
+    // Only matters for clips longer than MAX_WAIT; short clips end naturally
+    if (duration > MAX_WAIT_SECONDS) {
+      this._fallbackTimer = setTimeout(() => {
+        this._clearTimers();
+        this._options?.onError?.();
+      }, MAX_WAIT_SECONDS * 1000);
+    }
   }
 
   create(container, scene, options) {
@@ -45,20 +69,21 @@ export class DailymotionPlayer {
     });
 
     iframe.addEventListener("error", () => {
+      this._clearTimers();
       options.onError?.();
     });
 
     container.appendChild(iframe);
     this._iframe = iframe;
 
-    this._setupEndTimer(scene);
+    this._setupTimers(scene);
   }
 
   load(scene) {
     if (!this._iframe) return;
-    clearTimeout(this._endTimer);
+    this._clearTimers();
     this._iframe.src = this._buildSrc(scene.videoId, scene.start);
-    this._setupEndTimer(scene);
+    this._setupTimers(scene);
   }
 
   play() { /* no API control via iframe */ }
@@ -68,7 +93,7 @@ export class DailymotionPlayer {
   }
 
   destroy() {
-    clearTimeout(this._endTimer);
+    this._clearTimers();
     if (this._iframe) {
       this._iframe.removeAttribute("src");
       this._iframe.remove();
