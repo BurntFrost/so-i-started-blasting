@@ -193,6 +193,15 @@ export function ScenePlayer({
 
       const container = containerRef.current;
 
+      // Stop old player when switching types to prevent audio bleed
+      // (hideAllSlots only sets display:none — CSS hiding does NOT stop audio)
+      if (newType !== oldType && oldType && poolRef.current[oldType]?.player) {
+        try {
+          poolRef.current[oldType].player.pause();
+          poolRef.current[oldType].player.mute();
+        } catch {}
+      }
+
       if (newType === oldType && poolRef.current[newType]?.player?.isReady()) {
         // Same type — reuse player
         poolRef.current[newType].player.load(scene);
