@@ -110,7 +110,7 @@ graph TB
 | API | Vercel Serverless Functions |
 | Hosting | Vercel (SPA + API functions + cron jobs) |
 
-**Runtime dependencies:** `react`, `react-dom`, `@vercel/blob`, `@upstash/ratelimit`, `@upstash/redis`. Lean and mean.
+**Runtime dependencies:** `react`, `react-dom`, `@vercel/blob`, `@upstash/redis`, `@vercel/edge-config`. Lean and mean.
 
 ### The Blast Engine
 
