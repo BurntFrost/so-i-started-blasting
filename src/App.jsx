@@ -319,14 +319,15 @@ const CSS = `
     z-index: 1;
   }
 
-  /* YT IFrame API player container */
-  .yt-player-container {
+  /* Video player container (multi-source) */
+  .player-container {
     position: absolute;
     inset: 0;
     z-index: 1;
   }
 
-  .yt-player-container iframe {
+  .player-container iframe,
+  .player-container video {
     width: 100% !important;
     height: 100% !important;
     border: none !important;
