@@ -9,7 +9,10 @@ export function loadScript(url) {
     const script = document.createElement("script");
     script.src = url;
     script.onload = () => resolve();
-    script.onerror = () => reject(new Error(`Failed to load script: ${url}`));
+    script.onerror = () => {
+      delete scriptCache[url]; // Don't cache failures — allow retry
+      reject(new Error(`Failed to load script: ${url}`));
+    };
     document.head.appendChild(script);
   });
   return scriptCache[url];
