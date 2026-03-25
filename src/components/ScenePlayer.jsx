@@ -1,22 +1,6 @@
 import { useState, useEffect, useRef } from "react";
 import { getFilterByKey } from "../data/filters.js";
-
-// ─── YouTube IFrame API loader (singleton) ───
-let ytApiReady = null;
-function loadYTApi() {
-  if (ytApiReady) return ytApiReady;
-  ytApiReady = new Promise((resolve) => {
-    if (window.YT?.Player) {
-      resolve(window.YT);
-      return;
-    }
-    window.onYouTubeIframeAPIReady = () => resolve(window.YT);
-    const script = document.createElement("script");
-    script.src = "https://www.youtube.com/iframe_api";
-    document.head.appendChild(script);
-  });
-  return ytApiReady;
-}
+import { createPlayer, getSceneType } from "../players/createPlayer.js";
 
 export function ScenePlayer({
   scene, nextScene, isFavorite, onToggleFavorite, hasInteracted,
@@ -31,14 +15,15 @@ export function ScenePlayer({
   const [showKeyPopover, setShowKeyPopover] = useState(false);
   const keyInputRef = useRef(null);
   const prevIdRef = useRef(null);
-  const playerRef = useRef(null);
-  const containerRef = useRef(null);
-  const playerReadyRef = useRef(false);
 
-  // Pre-warm refs
-  const preWarmPlayerRef = useRef(null);
+  // Player pool: { type: { player, slot } }
+  const poolRef = useRef({});
+  const activeTypeRef = useRef(null);
+  const containerRef = useRef(null);
+
+  // Pre-warm pool: { type: { player, slot } }
+  const preWarmPoolRef = useRef({});
   const preWarmContainerRef = useRef(null);
-  const preWarmReadyRef = useRef(false);
   const preWarmSceneIdRef = useRef(null);
 
   // Keep latest values in refs to avoid stale closures in YT callbacks
@@ -54,21 +39,32 @@ export function ScenePlayer({
   const playingSceneRef = useRef(scene);
   const channelNumRef = useRef(null);
 
-  // ─── Helpers ───
-  function applyQuality(player) {
-    try {
-      const levels = player.getAvailableQualityLevels?.();
-      if (levels?.length) player.setPlaybackQuality(levels[0]);
-    } catch {}
+  // ─── Pool helpers ───
+  function getOrCreateSlot(container, type) {
+    let slot = container?.querySelector(`[data-type="${type}"]`);
+    if (!slot) {
+      slot = document.createElement("div");
+      slot.dataset.type = type;
+      slot.style.cssText = "width:100%;height:100%;";
+      container?.appendChild(slot);
+    }
+    return slot;
   }
 
-  function applyVolume(player) {
-    if (hasInteractedRef.current) {
-      try {
-        player.unMute();
-        player.setVolume(100);
-      } catch {}
+  function hideAllSlots(container) {
+    if (!container) return;
+    for (const slot of container.children) {
+      slot.style.display = "none";
     }
+  }
+
+  function showSlot(slot) {
+    if (slot) slot.style.display = "block";
+  }
+
+  function getActivePlayer() {
+    const type = activeTypeRef.current;
+    return type ? poolRef.current[type]?.player : null;
   }
 
   // ─── AI Key Input Handlers ───
@@ -138,101 +134,51 @@ export function ScenePlayer({
     }
   }, [aiError]);
 
-  // ─── Create main player once on mount, reuse via loadVideoById ───
+  // ─── Create main player on mount ───
   useEffect(() => {
     if (!scene) return;
+    const type = getSceneType(scene);
 
-    // Player already exists — handled by the scene-change effect
-    if (playerRef.current) return;
+    // Already have a player for this type
+    if (poolRef.current[type]?.player) return;
 
-    let cancelled = false;
+    const container = containerRef.current;
+    if (!container) return;
 
-    loadYTApi().then(() => {
-      if (cancelled || playerRef.current) return;
+    const slot = getOrCreateSlot(container, type);
+    showSlot(slot);
 
-      const container = containerRef.current;
-      if (!container) return;
-      container.innerHTML = "";
-      const div = document.createElement("div");
-      container.appendChild(div);
+    const player = createPlayer(type);
+    poolRef.current[type] = { player, slot };
+    activeTypeRef.current = type;
+    playingSceneRef.current = scene;
 
-      playingSceneRef.current = scene;
-
-      playerRef.current = new window.YT.Player(div, {
-        width: "100%",
-        height: "100%",
-        videoId: scene.videoId,
-        playerVars: {
-          start: scene.start,
-          end: scene.end,
-          autoplay: 1,
-          mute: hasInteractedRef.current ? 0 : 1,
-          rel: 0,
-          modestbranding: 1,
-          playsinline: 1,
-          vq: "hd2160",
-          enablejsapi: 1,
-        },
-        events: {
-          onReady(event) {
-            if (cancelled) return;
-            playerReadyRef.current = true;
-            const player = event.target;
-            applyQuality(player);
-            applyVolume(player);
-            player.playVideo();
-          },
-          onError(event) {
-            if (cancelled) return;
-            const code = event.data;
-            // 100=not found, 101/150=not embeddable → skip to next
-            if (code === 100 || code === 101 || code === 150) {
-              onBlastRef.current?.();
-            }
-          },
-          onStateChange(event) {
-            if (cancelled) return;
-            const player = event.target;
-
-            // On play — max quality, max volume, unmute
-            if (event.data === 1) {
-              applyQuality(player);
-              applyVolume(player);
-            }
-
-            // State 0 = ended — auto-advance, guard against spurious ends
-            if (event.data === 0) {
-              const ds = playingSceneRef.current;
-              try {
-                const currentTime = player.getCurrentTime?.();
-                if (!Number.isFinite(currentTime)) return;
-                if (ds?.end) {
-                  const clipDuration = ds.end - (ds.start || 0);
-                  const threshold = Math.min(5, clipDuration / 2);
-                  if (currentTime < ds.end - threshold) {
-                    player.seekTo(ds.start || 0);
-                    player.playVideo();
-                    return;
-                  }
-                }
-                if (aiModeRef.current) {
-                  onAiNextRef.current?.();
-                } else {
-                  onBlastRef.current?.();
-                }
-              } catch {}
-            }
-          },
-        },
-      });
+    player.create(slot, scene, {
+      muted: !hasInteractedRef.current,
+      onReady() {
+        if (!hasInteractedRef.current) {
+          player.mute();
+        } else {
+          player.unmute();
+        }
+        player.play();
+      },
+      onError() {
+        onBlastRef.current?.();
+      },
+      onEnded() {
+        if (aiModeRef.current) {
+          onAiNextRef.current?.();
+        } else {
+          onBlastRef.current?.();
+        }
+      },
     });
 
-    return () => {
-      cancelled = true;
-    };
-  }, [!!scene]); // Only run once when scene first becomes available
+    return () => {};
+  }, [!!scene]);
 
-  // ─── Scene change: transition + load video in parallel ───
+  // ─── Scene change: transition + pool management ───
   useEffect(() => {
     if (!scene) return;
 
@@ -240,22 +186,72 @@ export function ScenePlayer({
       channelNumRef.current = Math.floor(Math.random() * 60) + 2;
       setTransitioning(true);
 
-      // 🔥 Optimization #1 + #3: Reuse player + load DURING transition
-      if (playerRef.current && playerReadyRef.current) {
-        playingSceneRef.current = scene;
-        try {
-          playerRef.current.loadVideoById({
-            videoId: scene.videoId,
-            startSeconds: scene.start,
-            endSeconds: scene.end,
-          });
-          if (hasInteractedRef.current) {
-            playerRef.current.unMute();
-            playerRef.current.setVolume(100);
-          } else {
-            playerRef.current.mute();
-          }
-        } catch {}
+      const newType = getSceneType(scene);
+      const oldType = activeTypeRef.current;
+      playingSceneRef.current = scene;
+
+      const container = containerRef.current;
+
+      if (newType === oldType && poolRef.current[newType]?.player?.isReady()) {
+        // Same type — reuse player
+        poolRef.current[newType].player.load(scene);
+        if (hasInteractedRef.current) {
+          poolRef.current[newType].player.unmute();
+        } else {
+          poolRef.current[newType].player.mute();
+        }
+      } else if (preWarmPoolRef.current[newType]?.player?.isReady()) {
+        // Pre-warm player available — promote to main pool
+        const preWarm = preWarmPoolRef.current[newType];
+        hideAllSlots(container);
+        // Move slot from hidden pre-warm container to main container
+        container.appendChild(preWarm.slot);
+        showSlot(preWarm.slot);
+        // Promote to main pool
+        poolRef.current[newType] = preWarm;
+        delete preWarmPoolRef.current[newType];
+        preWarm.player.load(scene);
+        if (hasInteractedRef.current) {
+          preWarm.player.unmute();
+        } else {
+          preWarm.player.mute();
+        }
+        preWarm.player.play();
+        activeTypeRef.current = newType;
+      } else if (poolRef.current[newType]?.player) {
+        // Different type, but pool has it — show/hide swap
+        hideAllSlots(container);
+        showSlot(poolRef.current[newType].slot);
+        poolRef.current[newType].player.load(scene);
+        if (hasInteractedRef.current) {
+          poolRef.current[newType].player.unmute();
+        } else {
+          poolRef.current[newType].player.mute();
+        }
+        poolRef.current[newType].player.play();
+        activeTypeRef.current = newType;
+      } else {
+        // New type — create player, add to pool
+        hideAllSlots(container);
+        const slot = getOrCreateSlot(container, newType);
+        showSlot(slot);
+
+        const player = createPlayer(newType);
+        poolRef.current[newType] = { player, slot };
+        activeTypeRef.current = newType;
+
+        player.create(slot, scene, {
+          muted: !hasInteractedRef.current,
+          onReady() {
+            if (hasInteractedRef.current) player.unmute();
+            player.play();
+          },
+          onError() { onBlastRef.current?.(); },
+          onEnded() {
+            if (aiModeRef.current) onAiNextRef.current?.();
+            else onBlastRef.current?.();
+          },
+        });
       }
 
       const timer = setTimeout(() => {
@@ -269,87 +265,68 @@ export function ScenePlayer({
     prevIdRef.current = scene.id;
   }, [scene]);
 
-  // ─── Pre-warm next scene in hidden player ───
+  // ─── Pre-warm next scene ───
   useEffect(() => {
     if (!nextScene || nextScene.id === preWarmSceneIdRef.current) return;
-    // Don't pre-warm the scene that's currently playing
     if (nextScene.id === playingSceneRef.current?.id) return;
 
     preWarmSceneIdRef.current = nextScene.id;
+    const type = getSceneType(nextScene);
 
-    loadYTApi().then(() => {
-      // Reuse existing pre-warm player
-      if (preWarmPlayerRef.current && preWarmReadyRef.current) {
-        try {
-          preWarmPlayerRef.current.loadVideoById({
-            videoId: nextScene.videoId,
-            startSeconds: nextScene.start,
-            endSeconds: nextScene.end,
-          });
-          preWarmPlayerRef.current.mute();
-          // Pause after buffering a few seconds of video data
-          setTimeout(() => {
-            try { preWarmPlayerRef.current?.pauseVideo(); } catch {}
-          }, 3000);
-        } catch {}
-        return;
-      }
+    // Reuse existing pre-warm player of same type
+    if (preWarmPoolRef.current[type]?.player?.isReady()) {
+      preWarmPoolRef.current[type].player.load(nextScene);
+      preWarmPoolRef.current[type].player.mute();
+      setTimeout(() => {
+        try { preWarmPoolRef.current[type]?.player?.pause(); } catch {}
+      }, 3000);
+      return;
+    }
 
-      // Create pre-warm player for the first time
-      const container = preWarmContainerRef.current;
-      if (!container) return;
-      container.innerHTML = "";
-      const div = document.createElement("div");
-      container.appendChild(div);
+    // Create new pre-warm player
+    const container = preWarmContainerRef.current;
+    if (!container) return;
+    const slot = getOrCreateSlot(container, type);
 
-      preWarmPlayerRef.current = new window.YT.Player(div, {
-        width: "1",
-        height: "1",
-        videoId: nextScene.videoId,
-        playerVars: {
-          start: nextScene.start,
-          end: nextScene.end,
-          autoplay: 1,
-          mute: 1,
-          rel: 0,
-          playsinline: 1,
-          enablejsapi: 1,
-        },
-        events: {
-          onReady(event) {
-            preWarmReadyRef.current = true;
-            event.target.mute();
-            event.target.playVideo();
-            // Pause after buffering enough data
-            setTimeout(() => {
-              try { event.target.pauseVideo(); } catch {}
-            }, 3000);
-          },
-        },
-      });
+    const player = createPlayer(type);
+    preWarmPoolRef.current[type] = { player, slot };
+
+    player.create(slot, nextScene, {
+      muted: true,
+      onReady() {
+        player.mute();
+        player.play();
+        setTimeout(() => {
+          try { player.pause(); } catch {}
+        }, 3000);
+      },
+      onError() { /* pre-warm failure is silent */ },
+      onEnded() { /* ignore */ },
     });
   }, [nextScene?.id]);
 
-  // ─── Clean up both players on unmount ───
+  // ─── Clean up all pooled players on unmount ───
   useEffect(() => {
     return () => {
-      if (playerRef.current) {
-        try { playerRef.current.destroy(); } catch {}
-        playerRef.current = null;
+      for (const entry of Object.values(poolRef.current)) {
+        try { entry.player.destroy(); } catch {}
       }
-      if (preWarmPlayerRef.current) {
-        try { preWarmPlayerRef.current.destroy(); } catch {}
-        preWarmPlayerRef.current = null;
+      poolRef.current = {};
+      for (const entry of Object.values(preWarmPoolRef.current)) {
+        try { entry.player.destroy(); } catch {}
       }
+      preWarmPoolRef.current = {};
     };
   }, []);
 
-  // ─── Unmute + max volume the instant the user first interacts ───
+  // ─── Unmute active player when user first interacts ───
   useEffect(() => {
-    if (!hasInteracted || !playerRef.current) return;
+    if (!hasInteracted) return;
+    const player = getActivePlayer();
+    if (!player) return;
     try {
-      playerRef.current.unMute();
-      playerRef.current.setVolume(100);
+      player.unmute();
+      player.setVolume(100);
     } catch {}
   }, [hasInteracted]);
 
@@ -366,7 +343,7 @@ export function ScenePlayer({
         <div className="tv-body">
           <div className="tv-bezel">
             <div className="tv-screen">
-              <div ref={containerRef} className="yt-player-container" />
+              <div ref={containerRef} className="player-container" />
               {transitioning && (
                 <div className="tv-transition">
                   <div className="tv-static" />
