@@ -1,6 +1,6 @@
 # 📺 Channel Zero
 
-A pirate-TV web app that blasts random video clips through a CRT television you can't turn off. 416 curated clips from YouTube, Vimeo, and Dailymotion spanning the entire internet era — from Dancing Baby to modern chaos — with an AI engine that learns your taste and suggests more.
+A pirate-TV web app that blasts random video clips through a CRT television you can't turn off. 602 curated clips from YouTube, Vimeo, Dailymotion, and Streamable spanning the entire internet era — from Dancing Baby to modern chaos — with an AI engine that learns your taste and discovers more.
 
 Nobody asked for this. You're welcome.
 
@@ -17,12 +17,13 @@ Nobody asked for this. You're welcome.
 | Feature | Description |
 |---------|-------------|
 | **⚡ Blast Me** | Weighted selection algorithm balances recency, vibe diversity, and era variety |
-| **416 clips** | Curated library spanning Ancient Web → Early Internet → Viral Classics → Modern Chaos |
+| **602 clips** | Curated library spanning Ancient Web → Early Internet → Viral Classics → Modern Chaos |
 | **Multi-source video** | YouTube, Vimeo, Dailymotion, Streamable, and direct MP4/WebM |
-| **19 vibe filters** | Chaotic Energy, Legendary Fails, Iconic Cinema, Cursed Content, Unhinged Wisdom, and more |
+| **20 vibe filters** | Chaotic Energy, Legendary Fails, Iconic Cinema, Cursed Content, Unhinged Wisdom, and more |
 | **4 era filters** | Ancient Web, Early Internet, Viral Classics, Modern Chaos |
 | **Favorites & History** | Heart clips to save them, browse your last 50 watches |
-| **📡 AI Pick** | Claude-powered clip suggestions streamed live (bring your own API key) |
+| **📡 Discovery** | AI-powered clip discovery — 10 free picks/day, or bring your own Claude API key for unlimited |
+| **⬆️ Promote** | Submit AI-discovered clips to a promotion queue for library inclusion |
 | **CRT TV chrome** | Retro bezel, channel-change transitions (static → color bars → vertical hold roll) |
 
 ---
@@ -41,11 +42,12 @@ Nobody asked for this. You're welcome.
 
 ### AI Discovery
 
-1. Click the **📡 AI Pick** button on the TV
-2. First time: paste your **Claude API key** in the inline input
-3. Claude suggests clips based on your watch history, verified against YouTube in real-time
-4. Verified clips stream in one at a time
-5. Click **⚡ Blast Me** to exit back to normal mode
+1. Click the **📡 Discovery** button on the TV
+2. Get **10 free discoveries per day** — no API key needed
+3. Or paste your own **Claude API key** for unlimited discoveries
+4. Claude suggests clips based on your watch history, verified against YouTube in real-time
+5. Verified clips stream in one at a time — click **⬆️** to promote a great find
+6. Click **✕ Exit** to return to normal mode
 
 ---
 
@@ -78,7 +80,11 @@ graph TB
         Sweep["/api/sweep"]
         Dial --> Claude["Claude Haiku 4.5"]
         Dial --> Verify["YouTube oEmbed"]
-        Sweep --> Blob["Vercel Blob"]
+        Dial --> RL["Rate Limiter<br/><i>Upstash Redis</i>"]
+        Promote["/api/promote"]
+        Promote --> Blob["Vercel Blob"]
+        Sweep["/api/sweep"]
+        Sweep --> Blob
         Sweep --> GH["GitHub Issues"]
     end
 
@@ -99,11 +105,12 @@ graph TB
 | Styling | CSS-in-JS (one massive template literal in App.jsx, as god intended) |
 | Video | Multi-source player pool (YouTube, Vimeo, Dailymotion, Streamable, HTML5 video) |
 | State | React hooks + localStorage (no Redux, no context, no regrets) |
-| AI | Claude Haiku 4.5 via Anthropic API (BYOK — your key, your bill) |
+| AI | Claude Haiku 4.5 via Anthropic API (free tier + BYOK) |
+| Rate Limiting | Upstash Redis (10 free AI discoveries/day per IP) |
 | API | Vercel Serverless Functions |
 | Hosting | Vercel (SPA + API functions + cron jobs) |
 
-**Runtime dependencies:** `react`, `react-dom`, `@vercel/blob`. That's it. We don't believe in bloat.
+**Runtime dependencies:** `react`, `react-dom`, `@vercel/blob`, `@upstash/ratelimit`, `@upstash/redis`. Lean and mean.
 
 ### The Blast Engine
 
@@ -155,11 +162,15 @@ sequenceDiagram
     API-->>UI: SSE: [DONE]
 ```
 
-No server-side API keys — your Claude key is passed per-request and never stored. Your key, your bill, our plausible deniability.
+Free tier uses a server-side key with rate limiting (10/day per IP via Upstash Redis). BYOK users pass their Claude key per-request — never stored. Your key, your bill, our plausible deniability.
+
+### Promotion Queue
+
+AI-discovered clips can be promoted for library inclusion. Promoted clips are stored in Vercel Blob, deduplicated by video ID, and reviewed via a CLI script (`scripts/review-promotions.mjs`).
 
 ### Dead Link Sweeper
 
-416 clips across 5 platforms means links die constantly. A weekly cron job checks every clip via oEmbed/HEAD requests, stores results in Vercel Blob, and files a GitHub Issue if any are dead.
+602 clips across 5 platforms means links die constantly. A weekly cron job checks every clip via oEmbed/HEAD requests, stores results in Vercel Blob, and files a GitHub Issue if any are dead.
 
 ### Deployment
 
