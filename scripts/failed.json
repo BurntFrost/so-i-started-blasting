@@ -1,0 +1,102 @@
+[
+  {
+    "id": "dm-robocop-entrance",
+    "type": "dailymotion",
+    "videoId": "x80nooi",
+    "start": 0,
+    "end": 40,
+    "quote": "Dead or alive, you're coming with me.",
+    "description": "RoboCop's entrance — the birth of one of 80s sci-fi's most iconic characters.",
+    "vibes": [
+      "iconic-cinema",
+      "pure-nostalgia",
+      "chaotic-good"
+    ],
+    "era": "ancient-web",
+    "source": {
+      "title": "RoboCop",
+      "year": 1987
+    },
+    "_reason": "Unexpected token 'I', \"Invalid video URL.\" is not valid JSON"
+  },
+  {
+    "id": "dm-spaceballs-gone-plaid",
+    "type": "dailymotion",
+    "videoId": "x2nzs9p",
+    "start": 0,
+    "end": 30,
+    "quote": "They've gone to plaid!",
+    "description": "Dark Helmet engages ludicrous speed and goes to plaid in Mel Brooks' Spaceballs.",
+    "vibes": [
+      "pure-nostalgia",
+      "iconic-cinema",
+      "unhinged"
+    ],
+    "era": "ancient-web",
+    "source": {
+      "title": "Spaceballs",
+      "year": 1987
+    },
+    "_reason": "Unexpected token 'I', \"Invalid video URL.\" is not valid JSON"
+  },
+  {
+    "id": "dm-prodigy-smack-up",
+    "type": "dailymotion",
+    "videoId": "x2eo1",
+    "start": 0,
+    "end": 45,
+    "quote": "Change my pitch up. Smack my bitch up.",
+    "description": "The Prodigy's banned first-person-perspective music video — pure 90s rave chaos.",
+    "vibes": [
+      "chaotic-energy",
+      "musical-mayhem",
+      "cursed-content"
+    ],
+    "era": "ancient-web",
+    "source": {
+      "title": "Smack My Bitch Up",
+      "year": 1997
+    },
+    "_reason": "Unexpected token 'T', \"This video\"... is not valid JSON"
+  },
+  {
+    "id": "vimeo-incident-by-a-bank",
+    "type": "vimeo",
+    "videoId": "228071975",
+    "start": 0,
+    "end": 40,
+    "quote": "Ninety-six bystanders. Zero heroes.",
+    "description": "Golden Bear winner Berlinale — Ruben Östlund's one-take recreation of a real Stockholm bank robbery with 96 choreographed performers.",
+    "vibes": [
+      "chaotic-energy",
+      "iconic-cinema",
+      "awkward-gold"
+    ],
+    "era": "modern-chaos",
+    "source": {
+      "title": "Incident by a Bank",
+      "year": 2010
+    },
+    "_reason": "HTTP 404"
+  },
+  {
+    "id": "vimeo-big-bang-big-boom",
+    "type": "vimeo",
+    "videoId": "25232830",
+    "start": 0,
+    "end": 40,
+    "quote": "Life, death, and everything in between drawn on walls.",
+    "description": "Blu's viral stop-motion graffiti masterpiece — the entire history of life animated across city walls in real locations.",
+    "vibes": [
+      "iconic-cinema",
+      "synchronicity",
+      "chaotic-energy"
+    ],
+    "era": "viral-classics",
+    "source": {
+      "title": "Big Bang Big Boom",
+      "year": 2010
+    },
+    "_reason": "HTTP 404"
+  }
+]
