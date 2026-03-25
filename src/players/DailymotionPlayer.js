@@ -1,97 +1,91 @@
 // src/players/DailymotionPlayer.js
-import { loadScript } from "./PlayerBase.js";
-
-const DM_SDK = "https://geo.dailymotion.com/libs/player/cl3a5.js";
+// Uses iframe embed — the Dailymotion Library Player SDK requires a partner
+// player ID that is no longer valid. iframe embed is the reliable fallback.
 
 export class DailymotionPlayer {
   constructor() {
-    this._player = null;
+    this._iframe = null;
     this._ready = false;
     this._options = null;
-    this._container = null;
-    this._endFired = false;
-    this._timeupdateHandler = null;
+    this._endTimer = null;
   }
 
-  _setupEndEnforcement(scene) {
-    // Remove previous handler to avoid stacking
-    if (this._timeupdateHandler && this._player) {
-      this._player.off("timeupdate", this._timeupdateHandler);
-    }
-    this._endFired = false;
-    this._timeupdateHandler = null;
+  _buildSrc(videoId, start, muted) {
+    const params = new URLSearchParams({
+      autoplay: "1",
+      queue_enable: "0",
+      sharing_enable: "0",
+      ui_logo: "0",
+    });
+    if (muted) params.set("mute", "1");
+    if (start) params.set("start", String(start));
+    return `https://www.dailymotion.com/embed/video/${videoId}?${params}`;
+  }
 
-    if (scene.end && this._player) {
-      this._timeupdateHandler = (state) => {
-        if (!this._endFired && state.videoTime >= scene.end) {
-          this._endFired = true;
-          this._player.pause();
-          this._options?.onEnded?.();
-        }
-      };
-      this._player.on("timeupdate", this._timeupdateHandler);
-    }
+  _setupEndTimer(scene) {
+    clearTimeout(this._endTimer);
+    const duration = (scene.end || 30) - (scene.start || 0);
+    this._endTimer = setTimeout(() => {
+      this._options?.onEnded?.();
+    }, duration * 1000);
   }
 
   create(container, scene, options) {
     this._options = options;
-    this._container = container;
     container.innerHTML = "";
 
-    const div = document.createElement("div");
-    div.id = `dm-player-${Date.now()}`;
-    container.appendChild(div);
+    const iframe = document.createElement("iframe");
+    iframe.src = this._buildSrc(scene.videoId, scene.start, options.muted);
+    iframe.style.cssText = "width:100%;height:100%;border:none;";
+    iframe.allow = "autoplay; fullscreen";
 
-    loadScript(DM_SDK)
-      .then(() => {
-        return window.dailymotion.createPlayer(div.id, {
-          video: scene.videoId,
-          params: {
-            autoplay: true,
-            mute: !!options.muted,
-            startTime: scene.start || 0,
-          },
-        });
-      })
-      .then((player) => {
-        this._player = player;
-        this._ready = true;
-        options.onReady?.();
+    iframe.addEventListener("load", () => {
+      this._ready = true;
+      options.onReady?.();
+    });
 
-        player.on("video_end", () => {
-          if (!this._endFired) options.onEnded?.();
-        });
-        player.on("error", () => options.onError?.());
+    iframe.addEventListener("error", () => {
+      options.onError?.();
+    });
 
-        this._setupEndEnforcement(scene);
-      })
-      .catch(() => options.onError?.());
+    container.appendChild(iframe);
+    this._iframe = iframe;
+
+    this._setupEndTimer(scene);
   }
 
   load(scene) {
-    this._endFired = false;
-    if (!this._player) return;
-    this._player.loadContent({
-      video: scene.videoId,
-      params: { startTime: scene.start || 0 },
-    });
-    this._setupEndEnforcement(scene);
+    if (!this._iframe) return;
+    clearTimeout(this._endTimer);
+    this._iframe.src = this._buildSrc(scene.videoId, scene.start);
+    this._setupEndTimer(scene);
   }
 
-  play() { this._player?.play(); }
-  pause() { this._player?.pause(); }
+  play() { /* no API control via iframe */ }
+  pause() {
+    // Stop playback by blanking the iframe src
+    if (this._iframe) this._iframe.src = "about:blank";
+  }
 
   destroy() {
-    if (this._timeupdateHandler && this._player) {
-      this._player.off("timeupdate", this._timeupdateHandler);
+    clearTimeout(this._endTimer);
+    if (this._iframe) {
+      this._iframe.removeAttribute("src");
+      this._iframe.remove();
     }
+    this._iframe = null;
     this._ready = false;
-    try { this._player?.destroy(); } catch {}
-    this._player = null;
   }
 
-  setVolume(vol) { this._player?.setVolume(vol / 100); }
-  mute() { this._player?.setMute(true); }
-  unmute() { this._player?.setMute(false); this._player?.setVolume(1); }
+  setVolume() { /* no API control via iframe */ }
+  mute() {
+    // Reload with mute param to stop audio bleed
+    if (this._iframe && this._iframe.src && !this._iframe.src.includes("about:blank")) {
+      const url = new URL(this._iframe.src);
+      url.searchParams.set("mute", "1");
+      this._iframe.src = url.toString();
+    }
+  }
+  unmute() { /* unmuting requires reload — handled by scene switch */ }
   isReady() { return this._ready; }
 }

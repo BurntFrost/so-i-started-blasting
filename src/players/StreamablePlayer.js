@@ -16,7 +16,6 @@ export class StreamablePlayer {
     iframe.src = `https://streamable.com/e/${scene.videoId}?autoplay=1${options.muted ? "&muted=1" : ""}`;
     iframe.style.cssText = "width:100%;height:100%;border:none;";
     iframe.allow = "autoplay; fullscreen";
-    iframe.setAttribute("allowfullscreen", "");
 
     iframe.addEventListener("load", () => {
       this._ready = true;
