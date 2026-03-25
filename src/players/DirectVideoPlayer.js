@@ -48,6 +48,10 @@ export class DirectVideoPlayer {
     }
   }
 
+  updateCallbacks(options) {
+    this._options = options;
+  }
+
   load(scene) {
     if (!this._video) return;
     this._cleanupEnd?.();

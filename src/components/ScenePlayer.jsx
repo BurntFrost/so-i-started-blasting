@@ -199,8 +199,22 @@ export function ScenePlayer({
         } catch {}
       }
 
+      // Callbacks for reused/promoted players — always use refs for fresh values
+      const reuseCallbacks = {
+        onReady() {
+          if (hasInteractedRef.current) getActivePlayer()?.unmute();
+          getActivePlayer()?.play();
+        },
+        onError() { onBlastRef.current?.(); },
+        onEnded() {
+          if (discoveryModeRef.current) onAdvanceDiscoveryRef.current?.();
+          else onBlastRef.current?.();
+        },
+      };
+
       if (newType === oldType && poolRef.current[newType]?.player?.isReady()) {
         // Same type — reuse player
+        poolRef.current[newType].player.updateCallbacks(reuseCallbacks);
         poolRef.current[newType].player.load(scene);
         poolRef.current[newType].player.play();
         if (hasInteractedRef.current) {
@@ -218,6 +232,7 @@ export function ScenePlayer({
         // Promote to main pool
         poolRef.current[newType] = preWarm;
         delete preWarmPoolRef.current[newType];
+        preWarm.player.updateCallbacks(reuseCallbacks);
         preWarm.player.load(scene);
         if (hasInteractedRef.current) {
           preWarm.player.unmute();
@@ -230,6 +245,7 @@ export function ScenePlayer({
         // Different type, but pool has it — show/hide swap
         hideAllSlots(container);
         showSlot(poolRef.current[newType].slot);
+        poolRef.current[newType].player.updateCallbacks(reuseCallbacks);
         poolRef.current[newType].player.load(scene);
         if (hasInteractedRef.current) {
           poolRef.current[newType].player.unmute();

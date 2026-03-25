@@ -68,6 +68,10 @@ export class VimeoPlayer {
       .catch(() => options.onError?.());
   }
 
+  updateCallbacks(options) {
+    this._options = options;
+  }
+
   load(scene) {
     this._scene = scene;
     this._endFired = false;

@@ -38,6 +38,10 @@ export class StreamablePlayer {
     this._iframe = iframe;
   }
 
+  updateCallbacks(options) {
+    this._options = options;
+  }
+
   load(scene) {
     if (!this._iframe) return;
     clearTimeout(this._endTimer);

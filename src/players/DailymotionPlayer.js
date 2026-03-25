@@ -81,6 +81,10 @@ export class DailymotionPlayer {
     this._setupTimers(scene);
   }
 
+  updateCallbacks(options) {
+    this._options = options;
+  }
+
   load(scene) {
     if (!this._iframe) return;
     this._clearTimers();

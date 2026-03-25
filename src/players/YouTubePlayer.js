@@ -83,25 +83,31 @@ export class YouTubePlayer {
             this._applyQuality(player);
             if (!this._muted) this._applyVolume(player);
             player.playVideo();
-            options.onReady?.();
+            this._options?.onReady?.();
           },
           onError: (event) => {
             if (this._cancelled) return;
             this._clearStallTimer();
             const code = event.data;
             if (code === 2 || code === 5 || code === 100 || code === 101 || code === 150) {
-              options.onError?.();
+              this._options?.onError?.();
             }
           },
           onStateChange: (event) => {
             if (this._cancelled) return;
             const player = event.target;
 
-            // On play — clear stall timer, max quality, max volume
+            // On play — clear stall timer, max quality, enforce audio state
+            // Always reassert mute/volume here because the YT API can
+            // silently reset audio state after loadVideoById
             if (event.data === 1) {
               this._clearStallTimer();
               this._applyQuality(player);
-              if (!this._muted) this._applyVolume(player);
+              if (this._muted) {
+                try { player.mute(); } catch {}
+              } else {
+                this._applyVolume(player);
+              }
             }
 
             // State 0 = ended — guard against spurious fires
@@ -118,7 +124,7 @@ export class YouTubePlayer {
                     return;
                   }
                 }
-                options.onEnded?.();
+                this._options?.onEnded?.();
               } catch {}
             }
           },
@@ -127,8 +133,12 @@ export class YouTubePlayer {
       this._startStallTimer();
     }).catch(() => {
       this._clearStallTimer();
-      options.onError?.();
+      this._options?.onError?.();
     });
+  }
+
+  updateCallbacks(options) {
+    this._options = options;
   }
 
   load(scene) {
