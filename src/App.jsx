@@ -1262,6 +1262,27 @@ const CSS = `
     animation: ai-error-pulse 1s ease-in-out infinite;
   }
 
+  .promote-btn {
+    background: none;
+    border: 1px solid rgba(57, 255, 20, 0.3);
+    color: #39ff14;
+    padding: 4px 8px;
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 14px;
+    transition: border-color 0.2s;
+  }
+  .promote-btn:hover {
+    border-color: #39ff14;
+  }
+  .rate-limit-badge {
+    font-family: 'Special Elite', monospace;
+    font-size: 11px;
+    color: rgba(57, 255, 20, 0.5);
+    text-align: center;
+    margin-top: 4px;
+  }
+
   /* Blast button — dimmed AI mode variant */
   .tv-blast-btn-ai {
     background: linear-gradient(135deg, #3a3530, #4a4540, #3a3530) !important;
