@@ -1,0 +1,88 @@
+// src/players/VimeoPlayer.js
+import { loadScript } from "./PlayerBase.js";
+
+const VIMEO_SDK = "https://player.vimeo.com/api/player.js";
+
+export class VimeoPlayer {
+  constructor() {
+    this._player = null;
+    this._ready = false;
+    this._options = null;
+    this._scene = null;
+    this._endFired = false;
+  }
+
+  _setupEndEnforcement(scene) {
+    // Remove any previous timeupdate listener
+    if (this._player) this._player.off("timeupdate");
+    this._endFired = false;
+
+    if (scene.end && this._player) {
+      this._player.on("timeupdate", (data) => {
+        if (!this._endFired && data.seconds >= scene.end) {
+          this._endFired = true;
+          this._player.pause();
+          this._options?.onEnded?.();
+        }
+      });
+    }
+  }
+
+  create(container, scene, options) {
+    this._options = options;
+    this._scene = scene;
+    container.innerHTML = "";
+
+    const div = document.createElement("div");
+    container.appendChild(div);
+
+    loadScript(VIMEO_SDK)
+      .then(() => {
+        this._player = new window.Vimeo.Player(div, {
+          id: scene.videoId,
+          width: "100%",
+          autoplay: true,
+          muted: !!options.muted,
+          transparent: true,
+        });
+
+        this._player.ready().then(() => {
+          this._ready = true;
+          if (scene.start) this._player.setCurrentTime(scene.start);
+          options.onReady?.();
+        });
+
+        this._player.on("ended", () => {
+          if (!this._endFired) options.onEnded?.();
+        });
+
+        this._setupEndEnforcement(scene);
+      })
+      .catch(() => options.onError?.());
+  }
+
+  load(scene) {
+    this._scene = scene;
+    this._endFired = false;
+    if (!this._player) return;
+    this._player.loadVideo(scene.videoId).then(() => {
+      if (scene.start) this._player.setCurrentTime(scene.start);
+      this._setupEndEnforcement(scene);
+    }).catch(() => this._options?.onError?.());
+  }
+
+  play() { this._player?.play().catch(() => {}); }
+  pause() { this._player?.pause().catch(() => {}); }
+
+  destroy() {
+    this._ready = false;
+    if (this._player) this._player.off("timeupdate");
+    try { this._player?.destroy(); } catch {}
+    this._player = null;
+  }
+
+  setVolume(vol) { this._player?.setVolume(vol / 100).catch(() => {}); }
+  mute() { this._player?.setMuted(true).catch(() => {}); }
+  unmute() { this._player?.setMuted(false).catch(() => {}); this._player?.setVolume(1).catch(() => {}); }
+  isReady() { return this._ready; }
+}
