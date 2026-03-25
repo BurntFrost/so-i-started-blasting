@@ -4,7 +4,7 @@ import { useBlastEngine } from "./hooks/useBlastEngine.js";
 import { useFavorites } from "./hooks/useFavorites.js";
 import { useWatchHistory } from "./hooks/useWatchHistory.js";
 import { useApiKey } from "./hooks/useApiKey.js";
-import { useAiDiscovery, getAllScenesForLookup } from "./hooks/useAiDiscovery.js";
+import { useAiDiscovery, getAllScenesForLookup, getHeartedDiscoveries } from "./hooks/useAiDiscovery.js";
 import { ScenePlayer } from "./components/ScenePlayer.jsx";
 import { FilterBar } from "./components/FilterBar.jsx";
 import { Toast } from "./components/Toast.jsx";
@@ -1262,6 +1262,27 @@ const CSS = `
     animation: ai-error-pulse 1s ease-in-out infinite;
   }
 
+  .promote-btn {
+    background: none;
+    border: 1px solid rgba(57, 255, 20, 0.3);
+    color: #39ff14;
+    padding: 4px 8px;
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 14px;
+    transition: border-color 0.2s;
+  }
+  .promote-btn:hover {
+    border-color: #39ff14;
+  }
+  .rate-limit-badge {
+    font-family: 'Special Elite', monospace;
+    font-size: 11px;
+    color: rgba(57, 255, 20, 0.5);
+    text-align: center;
+    margin-top: 4px;
+  }
+
   /* Blast button — dimmed AI mode variant */
   .tv-blast-btn-ai {
     background: linear-gradient(135deg, #3a3530, #4a4540, #3a3530) !important;
@@ -1290,14 +1311,26 @@ const CSS = `
 `;
 
 export function App() {
-  const { current, nextUp, getNext, setCurrent } = useBlastEngine(SCENES);
   const { favoriteIds, isFavorite, toggleFavorite } = useFavorites();
+  const { current, nextUp, getNext, setCurrent } = useBlastEngine(SCENES, favoriteIds);
   const { history, addToHistory, clearHistory } = useWatchHistory();
   const [activeFilters, setActiveFilters] = useState([]);
   const [showFavorites, setShowFavorites] = useState(false);
   const [showHistory, setShowHistory] = useState(false);
   const [toastMessage, setToastMessage] = useState(null);
   const [hasInteracted, setHasInteracted] = useState(false);
+
+  const [promoteEnabled, setPromoteEnabled] = useState(!!localStorage.getItem("sisb-promote-secret"));
+
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const adminSecret = params.get("admin");
+    if (adminSecret) {
+      localStorage.setItem("sisb-promote-secret", adminSecret);
+      setPromoteEnabled(true);
+      window.history.replaceState({}, "", window.location.pathname);
+    }
+  }, []);
 
   // Edge Config — runtime config from Vercel dashboard
   const [siteConfig, setSiteConfig] = useState(null);
@@ -1313,11 +1346,11 @@ export function App() {
   const { apiKey, keyStatus, hasKey, setApiKey, clearApiKey } = useApiKey();
 
   const {
-    aiMode, currentAiScene,
-    dialLoading, dialStreamDone,
-    dialWaiting,
-    aiError,
-    spinDial, advanceAi, exitAiMode,
+    aiMode: discoveryMode,
+    current: discoveryScene,
+    isScanning, isBuffering, isDriedUp,
+    rateMeta, error: discoveryError,
+    enterDiscovery, advance: advanceDiscovery, exitDiscovery,
   } = useAiDiscovery(apiKey, history, favoriteIds, activeFilters);
 
   const handleEnter = useCallback(() => {
@@ -1389,21 +1422,39 @@ export function App() {
     setToastMessage("History cleared");
   }, [clearHistory]);
 
-  // When a clip ends in AI mode, advance to next clip. If AI mode ended naturally, load a fresh curated scene.
-  const handleAiEnd = useCallback(() => {
-    const ended = advanceAi();
-    if (ended) {
-      const next = getNext(activeFilters);
-      if (next) addToHistory(next.id);
-    }
-  }, [advanceAi, getNext, activeFilters, addToHistory]);
+  const handleDiscoveryEnd = useCallback(() => {
+    advanceDiscovery();
+  }, [advanceDiscovery]);
 
-  // When user clicks Blast Me button during AI mode to exit manually
-  const handleExitAi = useCallback(() => {
-    exitAiMode();
+  const handleExitDiscovery = useCallback(() => {
+    exitDiscovery();
     const next = getNext(activeFilters);
     if (next) addToHistory(next.id);
-  }, [exitAiMode, getNext, activeFilters, addToHistory]);
+  }, [exitDiscovery, getNext, activeFilters, addToHistory]);
+
+  const handlePromote = useCallback(async (scene) => {
+    const secret = localStorage.getItem("sisb-promote-secret");
+    if (!secret) return;
+
+    try {
+      const res = await fetch("/api/promote", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "X-Promote-Secret": secret,
+        },
+        body: JSON.stringify(scene),
+      });
+      const data = await res.json();
+      if (data.queued) {
+        setToastMessage("Clip submitted for promotion ⬆️");
+      } else if (data.reason === "already_in_queue") {
+        setToastMessage("Already in promotion queue");
+      }
+    } catch {
+      setToastMessage("Promotion failed — try again");
+    }
+  }, []);
 
   if (!hasInteracted) {
     return (
@@ -1465,23 +1516,27 @@ export function App() {
         />
 
         <ScenePlayer
-          scene={aiMode ? currentAiScene : current}
-          nextScene={aiMode ? null : nextUp}
+          scene={discoveryMode ? discoveryScene : current}
+          nextScene={discoveryMode ? null : nextUp}
           isFavorite={
-            (aiMode ? currentAiScene : current)
-              ? isFavorite((aiMode ? currentAiScene : current).id)
+            (discoveryMode ? discoveryScene : current)
+              ? isFavorite((discoveryMode ? discoveryScene : current).id)
               : false
           }
           onToggleFavorite={handleToggleFavorite}
           hasInteracted={hasInteracted}
           onBlast={handleBlast}
-          onAiPick={spinDial}
-          onAiNext={handleAiEnd}
-          onExitAi={handleExitAi}
-          aiMode={aiMode}
-          aiLoading={dialLoading}
-          aiWaiting={dialWaiting}
-          aiError={aiError}
+          onEnterDiscovery={enterDiscovery}
+          onAdvanceDiscovery={handleDiscoveryEnd}
+          onExitDiscovery={handleExitDiscovery}
+          onPromote={handlePromote}
+          promoteEnabled={promoteEnabled}
+          discoveryMode={discoveryMode}
+          isScanning={isScanning}
+          isBuffering={isBuffering}
+          isDriedUp={isDriedUp}
+          discoveryError={discoveryError}
+          rateMeta={rateMeta}
           hasKey={hasKey}
           keyStatus={keyStatus}
           onSubmitKey={setApiKey}

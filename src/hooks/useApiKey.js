@@ -57,7 +57,11 @@ export function useApiKey() {
     try { localStorage.removeItem(STORAGE_KEY); } catch {}
   }, []);
 
+  const markInvalid = useCallback(() => {
+    setKeyStatus("invalid");
+  }, []);
+
   const hasKey = keyStatus === "connected";
 
-  return { apiKey, keyStatus, hasKey, setApiKey, clearApiKey };
+  return { apiKey, keyStatus, hasKey, setApiKey, clearApiKey, markInvalid };
 }

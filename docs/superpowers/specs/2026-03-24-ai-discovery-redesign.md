@@ -161,7 +161,7 @@ New: "Dig deep — find obscure, surprising, weird clips that fit this taste pro
 
 ### Implementation
 
-- Counter stored in Vercel KV: key `ratelimit:{ip}:{YYYY-MM-DD}`, TTL 24h
+- Counter stored in Upstash Redis (via Vercel Marketplace): key `ratelimit:{ip}:{YYYY-MM-DD}`, TTL 24h
 - IP sourced from Vercel's `x-real-ip` header (set at the edge, not spoofable by clients)
 - Increment on each request, return remaining in response `meta`
 - BYOK requests skip rate limit check entirely
