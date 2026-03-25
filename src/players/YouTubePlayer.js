@@ -17,22 +17,41 @@ function loadYTApi() {
   return ytApiReady;
 }
 
+const STALL_TIMEOUT_MS = 8000;
+
 export class YouTubePlayer {
   constructor() {
     this._player = null;
     this._ready = false;
     this._cancelled = false;
+    this._generation = 0;
     this._options = null;
     this._scene = null;
+    this._muted = true;
+    this._stallTimer = null;
+  }
+
+  _startStallTimer() {
+    this._clearStallTimer();
+    this._stallTimer = setTimeout(() => {
+      if (!this._cancelled) this._options?.onError?.();
+    }, STALL_TIMEOUT_MS);
+  }
+
+  _clearStallTimer() {
+    clearTimeout(this._stallTimer);
+    this._stallTimer = null;
   }
 
   create(container, scene, options) {
+    const gen = ++this._generation;
     this._cancelled = false;
     this._options = options;
     this._scene = scene;
+    this._muted = !!options.muted;
 
     loadYTApi().then(() => {
-      if (this._cancelled) return;
+      if (this._cancelled || this._generation !== gen) return;
 
       container.innerHTML = "";
       const div = document.createElement("div");
@@ -46,7 +65,7 @@ export class YouTubePlayer {
           start: scene.start,
           end: scene.end,
           autoplay: 1,
-          mute: options.muted ? 1 : 0,
+          mute: this._muted ? 1 : 0,
           rel: 0,
           modestbranding: 1,
           playsinline: 1,
@@ -57,17 +76,20 @@ export class YouTubePlayer {
         events: {
           onReady: (event) => {
             if (this._cancelled) return;
+            this._clearStallTimer();
+            this._startStallTimer(); // fresh 8s window for playback to begin
             this._ready = true;
             const player = event.target;
             this._applyQuality(player);
-            if (!options.muted) this._applyVolume(player);
+            if (!this._muted) this._applyVolume(player);
             player.playVideo();
             options.onReady?.();
           },
           onError: (event) => {
             if (this._cancelled) return;
+            this._clearStallTimer();
             const code = event.data;
-            if (code === 100 || code === 101 || code === 150) {
+            if (code === 2 || code === 5 || code === 100 || code === 101 || code === 150) {
               options.onError?.();
             }
           },
@@ -75,10 +97,11 @@ export class YouTubePlayer {
             if (this._cancelled) return;
             const player = event.target;
 
-            // On play — max quality, max volume
+            // On play — clear stall timer, max quality, max volume
             if (event.data === 1) {
+              this._clearStallTimer();
               this._applyQuality(player);
-              if (!options.muted) this._applyVolume(player);
+              if (!this._muted) this._applyVolume(player);
             }
 
             // State 0 = ended — guard against spurious fires
@@ -101,7 +124,9 @@ export class YouTubePlayer {
           },
         },
       });
+      this._startStallTimer();
     }).catch(() => {
+      this._clearStallTimer();
       options.onError?.();
     });
   }
@@ -109,6 +134,7 @@ export class YouTubePlayer {
   load(scene) {
     this._scene = scene;
     if (!this._player || !this._ready) return;
+    this._startStallTimer();
     try {
       this._player.loadVideoById({
         videoId: scene.videoId,
@@ -127,8 +153,10 @@ export class YouTubePlayer {
   }
 
   destroy() {
+    this._generation++;
     this._cancelled = true;
     this._ready = false;
+    this._clearStallTimer();
     try { this._player?.destroy(); } catch {}
     this._player = null;
   }
@@ -138,10 +166,12 @@ export class YouTubePlayer {
   }
 
   mute() {
+    this._muted = true;
     try { this._player?.mute(); } catch {}
   }
 
   unmute() {
+    this._muted = false;
     try {
       this._player?.unMute();
       this._player?.setVolume(100);

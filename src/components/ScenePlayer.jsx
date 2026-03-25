@@ -202,6 +202,7 @@ export function ScenePlayer({
       if (newType === oldType && poolRef.current[newType]?.player?.isReady()) {
         // Same type — reuse player
         poolRef.current[newType].player.load(scene);
+        poolRef.current[newType].player.play();
         if (hasInteractedRef.current) {
           poolRef.current[newType].player.unmute();
         } else {

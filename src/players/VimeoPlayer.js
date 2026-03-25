@@ -7,6 +7,8 @@ export class VimeoPlayer {
   constructor() {
     this._player = null;
     this._ready = false;
+    this._cancelled = false;
+    this._muted = true;
     this._options = null;
     this._scene = null;
     this._endFired = false;
@@ -29,6 +31,8 @@ export class VimeoPlayer {
   }
 
   create(container, scene, options) {
+    this._cancelled = false;
+    this._muted = !!options.muted;
     this._options = options;
     this._scene = scene;
     container.innerHTML = "";
@@ -38,6 +42,7 @@ export class VimeoPlayer {
 
     loadScript(VIMEO_SDK)
       .then(() => {
+        if (this._cancelled) return;
         this._player = new window.Vimeo.Player(div, {
           id: scene.videoId,
           width: "100%",
@@ -47,13 +52,15 @@ export class VimeoPlayer {
         });
 
         this._player.ready().then(() => {
+          if (this._cancelled) return;
           this._ready = true;
           if (scene.start) this._player.setCurrentTime(scene.start);
           options.onReady?.();
         });
 
         this._player.on("ended", () => {
-          if (!this._endFired) options.onEnded?.();
+          if (this._cancelled || this._endFired) return;
+          options.onEnded?.();
         });
 
         this._setupEndEnforcement(scene);
@@ -75,14 +82,18 @@ export class VimeoPlayer {
   pause() { this._player?.pause().catch(() => {}); }
 
   destroy() {
+    this._cancelled = true;
     this._ready = false;
-    if (this._player) this._player.off("timeupdate");
+    if (this._player) {
+      this._player.off("timeupdate");
+      this._player.off("ended");
+    }
     try { this._player?.destroy(); } catch {}
     this._player = null;
   }
 
   setVolume(vol) { this._player?.setVolume(vol / 100).catch(() => {}); }
-  mute() { this._player?.setMuted(true).catch(() => {}); }
-  unmute() { this._player?.setMuted(false).catch(() => {}); this._player?.setVolume(1).catch(() => {}); }
+  mute() { this._muted = true; this._player?.setMuted(true).catch(() => {}); }
+  unmute() { this._muted = false; this._player?.setMuted(false).catch(() => {}); this._player?.setVolume(1).catch(() => {}); }
   isReady() { return this._ready; }
 }

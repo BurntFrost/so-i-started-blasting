@@ -12,6 +12,7 @@ export class DailymotionPlayer {
   constructor() {
     this._iframe = null;
     this._ready = false;
+    this._muted = true;
     this._options = null;
     this._endTimer = null;
     this._fallbackTimer = null;
@@ -56,10 +57,11 @@ export class DailymotionPlayer {
 
   create(container, scene, options) {
     this._options = options;
+    this._muted = !!options.muted;
     container.innerHTML = "";
 
     const iframe = document.createElement("iframe");
-    iframe.src = this._buildSrc(scene.videoId, scene.start, options.muted);
+    iframe.src = this._buildSrc(scene.videoId, scene.start, this._muted);
     iframe.style.cssText = "width:100%;height:100%;border:none;";
     iframe.allow = "autoplay; fullscreen";
 
@@ -82,7 +84,7 @@ export class DailymotionPlayer {
   load(scene) {
     if (!this._iframe) return;
     this._clearTimers();
-    this._iframe.src = this._buildSrc(scene.videoId, scene.start);
+    this._iframe.src = this._buildSrc(scene.videoId, scene.start, this._muted);
     this._setupTimers(scene);
   }
 
@@ -109,7 +111,7 @@ export class DailymotionPlayer {
   }
 
   setVolume() { /* no API control via iframe */ }
-  mute() { this.pause(); }
-  unmute() { /* requires new iframe — handled by scene switch */ }
+  mute() { this._muted = true; /* applied on next load() — no API control */ }
+  unmute() { this._muted = false; /* requires new iframe — applied on next load() */ }
   isReady() { return this._ready; }
 }
