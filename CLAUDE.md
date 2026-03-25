@@ -26,12 +26,20 @@ src/
 ├── App.jsx                  # Root component + ALL CSS (850 lines of styles)
 ├── main.jsx                 # React 18 createRoot entry
 ├── data/
-│   ├── scenes.js            # 159 clips, 1800+ lines — the content library
+│   ├── scenes.js            # 400+ clips — the content library
 │   └── filters.js           # Vibe/era filter definitions + matching helpers
+├── players/
+│   ├── createPlayer.js      # Factory: scene type → player instance
+│   ├── PlayerBase.js         # Shared helpers (script loader, end-time enforcement)
+│   ├── YouTubePlayer.js      # YouTube IFrame API (extracted from ScenePlayer)
+│   ├── VimeoPlayer.js        # Vimeo Player SDK
+│   ├── StreamablePlayer.js   # Streamable iframe embed
+│   ├── DailymotionPlayer.js  # Dailymotion Player SDK
+│   └── DirectVideoPlayer.js  # HTML5 <video> for MP4/WebM URLs
 ├── lib/
 │   └── streamClient.js      # fetch + ReadableStream SSE parser
 ├── components/
-│   ├── ScenePlayer.jsx      # YouTube IFrame API player + CRT TV chrome + AI Pick button
+│   ├── ScenePlayer.jsx      # Multi-source player pool + CRT TV chrome + AI Pick button
 │   ├── FilterDropdown.jsx   # Category selector
 │   ├── FavoritesList.jsx    # Slide-out favorites panel
 │   ├── HistoryList.jsx      # Slide-out watch history panel
@@ -39,7 +47,8 @@ src/
 │   ├── NeonButton.jsx       # Styled button component
 │   └── Toast.jsx            # Notification toast
 └── hooks/
-    ├── useRandomScene.js    # Random scene selection with recency buffer (avoids repeats)
+    ├── useBlastEngine.js    # Weighted scene selection (recency, filters, play history)
+    ├── useRandomScene.js    # Simple random selection with recency buffer (legacy)
     ├── useFavorites.js      # localStorage-backed favorites (key: sisb-favorites)
     ├── useWatchHistory.js   # localStorage-backed history, max 50 (key: sisb-watch-history)
     ├── useApiKey.js         # localStorage API key management with error differentiation (key: sisb-api-key)
@@ -60,7 +69,9 @@ Each entry in `SCENES` array (`src/data/scenes.js`):
 ```js
 {
   id: "kebab-case-id",        // Unique, descriptive
-  videoId: "YouTube_ID",       // 11-char YouTube video ID
+  type: "youtube",             // Optional: youtube (default), vimeo, streamable, dailymotion, video
+  videoId: "YouTube_ID",       // For YouTube/Vimeo/Streamable/Dailymotion
+  videoUrl: "https://...",     // For type: "video" only (direct MP4/WebM URL)
   start: 0,                   // Start timestamp in seconds
   end: 30,                    // End timestamp in seconds
   quote: "Memorable line",    // Displayed under the TV
