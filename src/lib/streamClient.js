@@ -10,7 +10,7 @@
  * @param {(error: string) => void} onError - called on errors
  * @returns {AbortController}
  */
-export function streamRequest(url, apiKey, body, { onEvent, onDone, onError }) {
+export function streamRequest(url, apiKey, body, { onEvent, onMeta, onDone, onError }) {
   const controller = new AbortController();
 
   (async () => {
@@ -19,7 +19,7 @@ export function streamRequest(url, apiKey, body, { onEvent, onDone, onError }) {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
-          Authorization: `Bearer ${apiKey}`,
+          ...(apiKey ? { Authorization: `Bearer ${apiKey}` } : {}),
         },
         body: JSON.stringify(body),
         signal: controller.signal,
@@ -59,6 +59,8 @@ export function streamRequest(url, apiKey, body, { onEvent, onDone, onError }) {
             const data = JSON.parse(payload);
             if (data.error) {
               onError?.(data.error);
+            } else if (data.meta) {
+              onMeta?.(data.meta);
             } else {
               onEvent?.(data);
             }
