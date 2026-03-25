@@ -6,11 +6,13 @@ import { MODEL_ID } from "./prompts.js";
  * Throws on API errors with a descriptive message.
  */
 export async function callClaude(apiKey, prompt) {
+  const key = apiKey || process.env.ANTHROPIC_API_KEY;
+  if (!key) throw new Error("NO_API_KEY");
   const res = await fetch("https://api.anthropic.com/v1/messages", {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
-      "x-api-key": apiKey,
+      "x-api-key": key,
       "anthropic-version": "2023-06-01",
     },
     body: JSON.stringify({
