@@ -52,6 +52,7 @@ export class YouTubePlayer {
           playsinline: 1,
           vq: "hd2160",
           enablejsapi: 1,
+          origin: window.location.origin,
         },
         events: {
           onReady: (event) => {
