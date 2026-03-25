@@ -88,8 +88,14 @@ export class DailymotionPlayer {
 
   play() { /* no API control via iframe */ }
   pause() {
-    // Stop playback by blanking the iframe src
-    if (this._iframe) this._iframe.src = "about:blank";
+    // Remove iframe entirely — setting src="about:blank" causes DM scripts
+    // to loop errors in the sandboxed blank page
+    this._clearTimers();
+    if (this._iframe) {
+      this._iframe.removeAttribute("src");
+      this._iframe.remove();
+      this._iframe = null;
+    }
   }
 
   destroy() {
@@ -103,14 +109,7 @@ export class DailymotionPlayer {
   }
 
   setVolume() { /* no API control via iframe */ }
-  mute() {
-    // Reload with mute param to stop audio bleed
-    if (this._iframe && this._iframe.src && !this._iframe.src.includes("about:blank")) {
-      const url = new URL(this._iframe.src);
-      url.searchParams.set("mute", "1");
-      this._iframe.src = url.toString();
-    }
-  }
-  unmute() { /* unmuting requires reload — handled by scene switch */ }
+  mute() { this.pause(); }
+  unmute() { /* requires new iframe — handled by scene switch */ }
   isReady() { return this._ready; }
 }
