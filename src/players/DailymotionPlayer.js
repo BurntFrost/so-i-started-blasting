@@ -67,12 +67,12 @@ export class DailymotionPlayer {
 
     iframe.addEventListener("load", () => {
       this._ready = true;
-      options.onReady?.();
+      this._options?.onReady?.();
     });
 
     iframe.addEventListener("error", () => {
       this._clearTimers();
-      options.onError?.();
+      this._options?.onError?.();
     });
 
     container.appendChild(iframe);

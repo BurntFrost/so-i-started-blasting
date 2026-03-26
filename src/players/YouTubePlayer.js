@@ -4,14 +4,22 @@
 let ytApiReady = null;
 function loadYTApi() {
   if (ytApiReady) return ytApiReady;
-  ytApiReady = new Promise((resolve) => {
+  ytApiReady = new Promise((resolve, reject) => {
     if (window.YT?.Player) {
       resolve(window.YT);
       return;
     }
-    window.onYouTubeIframeAPIReady = () => resolve(window.YT);
+    const prev = window.onYouTubeIframeAPIReady;
+    window.onYouTubeIframeAPIReady = () => {
+      prev?.();
+      resolve(window.YT);
+    };
     const script = document.createElement("script");
     script.src = "https://www.youtube.com/iframe_api";
+    script.onerror = () => {
+      ytApiReady = null;
+      reject(new Error("Failed to load YouTube IFrame API"));
+    };
     document.head.appendChild(script);
   });
   return ytApiReady;
@@ -69,7 +77,6 @@ export class YouTubePlayer {
           rel: 0,
           modestbranding: 1,
           playsinline: 1,
-          vq: "hd2160",
           enablejsapi: 1,
           origin: window.location.origin,
         },
@@ -77,10 +84,8 @@ export class YouTubePlayer {
           onReady: (event) => {
             if (this._cancelled) return;
             this._clearStallTimer();
-            this._startStallTimer(); // fresh 8s window for playback to begin
             this._ready = true;
             const player = event.target;
-            this._applyQuality(player);
             if (!this._muted) this._applyVolume(player);
             player.playVideo();
             this._options?.onReady?.();
@@ -89,8 +94,12 @@ export class YouTubePlayer {
             if (this._cancelled) return;
             this._clearStallTimer();
             const code = event.data;
-            if (code === 2 || code === 5 || code === 100 || code === 101 || code === 150) {
+            if (code === 2 || code === 100 || code === 101 || code === 150) {
               this._options?.onError?.();
+            }
+            // Code 5 is transient HTML5 error — retry playback
+            if (code === 5) {
+              try { this._player?.playVideo(); } catch {}
             }
           },
           onStateChange: (event) => {
@@ -102,7 +111,6 @@ export class YouTubePlayer {
             // silently reset audio state after loadVideoById
             if (event.data === 1) {
               this._clearStallTimer();
-              this._applyQuality(player);
               if (this._muted) {
                 try { player.mute(); } catch {}
               } else {
@@ -124,11 +132,14 @@ export class YouTubePlayer {
                   if (!nearSceneEnd && !nearVideoEnd) {
                     player.seekTo(this._scene.start || 0);
                     player.playVideo();
+                    this._startStallTimer();
                     return;
                   }
                 }
                 this._options?.onEnded?.();
-              } catch {}
+              } catch {
+                this._startStallTimer();
+              }
             }
           },
         },
@@ -145,6 +156,7 @@ export class YouTubePlayer {
   }
 
   load(scene) {
+    if (this._cancelled) return;
     this._scene = scene;
     if (!this._player || !this._ready) return;
     this._startStallTimer();
@@ -193,14 +205,6 @@ export class YouTubePlayer {
 
   isReady() {
     return this._ready;
-  }
-
-  // ─── YouTube-specific helpers ───
-  _applyQuality(player) {
-    try {
-      const levels = player.getAvailableQualityLevels?.();
-      if (levels?.length) player.setPlaybackQuality(levels[0]);
-    } catch {}
   }
 
   _applyVolume(player) {

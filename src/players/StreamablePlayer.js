@@ -21,17 +21,17 @@ export class StreamablePlayer {
 
     iframe.addEventListener("load", () => {
       this._ready = true;
-      options.onReady?.();
+      this._options?.onReady?.();
       // Start end timer after iframe loads (not at creation) so network
       // latency doesn't eat into the clip's playback duration
       const duration = (scene.end || 30) - (scene.start || 0);
       this._endTimer = setTimeout(() => {
-        options.onEnded?.();
+        this._options?.onEnded?.();
       }, duration * 1000);
     });
 
     iframe.addEventListener("error", () => {
-      options.onError?.();
+      this._options?.onError?.();
     });
 
     container.appendChild(iframe);

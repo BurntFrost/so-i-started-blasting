@@ -55,17 +55,17 @@ export class VimeoPlayer {
           if (this._cancelled) return;
           this._ready = true;
           if (scene.start) this._player.setCurrentTime(scene.start);
-          options.onReady?.();
+          this._options?.onReady?.();
         });
 
         this._player.on("ended", () => {
           if (this._cancelled || this._endFired) return;
-          options.onEnded?.();
+          this._options?.onEnded?.();
         });
 
         this._setupEndEnforcement(scene);
       })
-      .catch(() => options.onError?.());
+      .catch(() => this._options?.onError?.());
   }
 
   updateCallbacks(options) {

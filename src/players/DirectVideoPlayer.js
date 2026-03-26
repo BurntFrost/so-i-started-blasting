@@ -24,15 +24,15 @@ export class DirectVideoPlayer {
       if (this._ready) return;
       this._ready = true;
       if (scene.start) video.currentTime = scene.start;
-      options.onReady?.();
+      this._options?.onReady?.();
     }, { once: true });
 
     video.addEventListener("ended", () => {
-      options.onEnded?.();
+      this._options?.onEnded?.();
     });
 
     video.addEventListener("error", () => {
-      options.onError?.();
+      this._options?.onError?.();
     });
 
     container.appendChild(video);
@@ -43,7 +43,7 @@ export class DirectVideoPlayer {
       this._cleanupEnd = enforceEndTime(
         () => video.currentTime,
         scene.end,
-        () => options.onEnded?.(),
+        () => this._options?.onEnded?.(),
       );
     }
   }
