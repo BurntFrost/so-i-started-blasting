@@ -118,7 +118,10 @@ export class YouTubePlayer {
                 if (this._scene?.end) {
                   const clipDuration = this._scene.end - (this._scene.start || 0);
                   const threshold = Math.min(5, clipDuration / 2);
-                  if (currentTime < this._scene.end - threshold) {
+                  const nearSceneEnd = currentTime >= this._scene.end - threshold;
+                  const videoDuration = player.getDuration?.();
+                  const nearVideoEnd = Number.isFinite(videoDuration) && videoDuration > 0 && currentTime >= videoDuration - threshold;
+                  if (!nearSceneEnd && !nearVideoEnd) {
                     player.seekTo(this._scene.start || 0);
                     player.playVideo();
                     return;
