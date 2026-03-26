@@ -3,8 +3,6 @@ import { SCENES } from "./data/scenes.js";
 import { useBlastEngine } from "./hooks/useBlastEngine.js";
 import { useFavorites } from "./hooks/useFavorites.js";
 import { useWatchHistory } from "./hooks/useWatchHistory.js";
-import { useApiKey } from "./hooks/useApiKey.js";
-import { useAiDiscovery, getAllScenesForLookup, getHeartedDiscoveries } from "./hooks/useAiDiscovery.js";
 import { ScenePlayer } from "./components/ScenePlayer.jsx";
 import { FilterBar } from "./components/FilterBar.jsx";
 import { Toast } from "./components/Toast.jsx";
@@ -986,301 +984,12 @@ const CSS = `
     color: var(--text-0);
   }
 
-  /* ═══ AI Pick Button & Key Input ═══ */
-  .ai-pick-btn {
-    background: linear-gradient(135deg, #6c3ce0, #8b5cf6) !important;
-    color: white !important;
-    border: none;
-    padding: 10px 20px;
-    border-radius: 6px;
-    font-weight: bold;
-    font-size: 0.85rem;
-    cursor: pointer;
-    transition: box-shadow 0.2s, opacity 0.2s;
-  }
-  .ai-pick-btn:hover {
-    box-shadow: 0 0 16px rgba(139, 92, 246, 0.5);
-  }
-  .ai-pick-btn:disabled {
-    opacity: 0.7;
-    cursor: default;
-  }
-  .ai-pick-btn:disabled:hover {
-    box-shadow: none;
-  }
-  .ai-pick-btn-loading {
-    animation: ai-btn-pulse 1.5s ease-in-out infinite;
-  }
-
-  @keyframes ai-btn-pulse {
-    0%, 100% { box-shadow: 0 0 8px rgba(139, 92, 246, 0.4); }
-    50% { box-shadow: 0 0 20px rgba(139, 92, 246, 0.7); }
-  }
-
-  .ai-exit-btn {
-    background: transparent;
-    color: var(--text-1);
-    border: 1px solid var(--text-2);
-    padding: 10px 16px;
-    border-radius: 6px;
-    font-size: 0.8rem;
-    cursor: pointer;
-    transition: border-color 0.2s, color 0.2s;
-  }
-  .ai-exit-btn:hover {
-    border-color: var(--text-0);
-    color: var(--text-0);
-  }
-
-  .ai-key-btn {
-    background: none;
-    border: 1px solid var(--border);
-    padding: 6px 10px;
-    border-radius: 6px;
-    cursor: pointer;
-    font-size: 0.85rem;
-    transition: border-color 0.2s;
-  }
-  .ai-key-btn:hover {
-    border-color: var(--text-2);
-  }
-
-  .ai-badge {
-    display: inline-block;
-    background: #6c3ce0;
-    color: white;
-    font-size: 0.6rem;
-    font-weight: bold;
-    padding: 2px 6px;
-    border-radius: 3px;
-    margin-right: 6px;
-    vertical-align: middle;
-    letter-spacing: 0.05em;
-  }
-
-  /* Inline key input */
-  .ai-key-input {
-    margin-top: 10px;
-    padding: 10px;
-    background: rgba(108, 60, 224, 0.05);
-    border: 1px solid rgba(108, 60, 224, 0.3);
-    border-radius: 6px;
-    animation: ai-key-slide 0.2s ease-out;
-  }
-  @keyframes ai-key-slide {
-    from { opacity: 0; max-height: 0; margin-top: 0; }
-    to { opacity: 1; max-height: 100px; margin-top: 10px; }
-  }
-  .ai-key-input-row {
-    display: flex;
-    gap: 6px;
-    align-items: center;
-  }
-  .ai-key-field {
-    flex: 1;
-    background: transparent;
-    border: 1px solid var(--text-2);
-    color: var(--text-0);
-    padding: 8px 10px;
-    border-radius: 4px;
-    font-family: monospace;
-    font-size: 0.8rem;
-    outline: none;
-    transition: border-color 0.2s;
-  }
-  .ai-key-field:focus {
-    border-color: #6c3ce0;
-  }
-  .ai-key-field-error {
-    border-color: var(--neon-red) !important;
-  }
-  .ai-key-field::placeholder {
-    color: var(--text-2);
-  }
-  .ai-key-connect-btn {
-    background: #6c3ce0;
-    color: white;
-    border: none;
-    padding: 8px 14px;
-    border-radius: 4px;
-    font-size: 0.75rem;
-    font-weight: bold;
-    cursor: pointer;
-    white-space: nowrap;
-  }
-  .ai-key-connect-btn:disabled {
-    opacity: 0.5;
-    cursor: default;
-  }
-  .ai-key-dismiss-btn {
-    background: none;
-    border: none;
-    color: var(--text-2);
-    cursor: pointer;
-    font-size: 0.9rem;
-    padding: 4px 8px;
-  }
-  .ai-key-dismiss-btn:hover {
-    color: var(--text-0);
-  }
-  .ai-key-hint {
-    font-size: 0.65rem;
-    color: var(--text-2);
-    margin-top: 6px;
-  }
-  .ai-key-error {
-    color: var(--neon-red);
-  }
-
-  /* Key management popover */
-  .ai-key-popover {
-    position: absolute;
-    right: 0;
-    margin-top: 6px;
-    background: var(--bg-1);
-    border: 1px solid var(--border);
-    border-radius: 6px;
-    padding: 10px 14px;
-    display: flex;
-    align-items: center;
-    gap: 10px;
-    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.4);
-    z-index: 20;
-    white-space: nowrap;
-  }
-  .ai-key-popover-key {
-    font-family: monospace;
-    font-size: 0.75rem;
-    color: var(--text-2);
-  }
-  .ai-key-popover-disconnect {
-    background: none;
-    border: 1px solid var(--neon-red);
-    color: var(--neon-red);
-    padding: 4px 10px;
-    border-radius: 4px;
-    font-size: 0.7rem;
-    cursor: pointer;
-  }
-  .ai-key-popover-disconnect:hover {
-    background: rgba(255, 23, 68, 0.1);
-  }
-
-  /* Ensure info-actions can position popover */
   .tv-info-actions {
     position: relative;
     display: flex;
     flex-wrap: wrap;
     gap: 8px;
     align-items: center;
-  }
-
-  /* ═══ AI Overlay States ═══ */
-
-  /* Shared: full-screen static snow (looping, unlike the one-shot .tv-static) */
-  @keyframes ai-snow-loop {
-    0%   { background-position: 0 0, 50px 50px, 20px 30px; }
-    25%  { background-position: 10px 5px, 30px 20px, 40px 10px; }
-    50%  { background-position: 5px 15px, 45px 35px, 15px 45px; }
-    75%  { background-position: 20px 10px, 10px 40px, 35px 20px; }
-    100% { background-position: 0 0, 50px 50px, 20px 30px; }
-  }
-
-  .ai-static-snow {
-    position: absolute;
-    inset: 0;
-    background:
-      repeating-radial-gradient(circle at 17% 32%, white 0px, transparent 1px),
-      repeating-radial-gradient(circle at 62% 88%, white 0px, transparent 1px),
-      repeating-radial-gradient(circle at 89% 13%, white 0px, transparent 1px);
-    background-size: 3px 3px, 4px 4px, 2px 2px;
-    opacity: 0.55;
-    mix-blend-mode: screen;
-    animation: ai-snow-loop 0.15s steps(4) infinite;
-  }
-
-  /* Dial mode: heavy static overlay */
-  .ai-static-overlay {
-    position: absolute;
-    inset: 0;
-    z-index: 10;
-    background: #000;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-  }
-
-  @keyframes ai-text-flicker {
-    0%, 100% { opacity: 1; }
-    30%       { opacity: 0.7; }
-    60%       { opacity: 0.85; }
-  }
-
-  .ai-static-text {
-    position: relative;
-    z-index: 11;
-    font-family: monospace;
-    font-size: 1.2rem;
-    letter-spacing: 0.25em;
-    color: var(--neon-green);
-    text-shadow:
-      0 0 8px rgba(57, 255, 20, 0.8),
-      0 0 20px rgba(57, 255, 20, 0.4);
-    text-transform: uppercase;
-    animation: ai-text-flicker 1.2s ease-in-out infinite;
-  }
-
-  /* Error overlay — reuses .ai-static-snow */
-  .ai-error-overlay {
-    position: absolute;
-    inset: 0;
-    z-index: 10;
-    background: #000;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-  }
-
-  @keyframes ai-error-pulse {
-    0%, 100% { opacity: 1; }
-    50%       { opacity: 0.35; }
-  }
-
-  .ai-error-text {
-    position: relative;
-    z-index: 11;
-    font-family: monospace;
-    font-size: 1rem;
-    letter-spacing: 0.15em;
-    color: var(--neon-red);
-    text-shadow:
-      0 0 8px rgba(255, 23, 68, 0.8),
-      0 0 20px rgba(255, 23, 68, 0.4);
-    text-transform: uppercase;
-    text-align: center;
-    padding: 0 16px;
-    animation: ai-error-pulse 1s ease-in-out infinite;
-  }
-
-  .promote-btn {
-    background: none;
-    border: 1px solid rgba(57, 255, 20, 0.3);
-    color: #39ff14;
-    padding: 4px 8px;
-    border-radius: 4px;
-    cursor: pointer;
-    font-size: 14px;
-    transition: border-color 0.2s;
-  }
-  .promote-btn:hover {
-    border-color: #39ff14;
-  }
-  .rate-limit-badge {
-    font-family: 'Special Elite', monospace;
-    font-size: 11px;
-    color: rgba(57, 255, 20, 0.5);
-    text-align: center;
-    margin-top: 4px;
   }
 
   /* Blast button — dimmed AI mode variant */
@@ -1312,25 +1021,13 @@ const CSS = `
 
 export function App() {
   const { favoriteIds, isFavorite, toggleFavorite } = useFavorites();
-  const { current, nextUp, getNext, setCurrent } = useBlastEngine(SCENES, favoriteIds);
+  const { current, nextUp, getNext, setCurrent } = useBlastEngine(SCENES);
   const { history, addToHistory, clearHistory } = useWatchHistory();
   const [activeFilters, setActiveFilters] = useState([]);
   const [showFavorites, setShowFavorites] = useState(false);
   const [showHistory, setShowHistory] = useState(false);
   const [toastMessage, setToastMessage] = useState(null);
   const [hasInteracted, setHasInteracted] = useState(false);
-
-  const [promoteEnabled, setPromoteEnabled] = useState(!!localStorage.getItem("sisb-promote-secret"));
-
-  useEffect(() => {
-    const params = new URLSearchParams(window.location.search);
-    const adminSecret = params.get("admin");
-    if (adminSecret) {
-      localStorage.setItem("sisb-promote-secret", adminSecret);
-      setPromoteEnabled(true);
-      window.history.replaceState({}, "", window.location.pathname);
-    }
-  }, []);
 
   // Edge Config — runtime config from Vercel dashboard
   const [siteConfig, setSiteConfig] = useState(null);
@@ -1342,16 +1039,6 @@ export function App() {
       .catch(() => null)
       .then((cfg) => { if (cfg) setSiteConfig(cfg); });
   }, []);
-
-  const { apiKey, keyStatus, hasKey, setApiKey, clearApiKey } = useApiKey();
-
-  const {
-    aiMode: discoveryMode,
-    current: discoveryScene,
-    isScanning, isBuffering, isDriedUp,
-    rateMeta, error: discoveryError,
-    enterDiscovery, advance: advanceDiscovery, exitDiscovery,
-  } = useAiDiscovery(apiKey, history, favoriteIds, activeFilters);
 
   const handleEnter = useCallback(() => {
     setHasInteracted(true);
@@ -1422,40 +1109,6 @@ export function App() {
     setToastMessage("History cleared");
   }, [clearHistory]);
 
-  const handleDiscoveryEnd = useCallback(() => {
-    advanceDiscovery();
-  }, [advanceDiscovery]);
-
-  const handleExitDiscovery = useCallback(() => {
-    exitDiscovery();
-    const next = getNext(activeFilters);
-    if (next) addToHistory(next.id);
-  }, [exitDiscovery, getNext, activeFilters, addToHistory]);
-
-  const handlePromote = useCallback(async (scene) => {
-    const secret = localStorage.getItem("sisb-promote-secret");
-    if (!secret) return;
-
-    try {
-      const res = await fetch("/api/promote", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          "X-Promote-Secret": secret,
-        },
-        body: JSON.stringify(scene),
-      });
-      const data = await res.json();
-      if (data.queued) {
-        setToastMessage("Clip submitted for promotion ⬆️");
-      } else if (data.reason === "already_in_queue") {
-        setToastMessage("Already in promotion queue");
-      }
-    } catch {
-      setToastMessage("Promotion failed — try again");
-    }
-  }, []);
-
   if (!hasInteracted) {
     return (
       <>
@@ -1516,32 +1169,12 @@ export function App() {
         />
 
         <ScenePlayer
-          scene={discoveryMode ? discoveryScene : current}
-          nextScene={discoveryMode ? null : nextUp}
-          isFavorite={
-            (discoveryMode ? discoveryScene : current)
-              ? isFavorite((discoveryMode ? discoveryScene : current).id)
-              : false
-          }
+          scene={current}
+          nextScene={nextUp}
+          isFavorite={current ? isFavorite(current.id) : false}
           onToggleFavorite={handleToggleFavorite}
           hasInteracted={hasInteracted}
           onBlast={handleBlast}
-          onEnterDiscovery={enterDiscovery}
-          onAdvanceDiscovery={handleDiscoveryEnd}
-          onExitDiscovery={handleExitDiscovery}
-          onPromote={handlePromote}
-          promoteEnabled={promoteEnabled}
-          discoveryMode={discoveryMode}
-          isScanning={isScanning}
-          isBuffering={isBuffering}
-          isDriedUp={isDriedUp}
-          discoveryError={discoveryError}
-          rateMeta={rateMeta}
-          hasKey={hasKey}
-          keyStatus={keyStatus}
-          onSubmitKey={setApiKey}
-          onClearKey={clearApiKey}
-          aiEnabled={siteConfig?.aiEnabled ?? true}
         />
 
         <Toast message={toastMessage} onDone={() => setToastMessage(null)} />
@@ -1549,7 +1182,7 @@ export function App() {
         {showFavorites && (
           <FavoritesList
             favoriteIds={favoriteIds}
-            scenes={getAllScenesForLookup()}
+            scenes={SCENES}
             onSelect={handleFavoriteSelect}
             onRemove={handleToggleFavorite}
             onClose={() => setShowFavorites(false)}
@@ -1559,7 +1192,7 @@ export function App() {
         {showHistory && (
           <HistoryList
             history={history}
-            scenes={getAllScenesForLookup()}
+            scenes={SCENES}
             onSelect={handleHistorySelect}
             onClear={handleClearHistory}
             onClose={() => setShowHistory(false)}

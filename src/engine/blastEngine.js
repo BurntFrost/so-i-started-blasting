@@ -1,13 +1,15 @@
-const HISTORY_CAP = 200;
+const HISTORY_CAP = 400;
 const COOLDOWN_RATIO = 0.5;
 const VIBE_WINDOW = 5;
 const ERA_WINDOW = 3;
+const HARD_COOLDOWN = 20;
+const MIN_CANDIDATES = 3;
 
 const WEIGHTS = {
-  recency: 0.4,
+  recency: 0.5,
   vibeDiversity: 0.3,
   eraDiversity: 0.1,
-  random: 0.2,
+  random: 0.1,
 };
 
 /**
@@ -65,13 +67,29 @@ export function recordPlay(history, sceneId) {
 }
 
 /**
+ * Pick a scene using scores as probability weights.
+ * Higher-scoring clips are more likely but not guaranteed — keeps output genuinely random.
+ */
+function weightedRandomPick(scored) {
+  const total = scored.reduce((sum, { score }) => sum + score, 0);
+  if (total === 0) return scored[Math.floor(Math.random() * scored.length)].scene;
+
+  let r = Math.random() * total;
+  for (const { scene, score } of scored) {
+    r -= score;
+    if (r <= 0) return scene;
+  }
+  return scored[scored.length - 1].scene;
+}
+
+/**
  * Compute a 0–1 score for a candidate scene.
  *
- * Factors (see spec for details):
- *   recency      (0.4) — linear ramp over 50% of pool cooldown
+ * Factors:
+ *   recency      (0.5) — linear ramp over 50% of pool cooldown
  *   vibeDiversity (0.3) — overlap of candidate vibes with last 5 plays
  *   eraDiversity  (0.1) — overlap of candidate era with last 3 plays
- *   random        (0.2) — jitter to prevent deterministic ordering
+ *   random        (0.1) — jitter
  */
 export function scoreScene(scene, history, pool, { recentVibes, recentEras }) {
   const cooldown = Math.floor(pool.length * COOLDOWN_RATIO);
@@ -115,29 +133,46 @@ export function scoreScene(scene, history, pool, { recentVibes, recentEras }) {
 }
 
 /**
- * Score every scene in pool, return the highest scorer.
- * If pool has 0 scenes returns null. If pool has 1 scene returns it directly.
+ * Pick the next scene from pool.
+ *
+ * Phase 1 — Hard exclusion: clips from the last HARD_COOLDOWN plays are
+ *   removed from candidates entirely, guaranteeing zero repeats within that window.
+ * Phase 2 — Scoring: remaining candidates are scored for diversity.
+ * Phase 3 — Weighted random: scores become probability weights so the output
+ *   is genuinely random while still favoring diverse picks.
  */
 export function pickNext(pool, history, allScenes) {
   if (pool.length === 0) return null;
   if (pool.length === 1) return pool[0];
 
-  const sceneMap = buildSceneMap(allScenes);
-  const vibeWindow = Math.min(VIBE_WINDOW, pool.length - 1);
-  const eraWindow = Math.min(ERA_WINDOW, pool.length - 1);
-  const recentVibes = vibeWindow > 0 ? getRecentVibes(history, sceneMap, vibeWindow) : null;
-  const recentEras = eraWindow > 0 ? getRecentEras(history, sceneMap, eraWindow) : null;
-
-  let best = null;
-  let bestScore = -1;
-
-  for (const scene of pool) {
-    const score = scoreScene(scene, history, pool, { recentVibes, recentEras });
-    if (score > bestScore) {
-      bestScore = score;
-      best = scene;
-    }
+  // Phase 1: Hard exclusion — guarantee no repeats within HARD_COOLDOWN plays
+  const exclusionCount = Math.min(
+    HARD_COOLDOWN,
+    Math.max(0, pool.length - MIN_CANDIDATES),
+  );
+  let candidates;
+  if (exclusionCount > 0) {
+    const recentIds = new Set(history.slice(-exclusionCount));
+    candidates = pool.filter((s) => !recentIds.has(s.id));
+    if (candidates.length === 0) candidates = pool;
+  } else {
+    candidates = pool;
   }
 
-  return best;
+  // Phase 2: Score for diversity
+  const sceneMap = buildSceneMap(allScenes);
+  const vibeWindow = Math.min(VIBE_WINDOW, candidates.length - 1);
+  const eraWindow = Math.min(ERA_WINDOW, candidates.length - 1);
+  const recentVibes =
+    vibeWindow > 0 ? getRecentVibes(history, sceneMap, vibeWindow) : null;
+  const recentEras =
+    eraWindow > 0 ? getRecentEras(history, sceneMap, eraWindow) : null;
+
+  const scored = candidates.map((scene) => ({
+    scene,
+    score: scoreScene(scene, history, pool, { recentVibes, recentEras }),
+  }));
+
+  // Phase 3: Weighted random selection
+  return weightedRandomPick(scored);
 }

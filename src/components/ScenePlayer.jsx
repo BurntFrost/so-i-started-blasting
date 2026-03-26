@@ -4,18 +4,10 @@ import { createPlayer, getSceneType } from "../players/createPlayer.js";
 
 export function ScenePlayer({
   scene, nextScene, isFavorite, onToggleFavorite, hasInteracted,
-  onBlast, onEnterDiscovery, onAdvanceDiscovery, onExitDiscovery,
-  discoveryMode, isScanning, isBuffering, isDriedUp, discoveryError,
-  rateMeta, onPromote, promoteEnabled,
-  hasKey, keyStatus, onSubmitKey, onClearKey,
-  aiEnabled = true,
+  onBlast,
 }) {
   const [transitioning, setTransitioning] = useState(false);
   const [displayScene, setDisplayScene] = useState(scene);
-  const [showKeyInput, setShowKeyInput] = useState(false);
-  const [keyInputValue, setKeyInputValue] = useState("");
-  const [showKeyPopover, setShowKeyPopover] = useState(false);
-  const keyInputRef = useRef(null);
   const prevIdRef = useRef(null);
 
   // Player pool: { type: { player, slot } }
@@ -33,10 +25,6 @@ export function ScenePlayer({
   hasInteractedRef.current = hasInteracted;
   const onBlastRef = useRef(onBlast);
   onBlastRef.current = onBlast;
-  const onAdvanceDiscoveryRef = useRef(onAdvanceDiscovery);
-  onAdvanceDiscoveryRef.current = onAdvanceDiscovery;
-  const discoveryModeRef = useRef(discoveryMode);
-  discoveryModeRef.current = discoveryMode;
   // Track the scene actually loaded in the player (not the display scene)
   const playingSceneRef = useRef(scene);
   const channelNumRef = useRef(null);
@@ -68,69 +56,6 @@ export function ScenePlayer({
     const type = activeTypeRef.current;
     return type ? poolRef.current[type]?.player : null;
   }
-
-  // ─── AI Key Input Handlers ───
-  function handleDiscoveryClick() {
-    onEnterDiscovery?.();
-  }
-
-  function handleKeySubmit(key) {
-    if (!key.trim()) return;
-    onSubmitKey?.(key.trim());
-  }
-
-  function handleKeyPaste(e) {
-    const text = e.clipboardData.getData("text").trim();
-    if (text) {
-      e.preventDefault();
-      setKeyInputValue(text);
-      handleKeySubmit(text);
-    }
-  }
-
-  function handleKeyInputKeyDown(e) {
-    if (e.key === "Enter") handleKeySubmit(keyInputValue);
-    if (e.key === "Escape") setShowKeyInput(false);
-  }
-
-  // Auto-focus key input when shown
-  useEffect(() => {
-    if (showKeyInput) keyInputRef.current?.focus();
-  }, [showKeyInput]);
-
-  // Auto-trigger AI after successful key connection
-  const prevKeyStatus = useRef(keyStatus);
-  useEffect(() => {
-    if (prevKeyStatus.current === "validating" && keyStatus === "connected") {
-      setShowKeyInput(false);
-      setKeyInputValue("");
-      onEnterDiscovery?.();
-    }
-    prevKeyStatus.current = keyStatus;
-  }, [keyStatus, onEnterDiscovery]);
-
-  // Close key popover on outside click or Escape
-  useEffect(() => {
-    if (!showKeyPopover) return;
-    function handleClick() { setShowKeyPopover(false); }
-    function handleKeyDown(e) { if (e.key === "Escape") setShowKeyPopover(false); }
-    document.addEventListener("click", handleClick);
-    document.addEventListener("keydown", handleKeyDown);
-    return () => {
-      document.removeEventListener("click", handleClick);
-      document.removeEventListener("keydown", handleKeyDown);
-    };
-  }, [showKeyPopover]);
-
-  // Show key input when INVALID_KEY error occurs
-  useEffect(() => {
-    if (discoveryError === "INVALID_KEY") {
-      const timer = setTimeout(() => {
-        setShowKeyInput(true);
-      }, 3100); // slightly after the 3s auto-clear
-      return () => clearTimeout(timer);
-    }
-  }, [discoveryError]);
 
   // ─── Create main player on mount ───
   useEffect(() => {
@@ -165,11 +90,7 @@ export function ScenePlayer({
         onBlastRef.current?.();
       },
       onEnded() {
-        if (discoveryModeRef.current) {
-          onAdvanceDiscoveryRef.current?.();
-        } else {
-          onBlastRef.current?.();
-        }
+        onBlastRef.current?.();
       },
     });
 
@@ -206,10 +127,7 @@ export function ScenePlayer({
           getActivePlayer()?.play();
         },
         onError() { onBlastRef.current?.(); },
-        onEnded() {
-          if (discoveryModeRef.current) onAdvanceDiscoveryRef.current?.();
-          else onBlastRef.current?.();
-        },
+        onEnded() { onBlastRef.current?.(); },
       };
 
       if (newType === oldType && poolRef.current[newType]?.player?.isReady()) {
@@ -271,10 +189,7 @@ export function ScenePlayer({
             player.play();
           },
           onError() { onBlastRef.current?.(); },
-          onEnded() {
-            if (discoveryModeRef.current) onAdvanceDiscoveryRef.current?.();
-            else onBlastRef.current?.();
-          },
+          onEnded() { onBlastRef.current?.(); },
         });
       }
 
@@ -387,48 +302,12 @@ export function ScenePlayer({
                 </div>
               )}
 
-              {/* Discovery scanning overlay */}
-              {discoveryMode && isScanning && (
-                <div className="ai-static-overlay">
-                  <div className="ai-static-snow" />
-                  <div className="ai-static-text">SCANNING...</div>
-                </div>
-              )}
-              {discoveryMode && isBuffering && (
-                <div className="ai-static-overlay">
-                  <div className="ai-static-snow" />
-                  <div className="ai-static-text">TUNING...</div>
-                </div>
-              )}
-
-              {/* Error overlays */}
-              {discoveryMode && isDriedUp && discoveryError === "RATE_LIMITED" && (
-                <div className="ai-error-overlay">
-                  <div className="ai-static-snow" />
-                  <div className="ai-error-text">
-                    {hasKey ? "RATE LIMITED — TRY LATER" : "SIGNAL EXHAUSTED — ADD API KEY FOR UNLIMITED"}
-                  </div>
-                </div>
-              )}
-              {discoveryMode && discoveryError === "SIGNAL_LOST" && (
-                <div className="ai-error-overlay">
-                  <div className="ai-static-snow" />
-                  <div className="ai-error-text">SIGNAL LOST — RETRYING...</div>
-                </div>
-              )}
-              {discoveryMode && discoveryError === "INVALID_KEY" && (
-                <div className="ai-error-overlay">
-                  <div className="ai-static-snow" />
-                  <div className="ai-error-text">API KEY INVALID — RECONNECT</div>
-                </div>
-              )}
             </div>
           </div>
 
           <div className="tv-info-bar">
             <div className="tv-info-text">
               <blockquote className="scene-quote">
-                {discoveryMode && <span className="ai-badge">DISCOVERY</span>}
                 "{displayScene.quote}"
               </blockquote>
               <p className="scene-description">{displayScene.description}</p>
@@ -457,42 +336,9 @@ export function ScenePlayer({
               </div>
             </div>
             <div className="tv-info-actions">
-              {discoveryMode ? (
-                <>
-                  {isScanning ? (
-                    <button className="ai-pick-btn ai-pick-btn-loading" disabled>
-                      ⟳ Scanning...
-                    </button>
-                  ) : isBuffering ? (
-                    <button className="ai-pick-btn ai-pick-btn-loading" disabled>
-                      ⟳ Tuning...
-                    </button>
-                  ) : null}
-                  <button className="ai-exit-btn" onClick={onExitDiscovery}>
-                    ✕ Exit
-                  </button>
-                </>
-              ) : (
-                <>
-                  <button className="tv-blast-btn" onClick={onBlast}>
-                    ⚡ Blast Me
-                  </button>
-                  {aiEnabled && (
-                    <button className="ai-pick-btn" onClick={handleDiscoveryClick}>
-                      📡 Discovery
-                    </button>
-                  )}
-                  {aiEnabled && hasKey && !showKeyInput && (
-                    <button
-                      className="ai-key-btn"
-                      onClick={(e) => { e.stopPropagation(); setShowKeyPopover((p) => !p); }}
-                      title="Manage API key"
-                    >
-                      🔑
-                    </button>
-                  )}
-                </>
-              )}
+              <button className="tv-blast-btn" onClick={onBlast}>
+                ⚡ Blast Me
+              </button>
               <button
                 className={`fav-btn ${isFavorite ? "fav-active" : ""}`}
                 onClick={() => onToggleFavorite(displayScene.id)}
@@ -500,75 +346,7 @@ export function ScenePlayer({
               >
                 {isFavorite ? "♥" : "♡"}
               </button>
-              {discoveryMode && promoteEnabled && (
-                <button
-                  className="promote-btn"
-                  onClick={() => onPromote?.(scene)}
-                  title="Submit for promotion"
-                >
-                  ⬆️
-                </button>
-              )}
             </div>
-
-            {discoveryMode && rateMeta?.tier === "free" && rateMeta.remaining != null && (
-              <div className="rate-limit-badge">
-                {rateMeta.remaining} discoveries left today
-              </div>
-            )}
-
-            {/* Inline API key input */}
-            {showKeyInput && !hasKey && (
-              <div className="ai-key-input">
-                <div className="ai-key-input-row">
-                  <input
-                    ref={keyInputRef}
-                    type="password"
-                    className={`ai-key-field ${keyStatus === "invalid" || keyStatus === "error" ? "ai-key-field-error" : ""}`}
-                    value={keyInputValue}
-                    placeholder="Paste Anthropic API key..."
-                    onChange={(e) => setKeyInputValue(e.target.value)}
-                    onPaste={handleKeyPaste}
-                    onKeyDown={handleKeyInputKeyDown}
-                    disabled={keyStatus === "validating"}
-                    autoComplete="off"
-                    spellCheck={false}
-                  />
-                  <button
-                    className="ai-key-connect-btn"
-                    onClick={() => handleKeySubmit(keyInputValue)}
-                    disabled={keyStatus === "validating" || !keyInputValue.trim()}
-                  >
-                    {keyStatus === "validating" ? "⟳" : "Connect"}
-                  </button>
-                  <button
-                    className="ai-key-dismiss-btn"
-                    onClick={() => { setShowKeyInput(false); setKeyInputValue(""); }}
-                  >
-                    ✕
-                  </button>
-                </div>
-                <div className="ai-key-hint">
-                  {keyStatus === "invalid" && <span className="ai-key-error">Invalid key — try again</span>}
-                  {keyStatus === "error" && <span className="ai-key-error">Connection error — try again</span>}
-                  {keyStatus !== "invalid" && keyStatus !== "error" && (
-                    <span>Key stored locally in your browser. Never sent to us.</span>
-                  )}
-                </div>
-              </div>
-            )}
-
-            {/* Key management popover */}
-            {showKeyPopover && hasKey && (
-              <div className="ai-key-popover" onClick={(e) => e.stopPropagation()}>
-                <span className="ai-key-popover-key">
-                  {"•".repeat(8)}sk-...
-                </span>
-                <button className="ai-key-popover-disconnect" onClick={() => { onClearKey?.(); setShowKeyPopover(false); }}>
-                  Disconnect
-                </button>
-              </div>
-            )}
           </div>
 
           <div className="tv-controls">

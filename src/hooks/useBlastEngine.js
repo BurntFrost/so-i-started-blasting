@@ -1,7 +1,6 @@
 import { useState, useCallback, useRef } from "react";
 import { matchesFilters } from "../data/filters.js";
 import { pickNext, recordPlay } from "../engine/blastEngine.js";
-import { getHeartedDiscoveries } from "./useAiDiscovery.js";
 
 const STORAGE_KEY = "sisb-blast-history";
 
@@ -27,7 +26,7 @@ function saveHistory(history) {
   }
 }
 
-export function useBlastEngine(scenes, favoriteIds = []) {
+export function useBlastEngine(scenes) {
   const [current, setCurrentState] = useState(null);
   const [nextUp, setNextUp] = useState(null);
   const historyRef = useRef(loadHistory());
@@ -35,14 +34,10 @@ export function useBlastEngine(scenes, favoriteIds = []) {
 
   const getNext = useCallback(
     (filters = []) => {
-      // Merge hearted AI discoveries into the pool
-      const aiFaves = getHeartedDiscoveries(favoriteIds);
-      const fullPool = [...scenes, ...aiFaves];
-
       const pool =
         !filters || filters.length === 0
-          ? fullPool
-          : fullPool.filter((s) => matchesFilters(s, filters));
+          ? scenes
+          : scenes.filter((s) => matchesFilters(s, filters));
 
       if (pool.length === 0) return null;
 
@@ -51,7 +46,7 @@ export function useBlastEngine(scenes, favoriteIds = []) {
       const pick =
         preComputed && pool.some((s) => s.id === preComputed.id)
           ? preComputed
-          : pickNext(pool, historyRef.current, fullPool);
+          : pickNext(pool, historyRef.current, scenes);
       if (!pick) return null;
 
       historyRef.current = recordPlay(historyRef.current, pick.id);
@@ -59,13 +54,13 @@ export function useBlastEngine(scenes, favoriteIds = []) {
       setCurrentState(pick);
 
       // Pre-compute the next scene for pre-warming
-      const peeked = pickNext(pool, historyRef.current, fullPool);
+      const peeked = pickNext(pool, historyRef.current, scenes);
       nextUpRef.current = peeked;
       setNextUp(peeked);
 
       return pick;
     },
-    [scenes, favoriteIds],
+    [scenes],
   );
 
   const setCurrent = useCallback(

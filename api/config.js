@@ -6,12 +6,11 @@ export default async function handler(req, res) {
   }
 
   try {
-    const config = await getAll(["maintenance", "announcement", "featuredClipId", "aiEnabled"]);
+    const config = await getAll(["maintenance", "announcement", "featuredClipId"]);
     return res.status(200).json({
       maintenance: config?.maintenance ?? false,
       announcement: config?.announcement ?? null,
       featuredClipId: config?.featuredClipId ?? null,
-      aiEnabled: config?.aiEnabled ?? true,
     });
   } catch {
     // Edge Config unavailable — return safe defaults so the app always works
@@ -19,7 +18,6 @@ export default async function handler(req, res) {
       maintenance: false,
       announcement: null,
       featuredClipId: null,
-      aiEnabled: true,
     });
   }
 }
