@@ -1,4 +1,4 @@
-import { useState, useCallback, useEffect } from "react";
+import { useState, useCallback, useEffect, useMemo } from "react";
 import { SCENES } from "./data/scenes.js";
 import { useBlastEngine } from "./hooks/useBlastEngine.js";
 import { useFavorites } from "./hooks/useFavorites.js";
@@ -1084,7 +1084,6 @@ const CSS = `
 
 export function App() {
   const { favoriteIds, isFavorite, toggleFavorite } = useFavorites();
-  const { current, nextUp, getNext, setCurrent } = useBlastEngine(SCENES);
   const { history, addToHistory, clearHistory } = useWatchHistory();
   const [activeFilters, setActiveFilters] = useState([]);
   const [showFavorites, setShowFavorites] = useState(false);
@@ -1103,6 +1102,15 @@ export function App() {
       .catch(() => null)
       .then((cfg) => { if (cfg) setSiteConfig(cfg); });
   }, []);
+
+  // Filter out dead clips reported by the daily sweep cron
+  const liveScenes = useMemo(() => {
+    if (!siteConfig?.deadClips?.length) return SCENES;
+    const dead = new Set(siteConfig.deadClips);
+    return SCENES.filter((s) => !dead.has(s.id));
+  }, [siteConfig]);
+
+  const { current, nextUp, getNext, setCurrent } = useBlastEngine(liveScenes);
 
   const handleEnter = useCallback(() => {
     setHasInteracted(true);
@@ -1200,7 +1208,7 @@ export function App() {
           <div className="header-right">
             <button
               className={`filter-toggle ${activeFilters.length > 0 ? "has-active" : ""}`}
-              onClick={() => setShowFilters(true)}
+              onClick={() => { setShowFilters(true); setShowFavorites(false); setShowHistory(false); }}
             >
               🎛 Filters
               {activeFilters.length > 0 && (
@@ -1209,13 +1217,13 @@ export function App() {
             </button>
             <button
               className="history-toggle"
-              onClick={() => setShowHistory(true)}
+              onClick={() => { setShowHistory(true); setShowFilters(false); setShowFavorites(false); }}
             >
               📼 History
             </button>
             <button
               className="fav-toggle"
-              onClick={() => setShowFavorites(true)}
+              onClick={() => { setShowFavorites(true); setShowFilters(false); setShowHistory(false); }}
             >
               ♥ ({favoriteIds.length})
             </button>

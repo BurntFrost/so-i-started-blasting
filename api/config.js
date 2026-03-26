@@ -6,11 +6,12 @@ export default async function handler(req, res) {
   }
 
   try {
-    const config = await getAll(["maintenance", "announcement", "featuredClipId"]);
+    const config = await getAll(["maintenance", "announcement", "featuredClipId", "deadClips"]);
     return res.status(200).json({
       maintenance: config?.maintenance ?? false,
       announcement: config?.announcement ?? null,
       featuredClipId: config?.featuredClipId ?? null,
+      deadClips: config?.deadClips ?? [],
     });
   } catch {
     // Edge Config unavailable — return safe defaults so the app always works

@@ -1,3 +1,4 @@
+import { useEffect, useMemo } from "react";
 import { FILTERS, VIBE_GROUPS, getVibesByGroup } from "../data/filters.js";
 import { SCENES } from "../data/scenes.js";
 import { matchesFilters } from "../data/filters.js";
@@ -17,10 +18,32 @@ function countWithout(filterKey, activeFilters) {
 }
 
 export function FilterBar({ active, onToggle, onClear, onClose }) {
+  const counts = useMemo(() => {
+    const map = {};
+    for (const f of FILTERS) {
+      const isActive = active.includes(f.key);
+      map[f.key] = isActive
+        ? countWithout(f.key, active)
+        : countIfAdded(f.key, active);
+    }
+    return map;
+  }, [active]);
+
+  useEffect(() => {
+    const prev = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    const handleKey = (e) => { if (e.key === "Escape") onClose(); };
+    document.addEventListener("keydown", handleKey);
+    return () => {
+      document.body.style.overflow = prev;
+      document.removeEventListener("keydown", handleKey);
+    };
+  }, [onClose]);
+
   return (
     <>
-      <div className="filter-sidebar-overlay" onClick={onClose} />
-      <div className="filter-sidebar">
+      <div className="filter-sidebar-overlay" onClick={onClose} aria-hidden="true" />
+      <div className="filter-sidebar" role="dialog" aria-modal="true" aria-label="Filters">
         <div className="filter-sidebar-header">
           <h2 className="filter-sidebar-title">🎛 Filters</h2>
           <div className="filter-sidebar-actions">
@@ -42,9 +65,7 @@ export function FilterBar({ active, onToggle, onClear, onClose }) {
                 <div className="filter-pills">
                   {vibes.map((f) => {
                     const isActive = active.includes(f.key);
-                    const count = isActive
-                      ? countWithout(f.key, active)
-                      : countIfAdded(f.key, active);
+                    const count = counts[f.key];
                     return (
                       <button
                         key={f.key}
@@ -72,9 +93,7 @@ export function FilterBar({ active, onToggle, onClear, onClose }) {
             <div className="filter-pills">
               {eras.map((f) => {
                 const isActive = active.includes(f.key);
-                const count = isActive
-                  ? countWithout(f.key, active)
-                  : countIfAdded(f.key, active);
+                const count = counts[f.key];
                 return (
                   <button
                     key={f.key}

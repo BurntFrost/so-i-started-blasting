@@ -4,6 +4,32 @@ import { checkAllClips } from "./_lib/check-video.js";
 
 const BLOB_KEY = "sweep-report.json";
 
+async function updateEdgeConfigBlocklist(deadIds) {
+  const edgeConfigId = process.env.EDGE_CONFIG?.match(/ecfg_[a-z0-9]+/)?.[0];
+  const token = process.env.VERCEL_API_TOKEN;
+  if (!edgeConfigId || !token) return;
+
+  const url = new URL(`https://api.vercel.com/v1/edge-config/${edgeConfigId}/items`);
+  if (process.env.VERCEL_TEAM_ID) {
+    url.searchParams.set("teamId", process.env.VERCEL_TEAM_ID);
+  }
+
+  try {
+    await fetch(url, {
+      method: "PATCH",
+      headers: {
+        Authorization: `Bearer ${token}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        items: [{ operation: "upsert", key: "deadClips", value: deadIds }],
+      }),
+    });
+  } catch {
+    // Non-critical — blob report is the primary output
+  }
+}
+
 async function createGitHubIssue(dead) {
   const token = process.env.GITHUB_TOKEN;
   if (!token) return;
@@ -75,6 +101,10 @@ export default async function handler(req, res) {
       addRandomSuffix: false,
       contentType: "application/json",
     });
+
+    // Write dead clip IDs to Edge Config so the frontend auto-hides them
+    const deadIds = dead.map((c) => c.id);
+    await updateEdgeConfigBlocklist(deadIds);
 
     if (dead.length > 0) {
       await createGitHubIssue(dead);
