@@ -4,7 +4,6 @@
   "outputDirectory": "dist",
   "crons": [{ "path": "/api/sweep", "schedule": "0 6 * * *" }],
   "functions": {
-    "api/dial.js": { "maxDuration": 60 },
     "api/sweep.js": { "maxDuration": 60 }
   },
   "redirects": [
