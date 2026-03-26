@@ -6,7 +6,7 @@
 // a black screen waiting for ads that will never load. A fallback timer
 // auto-advances after MAX_WAIT_SECONDS to prevent users staring at nothing.
 
-const MAX_WAIT_SECONDS = 8;
+const MAX_WAIT_SECONDS = 5;
 
 export class DailymotionPlayer {
   constructor() {

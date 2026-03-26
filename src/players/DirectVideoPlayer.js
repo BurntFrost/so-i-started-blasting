@@ -1,12 +1,15 @@
 // src/players/DirectVideoPlayer.js
 import { enforceEndTime } from "./PlayerBase.js";
 
+const STALL_TIMEOUT_MS = 5_000;
+
 export class DirectVideoPlayer {
   constructor() {
     this._video = null;
     this._ready = false;
     this._options = null;
     this._cleanupEnd = null;
+    this._stallTimer = null;
   }
 
   create(container, scene, options) {
@@ -22,6 +25,7 @@ export class DirectVideoPlayer {
 
     video.addEventListener("canplay", () => {
       if (this._ready) return;
+      clearTimeout(this._stallTimer);
       this._ready = true;
       if (scene.start) video.currentTime = scene.start;
       this._options?.onReady?.();
@@ -32,11 +36,17 @@ export class DirectVideoPlayer {
     });
 
     video.addEventListener("error", () => {
+      clearTimeout(this._stallTimer);
       this._options?.onError?.();
     });
 
     container.appendChild(video);
     this._video = video;
+
+    // Stall timer: if video never becomes playable (blocked/CORS), auto-advance
+    this._stallTimer = setTimeout(() => {
+      if (!this._ready) this._options?.onError?.();
+    }, STALL_TIMEOUT_MS);
 
     // End-time enforcement
     if (scene.end) {
@@ -76,6 +86,7 @@ export class DirectVideoPlayer {
   pause() { this._video?.pause(); }
 
   destroy() {
+    clearTimeout(this._stallTimer);
     this._cleanupEnd?.();
     if (this._video) {
       this._video.pause();

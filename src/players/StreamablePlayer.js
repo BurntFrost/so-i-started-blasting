@@ -1,5 +1,7 @@
 // src/players/StreamablePlayer.js
 
+const STALL_TIMEOUT_MS = 5_000;
+
 export class StreamablePlayer {
   constructor() {
     this._iframe = null;
@@ -7,6 +9,7 @@ export class StreamablePlayer {
     this._muted = true;
     this._options = null;
     this._endTimer = null;
+    this._stallTimer = null;
   }
 
   create(container, scene, options) {
@@ -20,6 +23,7 @@ export class StreamablePlayer {
     iframe.allow = "autoplay; fullscreen";
 
     iframe.addEventListener("load", () => {
+      clearTimeout(this._stallTimer);
       this._ready = true;
       this._options?.onReady?.();
       // Start end timer after iframe loads (not at creation) so network
@@ -31,11 +35,17 @@ export class StreamablePlayer {
     });
 
     iframe.addEventListener("error", () => {
+      clearTimeout(this._stallTimer);
       this._options?.onError?.();
     });
 
     container.appendChild(iframe);
     this._iframe = iframe;
+
+    // Stall timer: if iframe never loads (blocked by ad blocker), auto-advance
+    this._stallTimer = setTimeout(() => {
+      if (!this._ready) this._options?.onError?.();
+    }, STALL_TIMEOUT_MS);
   }
 
   updateCallbacks(options) {
@@ -57,6 +67,7 @@ export class StreamablePlayer {
 
   destroy() {
     clearTimeout(this._endTimer);
+    clearTimeout(this._stallTimer);
     if (this._iframe) {
       this._iframe.removeAttribute("src");
       this._iframe.remove();

@@ -1,6 +1,7 @@
 // src/players/YouTubePlayer.js
 
 // ─── YouTube IFrame API loader (singleton) ───
+const YT_API_TIMEOUT_MS = 5_000;
 let ytApiReady = null;
 function loadYTApi() {
   if (ytApiReady) return ytApiReady;
@@ -9,14 +10,22 @@ function loadYTApi() {
       resolve(window.YT);
       return;
     }
+    // Timeout: ad blockers can block the script or neuter it so
+    // onYouTubeIframeAPIReady never fires — don't hang forever
+    const timer = setTimeout(() => {
+      ytApiReady = null;
+      reject(new Error("YouTube IFrame API load timed out"));
+    }, YT_API_TIMEOUT_MS);
     const prev = window.onYouTubeIframeAPIReady;
     window.onYouTubeIframeAPIReady = () => {
+      clearTimeout(timer);
       prev?.();
       resolve(window.YT);
     };
     const script = document.createElement("script");
     script.src = "https://www.youtube.com/iframe_api";
     script.onerror = () => {
+      clearTimeout(timer);
       ytApiReady = null;
       reject(new Error("Failed to load YouTube IFrame API"));
     };
@@ -25,7 +34,7 @@ function loadYTApi() {
   return ytApiReady;
 }
 
-const STALL_TIMEOUT_MS = 8000;
+const STALL_TIMEOUT_MS = 5_000;
 
 export class YouTubePlayer {
   constructor() {

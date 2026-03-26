@@ -2,6 +2,7 @@
 import { loadScript } from "./PlayerBase.js";
 
 const VIMEO_SDK = "https://player.vimeo.com/api/player.js";
+const STALL_TIMEOUT_MS = 5_000;
 
 export class VimeoPlayer {
   constructor() {
@@ -12,6 +13,19 @@ export class VimeoPlayer {
     this._options = null;
     this._scene = null;
     this._endFired = false;
+    this._stallTimer = null;
+  }
+
+  _startStallTimer() {
+    this._clearStallTimer();
+    this._stallTimer = setTimeout(() => {
+      if (!this._cancelled) this._options?.onError?.();
+    }, STALL_TIMEOUT_MS);
+  }
+
+  _clearStallTimer() {
+    clearTimeout(this._stallTimer);
+    this._stallTimer = null;
   }
 
   _setupEndEnforcement(scene) {
@@ -40,6 +54,8 @@ export class VimeoPlayer {
     const div = document.createElement("div");
     container.appendChild(div);
 
+    this._startStallTimer();
+
     loadScript(VIMEO_SDK)
       .then(() => {
         if (this._cancelled) return;
@@ -53,9 +69,12 @@ export class VimeoPlayer {
 
         this._player.ready().then(() => {
           if (this._cancelled) return;
+          this._clearStallTimer();
           this._ready = true;
           if (scene.start) this._player.setCurrentTime(scene.start);
           this._options?.onReady?.();
+        }).catch(() => {
+          if (!this._cancelled) this._options?.onError?.();
         });
 
         this._player.on("ended", () => {
@@ -65,7 +84,10 @@ export class VimeoPlayer {
 
         this._setupEndEnforcement(scene);
       })
-      .catch(() => this._options?.onError?.());
+      .catch(() => {
+        this._clearStallTimer();
+        this._options?.onError?.();
+      });
   }
 
   updateCallbacks(options) {
@@ -88,6 +110,7 @@ export class VimeoPlayer {
   destroy() {
     this._cancelled = true;
     this._ready = false;
+    this._clearStallTimer();
     if (this._player) {
       this._player.off("timeupdate");
       this._player.off("ended");
