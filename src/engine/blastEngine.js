@@ -2,7 +2,7 @@ const HISTORY_CAP = 400;
 const COOLDOWN_RATIO = 0.5;
 const VIBE_WINDOW = 5;
 const ERA_WINDOW = 3;
-const HARD_COOLDOWN = 20;
+const HARD_COOLDOWN = 100;
 const MIN_CANDIDATES = 3;
 
 const WEIGHTS = {
