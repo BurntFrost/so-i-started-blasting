@@ -113,93 +113,162 @@ const CSS = `
     gap: 8px;
   }
 
-  /* Filter bar */
-  .filter-bar {
-    width: 100%;
-    margin-top: 12px;
+  /* Filter toggle button in header */
+  .filter-toggle {
+    background: none;
+    border: 1px solid var(--border);
+    color: var(--text-1);
+    padding: 6px 14px;
+    border-radius: 6px;
+    cursor: pointer;
+    font-size: 0.8rem;
+    font-family: "Inter", sans-serif;
+    transition: all 0.2s;
+    white-space: nowrap;
   }
 
-  .filter-bar-header {
+  .filter-toggle:hover {
+    border-color: var(--neon-yellow);
+    background: rgba(255, 214, 0, 0.08);
+    color: var(--neon-yellow);
+  }
+
+  .filter-toggle.has-active {
+    border-color: var(--neon-green);
+    color: var(--neon-green);
+    text-shadow: 0 0 8px rgba(57, 255, 20, 0.3);
+  }
+
+  .filter-active-count {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 16px;
+    height: 16px;
+    background: var(--neon-green);
+    color: #000;
+    font-size: 0.6rem;
+    font-weight: 700;
+    border-radius: 999px;
+    padding: 0 4px;
+    margin-left: 6px;
+  }
+
+  /* Filter sidebar */
+  .filter-sidebar-overlay {
+    position: fixed;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.7);
+    z-index: 500;
+    animation: fade-in 0.2s ease;
+  }
+
+  .filter-sidebar {
+    position: fixed;
+    right: 0;
+    top: 0;
+    bottom: 0;
+    width: min(320px, 90vw);
+    background: var(--bg-1);
+    border-left: 1px solid var(--border);
+    padding: 20px;
+    overflow-y: auto;
+    animation: slide-in 0.25s ease;
+    z-index: 501;
+    scrollbar-width: thin;
+    scrollbar-color: var(--bg-2) transparent;
+  }
+
+  .filter-sidebar::-webkit-scrollbar { width: 4px; }
+  .filter-sidebar::-webkit-scrollbar-track { background: transparent; }
+  .filter-sidebar::-webkit-scrollbar-thumb { background: var(--bg-2); border-radius: 2px; }
+
+  .filter-sidebar-header {
     display: flex;
     align-items: center;
     justify-content: space-between;
-    margin-bottom: 8px;
-    padding: 0 2px;
+    margin-bottom: 20px;
   }
 
+  .filter-sidebar-title {
+    font-family: "Special Elite", cursive;
+    color: var(--neon-yellow);
+    font-size: 1.2rem;
+  }
+
+  .filter-sidebar-actions {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+
+  .filter-sidebar-close {
+    background: none;
+    border: none;
+    color: var(--text-1);
+    font-size: 1.2rem;
+    cursor: pointer;
+    padding: 4px;
+  }
+
+  .filter-sidebar-close:hover {
+    color: var(--text-0);
+  }
 
   .filter-clear {
     background: none;
-    border: none;
-    color: var(--text-2);
+    border: 1px solid rgba(255, 23, 68, 0.3);
+    color: var(--neon-red);
     font-size: 0.7rem;
     cursor: pointer;
-    padding: 2px 6px;
+    padding: 3px 10px;
     border-radius: 4px;
     font-family: "Inter", sans-serif;
     transition: all 0.15s;
   }
 
   .filter-clear:hover {
-    color: var(--neon-red);
     background: rgba(255, 23, 68, 0.1);
+    border-color: var(--neon-red);
   }
 
-  .filter-bar-scroll {
+  .filter-groups {
     display: flex;
-    gap: 16px;
-    overflow-x: auto;
-    padding-bottom: 8px;
-    scrollbar-width: thin;
-    scrollbar-color: var(--bg-2) transparent;
-    -webkit-overflow-scrolling: touch;
-  }
-
-  .filter-bar-scroll::-webkit-scrollbar {
-    height: 4px;
-  }
-
-  .filter-bar-scroll::-webkit-scrollbar-track {
-    background: transparent;
-  }
-
-  .filter-bar-scroll::-webkit-scrollbar-thumb {
-    background: var(--bg-2);
-    border-radius: 2px;
+    flex-direction: column;
+    gap: 20px;
   }
 
   .filter-group {
     display: flex;
     flex-direction: column;
-    gap: 6px;
-    flex-shrink: 0;
+    gap: 8px;
   }
 
   .filter-group-label {
-    font-size: 0.65rem;
+    font-size: 0.7rem;
     color: var(--text-2);
     text-transform: uppercase;
-    letter-spacing: 0.05em;
-    white-space: nowrap;
+    letter-spacing: 0.08em;
+    padding-bottom: 4px;
+    border-bottom: 1px solid var(--border);
   }
 
   .filter-pills {
     display: flex;
-    gap: 4px;
+    gap: 6px;
     flex-wrap: wrap;
-    max-width: 280px;
   }
 
   .filter-pill {
     display: inline-flex;
     align-items: center;
     gap: 4px;
-    padding: 3px 8px;
+    padding: 5px 10px;
     border-radius: 999px;
     border: 1px solid var(--pill-color, var(--border));
     background: var(--pill-bg, transparent);
     color: var(--pill-color, var(--text-1));
-    font-size: 0.68rem;
+    font-size: 0.72rem;
     font-family: "Inter", sans-serif;
     cursor: pointer;
     transition: all 0.15s;
@@ -235,12 +304,6 @@ const CSS = `
   .filter-pill.empty {
     opacity: 0.25;
     pointer-events: none;
-  }
-
-  @media (max-width: 599px) {
-    .filter-pills {
-      max-width: 200px;
-    }
   }
 
   /* ═══ CRT Television ═══ */
@@ -1026,6 +1089,7 @@ export function App() {
   const [activeFilters, setActiveFilters] = useState([]);
   const [showFavorites, setShowFavorites] = useState(false);
   const [showHistory, setShowHistory] = useState(false);
+  const [showFilters, setShowFilters] = useState(false);
   const [toastMessage, setToastMessage] = useState(null);
   const [hasInteracted, setHasInteracted] = useState(false);
 
@@ -1135,6 +1199,15 @@ export function App() {
           </div>
           <div className="header-right">
             <button
+              className={`filter-toggle ${activeFilters.length > 0 ? "has-active" : ""}`}
+              onClick={() => setShowFilters(true)}
+            >
+              🎛 Filters
+              {activeFilters.length > 0 && (
+                <span className="filter-active-count">{activeFilters.length}</span>
+              )}
+            </button>
+            <button
               className="history-toggle"
               onClick={() => setShowHistory(true)}
             >
@@ -1162,12 +1235,6 @@ export function App() {
           </div>
         )}
 
-        <FilterBar
-          active={activeFilters}
-          onToggle={handleFilterToggle}
-          onClear={handleFilterClear}
-        />
-
         <ScenePlayer
           scene={current}
           nextScene={nextUp}
@@ -1178,6 +1245,15 @@ export function App() {
         />
 
         <Toast message={toastMessage} onDone={() => setToastMessage(null)} />
+
+        {showFilters && (
+          <FilterBar
+            active={activeFilters}
+            onToggle={handleFilterToggle}
+            onClear={handleFilterClear}
+            onClose={() => setShowFilters(false)}
+          />
+        )}
 
         {showFavorites && (
           <FavoritesList

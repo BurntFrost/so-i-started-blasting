@@ -86,12 +86,8 @@ export function ScenePlayer({
         }
         player.play();
       },
-      onError() {
-        onBlastRef.current?.();
-      },
-      onEnded() {
-        onBlastRef.current?.();
-      },
+      onError() {},
+      onEnded() {},
     });
 
     return () => {};
@@ -126,8 +122,8 @@ export function ScenePlayer({
           if (hasInteractedRef.current) getActivePlayer()?.unmute();
           getActivePlayer()?.play();
         },
-        onError() { onBlastRef.current?.(); },
-        onEnded() { onBlastRef.current?.(); },
+        onError() {},
+        onEnded() {},
       };
 
       if (newType === oldType && poolRef.current[newType]?.player?.isReady()) {
@@ -188,8 +184,8 @@ export function ScenePlayer({
             if (hasInteractedRef.current) player.unmute();
             player.play();
           },
-          onError() { onBlastRef.current?.(); },
-          onEnded() { onBlastRef.current?.(); },
+          onError() {},
+          onEnded() {},
         });
       }
 
