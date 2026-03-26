@@ -14,8 +14,8 @@ No test suite. Validate data changes with `node -c src/data/scenes.js`.
 
 ## Deployment
 
-Auto-deploys to **GitHub Pages** on push to `main` (`.github/workflows/deploy.yml`).
-`vite.config.js` sets `base: "/"` — change this if the site moves to a subpath.
+Auto-deploys to **Vercel** on push to `main`. Custom domain: `soistartedblasting.com`.
+`vite.config.js` sets `base: "/"`. Build runs `scripts/sync-clips.js` before Vite (configured in `vercel.json`).
 
 ## Architecture
 
@@ -23,43 +23,46 @@ Vite + React 18 SPA. No TypeScript, no CSS modules — all styles are CSS-in-JS 
 
 ```
 src/
-├── App.jsx                  # Root component + ALL CSS (850 lines of styles)
+├── App.jsx                  # Root component + ALL CSS (~1300 lines)
 ├── main.jsx                 # React 18 createRoot entry
 ├── data/
-│   ├── scenes.js            # 400+ clips — the content library
-│   └── filters.js           # Vibe/era filter definitions + matching helpers
+│   ├── scenes.js            # 900 clips, ~10k lines — the content library
+│   └── filters.js           # Vibe/era filter definitions, groups, matching helpers
+├── engine/
+│   └── blastEngine.js       # Scoring algorithm (recency, vibe/era diversity, weighted random)
 ├── players/
 │   ├── createPlayer.js      # Factory: scene type → player instance
 │   ├── PlayerBase.js         # Shared helpers (script loader, end-time enforcement)
-│   ├── YouTubePlayer.js      # YouTube IFrame API (extracted from ScenePlayer)
+│   ├── YouTubePlayer.js      # YouTube IFrame API
 │   ├── VimeoPlayer.js        # Vimeo Player SDK
 │   ├── StreamablePlayer.js   # Streamable iframe embed
 │   ├── DailymotionPlayer.js  # Dailymotion Player SDK
 │   └── DirectVideoPlayer.js  # HTML5 <video> for MP4/WebM URLs
-├── lib/
-│   └── streamClient.js      # fetch + ReadableStream SSE parser
 ├── components/
-│   ├── ScenePlayer.jsx      # Multi-source player pool + CRT TV chrome + AI Pick button
-│   ├── FilterDropdown.jsx   # Category selector
+│   ├── ScenePlayer.jsx      # Multi-source player pool + CRT TV chrome
+│   ├── FilterBar.jsx        # Right-side floating filter sidebar (vibes by group + eras)
 │   ├── FavoritesList.jsx    # Slide-out favorites panel
 │   ├── HistoryList.jsx      # Slide-out watch history panel
 │   ├── SceneCard.jsx        # Card used in favorites/history lists
 │   ├── NeonButton.jsx       # Styled button component
 │   └── Toast.jsx            # Notification toast
 └── hooks/
-    ├── useBlastEngine.js    # Weighted scene selection (recency, filters, play history)
+    ├── useBlastEngine.js    # Hook wrapper for blast engine (pool, history, filters)
     ├── useRandomScene.js    # Simple random selection with recency buffer (legacy)
     ├── useFavorites.js      # localStorage-backed favorites (key: sisb-favorites)
-    ├── useWatchHistory.js   # localStorage-backed history, max 50 (key: sisb-watch-history)
-    ├── useApiKey.js         # localStorage API key management with error differentiation (key: sisb-api-key)
-    └── useAiDiscovery.js    # AI mode state manager (discoveries)
-api/                         # Vercel serverless functions (AI pipeline)
-├── dial.js                  # SSE endpoint — AI clip discovery
-├── validate.js              # API key validation
+    └── useWatchHistory.js   # localStorage-backed history, max 50 (key: sisb-watch-history)
+scripts/
+├── sync-clips.js            # Build-time: generates api/_lib/scenes-data.js from scenes.js
+├── verify-clips.mjs         # oEmbed batch verification for candidate clips
+├── add-verified-clips.mjs   # Merge verified clips into scenes.js
+└── ...                      # Other data pipeline utilities
+api/                         # Vercel serverless functions
+├── config.js               # Edge Config reader (maintenance, announcements, dead clips)
+├── sweep.js                # Daily cron: checks all clips, updates Edge Config blocklist
+├── sweep-report.js         # Public sweep report from Vercel Blob
 └── _lib/
-    ├── claude.js            # Claude API client (BYOK)
-    ├── verify.js            # YouTube oEmbed verification
-    └── prompts.js           # Prompt templates + vocabulary
+    ├── scenes-data.js       # Auto-generated clip catalog (from sync-clips.js)
+    └── check-video.js       # Multi-platform video health checker (oEmbed + HEAD)
 ```
 
 ## Scene Data Schema
@@ -82,11 +85,26 @@ Each entry in `SCENES` array (`src/data/scenes.js`):
 }
 ```
 
-**Vibes** (tags, many-per-clip): chaotic-energy, legendary-fails, weird-flex, unhinged-wisdom, pure-nostalgia, wholesome-chaos, cursed-content, musical-mayhem, dangerous, disturbing, chaotic-good, iconic-cinema, unhinged-shorts, unhinged, epic-fight-scenes, synchronicity
+**Vibe Groups** (each vibe belongs to a group, displayed in FilterBar sidebar):
+
+| Group | Vibes |
+|-------|-------|
+| 🔥 Intense | chaotic-energy, dangerous, epic-fight-scenes, disturbing, body-horror |
+| 🌀 Mind-Melt | fever-dream, dark-humor, existential-dread, sensory-overload, absurdist |
+| 🤪 Unhinged | unhinged, unhinged-wisdom, unhinged-shorts, cursed-content, weird-flex |
+| 😌 Good Vibes | wholesome-chaos, chaotic-good, pure-nostalgia, awkward-gold, epic-recovery |
+| 🎬 Entertainment | iconic-cinema, legendary-fails, musical-mayhem, synchronicity, funny-revenge |
 
 **Eras** (one-per-clip): early-internet, viral-classics, modern-chaos, ancient-web
 
 New vibes/eras must be added to both `filters.js` (definition) and the relevant clips in `scenes.js`.
+
+## Vercel Infrastructure
+
+- **Daily sweep cron** (`/api/sweep`, 6 AM UTC): checks all clips via oEmbed/HEAD, writes report to Vercel Blob, updates Edge Config `deadClips` blocklist, opens GitHub issue if dead links found
+- **Edge Config** (`/api/config`): serves `maintenance`, `announcement`, `featuredClipId`, `deadClips` — frontend fetches on mount
+- **Vercel Blob**: stores `sweep-report.json` (public); readable via `/api/sweep-report`
+- Env vars needed: `EDGE_CONFIG`, `VERCEL_API_TOKEN` (for Edge Config writes), `CRON_SECRET`, `GITHUB_TOKEN` (for issue creation)
 
 ## YouTube Player Gotchas
 
@@ -104,12 +122,11 @@ New vibes/eras must be added to both `filters.js` (definition) and the relevant 
 
 ## Gotchas
 
-- `scenes.js` is huge (1800+ lines). Bulk edits to this file are fragile — prefer targeted edits or programmatic scripts over mass find-and-replace
+- `scenes.js` is ~10k lines. Bulk edits are fragile — prefer targeted edits or programmatic scripts over mass find-and-replace
 - All CSS lives in `App.jsx` as a template literal, not in separate files
 - No TypeScript — all files are `.js`/`.jsx`
 - `useRandomScene` keeps a recency buffer of 5 to prevent back-to-back repeats
+- `blastEngine.js` has a HARD_COOLDOWN of 100 plays — no clip repeats within that window
 - localStorage keys are prefixed `sisb-` (so-i-started-blasting):
   - `sisb-favorites`: saved clip IDs
   - `sisb-watch-history`: watch history (max 50)
-  - `sisb-api-key`: Claude API key for AI features
-  - `sisb-ai-discoveries`: rolling AI discovery log (max 50)
