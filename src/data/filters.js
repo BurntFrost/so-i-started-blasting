@@ -4,6 +4,13 @@ export const FILTERS = [
   { key: "dangerous",         label: "Dangerous",         type: "vibe", group: "intense", color: "#dc2626" },
   { key: "epic-fight-scenes", label: "Epic Fight Scenes", type: "vibe", group: "intense", color: "#f59e0b" },
   { key: "disturbing",        label: "Disturbing",        type: "vibe", group: "intense", color: "#7c3aed" },
+  { key: "body-horror",       label: "Body Horror",       type: "vibe", group: "intense", color: "#881337" },
+  // 🌀 Mind-Melt
+  { key: "fever-dream",       label: "Fever Dream",       type: "vibe", group: "mind-melt", color: "#e879f9" },
+  { key: "dark-humor",        label: "Dark Humor",        type: "vibe", group: "mind-melt", color: "#6d28d9" },
+  { key: "existential-dread", label: "Existential Dread", type: "vibe", group: "mind-melt", color: "#475569" },
+  { key: "sensory-overload",  label: "Sensory Overload",  type: "vibe", group: "mind-melt", color: "#f43f5e" },
+  { key: "absurdist",         label: "Absurdist",         type: "vibe", group: "mind-melt", color: "#c026d3" },
   // 🤪 Unhinged
   { key: "unhinged",          label: "Unhinged",          type: "vibe", group: "unhinged", color: "#ff6b6b" },
   { key: "unhinged-wisdom",   label: "Unhinged Wisdom",   type: "vibe", group: "unhinged", color: "#22d3ee" },
@@ -31,6 +38,7 @@ export const FILTERS = [
 
 export const VIBE_GROUPS = [
   { key: "intense",       label: "🔥 Intense",       color: "#ef4444" },
+  { key: "mind-melt",     label: "🌀 Mind-Melt",     color: "#e879f9" },
   { key: "unhinged",      label: "🤪 Unhinged",      color: "#ff6b6b" },
   { key: "good-vibes",    label: "😌 Good Vibes",    color: "#34d399" },
   { key: "entertainment", label: "🎬 Entertainment", color: "#eab308" },
