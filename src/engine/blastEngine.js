@@ -1,8 +1,7 @@
-const HISTORY_CAP = 400;
+const HISTORY_CAP = 2000;
 const COOLDOWN_RATIO = 0.5;
 const VIBE_WINDOW = 5;
 const ERA_WINDOW = 3;
-const HARD_COOLDOWN = 100;
 const MIN_CANDIDATES = 3;
 
 const WEIGHTS = {
@@ -145,19 +144,11 @@ export function pickNext(pool, history, allScenes) {
   if (pool.length === 0) return null;
   if (pool.length === 1) return pool[0];
 
-  // Phase 1: Hard exclusion — guarantee no repeats within HARD_COOLDOWN plays
-  const exclusionCount = Math.min(
-    HARD_COOLDOWN,
-    Math.max(0, pool.length - MIN_CANDIDATES),
-  );
-  let candidates;
-  if (exclusionCount > 0) {
-    const recentIds = new Set(history.slice(-exclusionCount));
-    candidates = pool.filter((s) => !recentIds.has(s.id));
-    if (candidates.length === 0) candidates = pool;
-  } else {
-    candidates = pool;
-  }
+  // Phase 1: Hard exclusion — never repeat a clip the user has already seen.
+  // Only resets when every clip in the pool has been watched.
+  const seenIds = new Set(history);
+  let candidates = pool.filter((s) => !seenIds.has(s.id));
+  if (candidates.length === 0) candidates = pool;
 
   // Phase 2: Score for diversity
   const sceneMap = buildSceneMap(allScenes);
