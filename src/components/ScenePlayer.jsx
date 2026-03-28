@@ -87,7 +87,7 @@ export function ScenePlayer({
         player.play();
       },
       onError() {},
-      onEnded() {},
+      onEnded() { onBlastRef.current?.(); },
     });
 
     return () => {};
@@ -123,7 +123,7 @@ export function ScenePlayer({
           getActivePlayer()?.play();
         },
         onError() {},
-        onEnded() {},
+        onEnded() { onBlastRef.current?.(); },
       };
 
       if (newType === oldType && poolRef.current[newType]?.player?.isReady()) {
@@ -185,7 +185,7 @@ export function ScenePlayer({
             player.play();
           },
           onError() {},
-          onEnded() {},
+          onEnded() { onBlastRef.current?.(); },
         });
       }
 
