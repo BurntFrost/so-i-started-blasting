@@ -1,4 +1,4 @@
-import { useState, useCallback, useEffect, useMemo } from "react";
+import { useState, useCallback, useEffect, useMemo, useRef } from "react";
 import { SCENES } from "./data/scenes.js";
 import { useBlastEngine } from "./hooks/useBlastEngine.js";
 import { useFavorites } from "./hooks/useFavorites.js";
@@ -166,18 +166,27 @@ const CSS = `
 
   .filter-sidebar {
     position: fixed;
-    right: 0;
     top: 0;
     bottom: 0;
     width: min(320px, 90vw);
     background: var(--bg-1);
-    border-left: 1px solid var(--border);
     padding: 20px;
     overflow-y: auto;
-    animation: slide-in 0.25s ease;
     z-index: 501;
     scrollbar-width: thin;
     scrollbar-color: var(--bg-2) transparent;
+  }
+
+  .filter-sidebar-right {
+    right: 0;
+    border-left: 1px solid var(--border);
+    animation: slide-in 0.25s ease;
+  }
+
+  .filter-sidebar-left {
+    left: 0;
+    border-right: 1px solid var(--border);
+    animation: slide-in-left 0.25s ease;
   }
 
   .filter-sidebar::-webkit-scrollbar { width: 4px; }
@@ -807,6 +816,11 @@ const CSS = `
     to { transform: translateX(0); }
   }
 
+  @keyframes slide-in-left {
+    from { transform: translateX(-100%); }
+    to { transform: translateX(0); }
+  }
+
   .favorites-header {
     display: flex;
     justify-content: space-between;
@@ -1161,7 +1175,8 @@ export function App() {
   const [activeFilters, setActiveFilters] = useState([]);
   const [showFavorites, setShowFavorites] = useState(false);
   const [showHistory, setShowHistory] = useState(false);
-  const [showFilters, setShowFilters] = useState(false);
+  const [filterSide, setFilterSide] = useState(null); // "left" | "right" | null
+  const [filterPinned, setFilterPinned] = useState(false);
   const [toastMessage, setToastMessage] = useState(null);
   const [hasInteracted, setHasInteracted] = useState(false);
 
@@ -1175,6 +1190,58 @@ export function App() {
       .catch(() => null)
       .then((cfg) => { if (cfg) setSiteConfig(cfg); });
   }, []);
+
+  // Edge-hover filter sidebar — opens when mouse approaches screen edges
+  const edgeTimerRef = useRef(null);
+  const filterSideRef = useRef(filterSide);
+  filterSideRef.current = filterSide;
+
+  useEffect(() => {
+    if (!hasInteracted) return;
+    const isTouch = "ontouchstart" in window || navigator.maxTouchPoints > 0;
+    if (isTouch) return;
+
+    const EDGE_ZONE = 60;
+    const OPEN_DELAY = 300;
+
+    const handleMouseMove = (e) => {
+      // Don't trigger if sidebar already open
+      if (filterSideRef.current) return;
+
+      const nearLeft = e.clientX < EDGE_ZONE;
+      const nearRight = e.clientX > window.innerWidth - EDGE_ZONE;
+
+      if (nearLeft || nearRight) {
+        if (!edgeTimerRef.current) {
+          const side = nearLeft ? "left" : "right";
+          edgeTimerRef.current = setTimeout(() => {
+            edgeTimerRef.current = null;
+            // Re-check — sidebar may have opened via button in the meantime
+            if (!filterSideRef.current) {
+              setFilterSide(side);
+              setFilterPinned(false);
+              setShowFavorites(false);
+              setShowHistory(false);
+            }
+          }, OPEN_DELAY);
+        }
+      } else {
+        if (edgeTimerRef.current) {
+          clearTimeout(edgeTimerRef.current);
+          edgeTimerRef.current = null;
+        }
+      }
+    };
+
+    window.addEventListener("mousemove", handleMouseMove);
+    return () => {
+      window.removeEventListener("mousemove", handleMouseMove);
+      if (edgeTimerRef.current) {
+        clearTimeout(edgeTimerRef.current);
+        edgeTimerRef.current = null;
+      }
+    };
+  }, [hasInteracted]);
 
   // Filter out dead clips reported by the daily sweep cron
   const liveScenes = useMemo(() => {
@@ -1254,6 +1321,22 @@ export function App() {
     setToastMessage("History cleared");
   }, [clearHistory]);
 
+  const handleFilterClose = useCallback(() => {
+    setFilterSide(null);
+    setFilterPinned(false);
+  }, []);
+
+  const handleFilterMouseLeave = useCallback(() => {
+    // Only auto-close in peek mode (not pinned)
+    if (!filterPinned) {
+      setFilterSide(null);
+    }
+  }, [filterPinned]);
+
+  const handleFilterPin = useCallback(() => {
+    setFilterPinned(true);
+  }, []);
+
   if (!hasInteracted) {
     return (
       <>
@@ -1282,7 +1365,7 @@ export function App() {
           <div className="header-right">
             <button
               className={`filter-toggle ${activeFilters.length > 0 ? "has-active" : ""}`}
-              onClick={() => { setShowFilters(true); setShowFavorites(false); setShowHistory(false); }}
+              onClick={() => { setFilterSide("right"); setFilterPinned(true); setShowFavorites(false); setShowHistory(false); }}
             >
               🎛 Filters
               {activeFilters.length > 0 && (
@@ -1291,13 +1374,13 @@ export function App() {
             </button>
             <button
               className="history-toggle"
-              onClick={() => { setShowHistory(true); setShowFilters(false); setShowFavorites(false); }}
+              onClick={() => { setShowHistory(true); setFilterSide(null); setFilterPinned(false); setShowFavorites(false); }}
             >
               📼 History
             </button>
             <button
               className="fav-toggle"
-              onClick={() => { setShowFavorites(true); setShowFilters(false); setShowHistory(false); }}
+              onClick={() => { setShowFavorites(true); setFilterSide(null); setFilterPinned(false); setShowHistory(false); }}
             >
               ♥ ({favoriteIds.length})
             </button>
@@ -1328,12 +1411,16 @@ export function App() {
 
         <Toast message={toastMessage} onDone={() => setToastMessage(null)} />
 
-        {showFilters && (
+        {filterSide && (
           <FilterBar
             active={activeFilters}
             onToggle={handleFilterToggle}
             onClear={handleFilterClear}
-            onClose={() => setShowFilters(false)}
+            onClose={handleFilterClose}
+            side={filterSide}
+            pinned={filterPinned}
+            onMouseLeave={handleFilterMouseLeave}
+            onPin={handleFilterPin}
           />
         )}
 

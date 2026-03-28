@@ -1,4 +1,4 @@
-import { useEffect, useMemo } from "react";
+import { useEffect, useMemo, useRef } from "react";
 import { FILTERS, VIBE_GROUPS, getVibesByGroup } from "../data/filters.js";
 import { SCENES } from "../data/scenes.js";
 import { matchesFilters } from "../data/filters.js";
@@ -17,7 +17,7 @@ function countWithout(filterKey, activeFilters) {
   ).length;
 }
 
-export function FilterBar({ active, onToggle, onClear, onClose }) {
+export function FilterBar({ active, onToggle, onClear, onClose, side = "right", pinned = true, onMouseLeave, onPin }) {
   const counts = useMemo(() => {
     const map = {};
     for (const f of FILTERS) {
@@ -31,24 +31,68 @@ export function FilterBar({ active, onToggle, onClear, onClose }) {
 
   useEffect(() => {
     const prev = document.body.style.overflow;
-    document.body.style.overflow = "hidden";
+    if (pinned) document.body.style.overflow = "hidden";
     const handleKey = (e) => { if (e.key === "Escape") onClose(); };
     document.addEventListener("keydown", handleKey);
     return () => {
       document.body.style.overflow = prev;
       document.removeEventListener("keydown", handleKey);
     };
-  }, [onClose]);
+  }, [onClose, pinned]);
+
+  // Grace period for mouse-leave in peek mode
+  const leaveTimerRef = useRef(null);
+
+  const handleMouseLeave = () => {
+    if (pinned || !onMouseLeave) return;
+    leaveTimerRef.current = setTimeout(() => {
+      onMouseLeave();
+    }, 200);
+  };
+
+  const handleMouseEnter = () => {
+    if (leaveTimerRef.current) {
+      clearTimeout(leaveTimerRef.current);
+      leaveTimerRef.current = null;
+    }
+  };
+
+  useEffect(() => {
+    return () => {
+      if (leaveTimerRef.current) clearTimeout(leaveTimerRef.current);
+    };
+  }, []);
+
+  const handleToggle = (key) => {
+    if (onPin) onPin();
+    onToggle(key);
+  };
+
+  const handleClear = () => {
+    if (onPin) onPin();
+    onClear();
+  };
+
+  const sideClass = side === "left" ? "filter-sidebar-left" : "filter-sidebar-right";
 
   return (
     <>
-      <div className="filter-sidebar-overlay" onClick={onClose} aria-hidden="true" />
-      <div className="filter-sidebar" role="dialog" aria-modal="true" aria-label="Filters">
+      {pinned && (
+        <div className="filter-sidebar-overlay" onClick={onClose} aria-hidden="true" />
+      )}
+      <div
+        className={`filter-sidebar ${sideClass}`}
+        role="dialog"
+        aria-modal="true"
+        aria-label="Filters"
+        onMouseLeave={handleMouseLeave}
+        onMouseEnter={handleMouseEnter}
+      >
         <div className="filter-sidebar-header">
           <h2 className="filter-sidebar-title">🎛 Filters</h2>
           <div className="filter-sidebar-actions">
             {active.length > 0 && (
-              <button className="filter-clear" onClick={onClear}>
+              <button className="filter-clear" onClick={handleClear}>
                 ✕ Clear all
               </button>
             )}
@@ -75,7 +119,7 @@ export function FilterBar({ active, onToggle, onClear, onClose }) {
                           "--pill-bg": f.color + "18",
                           "--pill-glow": f.color + "40",
                         }}
-                        onClick={() => onToggle(f.key)}
+                        onClick={() => handleToggle(f.key)}
                         title={isActive ? `Remove ${f.label}` : `${f.label} — ${count} clip${count !== 1 ? "s" : ""}`}
                       >
                         {f.label}
@@ -103,7 +147,7 @@ export function FilterBar({ active, onToggle, onClear, onClose }) {
                       "--pill-bg": f.color + "18",
                       "--pill-glow": f.color + "40",
                     }}
-                    onClick={() => onToggle(f.key)}
+                    onClick={() => handleToggle(f.key)}
                     title={isActive ? `Remove ${f.label}` : `${f.label} — ${count} clip${count !== 1 ? "s" : ""}`}
                   >
                     {f.label}
