@@ -145,13 +145,20 @@ export function pickNext(pool, history, allScenes) {
   if (pool.length === 1) return pool[0];
 
   // Phase 1: Hard exclusion — never repeat a clip the user has already seen.
+  // Tracks both scene IDs and videoIds so duplicate entries for the same
+  // YouTube video are also excluded (prevents "same video, different scene ID" repeats).
   // Only resets when every clip in the pool has been watched.
   const seenIds = new Set(history);
-  let candidates = pool.filter((s) => !seenIds.has(s.id));
+  const sceneMap = buildSceneMap(allScenes);
+  const seenVideoIds = new Set(
+    history.map((id) => sceneMap.get(id)?.videoId).filter(Boolean),
+  );
+  let candidates = pool.filter(
+    (s) => !seenIds.has(s.id) && !seenVideoIds.has(s.videoId),
+  );
   if (candidates.length === 0) candidates = pool;
 
   // Phase 2: Score for diversity
-  const sceneMap = buildSceneMap(allScenes);
   const vibeWindow = Math.min(VIBE_WINDOW, candidates.length - 1);
   const eraWindow = Math.min(ERA_WINDOW, candidates.length - 1);
   const recentVibes =
