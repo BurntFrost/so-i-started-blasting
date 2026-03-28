@@ -985,12 +985,34 @@ const CSS = `
     letter-spacing: 6px;
     text-transform: uppercase;
     line-height: 1.1;
+    overflow: hidden;
+    white-space: nowrap;
+    width: 0;
+    border-right: 3px solid var(--neon-green);
+    animation:
+      typewriter 1.5s steps(12) 0.5s forwards,
+      blink-caret 0.6s step-end infinite;
+  }
+
+  @keyframes typewriter {
+    to { width: 100%; }
+  }
+
+  .splash-title-wrap {
+    display: inline-block;
+    max-width: max-content;
+  }
+
+  @keyframes blink-caret {
+    50% { border-color: transparent; }
   }
 
   .splash-subtitle {
     font-family: "Special Elite", cursive;
     color: var(--text-2);
     font-size: clamp(0.9rem, 2vw, 1.1rem);
+    opacity: 0;
+    animation: fade-in 0.6s ease 2.2s forwards;
   }
 
   .splash-enter {
@@ -1005,7 +1027,10 @@ const CSS = `
     letter-spacing: 3px;
     text-transform: uppercase;
     transition: all 0.2s;
-    animation: pulse-glow 2s ease-in-out infinite;
+    opacity: 0;
+    animation:
+      fade-in 0.6s ease 2.6s forwards,
+      pulse-glow 2s ease-in-out 2.6s infinite;
   }
 
   .splash-enter:hover {
@@ -1343,7 +1368,9 @@ export function App() {
         <style>{CSS}</style>
         <ThumbnailMosaic />
         <div className="splash">
-          <h1 className="splash-title">Channel Zero</h1>
+          <div className="splash-title-wrap">
+            <h1 className="splash-title">Channel Zero</h1>
+          </div>
           <p className="splash-subtitle">We're experiencing technical difficulties.</p>
           <button className="splash-enter" onClick={handleEnter}>
             ⚡ Start Blasting
