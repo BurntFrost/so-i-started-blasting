@@ -4,6 +4,7 @@ import { useBlastEngine } from "./hooks/useBlastEngine.js";
 import { useFavorites } from "./hooks/useFavorites.js";
 import { useWatchHistory } from "./hooks/useWatchHistory.js";
 import { ScenePlayer } from "./components/ScenePlayer.jsx";
+import { ThumbnailMosaic } from "./components/ThumbnailMosaic.jsx";
 import { FilterBar } from "./components/FilterBar.jsx";
 import { Toast } from "./components/Toast.jsx";
 import { FavoritesList } from "./components/FavoritesList.jsx";
@@ -956,6 +957,8 @@ const CSS = `
     gap: 32px;
     text-align: center;
     padding: 24px;
+    position: relative;
+    z-index: 1;
   }
 
   .splash-title {
@@ -999,6 +1002,76 @@ const CSS = `
   @keyframes pulse-glow {
     0%, 100% { box-shadow: 0 0 8px rgba(57, 255, 20, 0.2); }
     50% { box-shadow: 0 0 20px rgba(57, 255, 20, 0.4); }
+  }
+
+  /* Thumbnail mosaic background — floating tiles */
+  .mosaic {
+    position: fixed;
+    inset: 0;
+    overflow: hidden;
+    z-index: 0;
+    filter: saturate(0.2) brightness(0.6);
+    animation: mosaic-fade-in 2.5s ease-out;
+  }
+
+  @keyframes mosaic-fade-in {
+    from { opacity: 0; }
+    to { opacity: 1; }
+  }
+
+  .mosaic-cell {
+    position: absolute;
+    opacity: var(--tile-opacity, 0.12);
+    transform: rotate(var(--tile-rotation, 0deg));
+    border-radius: 4px;
+    overflow: hidden;
+    box-shadow: 0 2px 16px rgba(0, 0, 0, 0.6);
+    animation: mosaic-drift var(--drift-duration, 40s) ease-in-out var(--drift-delay, 0s) infinite alternate;
+  }
+
+  @keyframes mosaic-drift {
+    0% {
+      transform: rotate(var(--tile-rotation, 0deg))
+                 translate(0, 0);
+    }
+    50% {
+      transform: rotate(calc(var(--tile-rotation, 0deg) + var(--drift-rot, 4deg)))
+                 translate(var(--drift-x, 40px), var(--drift-y, 20px));
+    }
+    100% {
+      transform: rotate(calc(var(--tile-rotation, 0deg) - var(--drift-rot, 4deg)))
+                 translate(calc(var(--drift-x, 40px) * -0.6), calc(var(--drift-y, 20px) * -0.8));
+    }
+  }
+
+  .mosaic-img {
+    width: 100%;
+    display: block;
+    border-radius: 4px;
+    transition: opacity 1s ease;
+  }
+
+  .mosaic-img-out {
+    opacity: 0;
+  }
+
+  .mosaic-img-next {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    opacity: 0.5;
+    border-radius: 4px;
+  }
+
+  @media (max-width: 600px) {
+    .mosaic-cell {
+      opacity: calc(var(--tile-opacity, 0.12) * 0.7);
+    }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .mosaic-cell { animation: none; }
+    .mosaic-img { transition: none; }
   }
 
   /* ═══ Edge Config Banners ═══ */
@@ -1185,6 +1258,7 @@ export function App() {
     return (
       <>
         <style>{CSS}</style>
+        <ThumbnailMosaic />
         <div className="splash">
           <h1 className="splash-title">Channel Zero</h1>
           <p className="splash-subtitle">We're experiencing technical difficulties.</p>

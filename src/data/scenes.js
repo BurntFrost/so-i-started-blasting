@@ -196,6 +196,17 @@ export const SCENES = [
     era: "viral-classics",
     source: { title: "It's Always Sunny in Philadelphia", year: 2007 },
   },
+  {
+    id: "charlie-vs-the-lawyer",
+    videoId: "UUMyWHQ9sLQ",
+    start: 0,
+    end: 120,
+    quote: "I'll just regress, because I feel I've made myself perfectly redundant.",
+    description: "Charlie goes head-to-head with the Lawyer in a battle of incomprehensible legal arguments.",
+    vibes: ["unhinged-wisdom", "chaotic-energy", "dark-humor"],
+    era: "viral-classics",
+    source: { title: "It's Always Sunny in Philadelphia", year: 2010 },
+  },
 
   // ============================================================
   // 💪 Mac McDonald Classics (It's Always Sunny in Philadelphia)
