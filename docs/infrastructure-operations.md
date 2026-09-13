@@ -118,11 +118,12 @@ only redacted trust metadata, never an OIDC token.
 - **Broken read access:** report unavailable evidence and repair the existing
   operator authentication/scope through the approved process. Do not relax US-only
   access, crawler restrictions, TLS, or origin protection to make a probe green.
-- **Release gate:** `release-quality` uses GitHub's named check; `release-artifact`
-  uses the configured webhook check. Their configured identities/scope/blocking
-  behavior are compared, but operational activation needs evidence from the merged
-  workflow against an immutable deployment. A same-SHA rebuild must not reuse stale
-  artifact approval.
+- **Release gate:** `release-quality` uses GitHub's named check and is the only
+  blocking Vercel check; its configured identity/scope/blocking behavior is
+  compared. The hosted smoke on each immutable deployment is diagnostic evidence
+  (`release-ready` status and artifact), not a gate. The operator-completed
+  `release-artifact` check was retired on 2026-09-13; see
+  [release-operations.md](release-operations.md).
 
 API references: [GitHub Actions permissions](https://docs.github.com/en/rest/actions/permissions),
 [Cloudflare ruleset entry points](https://developers.cloudflare.com/api/resources/rulesets/subresources/phases/methods/get/),
