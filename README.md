@@ -89,7 +89,7 @@ Content Security Policy enforces compatible resource and document restrictions. 
 
 The release gate also runs three WebKit startup and lifecycle checks. These validate the browser engine, not physical iPhone performance or guaranteed back/forward-cache restoration. Optional artwork has a 15-second per-asset deadline and is canceled when the renderer fails; late results are disposed rather than applied to a failed renderer.
 
-The daily Operations workflow verifies certificate lead times, public delivery, immutable caching, and origin isolation. Run `npm run check:public` for an immediate delivery check. Deployment-specific verification and rollback are documented in [release operations](docs/release-operations.md). Workflow files must be activated and verified in provider settings before they constitute a production gate.
+The daily Operations workflow verifies certificate lead times. Public delivery, immutable caching, and origin isolation can be checked on demand with `npm run check:public`. Deployment-specific verification and rollback are documented in [release operations](docs/release-operations.md). Workflow files must be activated and verified in provider settings before they constitute a production gate.
 
 Dependabot groups weekly npm and action updates. Three.js upgrades require a coordinated manual change to the pinned version, vendoring assertion, and visual baselines; they are excluded from automatic version updates.
 

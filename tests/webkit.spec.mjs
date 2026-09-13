@@ -28,7 +28,7 @@ test('WebKit initializes and obeys audio consent, pause/resume, and scene change
   const player = page.locator('#player');
   await expect(player).toHaveAttribute('data-audio-state', 'off');
   expect(requests).toEqual([]);
-  await page.getByRole('button', { name: 'Enable sound', exact: true }).click();
+  await page.getByRole('button', { name: 'Enable sound', exact: true }).tap();
   await expect(player).toHaveAttribute('data-audio-state', 'paused');
   expect(requests.length).toBeGreaterThan(0);
   await page.locator('#play').click();
