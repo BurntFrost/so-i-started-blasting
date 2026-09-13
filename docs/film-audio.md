@@ -22,6 +22,10 @@ unchanged from the earlier pass.
 | Knowing | The solar roar and plasma hiss under a low-string figure on the dactylic rhythm of Beethoven's Seventh (second movement) with an original melodic line and an A-minor pad; eruption tail at 5 s; the ejection rushes 8–27 s; engulfment crescendo from 20 s | eruption 5 s, engulf 23 s |
 | Armageddon | Cosmic drones and asteroid rumble with a mission clock and comms static; drilling and grinding 6–15 s; detonation tail, fracturing and the shock 16–21 s; fragment field rumble | countdown beeps 13 s, detonation 16 s, flybys 21 s, 24 s, 27 s |
 | Interstellar | An original sustained organ cluster (A minor add 9) swelling over a sub pedal, with a clock ticking every 1.25 s that accelerates as the orbit tightens from 17 s; upper voices and a suspension resolve 17–30 s; at the event horizon everything sinks to a pedal tone | orbit 17 s, horizon 26 s |
+| Twister | Plains wind and gusts with a distant tornado siren wailing through the sighting; rain hiss from 4 s; the freight-train roar and sub pressure build from the descent at 8 s through the rope-out, with debris rattle from 14 s, the farmstead splintering at 16 s and three thunder rolls | thunder 11.2 s, 16.6 s and 21.3 s; touchdown 13 s; crash 15.9 s |
+| Dante's Peak | Mountain wind and three seismic rumbles under a harmonic tremor; blast tail and jet roar from 6 s with lava-bomb thuds and four lightning cracks; an ominous D-minor string pad from 9 s; the surge's roar and hiss grow from 13 s with ash hiss after 18 s | eruption 6 s, lightning 9.4 s and 17.7 s, surge 13.5 s and 24 s |
+| Gravity | Sub drone and suit breathing with radio static; an alert tone at 6 s; an original rising string figure and shimmer from 8 s; muffled thumps and metallic rattle at each impact with a quickening heartbeat from 10 s; the tumble's rotating whoosh and comms hiss from 22 s | alert 6 s, impacts 11.3 s, 14.6 s and 17.9 s, adrift 22 s |
+| The Wandering Earth | Planetary-engine sawtooth chord, roar and plasma hiss under an original D-minor pad; the siphoned atmosphere shimmers 8–22 s; engines rise to full burn 14–17 s and hold; Jupiter's ignition tail and fracture crackle at 22 s, the shock at 23.5 s, and the pad turns to D major for the escape | ignition 16 s, detonation 22 s, escape 25.5 s |
 
 Timings follow the render modules' own easing windows (for example the Terminator 2
 ignition at 4 s, the 2012 rupture at 3 s, the Armageddon split at 16 s, the
@@ -43,8 +47,8 @@ noncommercial prototyping only.
 
 | Set | Files | Size |
 |---|---:|---:|
-| Beds | 10 | 4.7 MB |
-| Cues | 26 | 1.5 MB |
+| Beds | 14 | 6.5 MB |
+| Cues | 38 | 2.3 MB |
 | Intro | 1 | 48 KB |
 
 Audio still downloads only after sound consent, and only the selected scene's bed
@@ -81,6 +85,11 @@ only), the playing state and the intro cue. That pane delivered one animation
 frame per second during the check, so the simulation clock crawled and cue
 timing could not be judged there; the Chromium suite's soundtrack test covers
 cue crossings at full speed.
+
+The four scenes added afterwards (Twister, Dante's Peak, Gravity, The Wandering
+Earth) were checked the same way for decode, duration (beds 30 s, cues 2.5 to 6 s)
+and encoded peaks (beds -12.4 to -12.6 dBFS, cues -8.4 to -13.5 dBFS); their
+listening review is still pending.
 
 ## Rebuilding
 

@@ -60,7 +60,7 @@ async function expectFailure(page, stage) {
   await expect.poll(() => page.evaluate(stage => window.__graphicsEvents.filter(event => event.name === 'Scene Load Failed' && event.data.stage === stage).length, stage)).toBe(1);
 }
 
-test('ten built scenes render offline from CDNs, scrub reversibly, and keep player controls usable', async ({ page }) => {
+test('every built scene renders offline from CDNs, scrubs reversibly, and keeps player controls usable', async ({ page }) => {
   const errors = await observe(page);
   const failedAssets = [];
   page.on('response', response => { if (response.status() >= 400 && response.url().includes('/immutable/')) failedAssets.push(response.url()); });
@@ -68,8 +68,8 @@ test('ten built scenes render offline from CDNs, scrub reversibly, and keep play
   await load(page);
   await expect(page.locator('#world')).toHaveAttribute('data-authored-assets', 'ready');
   await expect(page.locator('#world')).toHaveAttribute('data-quality', 'balanced');
-  await expect(page.locator('.scene-card')).toHaveCount(10);
-  await expect(page.locator('#scene-count')).toHaveText('10');
+  await expect(page.locator('.scene-card')).toHaveCount(scenes.length);
+  await expect(page.locator('#scene-count')).toHaveText(String(scenes.length));
   for (const [index, scene] of scenes.entries()) {
     await select(page, index);
     await seek(page, 18);
@@ -98,7 +98,8 @@ test('ten built scenes render offline from CDNs, scrub reversibly, and keep play
   await page.locator('#fullscreen').click();
   await expect.poll(() => page.evaluate(() => document.fullscreenElement === null)).toBe(true);
   await page.setViewportSize({ width: 390, height: 844 });
-  for (const index of [0, 4, 5, 6]) {
+  // City scenes and the two landscape scenes carry the most geometry; the space scenes confirm the budget everywhere.
+  for (const index of [0, 4, 5, 6, 10, 11, 12, 13]) {
     await select(page, index);
     await seek(page, 18);
     await expect(page.locator('#world')).toHaveAttribute('data-quality', /balanced|lite/);
@@ -110,7 +111,7 @@ test('ten built scenes render offline from CDNs, scrub reversibly, and keep play
   await expect(page.locator('#speed')).toHaveAccessibleName(/speed.*[.\d]+/i);
   await expect(page.locator('#world')).toHaveAccessibleName(/Independence Day/i);
   const events = await page.evaluate(() => window.__graphicsEvents);
-  expect(new Set(events.filter(event => event.name === 'Scene Ready').map(event => event.data.scene)).size).toBe(10);
+  expect(new Set(events.filter(event => event.name === 'Scene Ready').map(event => event.data.scene)).size).toBe(scenes.length);
   expect(errors).toEqual([]);
   expect(failedAssets).toEqual([]);
 });

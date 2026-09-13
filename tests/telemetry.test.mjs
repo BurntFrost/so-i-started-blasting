@@ -53,9 +53,9 @@ test('all anthology scenes emit distinct stable names, including newly added sce
     h.telemetry.selectScene(index); h.frame(25, false);
   }
   assert.deepEqual(h.events.map(event => event.data.scene), scenes.map(scene => scene.id));
-  assert.equal(new Set(h.events.map(event => event.data.scene)).size, 10);
-  h.telemetry.selectScene(10); h.frame(25, false);
-  assert.equal(h.events.length, 10);
+  assert.equal(new Set(h.events.map(event => event.data.scene)).size, scenes.length);
+  h.telemetry.selectScene(scenes.length); h.frame(25, false);
+  assert.equal(h.events.length, scenes.length);
   h.telemetry.dispose();
 });
 

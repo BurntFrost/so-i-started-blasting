@@ -62,25 +62,38 @@ export function createTerrestrial({ scene, canvas }) {
     material.customProgramCacheKey = () => billow ? 'terrestrial-billowing-surface-v2' : 'terrestrial-turbulent-surface-v1';
     return { material, clock };
   }
+  // Every particle position is a closed-form function of time and its seed; nothing integrates between frames.
+  const motion = {
+    embers: `float age=max(0.,time-5.-seed.w*5.);float speed=9.+seed.y*10.;
+      p=vec3(-18.+cos(a)*age*speed,12.+age*(14.+seed.z*15.)-age*age*1.3,-27.+sin(a)*age*speed);
+      alpha=step(5.+seed.w*5.,time)*(1.-smoothstep(4.,14.,age))*step(.5,p.y);`,
+    rupture: `float age=max(0.,time-4.-seed.w*11.);float z=(seed.x-.5)*165.;float fault=sin(z*.045)*10.+sin(z*.16)*2.;
+      p=vec3(fault+(seed.y-.5)*age*4.,age*(3.+seed.z*4.),z+sin(a)*age*.65);
+      alpha=step(4.+seed.w*11.,time)*smoothstep(0.,2.,age)*(1.-smoothstep(9.,23.,age))*.22;`,
+    invasion: `float age=mod(time*.7+seed.w*17.,17.);p=vec3((seed.x-.5)*170.+sin(age*.3+seed.y)*4.,seed.z*19.+age*.6,(seed.y-.5)*170.);
+      alpha=smoothstep(0.,4.,time)*sin(age/17.*3.14159)*.23;`,
+    // Dust lifted into the funnel spirals around the moving base and leans with the vortex, then settles as it ropes out.
+    vortex: `float age=time-12.5-seed.w*3.;float lift=smoothstep(0.,4.,age);float settle=smoothstep(26.,30.,time);
+      float h=(1.+seed.z*seed.z*72.*lift)*(1.-settle*.85);float r=(4.+seed.y*26.)*(.35+.65*lift)*(1.+h*.02);
+      float angle=a+time*(2.6+seed.y*1.4)+h*.05;vec2 bend=lean*(h/95.)*(h/95.);
+      p=vec3(origin.x+bend.x+cos(angle)*r,origin.y+h,origin.z+bend.y+sin(angle)*r);
+      alpha=step(0.,age)*(1.-smoothstep(58.,78.,h))*(1.-settle*.8)*.32;`,
+    ash: `float fall=mod(seed.z*150.+time*(9.+seed.w*7.),150.);p=vec3((seed.x-.5)*330.,150.-fall,(seed.y-.5)*330.-40.);
+      alpha=smoothstep(10.,18.,time)*smoothstep(0.,8.,fall)*smoothstep(0.,8.,150.-fall)*(.5+.5*seed.y)*.26;`
+  };
   function particles(parent, kind, count, tint, size) {
     const geometry = new THREE.BufferGeometry();
     const seeds = new Float32Array(count * 4);
     for (let i = 0; i < seeds.length; i++) seeds[i] = random();
     geometry.setAttribute('position', new THREE.BufferAttribute(new Float32Array(count * 3), 3));
     geometry.setAttribute('seed', new THREE.BufferAttribute(seeds, 4));
-    const uniforms = { time: { value: 0 }, size: { value: size }, ratio: { value: 1 }, tint: { value: new THREE.Color(tint) } };
+    const uniforms = { time: { value: 0 }, size: { value: size }, ratio: { value: 1 }, tint: { value: new THREE.Color(tint) },
+      origin: { value: new THREE.Vector3() }, lean: { value: new THREE.Vector2() } };
     const material = new THREE.ShaderMaterial({ uniforms, transparent: true, depthWrite: false,
       blending: kind === 'embers' ? THREE.AdditiveBlending : THREE.NormalBlending,
-      vertexShader: `attribute vec4 seed;uniform float time,size,ratio;varying float alpha;varying float variation;
+      vertexShader: `attribute vec4 seed;uniform float time,size,ratio;uniform vec3 origin;uniform vec2 lean;varying float alpha;varying float variation;
       void main(){float a=seed.x*6.283185;vec3 p=vec3(0.);variation=seed.w;
-      ${kind === 'embers' ? `float age=max(0.,time-5.-seed.w*5.);float speed=9.+seed.y*10.;
-      p=vec3(-18.+cos(a)*age*speed,12.+age*(14.+seed.z*15.)-age*age*1.3,-27.+sin(a)*age*speed);
-      alpha=step(5.+seed.w*5.,time)*(1.-smoothstep(4.,14.,age))*step(.5,p.y);` : kind === 'rupture' ? `
-      float age=max(0.,time-4.-seed.w*11.);float z=(seed.x-.5)*165.;float fault=sin(z*.045)*10.+sin(z*.16)*2.;
-      p=vec3(fault+(seed.y-.5)*age*4.,age*(3.+seed.z*4.),z+sin(a)*age*.65);
-      alpha=step(4.+seed.w*11.,time)*smoothstep(0.,2.,age)*(1.-smoothstep(9.,23.,age))*.22;` : `
-      float age=mod(time*.7+seed.w*17.,17.);p=vec3((seed.x-.5)*170.+sin(age*.3+seed.y)*4.,seed.z*19.+age*.6,(seed.y-.5)*170.);
-      alpha=smoothstep(0.,4.,time)*sin(age/17.*3.14159)*.23;`}
+      ${motion[kind]}
       vec4 mv=modelViewMatrix*vec4(p,1.);gl_Position=projectionMatrix*mv;
       gl_PointSize=clamp(size*ratio*240./max(1.,-mv.z),1.,${kind === 'embers' ? '12.' : '100.'});}`,
       fragmentShader: `uniform vec3 tint;varying float alpha;varying float variation;${noise}
@@ -383,10 +396,256 @@ export function createTerrestrial({ scene, canvas }) {
   }
     return { group: invasion, update: updateInvasion, particles: invasionDust };
   }
+  // Mirrors the lawn displacement applied in cinema.js so ground objects sit on the rolling terrain.
+  const terrainHeight = (x, z) => -.5 + (Math.sin(x * .022) * Math.cos(z * .027) * 5 - Math.sin(z * .06) * 1.5) * clamp((Math.hypot(x, z) - 25) / 80);
+  const boltMaterial = glow(new THREE.Color(2.4, 2.9, 3.6), 1);
+  function bolt(parent, start, end, name) {
+    const points = [];
+    for (let i = 0; i <= 9; i++) {
+      const f = i / 9, jitter = i === 0 || i === 9 ? 0 : 16;
+      points.push(new THREE.Vector3(start.x + (end.x - start.x) * f + (random() - .5) * jitter, start.y + (end.y - start.y) * f,
+        start.z + (end.z - start.z) * f + (random() - .5) * jitter));
+    }
+    const mesh = new THREE.Mesh(new THREE.TubeGeometry(new THREE.CatmullRomCurve3(points), 40, .45, 4, false), boltMaterial);
+    mesh.name = name; mesh.visible = false; mesh.frustumCulled = false; mesh.userData.tip = new THREE.Vector3(end.x, end.y + 10, end.z);
+    parent.add(mesh); return mesh;
+  }
+  // Each strike shows its bolt for a sixth of a second while its flash fades over a third.
+  function strike(t, strikes, bolts, light) {
+    let flash = 0, active;
+    for (const mesh of bolts) mesh.visible = false;
+    for (const [at, index] of strikes) {
+      const age = t - at;
+      if (age < 0 || age > .34) continue;
+      bolts[index].visible = age < .16; flash = Math.max(flash, 1 - age / .34); active = bolts[index];
+    }
+    light.intensity = flash * light.userData.peak;
+    if (active) light.position.copy(active.userData.tip);
+  }
+  function createTornado() {
+    seed = 19961996;
+  // TWISTER: a rotating wall cloud lowers an F5 funnel that crosses a farmstead.
+  const outbreak = group('Twister — F5 outbreak');
+  const base = t => [-95 + t * 4, -95 + t * 2.2];
+  const funnelSurface = (() => {
+    const material = mat('#3a3733', { roughness: 1, transparent: true, opacity: .92, side: THREE.DoubleSide, depthWrite: false });
+    const shape = { value: new THREE.Vector4(4, 60, 100, 1.7) }, lean = { value: new THREE.Vector2() }, clock = { value: 0 };
+    material.onBeforeCompile = shader => {
+      shader.uniforms.funnelShape = shape; shader.uniforms.funnelLean = lean; shader.uniforms.funnelTime = clock;
+      shader.vertexShader = shader.vertexShader.replace('#include <common>', '#include <common>\nuniform vec4 funnelShape;uniform vec2 funnelLean;uniform float funnelTime;varying vec2 funnelUv;' + noise)
+        .replace('#include <begin_vertex>', `#include <begin_vertex>
+        float h=position.y+.5;float a=atan(position.z,position.x);funnelUv=vec2(a,h);
+        float r=mix(funnelShape.x,funnelShape.y,pow(h,funnelShape.w))*(.85+fbm(vec3(cos(a)*1.5,sin(a)*1.5,h*6.-funnelTime*1.3))*.35);
+        transformed=vec3(cos(a)*r,h*funnelShape.z,sin(a)*r)+vec3(funnelLean.x,0.,funnelLean.y)*h*h;`);
+      shader.fragmentShader = shader.fragmentShader.replace('#include <common>', '#include <common>\nuniform float funnelTime;varying vec2 funnelUv;' + noise)
+        .replace('#include <color_fragment>', `#include <color_fragment>
+        float spiral=funnelUv.x+funnelUv.y*4.+funnelTime*.5;
+        float bands=fbm(vec3(cos(spiral)*2.2,sin(spiral)*2.2,funnelUv.y*9.-funnelTime*1.8));
+        diffuseColor.rgb*=.6+bands*.8;diffuseColor.a*=(.55+bands*.55)*smoothstep(0.,.05,funnelUv.y)*(1.-smoothstep(.88,1.,funnelUv.y));`);
+    };
+    material.customProgramCacheKey = () => 'terrestrial-funnel-v1';
+    return { material, shape, lean, clock };
+  })();
+  const funnelGeometry = new THREE.CylinderGeometry(1, 1, 1, 48 * fine, 36, true);
+  const funnel = new THREE.Mesh(funnelGeometry, funnelSurface.material); funnel.name = 'Condensation funnel'; funnel.frustumCulled = false; outbreak.add(funnel);
+  const core = new THREE.Mesh(funnelGeometry, funnelSurface.material); core.name = 'Funnel core'; core.frustumCulled = false; core.scale.set(.5, 1, .5); outbreak.add(core);
+  const cloudSurface = texturedMaterial('#3a4441', '#000000', 0, true);
+  const wall = instances(outbreak, sphere, cloudSurface.material, 40, 'Rotating wall cloud');
+  const wallSeeds = Array.from({ length: 40 }, () => ({ angle: random() * tau, radial: random(), size: .75 + random() * .5, twist: random() * tau }));
+  const dustSurface = texturedMaterial('#6b6052', '#000000', 0, true);
+  const dust = instances(outbreak, sphere, dustSurface.material, 24, 'Ground debris cloud');
+  const dustSeeds = Array.from({ length: 24 }, () => ({ angle: random() * tau, radial: random(), size: .7 + random() * .6, twist: random() * tau }));
+  const planks = instances(outbreak, box, mat('#7d6a55', { roughness: .9 }), 140, 'Airborne farm debris');
+  const plankSeeds = Array.from({ length: 140 }, () => ({ angle: random() * tau, radial: random(), height: random(), pickup: random(), spin: random() * tau, size: .5 + random() * 1.5 }));
+  const farm = new THREE.Group(); farm.name = 'Farmstead'; farm.position.set(-30, terrainHeight(-30, -58), -58); outbreak.add(farm);
+  // A triangular prism whose ridge runs along x, apex one unit up and eaves half a unit down.
+  const prism = new THREE.CylinderGeometry(1, 1, 1, 3, 1); prism.rotateY(Math.PI / 2); prism.rotateZ(Math.PI / 2);
+  const siding = mat('#ddd6c6', { roughness: .8 }), shingle = mat('#4f3b32', { roughness: .95 }), barnRed = mat('#8e2d25', { roughness: .85 });
+  const steel = mat('#a9b0b4', { metalness: .55, roughness: .5 });
+  const part = (parent, geometry, material, x, y, z, sx, sy, sz) => {
+    const mesh = new THREE.Mesh(geometry, material); mesh.position.set(x, y, z); mesh.scale.set(sx, sy, sz);
+    mesh.castShadow = true; mesh.receiveShadow = true; parent.add(mesh); return mesh;
+  };
+  const house = new THREE.Group(); house.name = 'Farmhouse'; farm.add(house);
+  const houseBody = part(house, box, siding, 0, 2.75, 0, 12, 5.5, 9);
+  const houseRoof = part(house, prism, shingle, 0, 6.65, 0, 13, 3.4 / 1.5, 5.5 / .866);
+  const chimney = part(house, box, mat('#7a3b2e'), 3.2, 7.4, 1.5, 1, 2.6, 1);
+  const barn = new THREE.Group(); barn.name = 'Barn'; barn.position.set(21, 0, 8); farm.add(barn);
+  const barnBody = part(barn, box, barnRed, 0, 4.5, 0, 14, 9, 20);
+  const barnRoof = part(barn, prism, shingle, 0, 10.5, 0, 21, 4.5 / 1.5, 8.5 / .866); barnRoof.rotation.y = Math.PI / 2;
+  const silo = new THREE.Group(); silo.name = 'Grain silo'; silo.position.set(34, 0, -3); farm.add(silo);
+  part(silo, cylinder, steel, 0, 8.5, 0, 3.5, 17, 3.5); part(silo, sphere, steel, 0, 17, 0, 3.5, 2.2, 3.5);
+  const windmill = new THREE.Group(); windmill.name = 'Windpump'; windmill.position.set(-17, 0, 11); farm.add(windmill);
+  part(windmill, new THREE.ConeGeometry(1.6, 16, 4), steel, 0, 8, 0, 1, 1, 1);
+  const wheel = new THREE.Group(); wheel.position.set(0, 16.5, 1.2); windmill.add(wheel);
+  part(wheel, new THREE.TorusGeometry(2.6, .12, 5, 20), steel, 0, 0, 0, 1, 1, 1);
+  for (let i = 0; i < 4; i++) part(wheel, box, steel, 0, 0, 0, 5.2, .5, .08).rotation.z = i * Math.PI / 4;
+  const fence = instances(farm, box, mat('#8c7b64', { roughness: .9 }), 50, 'Fence line');
+  const bolts = [bolt(outbreak, new THREE.Vector3(-20, 100, -95), new THREE.Vector3(-4, terrainHeight(-4, -112), -112), 'Lightning strike east'),
+    bolt(outbreak, new THREE.Vector3(-70, 100, -30), new THREE.Vector3(-82, terrainHeight(-82, -8), -8), 'Lightning strike west'),
+    bolt(outbreak, new THREE.Vector3(30, 100, -70), new THREE.Vector3(46, terrainHeight(46, -86), -86), 'Lightning strike north')];
+  const strikes = [[11.2, 0], [16.6, 1], [21.3, 2]];
+  const flashLight = new THREE.PointLight('#cfe0ff', 0, 300, 1.4); flashLight.userData.peak = 1300; outbreak.add(flashLight);
+  const funnelDust = particles(outbreak, 'vortex', 1500, '#8a7e70', 20);
+
+  function updateTornado(t, detail) {
+    const down = ease((t - 8) / 5), spread = ease((t - 13) / 6), ropeOut = ease((t - 26) / 4);
+    const [bx, bz] = base(t), ground = terrainHeight(bx, bz), height = 25 + down * 75, wobble = 1 + ropeOut * 3;
+    const lx = -7 + Math.sin(t * .6) * 6 * wobble, lz = -3.5 + Math.cos(t * .45) * 5 * wobble;
+    funnelSurface.shape.value.set((3 + spread * 11) * (1 - ropeOut * .85), 42 + spread * 24, height, 1.6 + ropeOut * .6);
+    funnelSurface.lean.value.set(lx, lz); funnelSurface.clock.value = t;
+    // The funnel hangs from the wall cloud; its top stays at the ceiling while the tip descends.
+    for (const mesh of [funnel, core]) mesh.position.set(bx, 100 + ground - height, bz);
+    core.visible = detail > 0;
+    cloudSurface.clock.value = t; dustSurface.clock.value = t;
+    wall.count = detail === 0 ? 24 : 40;
+    const cx = bx + lx, cz = bz + lz;
+    for (let i = 0; i < wall.count; i++) {
+      // A wide, flat rotating slab under the ceiling; its underside stays above the funnel top.
+      const s = wallSeeds[i], a = s.angle + t * (.06 + (1 - s.radial) * .16), r = 16 + s.radial * 72;
+      pose(wall, i, cx + Math.cos(a) * r, 102 + ground + Math.sin(s.twist + t * .2) * 3 + s.radial * 8, cz + Math.sin(a) * r,
+        32 * s.size, 7 * s.size, 32 * s.size, s.twist, a, s.twist * .3);
+    }
+    wall.instanceMatrix.needsUpdate = true;
+    dust.visible = t > 12.6;
+    for (let i = 0; i < dust.count; i++) {
+      const s = dustSeeds[i], a = s.angle + t * (1.8 + s.radial), r = (6 + s.radial * 16) * (.4 + spread * .6) * (1 - ropeOut * .7);
+      const size = (5 + spread * 6) * s.size * (1 - ropeOut * .6);
+      pose(dust, i, bx + Math.cos(a) * r, ground + 2 + s.radial * 7, bz + Math.sin(a) * r, size * 1.3, size * .8, size * 1.3, t * .4 + s.twist, a, s.twist);
+    }
+    dust.instanceMatrix.needsUpdate = true;
+    planks.count = detail === 0 ? 60 : detail === 1 ? 100 : 140;
+    for (let i = 0; i < planks.count; i++) {
+      const s = plankSeeds[i], age = t - 12.5 - s.pickup * 3, lift = ease(age / 4), settle = ease((t - 26) / 4);
+      const h = (1 + s.height * s.height * 60 * lift) * (1 - settle * .85), r = (5 + s.radial * 24) * (.35 + .65 * lift) * (1 + h * .02);
+      const angle = s.angle + t * (2.4 + s.radial * 1.2) + h * .05, bend = (h / 95) ** 2, size = age > 0 ? s.size : .001;
+      pose(planks, i, bx + lx * bend + Math.cos(angle) * r, ground + h, bz + lz * bend + Math.sin(angle) * r,
+        size * 3, size * .3, size * .9, t * 3 + s.spin, angle, t * 2);
+    }
+    planks.instanceMatrix.needsUpdate = true;
+    const hit = ease((t - 15.4) / 2.2), hitBarn = ease((t - 15.9) / 2.2);
+    houseRoof.position.set(hit * Math.cos(t * 2.7) * 18, 6.65 + hit * 40, hit * Math.sin(t * 2.7) * 18);
+    houseRoof.rotation.set(hit * t * 2.2, hit * t * 1.1, hit * .9);
+    houseBody.scale.y = 5.5 * (1 - hit * .85); houseBody.position.y = houseBody.scale.y / 2; houseBody.rotation.z = hit * .55;
+    chimney.position.y = 7.4 - hit * 4; chimney.rotation.x = hit * 1.2;
+    barnRoof.position.set(hitBarn * Math.sin(t * 2.4) * 22, 10.5 + hitBarn * 46, hitBarn * Math.cos(t * 2.4) * 22);
+    barnRoof.rotation.set(hitBarn * t * 1.7, Math.PI / 2 + hitBarn * t * 1.3, hitBarn * 1.1);
+    barnBody.scale.y = 9 * (1 - hitBarn * .8); barnBody.position.y = barnBody.scale.y / 2; barnBody.rotation.x = hitBarn * .4;
+    silo.rotation.set(0, hit * .5, hit * 1.42);
+    wheel.rotation.z = t * (2 + ease((t - 8) / 6) * 14); windmill.rotation.x = hit * 1.3;
+    for (let i = 0; i < 25; i++) {
+      const pull = ease((t - 14.8 - i * .06) / 1.4), x = -44 + i * 2.5;
+      pose(fence, i, x + pull * (Math.sin(i) * 30 + 10), .8 + pull * (15 + (i % 7) * 6), 24 + pull * Math.cos(i * 1.3) * 25,
+        .3, 1.6, .3, pull * t * 2, pull * i, pull * t * 1.5);
+      pose(fence, 25 + i, x + 1.25 + pull * (Math.cos(i) * 28 - 6), 1.2 + pull * (12 + (i % 5) * 7), 24 + pull * Math.sin(i * 1.7) * 22,
+        2.5, .12, .12, pull * t * 1.7, pull * i * .7, pull * t * 2.3);
+    }
+    fence.instanceMatrix.needsUpdate = true;
+    strike(t, strikes, bolts, flashLight);
+    funnelDust.uniforms.origin.value.set(bx, ground, bz); funnelDust.uniforms.lean.value.set(lx, lz);
+  }
+    return { group: outbreak, update: updateTornado, particles: funnelDust };
+  }
+  function createEruption() {
+    seed = 19971997;
+  // DANTE'S PEAK: a stratovolcano's Plinian column, ballistic lava bombs and a pyroclastic surge down the flank.
+  const eruption = group("Dante's Peak — Plinian eruption");
+  const vent = new THREE.Vector3(-60, 0, -250);
+  const flank = (x, z) => { const d = Math.hypot(x - vent.x, z - vent.z); return d < 32 ? 88 : Math.max(120 * (1 - d / 130), terrainHeight(x, z)); };
+  const ash = { value: 0 };
+  const mountainMaterial = new THREE.MeshStandardMaterial({ vertexColors: true, roughness: .95, flatShading: true });
+  mountainMaterial.onBeforeCompile = shader => {
+    shader.uniforms.ashFall = ash;
+    shader.fragmentShader = shader.fragmentShader.replace('#include <common>', '#include <common>\nuniform float ashFall;')
+      .replace('#include <color_fragment>', '#include <color_fragment>\ndiffuseColor.rgb=mix(diffuseColor.rgb,vec3(.34,.31,.29),ashFall);');
+  };
+  mountainMaterial.customProgramCacheKey = () => 'terrestrial-ashfall-v1';
+  function peak(radius, height, craterDepth, x, z, name) {
+    const geometry = new THREE.ConeGeometry(radius, height, 72 * fine, 26, false); geometry.translate(0, height / 2, 0);
+    const p = geometry.attributes.position, colors = [], snowLine = height * .7, treeLine = height * .34;
+    for (let i = 0; i < p.count; i++) {
+      const px = p.getX(i), py = p.getY(i), pz = p.getZ(i), angle = Math.atan2(pz, px);
+      const ridge = Math.sin(angle * 7 + py * .05) * .5 + Math.sin(angle * 3 - py * .02) * .3 + Math.sin(angle * 17 + py * .11) * .2;
+      const scale = 1 + ridge * .09 * clamp((py - 4) / 30), crater = ease((py - height * .75) / (height * .25));
+      p.setXYZ(i, px * scale, py - crater * craterDepth + Math.sin(px * .13 + pz * .17) * 1.5 * clamp((py - 8) / 40), pz * scale);
+      const n = Math.sin(px * .07 + pz * .05) * Math.cos(py * .09), band = py + n * 8;
+      const c = band > snowLine ? new THREE.Color().setHSL(.58, .05, .84 + n * .05)
+        : band > treeLine ? new THREE.Color().setHSL(.07 + n * .01, .12 + Math.abs(n) * .08, .21 + n * .04)
+          : new THREE.Color().setHSL(.3, .18, .13 + n * .03);
+      colors.push(c.r, c.g, c.b);
+    }
+    geometry.setAttribute('color', new THREE.Float32BufferAttribute(colors, 3)); geometry.computeVertexNormals();
+    const mesh = new THREE.Mesh(geometry, mountainMaterial); mesh.name = name; mesh.position.set(x, -1, z); mesh.receiveShadow = true; eruption.add(mesh); return mesh;
+  }
+  peak(130, 120, 34, vent.x, vent.z, 'Stratovolcano'); peak(84, 64, 0, 98, -268, 'Neighbouring ridge');
+  const craterMaterial = glow(new THREE.Color(3, .9, .15), 0);
+  const craterGlow = new THREE.Mesh(new THREE.CircleGeometry(24, 24), craterMaterial); craterGlow.name = 'Rising magma';
+  craterGlow.rotation.x = -Math.PI / 2; craterGlow.position.set(vent.x, 87, vent.z); eruption.add(craterGlow);
+  const columnSurface = texturedMaterial('#38332f', '#ff6a1c', 1.3, true);
+  const column = instances(eruption, sphere, columnSurface.material, 72, 'Plinian eruption column');
+  const columnSeeds = Array.from({ length: 72 }, () => ({ angle: random() * tau, radial: random(), size: .75 + random() * .5, twist: random() * tau }));
+  const bombs = instances(eruption, rock, mat('#2a1610', { emissive: '#ff4d10', emissiveIntensity: 2.4, roughness: .9 }), 64, 'Ballistic lava bombs');
+  const bombSeeds = Array.from({ length: 64 }, () => ({ launch: 6 + random() * 17, angle: random() * tau, lateral: 6 + random() * 30, vertical: 42 + random() * 40, size: .7 + random() * 2.2, spin: random() * tau }));
+  const surgeSurface = texturedMaterial('#6a645e', '#ff7a2a', .4, true);
+  const surge = instances(eruption, sphere, surgeSurface.material, 54, 'Pyroclastic surge front');
+  const surgeSeeds = Array.from({ length: 54 }, (_, i) => ({ fan: (random() - .5) * 1.5, reach: .55 + random() * .45, trail: i % 3 === 0 ? 1 : .55 + random() * .4, size: .8 + random() * .5, twist: random() * tau }));
+  const surgeHeading = Math.atan2(1, .15);
+  const bolts = [bolt(eruption, new THREE.Vector3(vent.x + 26, 150, vent.z - 14), new THREE.Vector3(vent.x + 8, 92, vent.z + 6), 'Volcanic lightning east'),
+    bolt(eruption, new THREE.Vector3(vent.x - 30, 175, vent.z + 10), new THREE.Vector3(vent.x - 9, 94, vent.z - 5), 'Volcanic lightning west'),
+    bolt(eruption, new THREE.Vector3(vent.x + 12, 215, vent.z + 28), new THREE.Vector3(vent.x + 3, 96, vent.z + 12), 'Volcanic lightning south')];
+  const strikes = [[9.4, 0], [12.1, 1], [17.7, 2], [23.5, 1]];
+  const flashLight = new THREE.PointLight('#dfe6ff', 0, 320, 1.4); flashLight.userData.peak = 1600; eruption.add(flashLight);
+  const ventLight = new THREE.PointLight('#ff7a2a', 0, 420, 1.3); ventLight.position.set(vent.x, 100, vent.z); eruption.add(ventLight);
+  const ashFall = particles(eruption, 'ash', 1100, '#7f776f', 4.5);
+
+  function updateEruption(t, detail) {
+    const rise = ease((t - 6) / 16), growth = ease((t - 6) / 4), early = 1 - ease((t - 9) / 9);
+    const front = ease((t - 13) / 17), hot = 1 - ease((t - 17) / 9);
+    ash.value = ease((t - 12) / 14) * .75;
+    craterMaterial.opacity = ease((t - 3) / 3) * (.55 + Math.sin(t * 4) * .15);
+    column.visible = t > 6; column.count = detail === 0 ? 40 : detail === 1 ? 56 : 72;
+    columnSurface.clock.value = t; columnSurface.material.emissiveIntensity = .15 + early * 1.4;
+    for (let i = 0; i < column.count; i++) {
+      const s = columnSeeds[i], stem = i % 3 !== 0, a = s.angle + t * (stem ? .3 : .12), fraction = s.radial;
+      // Two thirds of the lobes form the rising stem; the rest spread into the umbrella at its top.
+      const y = stem ? 86 + fraction * rise * 210 : 80 + rise * 210 + Math.sin(fraction * Math.PI) * 18;
+      const radius = stem ? (6 + fraction * 12 + rise * 6) * growth : (14 + fraction * 96) * rise;
+      const size = (stem ? 9 + rise * 9 + fraction * 4 : 12 + rise * 20) * s.size * growth;
+      pose(column, i, vent.x + Math.cos(a) * radius, y, vent.z + Math.sin(a) * radius,
+        size * (stem ? .95 : 1.35), size * (stem ? 1.45 : .8), size, t * .05 + s.twist, a, s.twist);
+      color.set(stem ? '#2f2a27' : '#59524d').lerp(fireColor, early * (1 - fraction) * (stem ? .95 : .3));
+      column.setColorAt(i, color);
+    }
+    column.instanceMatrix.needsUpdate = true; column.instanceColor.needsUpdate = true;
+    bombs.count = detail === 0 ? 28 : detail === 1 ? 46 : 64;
+    for (let i = 0; i < bombs.count; i++) {
+      const s = bombSeeds[i], age = t - s.launch;
+      const x = vent.x + Math.cos(s.angle) * s.lateral * age, z = vent.z + Math.sin(s.angle) * s.lateral * age, y = 88 + s.vertical * age - 16 * age * age;
+      const size = age > 0 && age < 9 && y > flank(x, z) - 3 ? s.size : .001;
+      pose(bombs, i, x, y, z, size, size * .8, size * 1.2, age * 3 + s.spin, age * 2, s.spin);
+    }
+    bombs.instanceMatrix.needsUpdate = true;
+    surge.visible = t > 13; surge.count = detail === 0 ? 30 : detail === 1 ? 42 : 54;
+    surgeSurface.clock.value = t; surgeSurface.material.emissiveIntensity = .05 + hot * .35;
+    for (let i = 0; i < surge.count; i++) {
+      const s = surgeSeeds[i], distance = front * (40 + s.reach * 250) * s.trail, angle = surgeHeading + s.fan;
+      const x = vent.x + Math.cos(angle) * distance, z = vent.z + Math.sin(angle) * distance;
+      const size = (5 + distance * .06) * s.size * Math.min(1, front * 4);
+      pose(surge, i, x, flank(x, z) + size * .55, z, size * 1.3, size * .85, size * 1.3, t * .08 + s.twist, angle, s.twist * .5);
+      color.set('#615b55').lerp(fireColor, hot * .18 * (1.3 - s.trail)); surge.setColorAt(i, color);
+    }
+    surge.instanceMatrix.needsUpdate = true; surge.instanceColor.needsUpdate = true;
+    ventLight.intensity = ease((t - 5) / 2) * 1400 * (early * .8 + .2) * (detail === 0 ? .6 : 1);
+    strike(t, strikes, bolts, flashLight);
+  }
+    return { group: eruption, update: updateEruption, particles: ashFall };
+  }
   const factories = {
     'terminator-2': createNuclear,
     '2012': createRupture,
-    'war-of-the-worlds': createInvasion
+    'war-of-the-worlds': createInvasion,
+    'twister': createTornado,
+    'dantes-peak': createEruption
   };
   const loaded = new Map();
   let active;

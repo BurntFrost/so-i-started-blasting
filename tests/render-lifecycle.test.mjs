@@ -22,8 +22,10 @@ function snapshot(group) {
 
 test('procedural factories construct only visited IDs and scrub reversibly in any visit order', () => {
   for (const [create, ids, names, world, extra] of [
-    [createTerrestrial, ['war-of-the-worlds', 'terminator-2', '2012'], ['War of the Worlds — tripod invasion', 'Terminator 2 — nuclear firestorm', '2012 — continental rupture'], 'city', 0],
-    [createCosmic, ['interstellar', 'knowing', 'armageddon'], ['interstellar-black-hole', 'knowing-solar-flare', 'armageddon-asteroid'], 'space', 1]
+    [createTerrestrial, ['war-of-the-worlds', 'terminator-2', '2012', 'twister', 'dantes-peak'],
+      ['War of the Worlds — tripod invasion', 'Terminator 2 — nuclear firestorm', '2012 — continental rupture', 'Twister — F5 outbreak', "Dante's Peak — Plinian eruption"], 'city', 0],
+    [createCosmic, ['interstellar', 'knowing', 'armageddon', 'gravity', 'wandering-earth'],
+      ['interstellar-black-hole', 'knowing-solar-flare', 'armageddon-asteroid', 'gravity-debris-cascade', 'wandering-earth-jupiter-flyby'], 'space', 1]
   ]) {
     const scene = new THREE.Scene(), canvas = { dataset: { quality: 'balanced', pixelRatio: '1.25' } }, camera = new THREE.PerspectiveCamera();
     camera.position.set(122, 78, 155);

@@ -1,6 +1,6 @@
 # So I Started Blasting
 
-An interactive 3D apocalypse cinema at [soistartedblasting.com](https://soistartedblasting.com/), with ten original movie-inspired scenes and cosmic visualizations.
+An interactive 3D apocalypse cinema at [soistartedblasting.com](https://soistartedblasting.com/), with fourteen original movie-inspired scenes and cosmic visualizations.
 
 | Film inspiration | Visualization |
 | --- | --- |
@@ -14,8 +14,12 @@ An interactive 3D apocalypse cinema at [soistartedblasting.com](https://soistart
 | Knowing | Solar photosphere, magnetic loops, superflare |
 | Armageddon | Rugged asteroid, glowing fissures, fragment field |
 | Interstellar | Black hole, accretion disk, lensed halo, orbiting craft |
+| Twister | Rotating wall cloud, F5 funnel, debris spiral, shredded farmstead |
+| Dante's Peak | Plinian eruption column, volcanic lightning, lava bombs, pyroclastic surge |
+| Gravity | Earth from low orbit, station, Kessler debris storm, tumbling wreckage |
+| The Wandering Earth | Frozen Earth, fusion engine plumes, siphoned atmosphere, Jupiter ignition |
 
-All scenes use the same reversible 30-second timeline and adaptive quality tiers, including an ULTRA tier that renders native Retina and 4K pixels with higher-resolution sky, nebula and explosion assets on dense desktop displays (see [the 4K upgrade](docs/ultra-4k.md)). Cosmic visuals are cinematic interpretations; the black-hole halo is a geometric lensing approximation. No new remote model downloads are needed for the six added scenes.
+All scenes use the same reversible 30-second timeline and adaptive quality tiers, including an ULTRA tier that renders native Retina and 4K pixels with higher-resolution sky, nebula and explosion assets on dense desktop displays (see [the 4K upgrade](docs/ultra-4k.md)). Cosmic visuals are cinematic interpretations; the black-hole halo is a geometric lensing approximation. No new remote model downloads are needed for the ten scenes added after the original four; the newest four reuse the landscape and space worlds.
 
 The simulation includes authored architectural and spacecraft models, physically based surface materials, HDR lighting, animated weather and particles, and adaptive graphics quality for phones. Scene playback, timeline scrubbing, camera orbit, replay, and graphics controls run entirely in the browser.
 
@@ -42,7 +46,7 @@ npx playwright install chromium webkit
 npm run check
 ```
 
-The gate includes unit tests, certificate-checker tests, committed asset checksums, the hashed build, and browser regressions. GitHub's `quality` check runs with Node 24 and reports each stage separately, running fast checks before installing Chromium's headless shell. Browser tests use an 800px touch-capable viewport to exercise all ten scenes at BALANCED quality on software WebGL, plus a dedicated desktop HIGH probe for detailed city geometry, shadows, finishing effects and the phone-size downgrade. Exact reverse-scrub comparisons remain in both tiers. Failure probes cover optional assets, WebGL creation, context loss, fullscreen, and narrow-screen controls. The audio cue probe starts immediately before its simulation timestamp so slow rendering does not turn one simulated second into a wall-clock timeout.
+The gate includes unit tests, certificate-checker tests, committed asset checksums, the hashed build, and browser regressions. GitHub's `quality` check runs with Node 24 and reports each stage separately, running fast checks before installing Chromium's headless shell. Browser tests use an 800px touch-capable viewport to exercise all fourteen scenes at BALANCED quality on software WebGL, plus a dedicated desktop HIGH probe for detailed city geometry, shadows, finishing effects and the phone-size downgrade. Exact reverse-scrub comparisons remain in both tiers. Failure probes cover optional assets, WebGL creation, context loss, fullscreen, and narrow-screen controls. The audio cue probe starts immediately before its simulation timestamp so slow rendering does not turn one simulated second into a wall-clock timeout.
 
 ## Code and assets
 
@@ -54,7 +58,7 @@ The gate includes unit tests, certificate-checker tests, committed asset checksu
 | `dist/scenes.js` | Shared scene catalogue for the picker, analytics, and control API |
 | `dist/scene-config.js` | Stable renderer identity, camera, and centralized scene environment settings |
 | `dist/runtime-state.js` | Privacy-aware bootstrap failures and shared failure UI |
-| `dist/terrestrial.js`, `dist/cosmic.js` | Six additional procedural scene visualizations |
+| `dist/terrestrial.js`, `dist/cosmic.js` | Ten additional procedural scene visualizations |
 | `dist/cinema.js` | Materials, effects, and adaptive graphics |
 | `dist/atmosphere.js`, `dist/audio.js` | Optional atmospheric textures and consent-based synchronized sound |
 | `dist/production.js` | Model loading, instancing, and environment setup |
