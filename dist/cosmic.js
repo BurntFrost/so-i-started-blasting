@@ -20,12 +20,11 @@ const output = `
 export function createCosmic({ scene, canvas, camera }) {
   let seed = 77493;
   const random = () => { seed = (seed * 1664525 + 1013904223) >>> 0; return seed / 4294967296; };
-  const groups = [new THREE.Group(), new THREE.Group(), new THREE.Group()];
-  groups.forEach((group, i) => { group.name = ['knowing-solar-flare', 'armageddon-asteroid', 'interstellar-black-hole'][i]; group.visible = false; scene.add(group); });
+  function group(name) {
+    const result = new THREE.Group(); result.name = name; result.visible = false; scene.add(result); return result;
+  }
   const time = { value: 0 };
   const phase = { value: 0 };
-  const pointClouds = [];
-  const fineDetails = [];
   const metal = new THREE.MeshStandardMaterial({ color: '#b5b5a8', metalness: .76, roughness: .3 });
   const darkMetal = new THREE.MeshStandardMaterial({ color: '#26313b', metalness: .7, roughness: .48 });
   const emissive = (color, intensity = 1) => new THREE.MeshBasicMaterial({ color: new THREE.Color(color).multiplyScalar(intensity) });
@@ -81,9 +80,11 @@ export function createCosmic({ scene, canvas, camera }) {
       fragmentShader: `uniform vec3 tint;varying float opacity;varying float warmth;void main(){float r=length(gl_PointCoord-.5)*2.;if(r>1.)discard;gl_FragColor=vec4(mix(tint,tint*vec3(1.2,.55,.25),warmth),pow(1.-r,2.)*opacity);${output}}`,
       transparent: true, depthWrite: false, blending: THREE.AdditiveBlending
     });
-    const cloud = new THREE.Points(geometry, material); cloud.frustumCulled = false; group.add(cloud); pointClouds.push(cloud); return cloud;
+    const cloud = new THREE.Points(geometry, material); cloud.frustumCulled = false; group.add(cloud); cloud.userData.particleCount = count; return cloud;
   }
 
+  function createStars() {
+    seed = 77493;
   // A shared background starfield remains hidden for every terrestrial scene.
   const starsGeometry = new THREE.BufferGeometry();
   const starPositions = [], starColors = [];
@@ -98,8 +99,12 @@ export function createCosmic({ scene, canvas, camera }) {
   const stars = new THREE.Points(starsGeometry, new THREE.PointsMaterial({ vertexColors: true, size: 1.15, transparent: true, opacity: .86, sizeAttenuation: true, depthWrite: false, fog: false }));
   stars.visible = false; scene.add(stars);
 
+    return stars;
+  }
+  function createSolar() {
+    seed = 77494;
   // KNOWING: a granular photosphere, rooted magnetic loops, and a directed CME.
-  const solar = groups[0];
+  const solar = group('knowing-solar-flare');
   const sun = new THREE.Group(); sun.position.set(-35, 54, -8); solar.add(sun);
   const sunSurface = new THREE.Mesh(new THREE.SphereGeometry(31, 80, 56), new THREE.ShaderMaterial({
     uniforms: { time, phase }, vertexShader: vertex,
@@ -110,7 +115,7 @@ export function createCosmic({ scene, canvas, camera }) {
     color*=mix(.74,1.22,cells)*(1.-spots*.72)*limb;gl_FragColor=vec4(color*(1.+phase*.35),1.);${output}}`
   }));
   sun.add(sunSurface, atmosphere(32.8, '#ff9a24', 1.1), atmosphere(36.5, '#e84b0c', .34));
-  const loops = new THREE.Group(); sun.add(loops); fineDetails.push(loops);
+  const loops = new THREE.Group(); sun.add(loops); loops.userData.fineDetail = true;
   const loopMat = emissive('#ff6b15', 3.3);
   for (let i = 0; i < 23; i++) {
     const azimuth = i / 23 * TAU, tilt = (random() - .5) * 1.4;
@@ -129,8 +134,22 @@ export function createCosmic({ scene, canvas, camera }) {
   const solarShock = new THREE.Mesh(new THREE.TorusGeometry(1, .003, 6, 96), new THREE.MeshBasicMaterial({ color: '#ffc46d', transparent: true, opacity: .25, depthWrite: false, blending: THREE.AdditiveBlending }));
   solarShock.position.copy(sun.position); solarShock.rotation.set(0, Math.PI / 2, -.28); solar.add(solarShock);
 
+    function update(t) {
+      phase.value = ease((t - 5) / 8);
+      sun.rotation.set(.1, t * .013, -.12); loops.rotation.y = t * .018;
+      solarEarth.group.rotation.y = t * .025;
+      solarEarth.surface.material.uniforms.heat.value = ease((t - 20) / 10) * 1.1;
+      solarEarth.air.material.uniforms.tint.value.set(t > 23 ? '#ff8b39' : '#49a9ff');
+      flare.visible = t > 5;
+      solarShock.visible = t > 8 && t < 27; solarShock.scale.setScalar(32 + ease((t - 8) / 19) * 99);
+      solarShock.material.opacity = (1 - ease((t - 8) / 19)) * .3;
+    }
+    return { group: solar, update };
+  }
+  function createAsteroid() {
+    seed = 77495;
   // ARMAGEDDON: deformed rock, glowing fault networks, and ballistic fragments.
-  const asteroidScene = groups[1];
+  const asteroidScene = group('armageddon-asteroid');
   const asteroidEarth = earth(25, new THREE.Vector3(56, 37, -70)); asteroidScene.add(asteroidEarth.group);
   const asteroid = new THREE.Group(); asteroidScene.add(asteroid);
   const rockGeometry = new THREE.IcosahedronGeometry(23, 4);
@@ -177,8 +196,31 @@ export function createCosmic({ scene, canvas, camera }) {
   const detonation = new THREE.Mesh(new THREE.SphereGeometry(1, 40, 24), emissive('#ffe4bd', 4)); asteroidScene.add(detonation);
   const asteroidShock = new THREE.Mesh(new THREE.TorusGeometry(1, .017, 6, 100), emissive('#fcb661', 2)); asteroidScene.add(asteroidShock);
 
+    function update(t) {
+      const split = ease((t - 16) / 12); phase.value = ease(t / 12);
+      asteroid.position.set(-24 + ease(t / 30) * 32, 47 - ease(t / 30) * 6, 14 - ease(t / 30) * 22);
+      asteroid.rotation.set(t * .013, t * .038, -.18 + t * .01);
+      rock.scale.setScalar(1 - split * .38); cracks.scale.copy(rock.scale);
+      crackMat.color.set('#ff641b').multiplyScalar(.2 + ease((t - 9) / 10) * 3.8);
+      fragments.visible = t > 16;
+      for (let i = 0; i < fragments.count; i++) {
+        const f = fragmentSeeds[i], distance = 21 + split * f.speed * 2;
+        const r = Math.sqrt(1 - f.y * f.y);
+        dummy.position.set(asteroid.position.x + Math.cos(f.a) * r * distance, asteroid.position.y + f.y * distance * .55, asteroid.position.z + Math.sin(f.a) * r * distance);
+        dummy.rotation.set(f.offset + t * .09, t * .08 + f.a, t * .045);
+        dummy.scale.set(f.size, f.size * .68, f.size * 1.2); dummy.updateMatrix(); fragments.setMatrixAt(i, dummy.matrix);
+      }
+      fragments.instanceMatrix.needsUpdate = true;
+      detonation.visible = t > 16 && t < 21; detonation.position.copy(asteroid.position); detonation.scale.setScalar(.01 + Math.sin(clamp((t - 16) / 5) * Math.PI) * 26);
+      asteroidShock.visible = t > 16; asteroidShock.position.copy(asteroid.position); asteroidShock.rotation.set(1.1, .5, .3); asteroidShock.scale.setScalar(1 + split * 90);
+      asteroidEarth.group.rotation.y = t * .012;
+    }
+    return { group: asteroidScene, update, fragments };
+  }
+  function createBlackHole() {
+    seed = 77496;
   // INTERSTELLAR: an accretion disk and geometric lensing approximation.
-  const blackHoleScene = groups[2];
+  const blackHoleScene = group('interstellar-black-hole');
   const blackHole = new THREE.Group(); blackHole.position.y = 50; blackHoleScene.add(blackHole);
   const horizon = new THREE.Mesh(new THREE.SphereGeometry(16.2, 64, 40), new THREE.MeshBasicMaterial({ color: '#000000', fog: false })); blackHole.add(horizon);
   const disk = new THREE.Mesh(new THREE.RingGeometry(19, 74, 192, 12), new THREE.ShaderMaterial({
@@ -208,7 +250,7 @@ export function createCosmic({ scene, canvas, camera }) {
     uniforms: { time }, vertexShader: vertex,
     fragmentShader: `uniform float time;varying vec3 point;${noise}void main(){float n=fbm(point*.9+time*.09);gl_FragColor=vec4(vec3(2.5,1.05,.35)*(.55+n),.48);${output}}`,
     transparent: true, depthWrite: false, blending: THREE.AdditiveBlending
-  })); rearArc.position.z = -2; rearArc.scale.y = 1.12; lens.add(rearArc); fineDetails.push(rearArc);
+  })); rearArc.position.z = -2; rearArc.scale.y = 1.12; lens.add(rearArc); rearArc.userData.fineDetail = true;
   particles(blackHoleScene, 7300, 'accretion', '#ffe5ba');
   const craft = new THREE.Group(); blackHoleScene.add(craft);
   const rim = new THREE.Mesh(new THREE.TorusGeometry(4.1, .34, 6, 36), metal); craft.add(rim);
@@ -221,67 +263,47 @@ export function createCosmic({ scene, canvas, camera }) {
   const spine = new THREE.Mesh(new THREE.CylinderGeometry(.22, .22, 8, 6), metal); spine.rotation.x = Math.PI / 2; craft.add(spine);
   const cabin = new THREE.Mesh(new THREE.BoxGeometry(1.6, 1, 2.5), metal); cabin.position.z = 3.3; craft.add(cabin);
 
-  let quality;
-  function setQuality() {
-    const next = canvas.dataset.quality || 'high'; if (next === quality) return;
-    quality = next; const fraction = next === 'lite' ? .28 : next === 'balanced' ? .58 : 1;
-    for (const cloud of pointClouds) {
-      cloud.geometry.setDrawRange(0, Math.floor(cloud.geometry.attributes.position.count * fraction));
-      cloud.material.uniforms.pixelRatio.value = Number(canvas.dataset.pixelRatio) || 1;
-    }
-    stars.geometry.setDrawRange(0, Math.floor(starPositions.length / 3 * fraction));
-    fragments.count = Math.floor(150 * fraction);
-    fineDetails.forEach(detail => { detail.visible = next !== 'lite'; });
-  }
-
-  function update(seconds, index) {
-    const selected = index - 7;
-    groups.forEach((group, i) => { group.visible = i === selected; });
-    stars.visible = selected >= 0 && selected < 3;
-    if (!stars.visible) return;
-    setQuality();
-    const t = Math.max(0, Math.min(30, seconds)); time.value = t;
-    if (selected === 0) {
-      phase.value = ease((t - 5) / 8);
-      sun.rotation.set(.1, t * .013, -.12); loops.rotation.y = t * .018;
-      solarEarth.group.rotation.y = t * .025;
-      solarEarth.surface.material.uniforms.heat.value = ease((t - 20) / 10) * 1.1;
-      solarEarth.air.material.uniforms.tint.value.set(t > 23 ? '#ff8b39' : '#49a9ff');
-      flare.visible = t > 5;
-      solarShock.visible = t > 8 && t < 27; solarShock.scale.setScalar(32 + ease((t - 8) / 19) * 99);
-      solarShock.material.opacity = (1 - ease((t - 8) / 19)) * .3;
-    } else if (selected === 1) {
-      const split = ease((t - 16) / 12); phase.value = ease(t / 12);
-      asteroid.position.set(-24 + ease(t / 30) * 32, 47 - ease(t / 30) * 6, 14 - ease(t / 30) * 22);
-      asteroid.rotation.set(t * .013, t * .038, -.18 + t * .01);
-      rock.scale.setScalar(1 - split * .38); cracks.scale.copy(rock.scale);
-      crackMat.color.set('#ff641b').multiplyScalar(.2 + ease((t - 9) / 10) * 3.8);
-      fragments.visible = t > 16;
-      for (let i = 0; i < fragments.count; i++) {
-        const f = fragmentSeeds[i], distance = 21 + split * f.speed * 2;
-        const r = Math.sqrt(1 - f.y * f.y);
-        dummy.position.set(asteroid.position.x + Math.cos(f.a) * r * distance, asteroid.position.y + f.y * distance * .55, asteroid.position.z + Math.sin(f.a) * r * distance);
-        dummy.rotation.set(f.offset + t * .09, t * .08 + f.a, t * .045);
-        dummy.scale.set(f.size, f.size * .68, f.size * 1.2); dummy.updateMatrix(); fragments.setMatrixAt(i, dummy.matrix);
-      }
-      fragments.instanceMatrix.needsUpdate = true;
-      detonation.visible = t > 16 && t < 21; detonation.position.copy(asteroid.position); detonation.scale.setScalar(.01 + Math.sin(clamp((t - 16) / 5) * Math.PI) * 26);
-      asteroidShock.visible = t > 16; asteroidShock.position.copy(asteroid.position); asteroidShock.rotation.set(1.1, .5, .3); asteroidShock.scale.setScalar(1 + split * 90);
-      asteroidEarth.group.rotation.y = t * .012;
-    } else {
+    function update(t) {
       phase.value = ease(t / 30);
       const angle = -.7 + t * .035, radius = 75 - ease((t - 17) / 13) * 39;
       craft.position.set(Math.cos(angle) * radius, 34 + Math.sin(angle) * 8, Math.sin(angle) * radius);
       craft.rotation.set(.45, t * .025, -.25 + t * .06);
       craft.scale.setScalar(1 - ease((t - 26) / 4) * .7);
-      disk.rotation.z = t * .009;
-    }
+      disk.rotation.z = t * .009;    }
+    return { group: blackHoleScene, update, updateView: () => lens.lookAt(camera.position) };
   }
-
+  const factories = { knowing: createSolar, armageddon: createAsteroid, interstellar: createBlackHole };
+  const loaded = new Map();
+  let active, stars;
+  function setQuality() {
+    const quality = canvas.dataset.quality || 'high', ratio = Number(canvas.dataset.pixelRatio) || 1;
+    if (active.quality === quality && active.ratio === ratio) return;
+    active.quality = quality; active.ratio = ratio;
+    const fraction = quality === 'lite' ? .28 : quality === 'balanced' ? .58 : 1;
+    active.group.traverse(object => {
+      if (object.userData.particleCount) {
+        object.geometry.setDrawRange(0, Math.floor(object.userData.particleCount * fraction));
+        object.material.uniforms.pixelRatio.value = ratio;
+      }
+      if (object.userData.fineDetail) object.visible = quality !== 'lite';
+    });
+    stars.geometry.setDrawRange(0, Math.floor(stars.geometry.attributes.position.count * fraction));
+    if (active.fragments) active.fragments.count = Math.floor(150 * fraction);
+  }
+  function update(seconds, config) {
+    const factory = factories[config.id];
+    if (active && active !== loaded.get(config.id)) active.group.visible = false;
+    if (!factory) { if (stars) stars.visible = false; active = undefined; return; }
+    if (!stars) stars = createStars();
+    if (!loaded.has(config.id)) loaded.set(config.id, factory());
+    const next = loaded.get(config.id);
+    if (next !== active) next.quality = undefined;
+    active = next; active.group.visible = true; stars.visible = true;
+    setQuality();
+    const t = Math.max(0, Math.min(30, seconds)); time.value = t;
+    active.update(t);
+  }
   // The lensed image follows the viewer, including orbiting a paused timeline.
-  function updateView() {
-    if (groups[2].visible) lens.lookAt(camera.position);
-  }
-
+  function updateView() { active?.updateView?.(); }
   return { update, updateView };
 }

@@ -27,9 +27,9 @@ export function createTerrestrial({ scene, canvas }) {
   const color = new THREE.Color();
   const fireColor = new THREE.Color('#ffa22b');
   const segmentStart = new THREE.Vector3(), segmentEnd = new THREE.Vector3();
-  const groups = ['Terminator 2 — nuclear firestorm', '2012 — continental rupture', 'War of the Worlds — tripod invasion'].map(name => {
-    const group = new THREE.Group(); group.name = name; group.visible = false; scene.add(group); return group;
-  });
+  function group(name) {
+    const result = new THREE.Group(); result.name = name; result.visible = false; scene.add(result); return result;
+  }
   function instances(parent, geometry, material, count, name) {
     const mesh = new THREE.InstancedMesh(geometry, material, count);
     mesh.name = name; mesh.frustumCulled = false; mesh.instanceMatrix.setUsage(THREE.DynamicDrawUsage);
@@ -89,8 +89,10 @@ export function createTerrestrial({ scene, canvas }) {
     return { mesh, count, uniforms };
   }
 
+  function createNuclear() {
+    seed = 20121991;
   // TERMINATOR 2: an incandescent ground burst becomes a rolling mushroom cap.
-  const nuclear = groups[0];
+  const nuclear = group('Terminator 2 — nuclear firestorm');
   const cloudSurface = texturedMaterial('#443732', '#ff7619', 1.6);
   const cloud = instances(nuclear, sphere, cloudSurface.material, 72, 'Rolling mushroom cloud lobes');
   const nuclearCore = new THREE.Mesh(new THREE.SphereGeometry(1, 32, 20), glow(new THREE.Color(4.5, 1.4, .2), .9));
@@ -109,8 +111,46 @@ export function createTerrestrial({ scene, canvas }) {
   const embers = particles(nuclear, 'embers', 2600, new THREE.Color(3, 1.1, .15), 1.8);
   const lobeSeeds = Array.from({ length: 72 }, () => ({ angle: random() * tau, radial: random(), size: .7 + random() * .6, twist: random() * tau }));
 
+  function updateNuclear(t, detail) {
+    const ignition = ease((t - 4) / 2), rise = ease((t - 8) / 20), early = 1 - ease((t - 10) / 7);
+    const growth = ease((t - 5) / 7);
+    cloud.count = detail === 0 ? 36 : detail === 1 ? 54 : 72;
+    cloud.visible = t > 4;
+    cloudSurface.clock.value = t; cloudSurface.material.emissiveIntensity = .25 + early * 2.8;
+    for (let i = 0; i < cloud.count; i++) {
+      const s = lobeSeeds[i];
+      // Interleave cap and stem at every quality level to preserve the silhouette.
+      const stem = i % 3 === 0;
+      const a = s.angle + t * (stem ? .045 : .028);
+      const radius = stem ? (3 + s.radial * 5) * growth : (9 + s.radial * 25) * growth;
+      const y = stem ? 5 + s.radial * (21 + rise * 40) : 17 + rise * 49 + Math.sin(s.radial * Math.PI) * 10;
+      const size = (stem ? 5 + growth * 3 : 4 + growth * 9) * s.size * ignition;
+      pose(cloud, i, -18 + Math.cos(a) * radius, y, -27 + Math.sin(a) * radius,
+        size * (stem ? .82 : 1.23), size * (stem ? 1.25 : .85), size, t * .06 + s.twist, a, s.twist);
+      color.set(stem ? '#433b35' : '#766252').lerp(fireColor, early * (1 - s.radial) * .85);
+      cloud.setColorAt(i, color);
+    }
+    cloud.instanceMatrix.needsUpdate = true; cloud.instanceColor.needsUpdate = true;
+    nuclearCore.visible = t > 4 && t < 21;
+    nuclearCore.position.set(-18, 12 + rise * 43, -27);
+    nuclearCore.scale.setScalar(Math.max(.01, (5 + growth * 23) * ignition));
+    nuclearCore.material.opacity = ignition * early * .87;
+    const radius = 1 + Math.max(0, t - 6) * 11;
+    shock.scale.set(radius, radius, 1 + ease((t - 6) / 12) * 8);
+    shockMaterial.opacity = ease((t - 5) / 1.5) * (1 - ease((t - 14) / 6)) * .9;
+    pressure.scale.set(radius * .89, radius * .89, 8 + growth * 15);
+    pressureMaterial.opacity = ignition * (1 - ease((t - 16) / 10)) * .19;
+    nuclearLight.intensity = (ignition * early * 900 + rise * 100) * (detail === 0 ? .65 : 1);
+    warhead.visible = t < 5; trail.visible = warhead.visible;
+    warhead.position.y = 110 - clamp(t / 5) * 103;
+    trail.position.set(-18, warhead.position.y + 17, -27);
+  }
+    return { group: nuclear, update: updateNuclear, particles: embers };
+  }
+  function createRupture() {
+    seed = 20120012;
   // 2012: the street surface splits into lifted crust plates and a jagged abyss.
-  const rupture = groups[1];
+  const rupture = group('2012 — continental rupture');
   const basalt = texturedMaterial('#514945', '#8e3010', .08);
   const plates = instances(rupture, new THREE.CylinderGeometry(1, 1.22, 1, 5), basalt.material, 42, 'Fractured basalt plates');
   plates.castShadow = true; plates.receiveShadow = true;
@@ -170,79 +210,6 @@ export function createTerrestrial({ scene, canvas }) {
   const faultLight = new THREE.PointLight('#ff5426', 0, 130, 1.7); faultLight.position.set(0, 10, 15); rupture.add(faultLight);
   const faultDust = particles(rupture, 'rupture', 650, '#967b67', 36);
 
-  // WAR OF THE WORLDS: three independent walkers with posed limbs and scanning rays.
-  const invasion = groups[2];
-  const machine = mat('#526065', { metalness: .94, roughness: .27 });
-  const darkMachine = mat('#182025', { metalness: .8, roughness: .43 });
-  const lensMaterial = glow(new THREE.Color(.4, 1.2, 3.5));
-  const walkers = [];
-  const walkersLayout = [[20, 12, 1], [-46, -36, .82], [46, -63, .69]];
-  walkersLayout.forEach(([x, z, scale], index) => {
-    const walker = new THREE.Group(); walker.name = `Articulated tripod ${index + 1}`;
-    walker.scale.setScalar(scale); invasion.add(walker);
-    const head = new THREE.Group(); walker.add(head);
-    const carapace = new THREE.Mesh(new THREE.SphereGeometry(1, 24, 14), machine); carapace.scale.set(13, 5.1, 8);
-    carapace.castShadow = true; head.add(carapace);
-    const underbody = new THREE.Mesh(sphere, darkMachine); underbody.position.y = -2.3; underbody.scale.set(9, 4, 6); head.add(underbody);
-    const crown = new THREE.Mesh(new THREE.ConeGeometry(7.5, 2.6, 3), machine); crown.position.y = 4.5; crown.rotation.y = Math.PI / 6; head.add(crown);
-    const plating = instances(head, box, machine, 12, 'Radial tripod armor');
-    for (let i = 0; i < 12; i++) {
-      const a = i / 12 * tau; pose(plating, i, Math.sin(a) * 10, -.8, Math.cos(a) * 5.6, 2, .65, 3, .14, a, 0);
-    }
-    plating.instanceMatrix.needsUpdate = true;
-    const eyes = instances(head, sphere, lensMaterial, 3, 'Triangular optical array');
-    for (let i = 0; i < 3; i++) pose(eyes, i, (i - 1) * 2.7, -1.7 + (i === 1 ? 1 : 0), 7.2, .72, .46, .28);
-    eyes.instanceMatrix.needsUpdate = true;
-    const limbs = instances(walker, cylinder, machine, 24, 'Hydraulic leg segments and claws');
-    const joints = instances(walker, sphere, darkMachine, 9, 'Tripod articulated joints');
-    const cables = instances(walker, cylinder, darkMachine, 15, 'Hanging mechanical tendrils');
-    const ray = new THREE.Mesh(cylinder, glow(new THREE.Color(.45, 1.25, 3.6), .6)); walker.add(ray);
-    const rayHalo = new THREE.Mesh(cylinder, glow('#899dff', .1)); walker.add(rayHalo);
-    const scorch = new THREE.Mesh(new THREE.CircleGeometry(3, 24), glow('#bbd5ff', .8)); scorch.rotation.x = -Math.PI / 2; walker.add(scorch);
-    const rayLight = new THREE.PointLight('#9ebdff', 0, 55, 1.6); walker.add(rayLight);
-    const positions = Array.from({ length: 12 }, () => new THREE.Vector3());
-    walkers.push({ walker, head, limbs, joints, cables, plating, ray, rayHalo, scorch, rayLight, positions, x, z, scale, index });
-  });
-  const weedMaterial = mat('#5b151a', { roughness: .85, emissive: '#7d1018', emissiveIntensity: .3 });
-  const weed = instances(invasion, new THREE.ConeGeometry(.8, 1, 5), weedMaterial, 360, 'Spreading red weed');
-  const weedSeeds = Array.from({ length: 360 }, () => ({ x: (random() - .5) * 164, z: (random() - .5) * 150,
-    size: .8 + random() * 2.6, angle: random() * tau, threshold: random() }));
-  const invasionDust = particles(invasion, 'invasion', 480, '#9c8988', 27);
-
-  function updateNuclear(t, detail) {
-    const ignition = ease((t - 4) / 2), rise = ease((t - 8) / 20), early = 1 - ease((t - 10) / 7);
-    const growth = ease((t - 5) / 7);
-    cloud.count = detail === 0 ? 36 : detail === 1 ? 54 : 72;
-    cloud.visible = t > 4;
-    cloudSurface.clock.value = t; cloudSurface.material.emissiveIntensity = .25 + early * 2.8;
-    for (let i = 0; i < cloud.count; i++) {
-      const s = lobeSeeds[i];
-      // Interleave cap and stem at every quality level to preserve the silhouette.
-      const stem = i % 3 === 0;
-      const a = s.angle + t * (stem ? .045 : .028);
-      const radius = stem ? (3 + s.radial * 5) * growth : (9 + s.radial * 25) * growth;
-      const y = stem ? 5 + s.radial * (21 + rise * 40) : 17 + rise * 49 + Math.sin(s.radial * Math.PI) * 10;
-      const size = (stem ? 5 + growth * 3 : 4 + growth * 9) * s.size * ignition;
-      pose(cloud, i, -18 + Math.cos(a) * radius, y, -27 + Math.sin(a) * radius,
-        size * (stem ? .82 : 1.23), size * (stem ? 1.25 : .85), size, t * .06 + s.twist, a, s.twist);
-      color.set(stem ? '#433b35' : '#766252').lerp(fireColor, early * (1 - s.radial) * .85);
-      cloud.setColorAt(i, color);
-    }
-    cloud.instanceMatrix.needsUpdate = true; cloud.instanceColor.needsUpdate = true;
-    nuclearCore.visible = t > 4 && t < 21;
-    nuclearCore.position.set(-18, 12 + rise * 43, -27);
-    nuclearCore.scale.setScalar(Math.max(.01, (5 + growth * 23) * ignition));
-    nuclearCore.material.opacity = ignition * early * .87;
-    const radius = 1 + Math.max(0, t - 6) * 11;
-    shock.scale.set(radius, radius, 1 + ease((t - 6) / 12) * 8);
-    shockMaterial.opacity = ease((t - 5) / 1.5) * (1 - ease((t - 14) / 6)) * .9;
-    pressure.scale.set(radius * .89, radius * .89, 8 + growth * 15);
-    pressureMaterial.opacity = ignition * (1 - ease((t - 16) / 10)) * .19;
-    nuclearLight.intensity = (ignition * early * 900 + rise * 100) * (detail === 0 ? .65 : 1);
-    warhead.visible = t < 5; trail.visible = warhead.visible;
-    warhead.position.y = 110 - clamp(t / 5) * 103;
-    trail.position.set(-18, warhead.position.y + 17, -27);
-  }
   function updateRupture(t, detail) {
     const opening = ease((t - 3) / 23), violence = ease((t - 6) / 16);
     basalt.clock.value = t; faultMaterial.uniforms.time.value = t;
@@ -305,6 +272,49 @@ export function createTerrestrial({ scene, canvas }) {
     roadRails.visible = detail > 0;
     faultLight.intensity = 90 + violence * 420;
   }
+    return { group: rupture, update: updateRupture, particles: faultDust };
+  }
+  function createInvasion() {
+    seed = 20052005;
+  // WAR OF THE WORLDS: three independent walkers with posed limbs and scanning rays.
+  const invasion = group('War of the Worlds — tripod invasion');
+  const machine = mat('#526065', { metalness: .94, roughness: .27 });
+  const darkMachine = mat('#182025', { metalness: .8, roughness: .43 });
+  const lensMaterial = glow(new THREE.Color(.4, 1.2, 3.5));
+  const walkers = [];
+  const walkersLayout = [[20, 12, 1], [-46, -36, .82], [46, -63, .69]];
+  walkersLayout.forEach(([x, z, scale], index) => {
+    const walker = new THREE.Group(); walker.name = `Articulated tripod ${index + 1}`;
+    walker.scale.setScalar(scale); invasion.add(walker);
+    const head = new THREE.Group(); walker.add(head);
+    const carapace = new THREE.Mesh(new THREE.SphereGeometry(1, 24, 14), machine); carapace.scale.set(13, 5.1, 8);
+    carapace.castShadow = true; head.add(carapace);
+    const underbody = new THREE.Mesh(sphere, darkMachine); underbody.position.y = -2.3; underbody.scale.set(9, 4, 6); head.add(underbody);
+    const crown = new THREE.Mesh(new THREE.ConeGeometry(7.5, 2.6, 3), machine); crown.position.y = 4.5; crown.rotation.y = Math.PI / 6; head.add(crown);
+    const plating = instances(head, box, machine, 12, 'Radial tripod armor');
+    for (let i = 0; i < 12; i++) {
+      const a = i / 12 * tau; pose(plating, i, Math.sin(a) * 10, -.8, Math.cos(a) * 5.6, 2, .65, 3, .14, a, 0);
+    }
+    plating.instanceMatrix.needsUpdate = true;
+    const eyes = instances(head, sphere, lensMaterial, 3, 'Triangular optical array');
+    for (let i = 0; i < 3; i++) pose(eyes, i, (i - 1) * 2.7, -1.7 + (i === 1 ? 1 : 0), 7.2, .72, .46, .28);
+    eyes.instanceMatrix.needsUpdate = true;
+    const limbs = instances(walker, cylinder, machine, 24, 'Hydraulic leg segments and claws');
+    const joints = instances(walker, sphere, darkMachine, 9, 'Tripod articulated joints');
+    const cables = instances(walker, cylinder, darkMachine, 15, 'Hanging mechanical tendrils');
+    const ray = new THREE.Mesh(cylinder, glow(new THREE.Color(.45, 1.25, 3.6), .6)); walker.add(ray);
+    const rayHalo = new THREE.Mesh(cylinder, glow('#899dff', .1)); walker.add(rayHalo);
+    const scorch = new THREE.Mesh(new THREE.CircleGeometry(3, 24), glow('#bbd5ff', .8)); scorch.rotation.x = -Math.PI / 2; walker.add(scorch);
+    const rayLight = new THREE.PointLight('#9ebdff', 0, 55, 1.6); walker.add(rayLight);
+    const positions = Array.from({ length: 12 }, () => new THREE.Vector3());
+    walkers.push({ walker, head, limbs, joints, cables, plating, ray, rayHalo, scorch, rayLight, positions, x, z, scale, index });
+  });
+  const weedMaterial = mat('#5b151a', { roughness: .85, emissive: '#7d1018', emissiveIntensity: .3 });
+  const weed = instances(invasion, new THREE.ConeGeometry(.8, 1, 5), weedMaterial, 360, 'Spreading red weed');
+  const weedSeeds = Array.from({ length: 360 }, () => ({ x: (random() - .5) * 164, z: (random() - .5) * 150,
+    size: .8 + random() * 2.6, angle: random() * tau, threshold: random() }));
+  const invasionDust = particles(invasion, 'invasion', 480, '#9c8988', 27);
+
   function updateInvasion(t, detail) {
     const waking = ease(t / 5), assault = ease((t - 7) / 4);
     walkers.forEach(w => {
@@ -366,17 +376,27 @@ export function createTerrestrial({ scene, canvas }) {
     }
     weed.instanceMatrix.needsUpdate = true;
   }
+    return { group: invasion, update: updateInvasion, particles: invasionDust };
+  }
+  const factories = {
+    'terminator-2': createNuclear,
+    '2012': createRupture,
+    'war-of-the-worlds': createInvasion
+  };
+  const loaded = new Map();
+  let active;
   return {
-    update(time, index) {
-      const selected = index - 4, t = Math.max(0, Math.min(30, time));
-      groups.forEach((group, i) => { group.visible = selected === i; });
-      if (selected < 0 || selected > 2) return;
+    update(time, config) {
+      const factory = factories[config.id];
+      if (active && active !== loaded.get(config.id)) active.group.visible = false;
+      if (!factory) { active = undefined; return; }
+      if (!loaded.has(config.id)) loaded.set(config.id, factory());
+      active = loaded.get(config.id); active.group.visible = true;
+      const t = Math.max(0, Math.min(30, time));
       const quality = canvas.dataset.quality;
       const detail = quality === 'lite' ? 0 : quality === 'balanced' ? 1 : 2;
-      if (selected === 0) updateNuclear(t, detail);
-      if (selected === 1) updateRupture(t, detail);
-      if (selected === 2) updateInvasion(t, detail);
-      const selectedParticles = [embers, faultDust, invasionDust][selected];
+      active.update(t, detail);
+      const selectedParticles = active.particles;
       selectedParticles.uniforms.time.value = t;
       selectedParticles.uniforms.ratio.value = Math.min(Number(canvas.dataset.pixelRatio) || 1, 2);
       selectedParticles.mesh.geometry.setDrawRange(0, Math.floor(selectedParticles.count * [ .35, .65, 1 ][detail]));

@@ -4,6 +4,8 @@ import { EffectComposer } from 'three/addons/postprocessing/EffectComposer.js';
 import { RenderPass } from 'three/addons/postprocessing/RenderPass.js';
 import { UnrealBloomPass } from 'three/addons/postprocessing/UnrealBloomPass.js';
 import { OutputPass } from 'three/addons/postprocessing/OutputPass.js';
+import { ShaderPass } from 'three/addons/postprocessing/ShaderPass.js';
+import { FXAAShader } from 'three/addons/shaders/FXAAShader.js';
 
 const clamp = value => Math.max(0, Math.min(1, value));
 const noiseGLSL = `
@@ -27,6 +29,7 @@ export function createCinema(world) {
 
   // Window grids are a surface shader, not thousands of individual meshes.
   buildings.forEach((building, index) => {
+    building.userData.facadeBaseColor = building.material.color.clone();
     building.castShadow = true;
     building.receiveShadow = true;
     building.material.metalness = index % 3 === 0 ? .7 : .25;
@@ -68,9 +71,7 @@ export function createCinema(world) {
   const pmrem = new THREE.PMREMGenerator(renderer);
   const room = new RoomEnvironment();
   const environment = pmrem.fromScene(room, .04);
-  scene.environment = environment.texture;
   room.dispose(); pmrem.dispose();
-  scene.environmentIntensity = .42;
 
   // Layered hull armor, recessed machinery, and luminous engine channels.
   hullMat.color.set('#49616a'); hullMat.roughness = .28; hullMat.metalness = .85;
@@ -91,13 +92,10 @@ export function createCinema(world) {
   beam.material.color.setRGB(.65,2.6,1.65);
   beam.material.opacity=.55;
 
-  const hemi=scene.children.find(item=>item.isHemisphereLight);
-  hemi.intensity=.65;
   sun.castShadow=true;
   Object.assign(sun.shadow.camera,{left:-115,right:115,top:115,bottom:-115,near:.5,far:350});
   sun.shadow.camera.updateProjectionMatrix();
   sun.shadow.mapSize.set(2048,2048); sun.shadow.bias=-.0003; sun.shadow.normalBias=.12;
-  sun.position.set(-70,110,-35);
   const rim = new THREE.DirectionalLight('#7dbeff',2.2);rim.position.set(80,50,-70);scene.add(rim);
   const impactLight = new THREE.PointLight('#ff8138',0,250,1.3);impactLight.position.set(-8,18,-20);scene.add(impactLight);
   renderer.shadowMap.type=THREE.PCFSoftShadowMap;
@@ -178,13 +176,15 @@ export function createCinema(world) {
   const composer=new EffectComposer(renderer);
   composer.addPass(new RenderPass(scene,camera));
   const bloom=new UnrealBloomPass(new THREE.Vector2(1,1),.65,.65,1.1);composer.addPass(bloom);composer.addPass(new OutputPass());
+  // FXAA smooths the offscreen geometry after output conversion without MSAA renderbuffers.
+  const antialias=new ShaderPass(FXAAShader);composer.addPass(antialias);
   const tiers=[{name:'LITE',dpr:1,particles:.3,shadows:false,bloom:false},{name:'BALANCED',dpr:1.25,particles:.6,shadows:false,bloom:true},{name:'HIGH',dpr:1.7,particles:1,shadows:true,bloom:true}];
   const phone=()=>matchMedia('(pointer: coarse)').matches||canvas.clientWidth<600;
   let ceiling=phone()?1:2,quality=ceiling,frameTotal=0,frameCount=0,fastWindows=0,cooldown=0;
   const badge=document.querySelector('.render-label');
   function setQuality(next,reason='initial'){
     quality=next;const tier=tiers[next];renderer.setPixelRatio(Math.min(devicePixelRatio,tier.dpr));renderer.shadowMap.enabled=tier.shadows;
-    bloom.enabled=tier.bloom;roofs.forEach((roof,i)=>roof.visible=next>0||i%3===0);armor.visible=next>0;
+    bloom.enabled=tier.bloom;canvas.dataset.antialias=tier.bloom?'fxaa':'native';roofs.forEach((roof,i)=>roof.visible=next>0||i%3===0);armor.visible=next>0;
     for(const p of [sparks,smoke,spray]){p.geometry.setDrawRange(0,Math.floor(p.geometry.attributes.position.count*tier.particles));p.material.uniforms.pixelRatio.value=renderer.getPixelRatio();}
     snow.geometry.setDrawRange(0,Math.floor(snow.geometry.attributes.position.count*tier.particles));debris.count=Math.floor(300*tier.particles);
     canvas.dataset.quality=tier.name.toLowerCase();canvas.dataset.pixelRatio=String(renderer.getPixelRatio());
@@ -195,6 +195,7 @@ export function createCinema(world) {
   function resize(){
     const w=canvas.clientWidth,h=canvas.clientHeight;if(!w||!h)return;
     renderer.setSize(w,h,false);composer.setPixelRatio(renderer.getPixelRatio());composer.setSize(w,h);
+    antialias.material.uniforms.resolution.value.set(1/(w*renderer.getPixelRatio()),1/(h*renderer.getPixelRatio()));
     if(quality===1)bloom.setSize(Math.round(w*.55),Math.round(h*.55));
     const nextCeiling=phone()?1:2;if(nextCeiling!==ceiling){ceiling=nextCeiling;if(quality>ceiling)setQuality(ceiling,'viewport');}
   }
@@ -207,29 +208,25 @@ export function createCinema(world) {
     else if(fps>57&&quality<ceiling){if(++fastWindows>=4)setQuality(quality+1,'headroom');}
     else fastWindows=0;
   }
-  function update(t,index){
+  function update(t,config){
+    const id=config.id, impact=id==='independence-day'||id==='deep-impact';
     windows.visible=false;clouds.visible=false;
-    hemi.color.set(index===2?'#93b5d4':'#9eafbe');hemi.groundColor.set('#17191f');
-    sun.intensity=index===2?1.8:3.8;sun.color.set(index===2?'#c8eaff':index===3?'#94d7ff':'#ffca8e');
-    rim.color.set(index===0?'#4aaca2':index===1?'#77b8d9':'#8cb7ef');rim.intensity=index===3?1.4:2.2;
-    scene.fog.density=index===2?.003+clamp(t/30)*.003:index===3?.0015:.003;
-    scene.environmentIntensity=index===2?.65:.4;
     waterTime.value=t;planetTime.value=t;
     const age=t-13;
-    sparks.visible=index<2&&age>0&&age<12;smoke.visible=index<2&&age>0;
-    for(const p of [sparks,smoke]){p.material.uniforms.time.value=age;p.material.uniforms.origin.value.set(index===0?-8:-50,3,index===0?-20:-100);}
+    sparks.visible=impact&&age>0&&age<12;smoke.visible=impact&&age>0;
+    for(const p of [sparks,smoke]){p.material.uniforms.time.value=age;p.material.uniforms.origin.value.set(id==='independence-day'?-8:-50,3,id==='independence-day'?-20:-100);}
     const travel=clamp((t-14)/16),smoothTravel=travel*travel*(3-2*travel);
-    spray.visible=index===1&&t>14;spray.material.uniforms.time.value=t;spray.material.uniforms.origin.value.set(0,Math.sin(Math.PI*.53)*(22+smoothTravel*60),wave.position.z+17);
-    impactLight.intensity=index<2?Math.sin(clamp(age/12)*Math.PI)*1700:0;
+    spray.visible=id==='deep-impact'&&t>14;spray.material.uniforms.time.value=t;spray.material.uniforms.origin.value.set(0,Math.sin(Math.PI*.53)*(22+smoothTravel*60),wave.position.z+17);
+    impactLight.intensity=impact?Math.sin(clamp(age/12)*Math.PI)*1700:0;
     impactLight.position.copy(sparks.material.uniforms.origin.value);impactLight.position.y=18;
     glow.intensity*=7;
     if(blast.visible){blast.material.opacity*=.45;blast.material.color.multiplyScalar(2.5);}
-    bloom.strength=index===2?.22:index===3?.4:index===9?.12:index>=7?.25:.48;
-    bloom.radius=index>=7?.35:.65;
+    bloom.strength=id==='day-after-tomorrow'?.22:id==='melancholia'?.4:id==='interstellar'?.12:config.space?.25:.48;
+    bloom.radius=config.space?.35:.65;
     // Keep the alien craft inside the narrow phone framing.
-    if(phone()&&index===0)ship.position.y-=12;
-    ground.material.envMapIntensity=index===2?.2:.6;
+    if(phone()&&id==='independence-day')ship.position.y-=12;
+    ground.material.envMapIntensity=id==='day-after-tomorrow'?.2:.6;
   }
   setQuality(quality);
-  return {update,resize,measure,render:()=>{if(tiers[quality].bloom)composer.render();else renderer.render(scene,camera);}};
+  return {update,resize,measure,environment:environment.texture,rim,render:()=>{if(tiers[quality].bloom)composer.render();else renderer.render(scene,camera);}};
 }
