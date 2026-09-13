@@ -85,6 +85,7 @@ const hemi=scene.children.find(object=>object.isHemisphereLight);
 const finalLight=new THREE.Color('#e0f7ff'),freeze=new THREE.Color('#c0d6e2');
 controls.addEventListener('change',()=>{needsRender=true;});
 canvas.addEventListener('atmosphere-ready',()=>{needsRender=true;});
+canvas.addEventListener('explosion-ready',()=>{updateWorld();});
 function resetCamera(){
  const s=scenes[selected];camera.position.set(...s.camera);controls.target.set(...s.target);controls.update();needsRender=true;
 }

@@ -50,6 +50,7 @@ async function seek(page, seconds) {
 async function select(page, index) {
   await page.locator(`.scene-card[data-scene="${index}"]`).click();
   await expect(page.locator('#world')).toHaveAttribute('data-scene', scenes[index].id);
+  if (index === 4) await expect(page.locator('#world')).toHaveAttribute('data-explosion-bake', /ready|fallback/);
   await expect(page.locator('.scene-card[aria-pressed="true"]')).toHaveCount(1);
 }
 async function expectFailure(page, stage) {
