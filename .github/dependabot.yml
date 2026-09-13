@@ -1,0 +1,23 @@
+version: 2
+updates:
+  - package-ecosystem: npm
+    directory: /
+    schedule:
+      interval: weekly
+      day: monday
+    open-pull-requests-limit: 3
+    groups:
+      development-tools:
+        dependency-type: development
+        update-types: [minor, patch]
+    ignore:
+      # The vendor version assertion and visual baseline must move together.
+      - dependency-name: three
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly
+      day: monday
+    groups:
+      action-pins:
+        patterns: ['*']
