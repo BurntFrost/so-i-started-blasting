@@ -46,17 +46,23 @@ See [the asset pipeline](tools/README.md) for rebuilding the models, and [asset 
 
 ## Deployment
 
-The checked-in `dist` directory remains the editable static source and the Sites deployment directory. Vercel runs `node tools/build.mjs` and serves the generated, ignored `build` directory.
+The checked-in `dist` directory remains the editable static source. Vercel runs `node tools/build.mjs` and serves the generated, ignored `build` directory. GitHub `main` deploys to the `so-i-started-blasting` project in `burntfrosts-projects`.
+
+`soistartedblasting.com` and `www.soistartedblasting.com` now use Vercel behind Cloudflare's proxy. Their former Sites custom-domain attachments were removed during the September 12, 2026 cutover; `.openai/hosting.json` retains the original Sites project for historical source continuity.
 
 The build fingerprints JavaScript, CSS, models, textures, and HDR files from their SHA-256 content hashes. Local dependency URLs are rewritten before hashing the importing file, so an asset update changes its importer URLs all the way back to the HTML entrypoint. Runtime asset URLs must be explicit local string literals; dynamically assembled filenames fail the build. External CDN imports and Vercel's `/_vercel/` scripts remain unchanged. `build/asset-manifest.json` records the source-to-output mapping for troubleshooting.
 
 Vercel caches only fingerprinted files under `/immutable/` for one year with `immutable`. HTML, the manifest, and other unversioned files revalidate. The configuration retains the existing Vercel project alias redirect to the public domain and security headers. The public domain's hosting and Cloudflare access policy are managed separately from the repository build.
 
+Vercel Authentication protects every deployment and direct origin request. Cloudflare injects a dedicated origin credential for HTTPS requests to the two public hostnames. The credential is managed in provider settings and must never be committed or exposed in client code. Cloudflare removes the bypass-cookie request header and blocks reserved bypass query parameters, including recursively encoded forms. Existing US-only, crawler, bot, and TLS protections remain enabled; origin TLS uses Full (strict).
+
+The current origin certificate covers both hostnames and expires December 12, 2026. HTTP ACME requests reach Vercel's validation handler without redirects or origin credentials from the tested US location. Unattended renewal is not guaranteed while US-only filtering and Free Bot Fight Mode remain enabled: external validation locations may be blocked. If renewal fails, use Vercel's DNS challenge workflow (`vercel certs issue soistartedblasting.com www.soistartedblasting.com --challenge-only`), publish its fresh TXT values in Cloudflare, then finalize issuance with the same command without `--challenge-only`. Verify both origin certificates before expiration; existing TXT values are not a permanent renewal mechanism.
+
 This replacement preserves the previous video-clip application in Git history. Its API functions, scheduled clip checks, and package dependencies are no longer part of the current application.
 
 ## Graphics telemetry
 
-Enable base Web Analytics for the Vercel project, then deploy again so Vercel exposes `/_vercel/insights/script.js`. The repository uses the standard HTML analytics API and does not require Analytics Plus. Vercel Authentication protects previews and unique production deployment URLs; the public production domain is managed separately.
+Base Web Analytics is enabled for the Vercel project, and `/_vercel/insights/script.js` is available on the public domain. The repository uses the standard HTML analytics API and does not require Analytics Plus. For another project, enable Web Analytics and redeploy to activate its collection endpoint. Vercel Authentication protects previews and production origins; Cloudflare authenticates the public domain's origin requests.
 
 | Event | Meaning |
 | --- | --- |
