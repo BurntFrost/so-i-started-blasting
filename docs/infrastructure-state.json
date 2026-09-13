@@ -1,0 +1,96 @@
+{
+  "schemaVersion": 1,
+  "identities": {
+    "repository": "BurntFrost/so-i-started-blasting",
+    "branch": "main",
+    "projectId": "prj_t9xPKJ22rXL1adwZON1A1FH4pWr6",
+    "teamId": "team_jMtyP7WFqokDZDezN3QVX63o",
+    "zoneId": "21f508d4760b9b1b3488bbcaa4098c71"
+  },
+  "github": {
+    "branchProtection": {
+      "strict": true,
+      "requiredChecks": [{ "context": "quality", "appId": 15368 }],
+      "enforceAdmins": true,
+      "allowForcePushes": false,
+      "allowDeletions": false
+    },
+    "actions": {
+      "enabled": true,
+      "allowedActions": "selected",
+      "shaPinningRequired": true,
+      "githubOwnedAllowed": false,
+      "verifiedAllowed": false,
+      "patternsAllowed": ["actions/checkout@*", "actions/setup-node@*", "actions/upload-artifact@*"]
+    }
+  },
+  "vercel": {
+    "projectId": "prj_t9xPKJ22rXL1adwZON1A1FH4pWr6",
+    "teamId": "team_jMtyP7WFqokDZDezN3QVX63o",
+    "nodeVersion": "24.x",
+    "ssoDeploymentType": "all",
+    "gitForkProtection": true,
+    "buildMachineType": "basic",
+    "elasticConcurrencyEnabled": false,
+    "blockingChecks": [
+      {
+        "id": "chk_2b21dc3c-76de-48a9-8eae-735fe6f99a63", "name": "release-artifact",
+        "projectId": "prj_t9xPKJ22rXL1adwZON1A1FH4pWr6", "ownerId": "team_jMtyP7WFqokDZDezN3QVX63o",
+        "requires": "build-ready", "blocks": "deployment-alias", "targets": ["production"], "timeout": 1800,
+        "source": { "kind": "webhook" }
+      },
+      {
+        "id": "chk_efbaaae6-425a-41ed-bba1-f828f39685b8", "name": "release-quality",
+        "projectId": "prj_t9xPKJ22rXL1adwZON1A1FH4pWr6", "ownerId": "team_jMtyP7WFqokDZDezN3QVX63o",
+        "requires": "build-ready", "blocks": "deployment-alias", "targets": ["production"], "timeout": 1800,
+        "source": { "kind": "git-provider", "provider": "github", "externalCheckName": "release-quality" }
+      }
+    ],
+    "effectiveConfig": {
+      "framework": null,
+      "installCommand": "npm ci",
+      "buildCommand": "npm run build",
+      "outputDirectory": "build"
+    }
+  },
+  "cloudflare": {
+    "dnsRecords": [
+      { "type": "CNAME", "name": "soistartedblasting.com", "content": "cb08fa2577a82a5a.vercel-dns-016.com", "proxied": true },
+      { "type": "CNAME", "name": "www.soistartedblasting.com", "content": "cb08fa2577a82a5a.vercel-dns-016.com", "proxied": true }
+    ],
+    "dnssecStatus": "active",
+    "settings": {
+      "ssl": "strict",
+      "minTlsVersion": "1.2",
+      "alwaysUseHttps": "on",
+      "hsts": { "enabled": true, "maxAge": 63072000, "includeSubdomains": true, "preload": true }
+    },
+    "wafRules": [
+      { "id": "ae1954910d1e4d41aec4de96ed149c3a", "enabled": true, "action": "block", "expressionSha256": "e0e80555a742139b448c704d4e3a872fe3ca979959f54736996e75dc03d02f75" },
+      { "id": "005c92f25b564e19bd3aa5abf0dbd132", "enabled": true, "action": "block", "expressionSha256": "4d8f7a3168b930654dfb5fa7a773dedde31ce94d45e05e741b84ca72e409e6a8" },
+      { "id": "c212563036bc4f5ca84bd1934b383699", "enabled": true, "action": "block", "expressionSha256": "b4873f5d23f7db97d6a62b975c9028f107a37d890d5b45bad9b2074984045a91" },
+      { "id": "d274fc4a0f644f5fb43a86243003786c", "enabled": true, "action": "block", "expressionSha256": "fe4305c5fbfd04b08b4f4888ade782029d6acb4141bd8ce434ab8c18de1723ff" }
+    ],
+    "cacheRules": [
+      { "id": "c66e29c0420247659521eebeff8f91ce", "enabled": true, "action": "set_cache_settings", "cache": false, "expressionSha256": "2d674804e98c2ac6baf87966754eae500f651eae66d546ce44e3ef02074abb49" }
+    ],
+    "requestHeaderRules": [
+      {
+        "id": "5337d81a8da749e38b37955893b41d0a",
+        "enabled": true,
+        "action": "rewrite",
+        "expressionSha256": "1e4a9d37d9c8c4fa2dd4a34e2943c1fa8b2e232faf1311b67c5cb18dbf928a9d",
+        "headers": {
+          "x-vercel-protection-bypass": { "operation": "set", "valueConfigured": true },
+          "x-vercel-set-bypass-cookie": { "operation": "remove" }
+        }
+      }
+    ]
+  },
+  "releaseGate": {
+    "status": "configured-activation-unverified",
+    "requiredCheckNames": ["release-quality", "release-ready"],
+    "artifactRequirement": "A successful check bound to the immutable deployment ID and expected SHA must precede production alias assignment.",
+    "limitation": "Provider configuration is checked independently of execution. Activation must be verified on an immutable deployment after the release workflow is merged."
+  }
+}

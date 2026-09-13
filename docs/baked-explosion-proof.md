@@ -5,8 +5,9 @@ mushroom-cloud lobes, blended with the original bright flame geometry and
 fireball. The buildings, lobe positions, shockwave, embers, and
 scene lighting remain live Three.js objects. No Vercel job infrastructure is
 needed for this proof: the prepared asset ships through the static build.
-This implementation is available in the local working tree and preview at
-http://127.0.0.1:4175; select Judgment Day. No deployment was performed.
+The original proof was reviewed locally at http://127.0.0.1:4175; select
+Judgment Day. The deployment status of the integrated version is tracked by
+the release workflow and its deployment identity, separately from this capture.
 
 ## Review artifacts
 
