@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { createReleaseMetadata, projectId, repository, validateRelease } from '../tools/release-metadata.mjs';
-import { checkHosted, eventRelease, request, routeProtectedRequest, selectArtifactRun, selectAttemptArtifact, startArtifactCheck, validateOperatorEvidence } from '../tools/check-deployment.mjs';
+import { checkHosted, eventRelease, main, request, routeProtectedRequest, selectArtifactRun, selectAttemptArtifact, startArtifactCheck, validateOperatorEvidence } from '../tools/check-deployment.mjs';
 
 const release = { deploymentId: 'dpl_abc123', url: 'https://so-i-started-blasting-abcdef123-burntfrosts-projects.vercel.app',
   sha: 'a'.repeat(40), projectId, environment: 'production' };
@@ -39,13 +39,13 @@ test('release identity rejects another deployment, SHA, project, and mutable or 
 });
 
 test('only trusted production main dispatches can authorize a hosted check', () => {
-  assert.deepEqual(eventRelease(event(), 'ready'), release);
+  assert.deepEqual(eventRelease(event()), release);
   for (const mutate of [e => e.sender.id = 1, e => e.repository.full_name = 'attacker/repo',
     e => e.client_payload.git.ref = 'pull/1/head', e => e.client_payload.environment = 'preview',
     e => e.client_payload.state.type = 'failed', e => delete e.client_payload.state,
-    e => e.action = 'vercel.deployment.success']) {
+    e => e.action = 'vercel.deployment.success', e => e.action = 'vercel.deployment.promoted']) {
     const untrusted = event(); mutate(untrusted);
-    assert.throws(() => eventRelease(untrusted, 'ready'));
+    assert.throws(() => eventRelease(untrusted));
   }
 });
 
@@ -67,13 +67,13 @@ test('hosted smoke fails for SHA/deployment mismatch, missing asset, or protecte
 test('metadata cannot redirect authenticated probes to another host or an unhashed asset', async () => {
   await assert.rejects(checkHosted(release, { origin: 'https://attacker.example', fetcher: fixture() }));
   await assert.rejects(checkHosted(release, { fetcher: fixture({ manifest: { ...assets, '/external.js': 'https://attacker.example/file.js' } }) }));
-  await assert.rejects(checkHosted(release, { origin: 'https://soistartedblasting.com', headers: { authorization: 'secret' }, fetcher: fixture() }));
+  for (const origin of ['https://soistartedblasting.com', 'https://www.soistartedblasting.com']) {
+    await assert.rejects(checkHosted(release, { origin, fetcher: fixture() }), /invalid-probe-origin/);
+  }
 });
 
-test('post-promotion checks bind the public response to the original deployment ID', async () => {
-  assert.equal((await checkHosted(release, { origin: 'https://soistartedblasting.com', fetcher: fixture() })).ok, true);
-  await assert.rejects(checkHosted(release, { origin: 'https://soistartedblasting.com',
-    fetcher: fixture({ metadata: { ...release, deploymentId: 'dpl_newer' } }) }), /release-deploymentId-mismatch/);
+test('retired public phase is rejected before reading event or credentials', async () => {
+  await assert.rejects(main(['public']), /invalid-release-phase/);
 });
 
 test('HTTP errors redact remote bodies, redirects, and thrown credential diagnostics', async () => {

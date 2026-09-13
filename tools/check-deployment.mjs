@@ -7,7 +7,6 @@ import { deploymentUrl, validateRelease, projectId, repository } from './release
 export const releaseCheck = 'release-ready';
 export const artifactCheck = 'release-artifact';
 const teamId = 'team_jMtyP7WFqokDZDezN3QVX63o';
-const publicOrigins = ['https://soistartedblasting.com', 'https://www.soistartedblasting.com'];
 const maxBytes = 1024 * 1024;
 const requestTimeout = 15_000;
 const knownErrors = /^(invalid-|release-|untrusted-|unsuccessful-|unexpected-|missing-|protected-|http-|response-|asset-|browser-|github-|oidc-)/;
@@ -30,14 +29,12 @@ export async function request(url, { headers = {}, method = 'GET', fetcher = fet
   return { headers: response.headers, text: Buffer.concat(chunks).toString('utf8') };
 }
 
-export function eventRelease(event, phase) {
+export function eventRelease(event) {
   if (event.sender?.id !== 35613825 || event.sender?.login !== 'vercel[bot]'
     || event.repository?.full_name !== repository) fail('untrusted-event-source');
   const payload = event.client_payload;
   if (payload?.environment !== 'production' || payload.git?.ref !== 'main') fail('untrusted-release-branch');
-  const allowed = phase === 'ready' ? ['vercel.deployment.ready'] : ['vercel.deployment.success', 'vercel.deployment.promoted'];
-  const states = phase === 'ready' ? ['ready', 'pending', 'success'] : ['success', 'promoted'];
-  if (!allowed.includes(event.action) || !states.includes(payload.state?.type)) {
+  if (event.action !== 'vercel.deployment.ready' || !['ready', 'pending', 'success'].includes(payload.state?.type)) {
     fail('unsuccessful-deployment');
   }
   return validateRelease({ deploymentId: payload.id, url: payload.url, sha: payload.git.sha,
@@ -46,8 +43,7 @@ export function eventRelease(event, phase) {
 
 export async function checkHosted(expected, { origin = expected.url, headers = {}, fetcher = fetch, browserSmoke } = {}) {
   expected = validateRelease(expected);
-  if (origin !== expected.url && !publicOrigins.includes(origin)) fail('invalid-probe-origin');
-  if (origin !== expected.url && Object.keys(headers).length) fail('unexpected-public-credential');
+  if (origin !== expected.url) fail('invalid-probe-origin');
   const get = (path, method) => request(new URL(path, origin), { headers, method, fetcher });
   const identity = await get('/release.json');
   let metadata;
@@ -238,9 +234,9 @@ async function getOidcToken() {
 export async function main(args = process.argv.slice(2)) {
   const phase = args[0];
   if (phase === 'complete') return completeAsOperator(args[1]);
-  if (!['ready', 'public'].includes(phase)) fail('invalid-release-phase');
+  if (phase !== 'ready') fail('invalid-release-phase');
   const event = JSON.parse(await readFile(process.env.GITHUB_EVENT_PATH, 'utf8'));
-  const expected = eventRelease(event, phase);
+  const expected = eventRelease(event);
   const token = process.env.GITHUB_TOKEN;
   if (!token) fail('missing-github-token');
   // A production dispatch cannot authorize code or artifacts from an unmerged PR.
@@ -250,26 +246,22 @@ export async function main(args = process.argv.slice(2)) {
     state, context: releaseCheck, description: `${state}: ${expected.deploymentId}`,
     target_url: `https://github.com/${repository}/actions/runs/${process.env.GITHUB_RUN_ID}`,
   });
-  if (phase === 'ready') await setStatus('pending');
+  await setStatus('pending');
   try {
     const reports = [];
-    if (phase === 'ready') {
-      if (!/^chk_[a-zA-Z0-9-]+$/.test(process.env.VERCEL_RELEASE_CHECK_ID)) fail('missing-artifact-gate-id');
-      const oidc = await getOidcToken();
-      reports.push(await checkHosted(expected, { headers: { 'x-vercel-trusted-oidc-idp-token': oidc }, browserSmoke: smokeBrowser }));
-      await setStatus('success');
-    } else {
-      for (const origin of publicOrigins) reports.push(await checkHosted(expected, { origin }));
-    }
+    if (!/^chk_[a-zA-Z0-9-]+$/.test(process.env.VERCEL_RELEASE_CHECK_ID)) fail('missing-artifact-gate-id');
+    const oidc = await getOidcToken();
+    reports.push(await checkHosted(expected, { headers: { 'x-vercel-trusted-oidc-idp-token': oidc }, browserSmoke: smokeBrowser }));
+    await setStatus('success');
     const report = { phase, checks: reports,
       dispatch: { senderId: event.sender.id, action: event.action },
-      ...(phase === 'ready' ? { artifactGate: 'awaiting-operator' } : {}) };
+      artifactGate: 'awaiting-operator' };
     process.stdout.write(`${JSON.stringify(report)}\n`);
     if (process.env.GITHUB_STEP_SUMMARY) await appendFile(process.env.GITHUB_STEP_SUMMARY,
       `### Release ${phase}\n\nDeployment: \`${expected.deploymentId}\`\n\nSHA: \`${expected.sha}\`\n\n${reports.length} hosted probes passed.${report.artifactGate === 'awaiting-operator' ? ' The deployment-specific gate is awaiting operator completion.' : ''}\n`);
     return report;
   } catch (error) {
-    if (phase === 'ready') await setStatus('failure').catch(() => {});
+    await setStatus('failure').catch(() => {});
     throw error;
   }
 }
