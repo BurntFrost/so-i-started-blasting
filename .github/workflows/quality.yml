@@ -5,12 +5,12 @@ on:
     branches: [main]
 permissions:
   contents: read
-concurrency:
-  group: quality-${{ github.workflow }}-${{ github.ref }}
-  cancel-in-progress: true
 jobs:
   quality:
     name: quality
+    concurrency:
+      group: quality-job-${{ github.workflow }}-${{ github.ref }}
+      cancel-in-progress: true
     runs-on: ubuntu-24.04
     timeout-minutes: 20
     steps:
