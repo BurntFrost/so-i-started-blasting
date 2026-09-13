@@ -51,6 +51,21 @@ test('changing a model invalidates its importing scene and boot module only', as
   assert.ok(html.includes(second['/boot.js']));
 });
 
+test('audio is fingerprinted and changing a soundtrack invalidates its importing module', async t => {
+  const options = await fixture(t);
+  await writeFile(path.join(options.sourceDir, 'assets/score.mp3'), 'original score');
+  await writeFile(path.join(options.sourceDir, 'scene.js'), "export const audio = '/assets/score.mp3';");
+  const first = await build(options);
+  assert.match(first['/assets/score.mp3'], /\/immutable\/assets\/score\.[a-f0-9]{16}\.mp3$/);
+  await writeFile(path.join(options.sourceDir, 'assets/score.mp3'), 'new score');
+  const second = await build(options);
+  for (const source of ['/assets/score.mp3', '/scene.js', '/boot.js']) assert.notEqual(first[source], second[source]);
+  const scene = await readFile(path.join(options.outDir, second['/scene.js']), 'utf8');
+  assert.ok(scene.includes(second['/assets/score.mp3']));
+  await writeFile(path.join(options.sourceDir, 'scene.js'), "export const audio = '/assets/missing.mp3';");
+  await assert.rejects(build(options), /Missing local asset/);
+});
+
 test('missing assets and dynamic local paths fail before replacing a successful build', async t => {
   const options = await fixture(t);
   const first = await build(options);

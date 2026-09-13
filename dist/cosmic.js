@@ -9,8 +9,8 @@ float noise(vec3 p){vec3 i=floor(p),f=fract(p);f=f*f*(3.-2.*f);
 return mix(mix(mix(hash(i),hash(i+vec3(1,0,0)),f.x),mix(hash(i+vec3(0,1,0)),hash(i+vec3(1,1,0)),f.x),f.y),
 mix(mix(hash(i+vec3(0,0,1)),hash(i+vec3(1,0,1)),f.x),mix(hash(i+vec3(0,1,1)),hash(i+vec3(1,1,1)),f.x),f.y),f.z);}
 float fbm(vec3 p){return noise(p)*.57+noise(p*2.03)*.28+noise(p*4.11)*.15;}`;
-const vertex = `varying vec3 point;varying vec3 viewNormal;varying vec3 viewDirection;
-void main(){point=position;vec4 mv=modelViewMatrix*vec4(position,1.);viewNormal=normalize(normalMatrix*normal);viewDirection=normalize(-mv.xyz);gl_Position=projectionMatrix*mv;}`;
+const vertex = `varying vec3 point;varying vec3 viewNormal;varying vec3 viewDirection;varying vec3 worldNormal;
+void main(){point=position;vec4 mv=modelViewMatrix*vec4(position,1.);viewNormal=normalize(normalMatrix*normal);worldNormal=normalize(mat3(modelMatrix)*normal);viewDirection=normalize(-mv.xyz);gl_Position=projectionMatrix*mv;}`;
 const output = `
 #include <tonemapping_fragment>
 #include <colorspace_fragment>
@@ -42,18 +42,31 @@ export function createCosmic({ scene, canvas, camera }) {
     const group = new THREE.Group(); group.position.copy(position);
     const surface = new THREE.Mesh(new THREE.SphereGeometry(radius, 64, 40), new THREE.ShaderMaterial({
       uniforms: { time, heat: { value: 0 } }, vertexShader: vertex,
-      fragmentShader: `uniform float time,heat;varying vec3 point;varying vec3 viewNormal;${noise}
+      fragmentShader: `uniform float time,heat;varying vec3 point;varying vec3 worldNormal;${noise}
       void main(){vec3 p=normalize(point);float land=fbm(p*4.7+vec3(.4,2.8,.2));
       float cloud=fbm(p*16.+vec3(time*.018,0.,0.));float terrain=fbm(p*38.);
       vec3 ocean=vec3(.012,.105,.24);vec3 continents=mix(vec3(.035,.13,.067),vec3(.24,.23,.12),terrain);
       vec3 color=mix(ocean,continents,smoothstep(.50,.56,land));
-      color=mix(color,vec3(.82,.90,.94),smoothstep(.56,.72,cloud)*.83);
+      color=mix(color,vec3(.82,.90,.94),smoothstep(.58,.74,cloud)*.55);
       color=mix(color,vec3(.76,.85,.89),smoothstep(.87,.97,abs(p.y))*.88);
-      float light=.11+max(dot(normalize(viewNormal),normalize(vec3(-.65,.5,.8))),0.);
-      color=color*light+vec3(1.9,.21,.016)*heat*(.35+.65*noise(p*22.));gl_FragColor=vec4(color,1.);${output}}`
+      float daylight=dot(normalize(worldNormal),normalize(vec3(-.65,.5,.8)));
+      float light=.035+max(daylight,0.);float night=1.-smoothstep(-.25,.07,daylight);
+      float cities=pow(noise(p*175.),14.)*smoothstep(.51,.58,land)*night;
+      color=color*light+vec3(.95,.45,.15)*cities*.7+vec3(1.6,.19,.016)*heat*(.35+.65*noise(p*22.));
+      gl_FragColor=vec4(color,1.);${output}}`
     }));
-    const air = atmosphere(radius * 1.04, '#49a9ff'); group.add(surface, air);
-    return { group, surface, air };
+    const clouds = new THREE.Mesh(new THREE.SphereGeometry(radius * 1.014, 48, 32), new THREE.ShaderMaterial({
+      uniforms: { time }, vertexShader: vertex,
+      fragmentShader: `uniform float time;varying vec3 point;varying vec3 worldNormal;${noise}
+      void main(){vec3 p=normalize(point);float broad=fbm(p*6.+vec3(time*.002,0.,0.));
+      float wisps=fbm(p*18.+broad*2.);float cloud=smoothstep(.49,.73,wisps);
+      float light=.09+max(dot(normalize(worldNormal),normalize(vec3(-.65,.5,.8))),0.);
+      gl_FragColor=vec4(vec3(.81,.87,.9)*light,cloud*.65);${output}}`,
+      transparent: true, depthWrite: false
+    }));
+    clouds.name = 'Independent planetary cloud deck'; clouds.userData.fineDetail = true;
+    const air = atmosphere(radius * 1.035, '#49a9ff', .42); group.add(surface, clouds, air);
+    return { group, surface, clouds, air };
   }
 
   function particles(group, count, kind, tint) {
@@ -97,6 +110,9 @@ export function createCosmic({ scene, canvas, camera }) {
   starsGeometry.setAttribute('position', new THREE.Float32BufferAttribute(starPositions, 3));
   starsGeometry.setAttribute('color', new THREE.Float32BufferAttribute(starColors, 3));
   const stars = new THREE.Points(starsGeometry, new THREE.PointsMaterial({ vertexColors: true, size: 1.15, transparent: true, opacity: .86, sizeAttenuation: true, depthWrite: false, fog: false }));
+  stars.material.onBeforeCompile = shader => {
+    shader.fragmentShader = shader.fragmentShader.replace('#include <color_fragment>', '#include <color_fragment>\ndiffuseColor.a*=1.-smoothstep(.05,.5,length(gl_PointCoord-.5));');
+  };
   stars.visible = false; scene.add(stars);
 
     return stars;
@@ -138,6 +154,7 @@ export function createCosmic({ scene, canvas, camera }) {
       phase.value = ease((t - 5) / 8);
       sun.rotation.set(.1, t * .013, -.12); loops.rotation.y = t * .018;
       solarEarth.group.rotation.y = t * .025;
+      solarEarth.clouds.rotation.y = t * .009;
       solarEarth.surface.material.uniforms.heat.value = ease((t - 20) / 10) * 1.1;
       solarEarth.air.material.uniforms.tint.value.set(t > 23 ? '#ff8b39' : '#49a9ff');
       flare.visible = t > 5;
@@ -193,7 +210,14 @@ export function createCosmic({ scene, canvas, camera }) {
   const fragmentSeeds = Array.from({ length: 150 }, () => ({ a: random() * TAU, y: random() * 2 - 1, speed: 9 + random() * 31, size: .4 + Math.pow(random(), 2) * 3.4, offset: random() }));
   const dummy = new THREE.Object3D();
   particles(asteroidScene, 4300, 'debris', '#df8e55');
-  const detonation = new THREE.Mesh(new THREE.SphereGeometry(1, 40, 24), emissive('#ffe4bd', 4)); asteroidScene.add(detonation);
+  const detonation = new THREE.Mesh(new THREE.SphereGeometry(1, 40, 24), new THREE.ShaderMaterial({
+    uniforms: { time, fade: { value: 0 } }, vertexShader: vertex,
+    fragmentShader: `uniform float time,fade;varying vec3 point;${noise}
+    void main(){float turbulence=fbm(point*7.+vec3(0.,-time*.4,0.));
+    vec3 fire=mix(vec3(.25,.028,.003),vec3(2.8,1.25,.27),smoothstep(.24,.74,turbulence));
+    gl_FragColor=vec4(fire,fade*(.7+turbulence*.3));${output}}`,
+    transparent: true, depthWrite: false
+  })); asteroidScene.add(detonation);
   const asteroidShock = new THREE.Mesh(new THREE.TorusGeometry(1, .017, 6, 100), emissive('#fcb661', 2)); asteroidScene.add(asteroidShock);
 
     function update(t) {
@@ -212,8 +236,10 @@ export function createCosmic({ scene, canvas, camera }) {
       }
       fragments.instanceMatrix.needsUpdate = true;
       detonation.visible = t > 16 && t < 21; detonation.position.copy(asteroid.position); detonation.scale.setScalar(.01 + Math.sin(clamp((t - 16) / 5) * Math.PI) * 26);
+      detonation.material.uniforms.fade.value = 1 - ease((t - 18) / 3);
       asteroidShock.visible = t > 16; asteroidShock.position.copy(asteroid.position); asteroidShock.rotation.set(1.1, .5, .3); asteroidShock.scale.setScalar(1 + split * 90);
       asteroidEarth.group.rotation.y = t * .012;
+      asteroidEarth.clouds.rotation.y = t * .009;
     }
     return { group: asteroidScene, update, fragments };
   }
@@ -230,7 +256,7 @@ export function createCosmic({ scene, canvas, camera }) {
     vec3 p=vec3(cos(a+time*.13)*9.,sin(a+time*.13)*9.,radius*.65);
     float turbulence=fbm(p+vec3(0.,0.,time*.28));float bands=.6+.4*sin(radius*3.2+turbulence*4.);
     float edge=smoothstep(0.,.035,r)*(1.-smoothstep(.7,1.,r));float hot=pow(1.-r,.72);
-    vec3 color=mix(vec3(.65,.12,.025),vec3(4.,2.7,1.6),hot);
+    vec3 color=mix(vec3(.5,.085,.018),vec3(2.8,1.8,.95),hot);
     float doppler=.55+.85*pow(.5+.5*cos(a-.7),2.);
     gl_FragColor=vec4(color*(.45+turbulence*.85)*bands*doppler,edge*(.62+hot*.3));${output}}`,
     transparent: true, depthWrite: false, side: THREE.DoubleSide, blending: THREE.AdditiveBlending

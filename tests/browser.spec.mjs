@@ -94,6 +94,66 @@ test('ten built scenes render offline from CDNs, scrub reversibly, and keep play
   expect(failedAssets).toEqual([]);
 });
 
+test('local soundtrack obeys consent, playback, scrubbing, volume and scene changes', async ({ page }) => {
+  const errors = await observe(page), audioRequests = [];
+  page.on('request', request => { if (/\.mp3(?:\?|$)/.test(request.url())) audioRequests.push(request.url()); });
+  await load(page);
+  const player = page.locator('#player');
+  await expect(player).toHaveAttribute('data-audio-state', 'off');
+  expect(audioRequests).toEqual([]);
+  await page.locator('#sound-toggle').click();
+  await expect(player).toHaveAttribute('data-audio-state', 'paused');
+  await expect(player).toHaveAttribute('data-audio-sources', '0');
+  expect(audioRequests.length).toBeGreaterThan(0);
+  expect(audioRequests.every(url => /\/immutable\/assets\/audio\/.+\.[a-f0-9]{16}\.mp3$/.test(url))).toBe(true);
+  await seek(page, 12);
+  await page.locator('#play').click();
+  await expect(player).toHaveAttribute('data-audio-state', 'playing');
+  await expect.poll(async () => Number(await player.getAttribute('data-audio-cues'))).toBeGreaterThan(0);
+  await page.locator('#play').click();
+  await expect(player).toHaveAttribute('data-audio-sources', '0');
+  await seek(page, 20);
+  await expect(player).toHaveAttribute('data-audio-cues', '0');
+  await page.locator('#speed').click();
+  await expect(player).toHaveAttribute('data-audio-rate', '0.5');
+  await page.locator('#play').click();
+  await expect(player).toHaveAttribute('data-audio-sources', '1');
+  await page.locator('#sound-volume').fill('0');
+  await expect(player).toHaveAttribute('data-audio-state', 'muted');
+  await expect(player).toHaveAttribute('data-audio-sources', '0');
+  await page.locator('#sound-volume').fill('55');
+  await expect(player).toHaveAttribute('data-audio-sources', '1');
+  await select(page, 1);
+  await expect(player).toHaveAttribute('data-audio-state', 'paused');
+  await expect(player).toHaveAttribute('data-audio-sources', '0');
+  await expect(player).toHaveAttribute('data-audio-scene', 'deep-impact');
+  await page.locator('#sound-toggle').click();
+  await expect(player).toHaveAttribute('data-audio-state', 'off');
+  await page.setViewportSize({ width: 390, height: 844 });
+  await expect(page.locator('#sound-toggle')).toBeVisible();
+  await expect(page.locator('#sound-volume')).toBeVisible();
+  expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
+  expect(errors).toEqual([]);
+});
+
+test('missing audio and atmosphere textures retain working graphics and controls', async ({ page }) => {
+  const errors = await observe(page);
+  await page.route('**/*.mp3', route => route.abort());
+  await page.route('**/*storm-noise*.webp', route => route.abort());
+  await page.route('**/*nebula*.webp', route => route.abort());
+  await load(page);
+  await expect(page.locator('#world')).toHaveAttribute('data-weather-texture', 'fallback');
+  await page.locator('#sound-toggle').click();
+  await expect(page.locator('#player')).toHaveAttribute('data-audio-state', 'unavailable');
+  await select(page, 9);
+  await seek(page, 18);
+  await expect(page.locator('#world')).toHaveAttribute('data-nebula-texture', 'fallback');
+  await expect(page.locator('#error')).toBeHidden();
+  await expect(page.locator('#play')).toBeEnabled();
+  await expect(page.locator('#world')).toHaveAttribute('data-draw-calls', /^[1-9]\d*$/);
+  expect(errors).toEqual([]);
+});
+
 test('one optional authored asset failure retains usable procedural scenes', async ({ page }) => {
   const errors = await observe(page);
   await page.route('**/*city-kit*.glb', route => route.abort());

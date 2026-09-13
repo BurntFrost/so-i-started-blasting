@@ -1,0 +1,115 @@
+import * as THREE from 'three';
+
+const clamp = value => Math.max(0, Math.min(1, value));
+const output = '\n#include <tonemapping_fragment>\n#include <colorspace_fragment>\n';
+const turbulence = `
+uniform sampler2D weatherMap;uniform float weatherReady;
+float cloudHash(vec2 p){return fract(sin(dot(p,vec2(127.1,311.7)))*43758.5453);}
+float cloudNoise(vec2 p){vec2 i=floor(p),f=fract(p);f=f*f*(3.-2.*f);
+return mix(mix(cloudHash(i),cloudHash(i+vec2(1,0)),f.x),mix(cloudHash(i+vec2(0,1)),cloudHash(i+vec2(1,1)),f.x),f.y);}
+float weather(vec2 p){if(weatherReady>.5)return texture2D(weatherMap,p).r;
+return cloudNoise(p*8.)*.65+cloudNoise(p*17.)*.35;}`;
+
+// Only texture data is asynchronous. Every visible pose remains a function of time.
+export function createAtmosphere({ scene, camera, canvas }) {
+  const weatherMap = { value: null }, weatherReady = { value: 0 }, clock = { value: 0 };
+  const loader = new THREE.TextureLoader();
+  const ready = () => canvas.dispatchEvent(new Event('atmosphere-ready'));
+  let weatherRequested = false, nebulaRequested = false;
+  const domeGeometry = new THREE.SphereGeometry(1, 40, 24);
+  const domeVertex = 'varying vec3 direction;void main(){direction=position;gl_Position=projectionMatrix*modelViewMatrix*vec4(position,1.);}';
+  const celestialMaterial = new THREE.ShaderMaterial({
+    uniforms: { panorama: { value: null }, ready: { value: 0 }, strength: { value: .35 } },
+    vertexShader: domeVertex,
+    fragmentShader: `uniform sampler2D panorama;uniform float ready,strength;varying vec3 direction;
+    void main(){vec3 d=normalize(direction);vec2 uv=vec2(atan(d.z,d.x)/6.283185+.5,asin(clamp(d.y,-1.,1.))/3.141593+.5);
+    vec3 color=vec3(.003,.006,.013);
+    if(ready>.5){vec3 dust=texture2D(panorama,uv).rgb;float luma=dot(dust,vec3(.2126,.7152,.0722));
+    color+=mix(vec3(luma),dust,.65)*strength;}
+    gl_FragColor=vec4(color,1.);${output}}`,
+    side: THREE.BackSide, depthWrite: false, fog: false
+  });
+  const celestial = new THREE.Mesh(domeGeometry, celestialMaterial);
+  celestial.name = 'Locally generated interstellar dust'; celestial.scale.setScalar(690);
+  celestial.visible = false; celestial.renderOrder = -20; celestial.frustumCulled = false; scene.add(celestial);
+
+  const cloudMaterial = new THREE.ShaderMaterial({
+    uniforms: { weatherMap, weatherReady, time: clock, density: { value: .3 }, tint: { value: new THREE.Color('#627783') } },
+    vertexShader: domeVertex,
+    fragmentShader: `uniform float time,density;uniform vec3 tint;varying vec3 direction;${turbulence}
+    void main(){vec3 d=normalize(direction);if(d.y<-.06)discard;
+    vec2 p=d.xz/max(.2,d.y+.4)*.42+vec2(time*.002,-time*.0008);
+    float broad=weather(p),detail=weather(p*2.3+vec2(.17,time*.001));
+    float thickness=smoothstep(.32,.73,broad*.7+detail*.3);
+    float horizon=smoothstep(-.04,.17,d.y)*(1.-smoothstep(.8,1.,d.y));
+    float silver=pow(clamp(detail-broad+.35,0.,1.),3.);
+    vec3 color=tint*(.54+broad*.52)+vec3(.15,.19,.21)*silver;
+    gl_FragColor=vec4(color,thickness*horizon*density);${output}}`,
+    side: THREE.BackSide, transparent: true, depthWrite: false, fog: false
+  });
+  const cloudDome = new THREE.Mesh(domeGeometry, cloudMaterial);
+  cloudDome.name = 'Layered storm ceiling'; cloudDome.scale.setScalar(610);
+  cloudDome.visible = false; cloudDome.renderOrder = -8; cloudDome.frustumCulled = false; scene.add(cloudDome);
+
+  const mistMaterial = new THREE.ShaderMaterial({
+    uniforms: { weatherMap, weatherReady, time: clock, density: { value: .1 }, tint: { value: new THREE.Color() } },
+    vertexShader: `varying vec2 mistUv;varying float variation;
+    void main(){mistUv=uv;vec4 center=modelViewMatrix*instanceMatrix*vec4(0.,0.,0.,1.);variation=instanceMatrix[3].x*.01;
+    center.xy+=position.xy*vec2(length(instanceMatrix[0].xyz),length(instanceMatrix[1].xyz));
+    gl_Position=projectionMatrix*center;}`,
+    fragmentShader: `uniform float time,density;uniform vec3 tint;varying vec2 mistUv;varying float variation;${turbulence}
+    void main(){vec2 p=mistUv-.5;float edge=1.-smoothstep(.16,.5,length(p));
+    float cloud=weather(mistUv*.6+vec2(variation+time*.003,variation));
+    gl_FragColor=vec4(tint,edge*smoothstep(.2,.7,cloud)*density);${output}}`,
+    transparent: true, depthWrite: false, fog: false
+  });
+  const mist = new THREE.InstancedMesh(new THREE.PlaneGeometry(1, 1), mistMaterial, 12);
+  mist.name = 'Distant atmospheric haze'; mist.frustumCulled = false; mist.renderOrder = 2; mist.visible = false;
+  const dummy = new THREE.Object3D();
+  for (let i = 0; i < 12; i++) {
+    const angle = i / 12 * Math.PI * 2;
+    dummy.position.set(Math.sin(angle) * 230, 19 + Math.sin(i * 2.3) * 8, Math.cos(angle) * 230);
+    dummy.scale.set(115 + Math.sin(i * 1.7) * 25, 32 + Math.cos(i * 2.1) * 10, 1);
+    dummy.updateMatrix(); mist.setMatrixAt(i, dummy.matrix);
+  }
+  mist.instanceMatrix.needsUpdate = true; scene.add(mist);
+  for (const dome of [celestial, cloudDome]) dome.onBeforeRender = () => {
+    dome.position.copy(camera.position); dome.updateMatrixWorld();
+  };
+
+  function requestWeather() {
+    if (weatherRequested) return; weatherRequested = true;
+    canvas.dataset.weatherTexture = 'loading';
+    loader.load('/assets/storm-noise.webp', texture => {
+      texture.wrapS = texture.wrapT = THREE.RepeatWrapping; texture.colorSpace = THREE.NoColorSpace;
+      weatherMap.value = texture; weatherReady.value = 1; canvas.dataset.weatherTexture = 'ready'; ready();
+    }, undefined, () => { canvas.dataset.weatherTexture = 'fallback'; ready(); });
+  }
+  function requestNebula() {
+    if (nebulaRequested) return; nebulaRequested = true;
+    canvas.dataset.nebulaTexture = 'loading';
+    loader.load('/assets/nebula.webp', texture => {
+      texture.colorSpace = THREE.SRGBColorSpace; texture.wrapS = THREE.RepeatWrapping;
+      celestialMaterial.uniforms.panorama.value = texture; celestialMaterial.uniforms.ready.value = 1;
+      canvas.dataset.nebulaTexture = 'ready'; ready();
+    }, undefined, () => { canvas.dataset.nebulaTexture = 'fallback'; ready(); });
+  }
+  return {
+    update(t, config) {
+      const space = Boolean(config.space), storm = config.id === 'day-after-tomorrow';
+      const collision = config.id === 'melancholia';
+      const quality = canvas.dataset.quality || 'high';
+      clock.value = t; celestial.visible = space; cloudDome.visible = !space && !collision;
+      mist.visible = !space && !collision && quality !== 'lite'; mist.count = quality === 'high' ? 12 : 6;
+      if (space) requestNebula(); else if (!collision) requestWeather();
+      celestialMaterial.uniforms.strength.value = config.id === 'interstellar' ? .22 : .35;
+      celestial.rotation.y = .7;
+      cloudMaterial.uniforms.density.value = storm ? .65 + clamp(t / 30) * .2 : .24;
+      cloudMaterial.uniforms.tint.value.set(storm ? '#597487' : config.id === 'war-of-the-worlds' ? '#655e79' : '#82909a');
+      mistMaterial.uniforms.tint.value.set(config.environment.fog);
+      mistMaterial.uniforms.density.value = storm ? .23 : .11;
+      canvas.dataset.atmosphere = space ? 'interstellar-dust' : collision ? 'planetary' : storm ? 'superstorm' : 'layered-haze';
+      canvas.dataset.atmosphereLayers = String(space || collision || quality === 'lite' ? 1 : 2);
+    }
+  };
+}

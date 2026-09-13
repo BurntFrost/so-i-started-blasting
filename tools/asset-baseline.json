@@ -16,6 +16,19 @@
     "dist/assets/concrete-normal.webp": { "sha256": "6deb529bc234e099642f03aefe6dca26d24f2711e5dfc672632304cb5dbb2704", "bytes": 56502 },
     "dist/assets/concrete-roughness.webp": { "sha256": "359c0de54e40f2a81c156e2e98736255c066b6fe8bea64005d3b9c335fba622f", "bytes": 55148 },
     "dist/assets/dusk.hdr": { "sha256": "27504c5dd20ffc8490537b152860b80ec9c2bf2832ab28ebd2b6e9f475627411", "bytes": 1526564 },
-    "dist/assets/mothership.glb": { "sha256": "1e33afd4ade27058b650409ee1ec732a9f0142addb2f7fa7beaff38a69e039f8", "bytes": 565324 }
+    "dist/assets/mothership.glb": { "sha256": "1e33afd4ade27058b650409ee1ec732a9f0142addb2f7fa7beaff38a69e039f8", "bytes": 565324 },
+    "dist/assets/audio/alien-drone.mp3": { "sha256": "d16b1b405cfd1f0843e6fa9dd75f4be2cfe936d272ac5005141db22b931623aa", "bytes": 481114 },
+    "dist/assets/audio/charge.mp3": { "sha256": "576491d5a5c764cef8e1557fe8c6542b823e91813001ebb95286c1da579933d6", "bytes": 81127 },
+    "dist/assets/audio/cosmic-drone.mp3": { "sha256": "7542ac8001f098eb50438f32f249cb43563ad0c1f1c443e00562f288bd401266", "bytes": 481114 },
+    "dist/assets/audio/fracture.mp3": { "sha256": "58aacca7099eafdcd7d08f49dcbd7e37a1ed8b6f0e1ba0392f88a062904ce10e", "bytes": 41003 },
+    "dist/assets/audio/ice-wind.mp3": { "sha256": "e7535baeb3e81d63b55b50f876040c049a8c7fd363ec17ff95909c398c7329f8", "bytes": 481114 },
+    "dist/assets/audio/impact.mp3": { "sha256": "f4feb4dec266d6d7a065a110328f02e63d329186558b6a7e7fb83d91ff25c53a", "bytes": 65244 },
+    "dist/assets/audio/intro.mp3": { "sha256": "4ae62aa5bb14a677581e336004f86a80a44a9436e0741c1717a9541b1dafda41", "bytes": 48944 },
+    "dist/assets/audio/machine-pulse.mp3": { "sha256": "d202c6b95e19e5c91985f2c8202a16cf5400e395a43af862b51797a737912398", "bytes": 481114 },
+    "dist/assets/audio/ocean-storm.mp3": { "sha256": "5e6bd4e8d37543a88e45f78a6b3f3ed4ee4cd04e184256b84ec81f4d106210ec", "bytes": 481114 },
+    "dist/assets/audio/seismic-rumble.mp3": { "sha256": "673eded27dccadfdfce9a0b5c8efce70373cacf3b7702076bdc04a945c2d30ba", "bytes": 481114 },
+    "dist/assets/audio/solar-roar.mp3": { "sha256": "e69529fb57582fde944104d168cb7499a018c961c2155779aded0153b328f097", "bytes": 481114 },
+    "dist/assets/nebula.webp": { "sha256": "e829c0ce2592ef45bb44627ec5863e0ef0c2ca912a7636f46a65a4661b7a0f80", "bytes": 36770 },
+    "dist/assets/storm-noise.webp": { "sha256": "14256537063558477397d0f6c65a7895ea8cd6a33eef2a5df0d3381757871474", "bytes": 25710 }
   }
 }
