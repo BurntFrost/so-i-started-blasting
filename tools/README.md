@@ -38,7 +38,7 @@ asset checksums, the exact production build, and the committed WebGL browser sui
 The GitHub Actions job is named **quality** for the required merge check; it runs on
 pull requests and pushes to main with read-only repository permissions. The browser
 revision is tied to the Playwright lockfile and uses software WebGL on CI. Browser
-tests cover all ten scenes, reverse scrubbing, paused orbit, fullscreen controls,
+tests cover all fourteen scenes, reverse scrubbing, paused orbit, fullscreen controls,
 phone layout, a failed optional asset, module/WebGL startup errors, genuine context
 loss, and DNT/GPC telemetry suppression. Failure traces are retained for seven days.
 These checks establish functional correctness, not physical-phone frame rates.
@@ -69,7 +69,7 @@ aarch64**, build `8309dc92a:20260903`. These describe the verified local toolcha
 the original asset build did not retain a complete toolchain lock. Rebuilding with
 these versions must be visually reviewed before replacing checked-in files.
 
-`asset-baseline.json` records SHA-256 and size for all 22 deployed graphics and audio files.
+`asset-baseline.json` records SHA-256 and size for all 68 deployed graphics and audio files.
 `npm run assets:verify` checks them without regenerating anything. It is an accurate
 baseline of current checked-in bytes, not a claim of byte-for-byte reconstruction
 from the original toolchain. When intentionally replacing an asset, verify its
@@ -135,8 +135,9 @@ frames into `work/media-review-2x` for reviewing the ULTRA tier.
 ## Original sound and atmospheric textures
 
 The synthesis source is `author-audio.py`; run `python3 tools/author-audio.py` with the
-installed SoX and FFmpeg commands (about ten seconds). It composes ten 30-second beds, one
-per scene, against each scene's visual timeline, plus twenty-six short transient cues
+installed SoX and FFmpeg commands (about fifteen seconds). Pass scene function names (for
+example `twister gravity`) to render only those files. It composes fourteen 30-second beds, one
+per scene, against each scene's visual timeline, plus thirty-eight short transient cues
 (`<scene>-<event>.mp3`). Layers are SoX oscillators and seeded noise with filters, bends,
 tremolo and reverb, and FFmpeg `aevalsrc` expressions for organ clusters, ticking clocks,
 sirens, countdown beeps and impulse trains. Beds are peak-normalized to -12 dBFS and cues
