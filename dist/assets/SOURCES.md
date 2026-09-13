@@ -53,3 +53,20 @@ ComfyUI's local Stable Diffusion route was attempted but stopped during unusuall
 slow Python-import I/O, before any inference. The shipped bitmap came from the
 built-in imagegen tool. The local storm texture and audio used the installed CLI
 toolchain; no new media package or model was installed.
+
+## Baked nuclear volume proof, 2026-09-13
+
+`explosion-puff.webp` is an original Blender Cycles volume render from
+`tools/bake-explosion.py`: 32 RGBA frames at 256×256, 32 samples per frame,
+procedural 4D turbulence, volume scattering/emission, and an AgX display transform.
+FFmpeg packs the frames into a single 8×4 WebP atlas (2048×1024, quality 85).
+It contains no stock or film footage and uses no downloaded model.
+
+The nuclear scene samples and interpolates these frames over seconds 4–20,
+then holds the cooled smoke frame. The existing three-dimensional cloud lobe
+positions remain live. Camera-facing smoke cards share the lobe transforms with
+the original flame geometry; both are visible early, with the original fireball
+at reduced intensity. The flames fade between seconds 10 and 18 as smoke takes over.
+This is an artistic volume approximation, not a fluid simulation. The atlas
+has fixed baked lighting and cannot reproduce correct volumetric parallax.
+The original procedural geometry remains the fallback if the atlas fails.

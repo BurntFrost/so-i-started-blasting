@@ -1,4 +1,5 @@
 import * as THREE from 'three';
+import { createBakedExplosion } from './baked-explosion.js';
 
 const clamp = value => Math.max(0, Math.min(1, value));
 const ease = value => { const t = clamp(value); return t * t * (3 - 2 * t); };
@@ -110,6 +111,7 @@ export function createTerrestrial({ scene, canvas }) {
   const trail = new THREE.Mesh(new THREE.CylinderGeometry(.08, .36, 30, 6), glow('#f9dcbe', .55)); nuclear.add(trail);
   const embers = particles(nuclear, 'embers', 2600, new THREE.Color(3, 1.1, .15), 1.8);
   const lobeSeeds = Array.from({ length: 72 }, () => ({ angle: random() * tau, radial: random(), size: .7 + random() * .6, twist: random() * tau }));
+  const baked = createBakedExplosion({ canvas, cloud, core: nuclearCore });
 
   function updateNuclear(t, detail) {
     const ignition = ease((t - 4) / 2), rise = ease((t - 8) / 20), early = 1 - ease((t - 10) / 7);
@@ -144,6 +146,7 @@ export function createTerrestrial({ scene, canvas }) {
     warhead.visible = t < 5; trail.visible = warhead.visible;
     warhead.position.y = 110 - clamp(t / 5) * 103;
     trail.position.set(-18, warhead.position.y + 17, -27);
+    baked.update(t);
   }
     return { group: nuclear, update: updateNuclear, particles: embers };
   }
