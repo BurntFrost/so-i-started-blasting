@@ -9,7 +9,7 @@ Production domain assignment requires `release-quality` for the merged main SHA 
 3. The workflow obtains short-lived GitHub OIDC. Authenticated HTTPS first checks `/release.json` against the event's deployment ID, URL, SHA, project, and environment. It then checks the entry page, manifest, every hashed asset, and browser startup/scene selection. External browser requests are blocked. Protected browser fetches permit zero redirects, and redirect responses are aborted before credentials can follow them.
 4. The workflow writes diagnostic `release-ready` status to `client_payload.git.sha`, which may differ from the dispatch workflow's current main SHA. It uploads `release-ready-{deploymentId}` with bounded test evidence. Successful smoke leaves production held by the separate `release-artifact` Vercel run.
 5. The operator command below verifies the successful main workflow, fresh artifact, and Vercel control-plane ID/SHA, then completes only that deployment's pending blocking run and reads the result back. A previous passing run for another deployment cannot authorize this one, even when both builds share a SHA.
-6. After both gates pass, Vercel assigns production domains. The success/promoted dispatch triggers unauthenticated probes of both public hosts against the same ID/SHA. Public checks receive no origin credential.
+6. After both gates pass, Vercel assigns production domains. Release listens only for the ready event; success/promoted events do not trigger public-domain HTTP checks. Public delivery can be inspected on demand with `npm run check:public`.
 
 Generated `/release.json` contains five nonsecret identity fields from documented Vercel build variables. Local builds omit it; incomplete Vercel metadata fails before staged publication. HTML and metadata revalidate while content-hashed assets remain immutable. Release artifacts contain bounded JSON and expire after 30 days. They contain no tokens, authenticated response bodies, traces, screenshots, or raw provider API responses.
 
@@ -70,16 +70,13 @@ No Actions environment is used. All claims must match. Header: `x-vercel-trusted
 
 Initial API probe `ckr_614a90c3-ea90-4262-98e2-7a7858399577` on old deployment `dpl_9Dmd3D8zAQbz74hsHcRno9YbUcZa` ran while the check was nonblocking and completed explicitly **failed** with interface-only text. That legacy build lacks release metadata. This proved the API interface, not passing smoke or gate enforcement. The existing project check was subsequently made blocking.
 
-Public probes deliberately fail when another deployment supersedes the event before checking. Inspect the active release rather than accepting a different identity. US-only audience rules can also reject a runner outside that audience; investigate routing instead of weakening policy for CI.
-
 During activation on September 13, 2026, Cloudflare Bot Fight Mode challenged the
 GitHub runner's public probes even from the US. Security Events confirmed
 `managed_challenge` from `botFight`; the same deployment identity and all seven
-delivery checks passed from the operator's Mac. A challenged public workflow is
-not proof of an application outage or a passing public probe. Preserve the
-audience/bot policy and verify both public hosts from an allowed operator route;
-record that evidence separately. OIDC verification of the protected immutable
-artifact still runs before production assignment.
+delivery checks passed from the operator's Mac. Automated public-domain HTTP
+checks have been removed. Preserve the audience/bot policy and use an allowed
+operator route for on-demand public verification. OIDC verification of the
+protected immutable artifact still runs before production assignment.
 
 ## Rollback and recovery
 
