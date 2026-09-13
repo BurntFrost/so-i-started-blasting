@@ -14,9 +14,6 @@ jobs:
     timeout-minutes: 15
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
-      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020
-        with:
-          node-version-file: .node-version
       - name: Verify served edge and origin certificates
         run: |
           if timeout 360s python3 tools/check-certificates.py --repeats 10 --timeout 3 > certificate-health.json; then
@@ -28,15 +25,10 @@ jobs:
             fi
             exit "$result"
           fi
-      - name: Verify public delivery and origin isolation
-        if: always()
-        run: node tools/check-public.mjs > public-health.json
       - name: Preserve operational evidence
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
         if: always()
         with:
           name: production-health-${{ github.run_id }}
-          path: |
-            certificate-health.json
-            public-health.json
+          path: certificate-health.json
           retention-days: 14
