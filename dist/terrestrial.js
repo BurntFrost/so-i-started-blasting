@@ -45,18 +45,18 @@ export function createTerrestrial({ scene, canvas }) {
     dummy.quaternion.setFromUnitVectors(up, delta.normalize()); dummy.scale.set(radius, length, radius);
     dummy.updateMatrix(); mesh.setMatrixAt(i, dummy.matrix);
   }
-  function texturedMaterial(base, hot, strength) {
+  function texturedMaterial(base, hot, strength, billow = false) {
     const material = mat(base, { roughness: .92, emissive: hot, emissiveIntensity: strength });
     const clock = { value: 0 };
     material.onBeforeCompile = shader => {
       shader.uniforms.terrainTime = clock;
-      shader.vertexShader = shader.vertexShader.replace('#include <common>', '#include <common>\nvarying vec3 terrainPoint;')
-        .replace('#include <begin_vertex>', '#include <begin_vertex>\nterrainPoint=position;');
+      shader.vertexShader = shader.vertexShader.replace('#include <common>', '#include <common>\nvarying vec3 terrainPoint;' + (billow ? 'uniform float terrainTime;\n' + noise : ''))
+        .replace('#include <begin_vertex>', '#include <begin_vertex>\nterrainPoint=position;' + (billow ? '\ntransformed*=.91+fbm(position*5.+vec3(0.,-terrainTime*.12,0.))*.25;' : ''));
       shader.fragmentShader = shader.fragmentShader.replace('#include <common>', '#include <common>\nvarying vec3 terrainPoint;uniform float terrainTime;\n' + noise)
         .replace('#include <color_fragment>', '#include <color_fragment>\nfloat grain=fbm(terrainPoint*4.+vec3(0.,-terrainTime*.15,0.));diffuseColor.rgb*=mix(.38,1.4,grain);')
         .replace('#include <emissivemap_fragment>', '#include <emissivemap_fragment>\ntotalEmissiveRadiance*=smoothstep(.37,.78,grain)*2.;');
     };
-    material.customProgramCacheKey = () => 'terrestrial-turbulent-surface-v1';
+    material.customProgramCacheKey = () => billow ? 'terrestrial-billowing-surface-v2' : 'terrestrial-turbulent-surface-v1';
     return { material, clock };
   }
   function particles(parent, kind, count, tint, size) {
@@ -93,9 +93,9 @@ export function createTerrestrial({ scene, canvas }) {
     seed = 20121991;
   // TERMINATOR 2: an incandescent ground burst becomes a rolling mushroom cap.
   const nuclear = group('Terminator 2 — nuclear firestorm');
-  const cloudSurface = texturedMaterial('#443732', '#ff7619', 1.6);
+  const cloudSurface = texturedMaterial('#443732', '#ff7619', 1.6, true);
   const cloud = instances(nuclear, sphere, cloudSurface.material, 72, 'Rolling mushroom cloud lobes');
-  const nuclearCore = new THREE.Mesh(new THREE.SphereGeometry(1, 32, 20), glow(new THREE.Color(4.5, 1.4, .2), .9));
+  const nuclearCore = new THREE.Mesh(new THREE.SphereGeometry(1, 32, 20), glow(new THREE.Color(2.8, .85, .1), .7));
   nuclearCore.name = 'Nuclear fireball'; nuclear.add(nuclearCore);
   const shockMaterial = glow('#ffc77c', .8);
   const shock = new THREE.Mesh(new THREE.TorusGeometry(1, .035, 8, 100), shockMaterial);
@@ -116,7 +116,7 @@ export function createTerrestrial({ scene, canvas }) {
     const growth = ease((t - 5) / 7);
     cloud.count = detail === 0 ? 36 : detail === 1 ? 54 : 72;
     cloud.visible = t > 4;
-    cloudSurface.clock.value = t; cloudSurface.material.emissiveIntensity = .25 + early * 2.8;
+    cloudSurface.clock.value = t; cloudSurface.material.emissiveIntensity = .2 + early * 1.9;
     for (let i = 0; i < cloud.count; i++) {
       const s = lobeSeeds[i];
       // Interleave cap and stem at every quality level to preserve the silhouette.
@@ -134,7 +134,7 @@ export function createTerrestrial({ scene, canvas }) {
     nuclearCore.visible = t > 4 && t < 21;
     nuclearCore.position.set(-18, 12 + rise * 43, -27);
     nuclearCore.scale.setScalar(Math.max(.01, (5 + growth * 23) * ignition));
-    nuclearCore.material.opacity = ignition * early * .87;
+    nuclearCore.material.opacity = ignition * early * .58;
     const radius = 1 + Math.max(0, t - 6) * 11;
     shock.scale.set(radius, radius, 1 + ease((t - 6) / 12) * 8);
     shockMaterial.opacity = ease((t - 5) / 1.5) * (1 - ease((t - 14) / 6)) * .9;

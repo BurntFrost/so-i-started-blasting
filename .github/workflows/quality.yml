@@ -19,9 +19,16 @@ jobs:
         with:
           node-version-file: .node-version
           cache: npm
-      - run: npm ci
-      - run: npx playwright install --with-deps chromium
-      - run: npm run check
+      - name: Install Node dependencies
+        run: npm ci
+      - name: Unit tests and asset integrity
+        run: npm test && npm run test:certificates && npm run assets:verify
+      - name: Build production site
+        run: npm run build
+      - name: Install Chromium headless shell
+        run: npx playwright install --with-deps --only-shell chromium
+      - name: Browser regressions
+        run: npm run test:browser
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         if: failure()
         with:
