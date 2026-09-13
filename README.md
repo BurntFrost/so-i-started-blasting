@@ -71,7 +71,7 @@ See [the asset pipeline](tools/README.md) for rebuilding the models, and [asset 
 
 ## Deployment
 
-The checked-in `dist` directory remains the editable static source. Vercel runs `npm ci` and `npm run build`, then serves the generated, ignored `build` directory. GitHub `main` deploys to the `so-i-started-blasting` project in `burntfrosts-projects`. Changes use pull requests and the required `quality` check; previews and direct origins remain protected.
+The checked-in `dist` directory remains the editable static source. Vercel runs `npm ci` and `npm run build`, then serves the generated, ignored `build` directory. GitHub `main` deploys to the `so-i-started-blasting` project in `burntfrosts-projects`. Changes reach `main` through pull requests gated by the required `quality` check, or as direct pushes by repository administrators; every push to `main` runs `quality`, and production is assigned only after `release-quality` succeeds for that commit. Previews and direct origins remain protected.
 
 `soistartedblasting.com` and `www.soistartedblasting.com` now use Vercel behind Cloudflare's proxy. Their former Sites custom-domain attachments were removed during the September 12, 2026 cutover; `.openai/hosting.json` retains the original Sites project for historical source continuity.
 

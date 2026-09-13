@@ -11,7 +11,7 @@
     "branchProtection": {
       "strict": true,
       "requiredChecks": [{ "context": "quality", "appId": 15368 }],
-      "enforceAdmins": true,
+      "enforceAdmins": false,
       "allowForcePushes": false,
       "allowDeletions": false
     },
