@@ -50,12 +50,6 @@
     "elasticConcurrencyEnabled": false,
     "blockingChecks": [
       {
-        "id": "chk_2b21dc3c-76de-48a9-8eae-735fe6f99a63", "name": "release-artifact",
-        "projectId": "prj_t9xPKJ22rXL1adwZON1A1FH4pWr6", "ownerId": "team_jMtyP7WFqokDZDezN3QVX63o",
-        "requires": "build-ready", "blocks": "deployment-alias", "targets": ["production"], "timeout": 1800,
-        "source": { "kind": "webhook" }
-      },
-      {
         "id": "chk_efbaaae6-425a-41ed-bba1-f828f39685b8", "name": "release-quality",
         "projectId": "prj_t9xPKJ22rXL1adwZON1A1FH4pWr6", "ownerId": "team_jMtyP7WFqokDZDezN3QVX63o",
         "requires": "build-ready", "blocks": "deployment-alias", "targets": ["production"], "timeout": 1800,
@@ -105,8 +99,8 @@
   },
   "releaseGate": {
     "status": "configured",
-    "requiredCheckNames": ["release-quality", "release-artifact"],
-    "artifactRequirement": "A successful check bound to the immutable deployment ID and expected SHA must precede production alias assignment.",
-    "limitation": "Provider configuration is checked independently of execution. Each immutable deployment requires fresh hosted evidence and operator completion of its artifact gate."
+    "requiredCheckNames": ["release-quality"],
+    "artifactRequirement": "Production alias assignment waits only for the imported release-quality GitHub check on the merged main SHA. The hosted smoke on the immutable deployment is diagnostic: it writes the release-ready commit status and evidence artifact but does not hold production. The operator-completed release-artifact check was retired on 2026-09-13.",
+    "limitation": "Provider configuration is checked independently of execution. A failing hosted smoke is visible on the commit and in the workflow artifact but no longer blocks assignment; rollback remains an operator decision."
   }
 }

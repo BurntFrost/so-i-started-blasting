@@ -57,10 +57,10 @@ test('effective Vercel config uses explicit repository values including null', (
   assert.equal(projectVercel({ framework: 'nextjs' }, {}).effectiveConfig.framework, 'nextjs');
 });
 
-test('a removed or nonblocking artifact gate cannot match the desired configuration', () => {
+test('a removed or nonblocking release-quality gate cannot match the desired configuration', () => {
   const checks = structuredClone(inventory.vercel.blockingChecks);
   const expected = projectVercel({}, {}, checks);
-  checks.find(check => check.name === 'release-artifact').blocks = 'none';
+  checks.find(check => check.name === 'release-quality').blocks = 'none';
   assert.ok(compareContract('vercel', expected, projectVercel({}, {}, checks))
     .some(check => check.check === 'blockingChecks' && check.status === 'drift'));
 });

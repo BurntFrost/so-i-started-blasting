@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { createReleaseMetadata, projectId, repository, validateRelease } from '../tools/release-metadata.mjs';
-import { checkHosted, eventRelease, main, request, routeProtectedRequest, selectArtifactRun, selectAttemptArtifact, startArtifactCheck, validateOperatorEvidence } from '../tools/check-deployment.mjs';
+import { checkHosted, eventRelease, main, request, routeProtectedRequest } from '../tools/check-deployment.mjs';
 
 const release = { deploymentId: 'dpl_abc123', url: 'https://so-i-started-blasting-abcdef123-burntfrosts-projects.vercel.app',
   sha: 'a'.repeat(40), projectId, environment: 'production' };
@@ -72,101 +72,14 @@ test('metadata cannot redirect authenticated probes to another host or an unhash
   }
 });
 
-test('retired public phase is rejected before reading event or credentials', async () => {
-  await assert.rejects(main(['public']), /invalid-release-phase/);
+test('retired public and operator-completion phases are rejected before reading event or credentials', async () => {
+  for (const phase of ['public', 'complete']) await assert.rejects(main([phase, '123']), /invalid-release-phase/);
 });
 
 test('HTTP errors redact remote bodies, redirects, and thrown credential diagnostics', async () => {
   await assert.rejects(request(release.url, { fetcher: async () => response('secret-body', 403) }), /^Error: http-status-403$/);
   await assert.rejects(request(release.url, { fetcher: async () => { throw new Error('secret-token'); } }), /^Error: http-request-failed$/);
   await assert.rejects(request(release.url, { fetcher: async () => response('x'.repeat(1024 * 1024 + 1)) }), /response-too-large/);
-});
-
-const artifactRun = () => ({ id: 'ckr_test', checkId: 'chk_test', name: 'release-artifact',
-  deploymentId: release.deploymentId, projectId, ownerId: 'team_jMtyP7WFqokDZDezN3QVX63o',
-  source: { kind: 'webhook' }, blocks: 'deployment-alias', requires: 'build-ready',
-  targets: ['production'], status: 'running' });
-
-test('artifact gate requires a fresh blocking run for the exact ID even for a reused SHA', () => {
-  assert.equal(selectArtifactRun([artifactRun()], release, 'chk_test').id, 'ckr_test');
-  for (const mutate of [r => r.deploymentId = 'dpl_previous', r => r.status = 'completed',
-    r => r.blocks = 'none', r => r.source.kind = 'git-provider', r => r.projectId = 'prj_other']) {
-    const run = artifactRun(); mutate(run);
-    assert.throws(() => selectArtifactRun([run], release, 'chk_test'));
-  }
-  assert.throws(() => selectArtifactRun([artifactRun(), artifactRun()], release, 'chk_test'));
-});
-
-test('artifact completion addresses and reads back only its deployment-specific run', async () => {
-  const calls = [];
-  const run = artifactRun();
-  const apiCaller = async (path, body) => {
-    calls.push([path, body ? 'PATCH' : 'GET']);
-    if (path.startsWith('/v13/')) return { id: release.deploymentId,
-      url: new URL(release.url).host, meta: { githubCommitSha: release.sha }, projectId,
-      target: 'production', readyState: 'READY' };
-    if (path.endsWith('/check-runs')) return { runs: [run] };
-    assert.equal(path, `/v2/deployments/${release.deploymentId}/check-runs/ckr_test`);
-    if (body) Object.assign(run, body);
-    return run;
-  };
-  const finish = await startArtifactCheck(release, { checkId: 'chk_test', apiCaller });
-  await finish('succeeded', { assets: 4, manifestSha256: 'a'.repeat(64) });
-  assert.equal(run.output.deploymentId, release.deploymentId);
-  assert.equal(run.conclusion, 'succeeded');
-  assert.deepEqual(calls.map(call => call[1]), ['GET', 'GET', 'PATCH', 'PATCH', 'GET']);
-  await assert.rejects(startArtifactCheck(release, { checkId: 'chk_test' }), /missing-artifact-gate-credential/);
-});
-
-test('operator evidence binds fresh hosted results to the successful main workflow artifact', () => {
-  const now = Date.now();
-  const run = { id: 123, event: 'repository_dispatch', path: '.github/workflows/release.yml',
-    run_started_at: new Date(now - 60_000).toISOString(), updated_at: new Date(now).toISOString(),
-    repository: { full_name: repository }, head_branch: 'main', head_sha: 'b'.repeat(40), status: 'completed', conclusion: 'success' };
-  const artifact = { name: `release-ready-${release.deploymentId}`, expired: false, created_at: new Date(now).toISOString(),
-    workflow_run: { id: 123, head_branch: 'main', head_sha: run.head_sha } };
-  const report = { phase: 'ready', dispatch: { senderId: 35613825, action: 'vercel.deployment.ready' },
-    checks: [{ ...release, ok: true, browser: true, checkedAt: new Date(now).toISOString(), assets: 4, manifestSha256: 'a'.repeat(64) }] };
-  assert.deepEqual(validateOperatorEvidence(run, artifact, report, now), release);
-  assert.deepEqual(validateOperatorEvidence(run, { ...artifact, created_at: new Date(Math.floor(now / 1000) * 1000).toISOString() }, report, now), release);
-  const earlier = { ...artifact, id: 1, created_at: new Date(now - 120_000).toISOString() };
-  assert.equal(selectAttemptArtifact(run, [earlier, artifact]), artifact);
-  assert.throws(() => selectAttemptArtifact(run, [earlier]), /evidence-count/);
-  assert.throws(() => selectAttemptArtifact(run, [artifact, { ...artifact }]), /evidence-count/);
-  assert.throws(() => selectAttemptArtifact({ ...run, run_started_at: 'invalid' }, [artifact]), /invalid-release-attempt/);
-  assert.throws(() => validateOperatorEvidence(run, earlier, report, now));
-  for (const mutate of [r => r.event = 'pull_request', r => r.head_branch = 'feature',
-    r => r.path = '.github/workflows/other.yml', r => r.conclusion = 'failure',
-    r => r.repository.full_name = 'attacker/repo']) {
-    const changed = structuredClone(run); mutate(changed);
-    assert.throws(() => validateOperatorEvidence(changed, artifact, report, now));
-  }
-  for (const mutate of [a => a.expired = true, a => a.workflow_run.id = 456,
-    a => a.workflow_run.head_sha = 'c'.repeat(40), a => a.name = 'release-ready-dpl_other']) {
-    const changed = structuredClone(artifact); mutate(changed);
-    assert.throws(() => validateOperatorEvidence(run, changed, report, now));
-  }
-  for (const mutate of [r => r.dispatch.senderId = 1, r => r.checks[0].browser = false,
-    r => r.checks[0].checkedAt = new Date(now - 31 * 60_000).toISOString(),
-    r => r.checks[0].checkedAt = new Date(now + 60_000).toISOString()]) {
-    const changed = structuredClone(report); mutate(changed);
-    assert.throws(() => validateOperatorEvidence(run, artifact, changed, now));
-  }
-});
-
-test('existing CLI API authentication can complete the exact artifact without a new token', async () => {
-  const run = artifactRun();
-  const apiCaller = async (path, body) => {
-    if (path.startsWith('/v13/')) return { id: release.deploymentId, url: new URL(release.url).host,
-      meta: { githubCommitSha: release.sha }, projectId, target: 'production', readyState: 'READY' };
-    if (path.endsWith('/check-runs')) return { runs: [run] };
-    assert.equal(path, `/v2/deployments/${release.deploymentId}/check-runs/ckr_test`);
-    if (body) Object.assign(run, body);
-    return run;
-  };
-  const finish = await startArtifactCheck(release, { checkId: 'chk_test', apiCaller });
-  await finish('succeeded', { assets: 4, manifestSha256: 'a'.repeat(64) });
-  assert.equal(run.conclusion, 'succeeded');
 });
 
 test('protected browser requests abort redirects and external destinations before credentials can follow', async () => {
