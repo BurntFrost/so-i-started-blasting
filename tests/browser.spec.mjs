@@ -3,6 +3,24 @@ import { createHash } from 'node:crypto';
 import { scenes } from '../dist/scenes.js';
 
 const digest = bytes => createHash('sha256').update(bytes).digest('hex');
+async function changedPixels(page, before, after) {
+  return page.evaluate(async images => {
+    const pixels = await Promise.all(images.map(async data => {
+      const bitmap = await createImageBitmap(await (await fetch(`data:image/png;base64,${data}`)).blob());
+      const context = new OffscreenCanvas(bitmap.width, bitmap.height).getContext('2d');
+      context.drawImage(bitmap, 0, 0);
+      const result = context.getImageData(0, 0, bitmap.width, bitmap.height).data;
+      bitmap.close();
+      return result;
+    }));
+    if (pixels[0].length !== pixels[1].length) return Infinity;
+    let changed = 0;
+    for (let i = 0; i < pixels[0].length; i += 4) {
+      if (pixels[0].subarray(i, i + 4).some((value, channel) => value !== pixels[1][i + channel])) changed++;
+    }
+    return changed;
+  }, [before.toString('base64'), after.toString('base64')]);
+}
 async function observe(page) {
   const errors = [];
   page.on('pageerror', error => errors.push(error.message));
@@ -25,7 +43,7 @@ async function seek(page, seconds) {
     element.value = String(value);
     element.dispatchEvent(new Event('input', { bubbles: true }));
   }, seconds);
-  await expect(page.locator('#time')).toHaveText(`00:${String(seconds).padStart(2, '0')}`);
+  await expect(page.locator('#time')).toHaveText(`00:${String(Math.floor(seconds)).padStart(2, '0')}`);
   // Two rendered frames settle transforms after an input; no wall-clock motion is running.
   await page.evaluate(() => new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve))));
 }
@@ -48,6 +66,7 @@ test('ten built scenes render offline from CDNs, scrub reversibly, and keep play
   await page.route(/https:\/\/(?:cdn\.jsdelivr\.net|unpkg\.com|esm\.sh)\//, route => route.abort());
   await load(page);
   await expect(page.locator('#world')).toHaveAttribute('data-authored-assets', 'ready');
+  await expect(page.locator('#world')).toHaveAttribute('data-quality', 'balanced');
   await expect(page.locator('.scene-card')).toHaveCount(10);
   await expect(page.locator('#scene-count')).toHaveText('10');
   for (const [index, scene] of scenes.entries()) {
@@ -63,12 +82,14 @@ test('ten built scenes render offline from CDNs, scrub reversibly, and keep play
     expect(later, `${scene.id}: timeline changes pixels`).not.toBe(first);
     await expect(page.locator('#error')).toBeHidden();
   }
-  const beforeOrbit = digest(await page.locator('#world').screenshot());
+  const beforeOrbit = await page.locator('#world').screenshot();
   await page.locator('#world').focus();
   await page.keyboard.press('ArrowRight');
-  await expect.poll(async () => digest(await page.locator('#world').screenshot())).not.toBe(beforeOrbit);
+  await page.locator('#world').blur();
+  await expect.poll(async () => changedPixels(page, beforeOrbit, await page.locator('#world').screenshot())).toBeGreaterThan(100);
   await page.locator('#reset-camera').click();
-  await expect.poll(async () => digest(await page.locator('#world').screenshot())).toBe(beforeOrbit);
+  // Reconstructing the camera can move a handful of raster edge pixels through floating-point rounding.
+  await expect.poll(async () => changedPixels(page, beforeOrbit, await page.locator('#world').screenshot())).toBeLessThanOrEqual(4);
   await page.locator('#fullscreen').click();
   await expect.poll(() => page.evaluate(() => document.fullscreenElement?.id)).toBe('player');
   await expect(page.locator('#player #progress')).toBeVisible();
@@ -89,9 +110,94 @@ test('ten built scenes render offline from CDNs, scrub reversibly, and keep play
   await expect(page.locator('#world')).toHaveAccessibleName(/Independence Day/i);
   const events = await page.evaluate(() => window.__graphicsEvents);
   expect(new Set(events.filter(event => event.name === 'Scene Ready').map(event => event.data.scene)).size).toBe(10);
-  expect(events.some(event => event.name === 'Graphics Quality')).toBe(true);
   expect(errors).toEqual([]);
   expect(failedAssets).toEqual([]);
+});
+
+test.describe('desktop HIGH rendering', () => {
+  test.use({ hasTouch: false });
+  test('detailed city, shadow and finishing paths render reversibly and adapt to phone size', async ({ page }) => {
+    const errors = await observe(page);
+    await load(page);
+    const canvas = page.locator('#world');
+    await expect(canvas).toHaveAttribute('data-authored-assets', 'ready');
+    await expect(canvas).toHaveAttribute('data-quality', 'high');
+    await expect(canvas).toHaveAttribute('data-antialias', 'fxaa');
+    await seek(page, 18);
+    const first = digest(await canvas.screenshot());
+    expect(Number(await canvas.getAttribute('data-triangles'))).toBeGreaterThan(150000);
+    await seek(page, 27);
+    expect(digest(await canvas.screenshot())).not.toBe(first);
+    await seek(page, 18);
+    expect(digest(await canvas.screenshot())).toBe(first);
+    await page.setViewportSize({ width: 390, height: 844 });
+    await expect(canvas).toHaveAttribute('data-quality', /balanced|lite/);
+    await expect.poll(async () => Number(await canvas.getAttribute('data-triangles'))).toBeLessThan(150000);
+    const events = await page.evaluate(() => window.__graphicsEvents);
+    expect(events.some(event => event.name === 'Graphics Quality')).toBe(true);
+    expect(errors).toEqual([]);
+  });
+});
+
+test('local soundtrack obeys consent, playback, scrubbing, volume and scene changes', async ({ page }) => {
+  const errors = await observe(page), audioRequests = [];
+  page.on('request', request => { if (/\.mp3(?:\?|$)/.test(request.url())) audioRequests.push(request.url()); });
+  await load(page);
+  const player = page.locator('#player');
+  await expect(player).toHaveAttribute('data-audio-state', 'off');
+  expect(audioRequests).toEqual([]);
+  await page.locator('#sound-toggle').click();
+  await expect(player).toHaveAttribute('data-audio-state', 'paused');
+  await expect(player).toHaveAttribute('data-audio-sources', '0');
+  expect(audioRequests.length).toBeGreaterThan(0);
+  expect(audioRequests.every(url => /\/immutable\/assets\/audio\/.+\.[a-f0-9]{16}\.mp3$/.test(url))).toBe(true);
+  // Cross the cue on the next frame; one simulated second can take much longer on software WebGL.
+  await seek(page, 12.99);
+  await page.locator('#play').click();
+  await expect(player).toHaveAttribute('data-audio-state', 'playing');
+  await expect.poll(async () => Number(await player.getAttribute('data-audio-cues'))).toBeGreaterThan(0);
+  await page.locator('#play').click();
+  await expect(player).toHaveAttribute('data-audio-sources', '0');
+  await seek(page, 20);
+  await expect(player).toHaveAttribute('data-audio-cues', '0');
+  await page.locator('#speed').click();
+  await expect(player).toHaveAttribute('data-audio-rate', '0.5');
+  await page.locator('#play').click();
+  await expect(player).toHaveAttribute('data-audio-sources', '1');
+  await page.locator('#sound-volume').fill('0');
+  await expect(player).toHaveAttribute('data-audio-state', 'muted');
+  await expect(player).toHaveAttribute('data-audio-sources', '0');
+  await page.locator('#sound-volume').fill('55');
+  await expect(player).toHaveAttribute('data-audio-sources', '1');
+  await select(page, 1);
+  await expect(player).toHaveAttribute('data-audio-state', 'paused');
+  await expect(player).toHaveAttribute('data-audio-sources', '0');
+  await expect(player).toHaveAttribute('data-audio-scene', 'deep-impact');
+  await page.locator('#sound-toggle').click();
+  await expect(player).toHaveAttribute('data-audio-state', 'off');
+  await page.setViewportSize({ width: 390, height: 844 });
+  await expect(page.locator('#sound-toggle')).toBeVisible();
+  await expect(page.locator('#sound-volume')).toBeVisible();
+  expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
+  expect(errors).toEqual([]);
+});
+
+test('missing audio and atmosphere textures retain working graphics and controls', async ({ page }) => {
+  const errors = await observe(page);
+  await page.route('**/*.mp3', route => route.abort());
+  await page.route('**/*storm-noise*.webp', route => route.abort());
+  await page.route('**/*nebula*.webp', route => route.abort());
+  await load(page);
+  await expect(page.locator('#world')).toHaveAttribute('data-weather-texture', 'fallback');
+  await page.locator('#sound-toggle').click();
+  await expect(page.locator('#player')).toHaveAttribute('data-audio-state', 'unavailable');
+  await select(page, 9);
+  await seek(page, 18);
+  await expect(page.locator('#world')).toHaveAttribute('data-nebula-texture', 'fallback');
+  await expect(page.locator('#error')).toBeHidden();
+  await expect(page.locator('#play')).toBeEnabled();
+  await expect(page.locator('#world')).toHaveAttribute('data-draw-calls', /^[1-9]\d*$/);
+  expect(errors).toEqual([]);
 });
 
 test('one optional authored asset failure retains usable procedural scenes', async ({ page }) => {

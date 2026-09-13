@@ -5,7 +5,7 @@ import { fileURLToPath } from 'node:url';
 import { vendorThree } from './vendor.mjs';
 
 const root = fileURLToPath(new URL('../', import.meta.url));
-const hashedExtensions = new Set(['.js', '.css', '.glb', '.webp', '.hdr']);
+const hashedExtensions = new Set(['.js', '.css', '.glb', '.webp', '.hdr', '.mp3']);
 const textExtensions = new Set(['.html', '.js', '.css']);
 
 async function listFiles(directory, prefix = '') {

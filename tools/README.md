@@ -69,7 +69,7 @@ aarch64**, build `8309dc92a:20260903`. These describe the verified local toolcha
 the original asset build did not retain a complete toolchain lock. Rebuilding with
 these versions must be visually reviewed before replacing checked-in files.
 
-`asset-baseline.json` records SHA-256 and size for all nine deployed graphics files.
+`asset-baseline.json` records SHA-256 and size for all 22 deployed graphics and audio files.
 `npm run assets:verify` checks them without regenerating anything. It is an accurate
 baseline of current checked-in bytes, not a claim of byte-for-byte reconstruction
 from the original toolchain. When intentionally replacing an asset, verify its
@@ -103,3 +103,30 @@ Albedo is sRGB; normal and roughness remain linear. The Radiance HDR supplies
 both the sky and the PMREM reflection environment.
 
 No graphics assets require a remote generation service at runtime.
+
+## Original sound and atmospheric textures
+
+The synthesis source is `author-audio.py`; run `python3 tools/author-audio.py` with
+the installed SoX and FFmpeg commands to create seven 30-second beds and three
+short effects. It uses seeded noise/oscillators, stereo reverb, edge fades and
+bounded peak normalization. The existing files were encoded with FFmpeg 9.0.1 to
+44.1 kHz stereo MP3 at 128 kbit/s. Exact encoded bytes can vary by tool version;
+review regenerated media before updating the asset checksums.
+
+The introduction uses the installed local Kokoro route:
+
+```sh
+hyperframes tts 'A front-row seat to the end of everything.' --voice bm_george --speed 0.9 --output work/media-audio/intro.wav --json
+ffmpeg -i work/media-audio/intro.wav -af 'highpass=f=85,lowpass=f=6500,loudnorm=I=-20:TP=-3:LRA=7,afade=t=in:d=0.03,afade=t=out:st=2.8:d=0.18' -ar 44100 -ac 2 -codec:a libmp3lame -b:a 128k -map_metadata -1 dist/assets/audio/intro.mp3
+resvg tools/storm-noise.svg work/storm-noise.png
+cwebp -lossless work/storm-noise.png -o dist/assets/storm-noise.webp
+```
+
+The nebula is a generated bitmap; its prompt and creation route are recorded in
+`dist/assets/SOURCES.md`. `cwebp -q 88 -resize 1536 768 INPUT.png -o
+dist/assets/nebula.webp` produces the deployed size. Only final WebP/MP3 assets are
+needed at runtime, with literal URLs and transitive content hashes in the build.
+
+After building and starting the server, `node tools/capture-media.mjs` captures
+eight scene frames and a phone layout into ignored `work/media-review`. This
+uses installed Chrome and reports shader/page errors in `capture.json`.

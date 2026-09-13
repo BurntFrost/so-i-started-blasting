@@ -5,7 +5,7 @@ import { fileURLToPath } from 'node:url';
 
 const root = fileURLToPath(new URL('../build/', import.meta.url));
 const port = Number(process.env.PORT || 4174);
-const types = { '.html': 'text/html', '.js': 'text/javascript', '.css': 'text/css', '.json': 'application/json', '.webp': 'image/webp', '.hdr': 'application/octet-stream', '.glb': 'model/gltf-binary' };
+const types = { '.html': 'text/html', '.js': 'text/javascript', '.css': 'text/css', '.json': 'application/json', '.webp': 'image/webp', '.hdr': 'application/octet-stream', '.glb': 'model/gltf-binary', '.mp3': 'audio/mpeg' };
 createServer(async (request, response) => {
   try {
     const pathname = decodeURIComponent(new URL(request.url, `http://localhost:${port}`).pathname);

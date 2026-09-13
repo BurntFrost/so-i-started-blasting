@@ -7,6 +7,7 @@ import { reportGraphicsFailure, markGraphicsFailure, showGraphicsFailure } from 
 import { scenes } from './scenes.js';
 import { createTerrestrial } from './terrestrial.js';
 import { createCosmic } from './cosmic.js';
+import { createSceneAudio } from './audio.js';
 
 const telemetry=createGraphicsTelemetry();
 const canvas=document.querySelector('#world');
@@ -77,14 +78,18 @@ const cosmic=createCosmic({scene,canvas,camera});
 let production=null,productionRequested=false,authoredWorkPending=false,failed=false;
 let selected=0,time=0,playing=false,speed=1,previous=0,needsRender=true;
 const $=id=>document.getElementById(id),clamp=(v,a=0,b=1)=>Math.max(a,Math.min(b,v)),ease=v=>{v=clamp(v);return v*v*(3-2*v);};
+const audio=createSceneAudio({button:$('sound-toggle'),volumeInput:$('sound-volume'),status:$('sound-status'),player:$('player')});
+function syncAudio(discontinuity=false){audio.update({sceneId:scenes[selected].id,time,playing,speed,hidden:document.hidden,failed},{discontinuity});}
 const originalColors=buildings.map(b=>b.material.color.clone());
 const hemi=scene.children.find(object=>object.isHemisphereLight);
 const finalLight=new THREE.Color('#e0f7ff'),freeze=new THREE.Color('#c0d6e2');
 controls.addEventListener('change',()=>{needsRender=true;});
+canvas.addEventListener('atmosphere-ready',()=>{needsRender=true;});
 function resetCamera(){
  const s=scenes[selected];camera.position.set(...s.camera);controls.target.set(...s.target);controls.update();needsRender=true;
 }
 function syncUI(){
+ syncAudio();
  const s=scenes[selected];$('time').textContent='00:'+Math.floor(time).toString().padStart(2,'0');$('progress').value=time;
  $('play').textContent=playing?'Ⅱ':'▶';$('play').setAttribute('aria-label',playing?'Pause simulation':'Play simulation');
  $('play-status').textContent=failed?'RENDERER UNAVAILABLE':time===0?'THE CALM BEFORE':time>=30?'END OF SCENE':playing?'SIMULATION RUNNING':'PAUSED';
@@ -184,7 +189,7 @@ function updateWorld(){
  // One owner applies all scene lighting and fog after scene-local geometry updates.
  applyEnvironment(s,t);
 }
-function start(){if(failed)return;time=0;playing=true;syncUI();}
+function start(){if(failed)return;time=0;playing=true;syncAudio(true);syncUI();}
 document.querySelector('.scene-list').innerHTML=scenes.map((s,i)=>`<button class="scene-card" data-scene="${i}" data-scene-id="${s.id}" aria-pressed="false" style="--scene-color:${s.color}"><span class="card-no">${String(i+1).padStart(2,'0')}</span><div><span class="card-category">${s.category}</span><h2>${s.name}</h2><p>${s.year} <span>·</span> ${s.location}</p><p class="card-visual">${s.visual}</p></div><span class="card-icon">↗</span></button>`).join('');
 $('scene-count').textContent=String(scenes.length).padStart(2,'0');$('anthology-count').textContent=`${scenes.length} SCENES / ONE LAST LOOK.`;
 document.querySelectorAll('[data-scene]').forEach(button=>button.addEventListener('click',()=>{
@@ -193,7 +198,7 @@ document.querySelectorAll('[data-scene]').forEach(button=>button.addEventListene
 }));
 $('blast').addEventListener('click',start);$('replay').addEventListener('click',start);
 $('play').addEventListener('click',()=>{if(failed)return;if(time>=30)time=0;playing=!playing;syncUI();});
-$('speed').addEventListener('click',()=>{speed=speed===1?.5:speed===.5?2:1;$('speed').textContent=speed+'×';$('speed').setAttribute('aria-label',`Playback speed: ${speed} times`);});
+$('speed').addEventListener('click',()=>{speed=speed===1?.5:speed===.5?2:1;$('speed').textContent=speed+'×';$('speed').setAttribute('aria-label',`Playback speed: ${speed} times`);syncAudio();});
 $('progress').addEventListener('input',event=>{if(failed)return;time=Number(event.target.value);playing=false;updateWorld();syncUI();});
 $('reset-camera').addEventListener('click',resetCamera);
 $('fullscreen').addEventListener('click',async()=>{
@@ -221,7 +226,9 @@ function resize(){
  cinema.resize();camera.aspect=w/h;camera.fov=w<600?66:45;camera.updateProjectionMatrix();updateWorld();
 }
 new ResizeObserver(resize).observe(canvas.parentElement);
-document.addEventListener('visibilitychange',()=>{previous=0;});
+document.addEventListener('visibilitychange',()=>{previous=0;syncAudio(true);});
+addEventListener('pagehide',event=>{if(event.persisted)audio.update({sceneId:scenes[selected].id,time,playing,speed,hidden:true,failed},{discontinuity:true});else audio.dispose();});
+addEventListener('pageshow',event=>{if(event.persisted){previous=0;syncAudio(true);}});
 let lastTime=-1,lastScene=-1,lastUI=0,firstFrame=true;
 renderer.info.autoReset=false;
 renderer.setAnimationLoop(now=>{
@@ -229,6 +236,7 @@ renderer.setAnimationLoop(now=>{
  const rawDelta=previous?(now-previous)/1000:0,delta=Math.min(rawDelta,.1);previous=now;
  if(document.hidden){cinema.measure(0,false);telemetry.idle();return;}
  if(playing){time=Math.min(30,time+delta*speed);if(time>=30)playing=false;if(now-lastUI>100||!playing){syncUI();lastUI=now;}}
+ syncAudio();
  if(time!==lastTime||selected!==lastScene){updateWorld();lastTime=time;lastScene=selected;}
  const moved=controls.update();
  if(!needsRender&&!moved&&!playing){cinema.measure(0,false);telemetry.idle();return;}

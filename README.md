@@ -19,6 +19,8 @@ All scenes use the same reversible 30-second timeline and adaptive quality tiers
 
 The simulation includes authored architectural and spacecraft models, physically based surface materials, HDR lighting, animated weather and particles, and adaptive graphics quality for phones. Scene playback, timeline scrubbing, camera orbit, replay, and graphics controls run entirely in the browser.
 
+Enable **Sound** beneath the player for original scene ambience, synchronized impact effects, and a short synthetic introduction. Volume, pause, replay, speed changes, and timeline scrubbing share the simulation clock. Audio downloads only after consent; missing sounds do not interrupt rendering. Layered storm clouds, distant haze, planetary cloud decks, wave foam, and a generated nebula backdrop add depth while respecting the adaptive quality tiers. See [the media upgrade](docs/media-upgrade.md) for tooling, provenance, and verification.
+
 ## Run locally
 
 From the repository root:
@@ -40,7 +42,7 @@ npx playwright install chromium
 npm run check
 ```
 
-The gate includes unit tests, certificate-checker tests, committed asset checksums, the hashed build, and browser regressions. GitHub's `quality` check runs with Node 24. Browser failure probes cover optional assets, WebGL creation, context loss, deterministic scrubbing, fullscreen, and narrow-screen controls.
+The gate includes unit tests, certificate-checker tests, committed asset checksums, the hashed build, and browser regressions. GitHub's `quality` check runs with Node 24 and reports each stage separately, running fast checks before installing Chromium's headless shell. Browser tests use an 800px touch-capable viewport to exercise all ten scenes at BALANCED quality on software WebGL, plus a dedicated desktop HIGH probe for detailed city geometry, shadows, finishing effects and the phone-size downgrade. Exact reverse-scrub comparisons remain in both tiers. Failure probes cover optional assets, WebGL creation, context loss, fullscreen, and narrow-screen controls. The audio cue probe starts immediately before its simulation timestamp so slow rendering does not turn one simulated second into a wall-clock timeout.
 
 ## Code and assets
 
@@ -54,6 +56,7 @@ The gate includes unit tests, certificate-checker tests, committed asset checksu
 | `dist/runtime-state.js` | Privacy-aware bootstrap failures and shared failure UI |
 | `dist/terrestrial.js`, `dist/cosmic.js` | Six additional procedural scene visualizations |
 | `dist/cinema.js` | Materials, effects, and adaptive graphics |
+| `dist/atmosphere.js`, `dist/audio.js` | Optional atmospheric textures and consent-based synchronized sound |
 | `dist/production.js` | Model loading, instancing, and environment setup |
 | `dist/analytics.js`, `dist/telemetry.js` | Analytics bootstrap and sampled graphics measurements |
 | `dist/assets/` | Compressed GLB models, WebP textures, HDR, and provenance |

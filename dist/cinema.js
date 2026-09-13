@@ -6,6 +6,7 @@ import { UnrealBloomPass } from 'three/addons/postprocessing/UnrealBloomPass.js'
 import { OutputPass } from 'three/addons/postprocessing/OutputPass.js';
 import { ShaderPass } from 'three/addons/postprocessing/ShaderPass.js';
 import { FXAAShader } from 'three/addons/shaders/FXAAShader.js';
+import { createAtmosphere } from './atmosphere.js';
 
 const clamp = value => Math.max(0, Math.min(1, value));
 const noiseGLSL = `
@@ -20,6 +21,7 @@ export function createCinema(world) {
   const { renderer, scene, camera, canvas, sun, buildings, ground, ship, hullMat,
     core, beam, blast, ocean, wave, meteor, planet, landscape, windows, snow,
     debris, foam, clouds, glow, telemetry } = world;
+  const atmosphere = createAtmosphere(world);
   let seed = 90210;
   const random = () => { seed = (seed * 1664525 + 1013904223) >>> 0; return seed / 4294967296; };
   const material = (color, values = {}) => new THREE.MeshStandardMaterial({ color, ...values });
@@ -110,13 +112,17 @@ export function createCinema(world) {
   meteor.geometry.computeVertexNormals();meteor.material.roughness=.95;
   const planetTime={value:0};
   planet.material.dispose();
-  planet.material=new THREE.ShaderMaterial({uniforms:{time:planetTime},vertexShader:`varying vec3 spherePoint;varying vec3 sphereNormal;void main(){spherePoint=position;sphereNormal=normalize(normalMatrix*normal);gl_Position=projectionMatrix*modelViewMatrix*vec4(position,1.);}`,
-    fragmentShader:`uniform float time;varying vec3 spherePoint;varying vec3 sphereNormal;${noiseGLSL}
-    void main(){vec3 p=normalize(spherePoint);float bands=fbm(p*9.+vec3(time*.01,0,0));float cloud=fbm(p*24.+bands*2.);
-    vec3 surface=mix(vec3(.025,.12,.20),vec3(.15,.45,.58),smoothstep(.25,.72,bands));
-    surface=mix(surface,vec3(.65,.85,.87),smoothstep(.56,.73,cloud)*.75);
-    float light=.2+max(dot(normalize(sphereNormal),normalize(vec3(-.6,.5,1.))),0.);
-    gl_FragColor=vec4(surface*light,1.);
+  planet.material=new THREE.ShaderMaterial({uniforms:{time:planetTime},vertexShader:`varying vec3 spherePoint;varying vec3 sphereNormal;varying vec3 sphereView;void main(){spherePoint=position;sphereNormal=normalize(mat3(modelMatrix)*normal);vec4 world=modelMatrix*vec4(position,1.);sphereView=cameraPosition-world.xyz;gl_Position=projectionMatrix*viewMatrix*world;}`,
+    fragmentShader:`uniform float time;varying vec3 spherePoint;varying vec3 sphereNormal;varying vec3 sphereView;${noiseGLSL}
+    void main(){vec3 p=normalize(spherePoint);vec3 normal=normalize(sphereNormal);vec3 view=normalize(sphereView);
+    float bands=fbm(p*7.+vec3(time*.009,0,0));float cloud=fbm(p*27.+vec3(bands*2.,time*.006,0.));
+    float curl=sin(p.y*38.+bands*8.);float cloudCover=smoothstep(.52,.74,cloud+curl*.055);
+    vec3 surface=mix(vec3(.013,.058,.12),vec3(.12,.35,.43),smoothstep(.23,.78,bands));
+    surface=mix(surface,vec3(.64,.79,.82),cloudCover*.82);
+    float daylight=dot(normal,normalize(vec3(-.65,.45,.75)));float light=.075+max(daylight,0.);
+    float limb=pow(1.-max(dot(normal,view),0.),3.);
+    vec3 scattering=vec3(.05,.20,.33)*limb*smoothstep(-.3,.55,daylight);
+    gl_FragColor=vec4(surface*light+scattering,1.);
     #include <tonemapping_fragment>
     #include <colorspace_fragment>
     }`});
@@ -165,11 +171,17 @@ export function createCinema(world) {
     mesh.material.color.set('#174c60');mesh.material.metalness=.4;mesh.material.roughness=.36;mesh.material.envMapIntensity=.3;
     mesh.material.onBeforeCompile=shader=>{
       shader.uniforms.waterTime=waterTime;
-      shader.vertexShader=shader.vertexShader.replace('#include <common>','#include <common>\nvarying vec3 waterPoint;').replace('#include <begin_vertex>','#include <begin_vertex>\nwaterPoint=position;');
-      shader.fragmentShader=shader.fragmentShader.replace('#include <common>','#include <common>\nuniform float waterTime;varying vec3 waterPoint;'+noiseGLSL)
+      shader.vertexShader=shader.vertexShader.replace('#include <common>','#include <common>\nvarying vec3 waterPoint;varying vec2 waterUv;').replace('#include <begin_vertex>','#include <begin_vertex>\nwaterPoint=position;waterUv=uv;');
+      shader.fragmentShader=shader.fragmentShader.replace('#include <common>','#include <common>\nuniform float waterTime;varying vec3 waterPoint;varying vec2 waterUv;'+noiseGLSL)
         .replace('#include <normal_fragment_maps>','#include <normal_fragment_maps>\nnormal=normalize(normal+vec3(noise(waterPoint*.3+waterTime*.2)-.5,noise(waterPoint*.4-waterTime*.15)-.5,0.)*.16);')
-        .replace('#include <color_fragment>','#include <color_fragment>\nfloat crest=fbm(waterPoint*.16+vec3(waterTime*.15,0.,0.));diffuseColor.rgb=mix(diffuseColor.rgb,vec3(.2,.42,.48),smoothstep(.55,.8,crest)*.35);');
+        .replace('#include <color_fragment>',`#include <color_fragment>
+        float crest=fbm(waterPoint*.16+vec3(waterTime*.15,0.,0.));
+        diffuseColor.rgb=mix(diffuseColor.rgb,vec3(.2,.42,.48),smoothstep(.55,.8,crest)*.35);
+        ${mesh===wave?`float lip=smoothstep(.79,.99,waterUv.y);float foam=lip*smoothstep(.34,.64,crest);
+        float streak=pow(.5+.5*sin(waterUv.x*210.+crest*11.),8.)*smoothstep(.55,.9,waterUv.y)*.32;
+        diffuseColor.rgb=mix(diffuseColor.rgb,vec3(.68,.85,.87),clamp(foam+streak,0.,.9));`:''}`);
     };
+    mesh.material.customProgramCacheKey=()=>mesh===wave?'cinema-wave-foam-v2':'cinema-ocean-v2';
     mesh.material.needsUpdate=true;
   }
 
@@ -178,6 +190,14 @@ export function createCinema(world) {
   const bloom=new UnrealBloomPass(new THREE.Vector2(1,1),.65,.65,1.1);composer.addPass(bloom);composer.addPass(new OutputPass());
   // FXAA smooths the offscreen geometry after output conversion without MSAA renderbuffers.
   const antialias=new ShaderPass(FXAAShader);composer.addPass(antialias);
+  // Reuse the existing finishing pass; LITE still renders directly with native AA.
+  antialias.material.uniforms.filmTint={value:new THREE.Vector3(1,1,1)};
+  antialias.material.uniforms.filmSaturation={value:.96};
+  antialias.material.fragmentShader='uniform vec3 filmTint;uniform float filmSaturation;\n'+antialias.material.fragmentShader.replace(/}\s*$/,`
+    float filmLuma=dot(gl_FragColor.rgb,vec3(.2126,.7152,.0722));
+    gl_FragColor.rgb=mix(vec3(filmLuma),gl_FragColor.rgb,filmSaturation)*filmTint;
+    vec2 filmPosition=vUv-.5;gl_FragColor.rgb*=1.-smoothstep(.12,.65,dot(filmPosition,filmPosition))*.12;
+  }`);
   const tiers=[{name:'LITE',dpr:1,particles:.3,shadows:false,bloom:false},{name:'BALANCED',dpr:1.25,particles:.6,shadows:false,bloom:true},{name:'HIGH',dpr:1.7,particles:1,shadows:true,bloom:true}];
   const phone=()=>matchMedia('(pointer: coarse)').matches||canvas.clientWidth<600;
   let ceiling=phone()?1:2,quality=ceiling,frameTotal=0,frameCount=0,fastWindows=0,cooldown=0;
@@ -211,6 +231,7 @@ export function createCinema(world) {
   function update(t,config){
     const id=config.id, impact=id==='independence-day'||id==='deep-impact';
     windows.visible=false;clouds.visible=false;
+    atmosphere.update(t,config);
     waterTime.value=t;planetTime.value=t;
     const age=t-13;
     sparks.visible=impact&&age>0&&age<12;smoke.visible=impact&&age>0;
@@ -223,6 +244,10 @@ export function createCinema(world) {
     if(blast.visible){blast.material.opacity*=.45;blast.material.color.multiplyScalar(2.5);}
     bloom.strength=id==='day-after-tomorrow'?.22:id==='melancholia'?.4:id==='interstellar'?.12:config.space?.25:.48;
     bloom.radius=config.space?.35:.65;
+    const icy=id==='day-after-tomorrow',warm=id==='terminator-2'||id==='2012';
+    antialias.material.uniforms.filmTint.value.set(icy?.96:1,1,warm?.96:1);
+    antialias.material.uniforms.filmSaturation.value=icy?.88:config.space?.97:.94;
+    canvas.dataset.cinematicLook=tiers[quality].bloom?'graded':'native';
     // Keep the alien craft inside the narrow phone framing.
     if(phone()&&id==='independence-day')ship.position.y-=12;
     ground.material.envMapIntensity=id==='day-after-tomorrow'?.2:.6;
