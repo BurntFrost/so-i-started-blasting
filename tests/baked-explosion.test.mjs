@@ -42,6 +42,33 @@ test('baked volume loads once, preserves fallback until ready, and seeks without
   } finally { THREE.TextureLoader.prototype.loadAsync = original; }
 });
 
+test('the quality ceiling selects the atlas resolution and its shader cell size', async () => {
+  const original = THREE.TextureLoader.prototype.loadAsync;
+  const urls = [];
+  THREE.TextureLoader.prototype.loadAsync = async url => { urls.push(url); return new THREE.Texture(); };
+  const build = ceiling => {
+    const canvas = new EventTarget(); canvas.dataset = ceiling ? { qualityCeiling: ceiling } : {};
+    const cloud = new THREE.InstancedMesh(new THREE.SphereGeometry(), new THREE.MeshBasicMaterial(), 2);
+    new THREE.Group().add(cloud);
+    const baked = createBakedExplosion({ canvas, cloud, core: { visible: true, material: { opacity: 1 } } });
+    return { canvas, cloud, baked };
+  };
+  try {
+    const ultra = build('ultra'), standard = build(), high = build('high');
+    await new Promise(setImmediate);
+    assert.deepEqual(urls, ['/assets/explosion-puff-4k.webp', '/assets/explosion-puff.webp', '/assets/explosion-puff.webp']);
+    assert.equal(ultra.canvas.dataset.explosionAtlas, '4096');
+    assert.equal(standard.canvas.dataset.explosionAtlas, '2048');
+    assert.equal(high.canvas.dataset.explosionAtlas, '2048');
+    for (const [instance, cell] of [[ultra, 512], [standard, 256]]) {
+      const smoke = instance.cloud.parent.getObjectByName('Baked volumetric mushroom cloud lobes');
+      assert.equal(smoke.material.uniforms.cell.value, cell);
+      assert.match(smoke.material.fragmentShader, /\(cell-1\.\)\+\.5\)\/cell/, 'sampling stays inside the cell at any atlas size');
+      instance.baked.update(30); assert.equal(smoke.material.uniforms.frame.value, 31);
+    }
+  } finally { THREE.TextureLoader.prototype.loadAsync = original; }
+});
+
 test('missing bake leaves the procedural geometry and fireball intact', async () => {
   const original = THREE.TextureLoader.prototype.loadAsync;
   THREE.TextureLoader.prototype.loadAsync = async () => { throw new Error('Asset unavailable'); };

@@ -35,13 +35,13 @@ or film recording is included.
 
 | Files | Creation and processing |
 |---|---|
-| `audio/alien-drone.mp3`, `ocean-storm.mp3`, `ice-wind.mp3`, `cosmic-drone.mp3`, `seismic-rumble.mp3`, `machine-pulse.mp3`, `solar-roar.mp3` (all under `audio/`) | Original SoX oscillator/noise synthesis, tremolo, filtering and stereo reverb; source: `tools/author-audio.py`. Seven 30-second beds, final peak normalization -12 dBFS before MP3 encoding. |
-| `audio/impact.mp3`, `audio/fracture.mp3`, `audio/charge.mp3` | Original SoX synthesis; 4, 2.5 and 5 seconds. Normalized to -8 dBFS (impact) or -12 dBFS, then FFmpeg MP3. |
+| `audio/bed-*.mp3` (ten beds, one per scene, 30 seconds each) | Original SoX/FFmpeg synthesis composed against each scene's visual timeline; source `tools/author-audio.py` (2026-09-13 film-signature pass). Oscillators, seeded noise, filters, pitch bends, `aevalsrc` expressions (organ clusters, ticking clocks, sirens, impulse trains) and reverb. `bed-melancholia.mp3` contains an original synthesized rendering of the opening measures of Wagner's Tristan und Isolde Prelude (1859, public domain); `bed-knowing.mp3` uses a low-string figure on the dactylic rhythm of Beethoven's Seventh Symphony, second movement (1812, public domain) with an original melodic line. Peak-normalized to -12 dBFS before MP3 encoding. |
+| `audio/<scene>-<event>.mp3` (twenty-six transient cues, 2 to 5 seconds) | Original SoX/FFmpeg synthesis from the same script: blasts, thunder, foghorn blasts, heat rays, countdown beeps, collisions, flybys, organ swells. Normalized to -8 to -13 dBFS depending on the event. |
 | `audio/intro.mp3` | Local Kokoro through HyperFrames 0.8.36, generic `bm_george` voice at speed 0.9. Text: “A front-row seat to the end of everything.” FFmpeg filtering and -20 LUFS target; 2.987 seconds. |
 | `storm-noise.webp` | Original SVG fractal turbulence, seed 90210, four octaves, stitched tiles. Rendered by resvg from `tools/storm-noise.svg` and lossless WebP encoded; 256×256 linear grayscale shader data. |
 | `nebula.webp` | Built-in imagegen generation, then local cwebp quality 88 at 1536×768. No reference image. Local Qwen3-VL review confirmed diffuse interstellar dust and an empty dark center. |
 
-The 11 MP3 files total 3,604,116 bytes. Both new WebP textures together total
+The 37 MP3 files total 6,451,000 bytes (measured by `du`; exact bytes are in `tools/asset-baseline.json`). Both new WebP textures together total
 62,480 bytes. The build fingerprints every MP3 and WebP. Tool/model environments
 and analysis indexes are not shipped with the site.
 
@@ -70,3 +70,15 @@ at reduced intensity. The flames fade between seconds 10 and 18 as smoke takes o
 This is an artistic volume approximation, not a fluid simulation. The atlas
 has fixed baked lighting and cannot reproduce correct volumetric parallax.
 The original procedural geometry remains the fallback if the atlas fails.
+
+## ULTRA tier assets, 2026-09-13
+
+These files download only when the renderer's quality ceiling is ULTRA (desktop
+displays with a device pixel ratio of 1.5 or more). Phones and 1x desktops keep
+the original assets above.
+
+| File | Bytes | Creation and processing |
+|---|---:|---|
+| `dusk-2k.hdr` | 5996454 | Poly Haven "The Sky Is On Fire" 2K Radiance HDR, CC0 1.0, unchanged. Download: https://dl.polyhaven.org/file/ph-assets/HDRIs/hdr/2k/the_sky_is_on_fire_2k.hdr. MD5 `ca2a97070f1bbac3d35300c245b430da` matched the public API metadata at download time. Serves both the visible sky and the PMREM environment in place of `dusk.hdr`. |
+| `nebula-4k.webp` | 99096 | Local Real-ESRGAN x4plus (`realesrgan-ncnn-vulkan`) upscale of the shipped `nebula.webp`. The 1536×768 source was padded with a 96-pixel wrapped strip on each side so the panorama seam survives the upscale, cropped back to 6144×3072, Lanczos-resized to 4096×2048 with ImageMagick, and encoded with `cwebp -q 88 -m 6`. No new generation prompt; the dust field is the same original artwork at higher sampling. |
+| `explosion-puff-4k.webp` | 2539662 | Same original Blender Cycles volume as `explosion-puff.webp`, rendered by `tools/bake-explosion.py --size 512`: 32 RGBA frames at 512×512, 32 samples per frame with denoising, packed 8×4 into a 4096×2048 atlas by FFmpeg at WebP quality 85. The shader samples the atlas at the cell size it was built for, so both atlases share one timeline. |

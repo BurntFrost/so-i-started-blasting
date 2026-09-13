@@ -3,10 +3,12 @@
 import { chromium } from '@playwright/test';
 import { mkdir, writeFile } from 'node:fs/promises';
 
-const output = new URL('../work/media-review/', import.meta.url);
+// CAPTURE_SCALE=2 renders native Retina pixels and writes to work/media-review-2x for 4K review.
+const scale = Number(process.env.CAPTURE_SCALE || 1);
+const output = new URL(`../work/media-review${scale > 1 ? `-${scale}x` : ''}/`, import.meta.url);
 await mkdir(output, { recursive: true });
 const browser = await chromium.launch({ channel: 'chrome', args: ['--enable-webgl', '--ignore-gpu-blocklist'] });
-const page = await browser.newPage({ viewport: { width: 1440, height: 960 }, reducedMotion: 'reduce' });
+const page = await browser.newPage({ viewport: { width: 1440, height: 960 }, deviceScaleFactor: scale, hasTouch: false, reducedMotion: 'reduce' });
 const errors = [], frames = [];
 page.on('pageerror', error => errors.push(error.message));
 page.on('console', entry => { if (entry.type() === 'error' && /THREE|WebGL|shader/i.test(entry.text())) errors.push(entry.text()); });

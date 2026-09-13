@@ -104,14 +104,45 @@ both the sky and the PMREM reflection environment.
 
 No graphics assets require a remote generation service at runtime.
 
+## ULTRA tier assets
+
+Three higher-resolution assets ship beside the originals and are requested only
+when the canvas reports `data-quality-ceiling="ultra"` (desktop, device pixel
+ratio 1.5 or more). Their provenance is in `dist/assets/SOURCES.md`.
+
+```sh
+# 2K sky: verify the MD5 against https://api.polyhaven.com/files/the_sky_is_on_fire before copying
+curl -L -o dist/assets/dusk-2k.hdr https://dl.polyhaven.org/file/ph-assets/HDRIs/hdr/2k/the_sky_is_on_fire_2k.hdr
+
+# 4K nebula: wrap-pad the seam, upscale locally, crop, resize, encode
+magick dist/assets/nebula.webp -write mpr:src -delete 0 \
+  \( mpr:src -gravity East -crop 96x768+0+0 +repage \) \( mpr:src \) \( mpr:src -gravity West -crop 96x768+0+0 +repage \) \
+  +append PNG24:work/4k/nebula-padded.png
+realesrgan-ncnn-vulkan -i work/4k/nebula-padded.png -o work/4k/nebula-up.png -n realesrgan-x4plus -s 4 \
+  -m "$HOME/Library/Application Support/AgentMedia/ncnn/models"
+magick work/4k/nebula-up.png -gravity Center -crop 6144x3072+0+0 +repage -filter Lanczos -resize 4096x2048 PNG24:work/4k/nebula-4k.png
+cwebp -q 88 -m 6 work/4k/nebula-4k.png -o dist/assets/nebula-4k.webp
+
+# 4K explosion atlas: 32 frames at 512 px, packed 8x4
+blender -b -t 8 --python tools/bake-explosion.py -- --frames 32 --size 512
+ffmpeg -y -framerate 1 -i work/explosion-bake/frames-512/%03d.png -vf tile=8x4 -frames:v 1 \
+  -c:v libwebp -quality 85 -compression_level 6 dist/assets/explosion-puff-4k.webp
+```
+
+`node tools/capture-media.mjs` accepts `CAPTURE_SCALE=2` to capture native Retina
+frames into `work/media-review-2x` for reviewing the ULTRA tier.
+
 ## Original sound and atmospheric textures
 
-The synthesis source is `author-audio.py`; run `python3 tools/author-audio.py` with
-the installed SoX and FFmpeg commands to create seven 30-second beds and three
-short effects. It uses seeded noise/oscillators, stereo reverb, edge fades and
-bounded peak normalization. The existing files were encoded with FFmpeg 9.0.1 to
-44.1 kHz stereo MP3 at 128 kbit/s. Exact encoded bytes can vary by tool version;
-review regenerated media before updating the asset checksums.
+The synthesis source is `author-audio.py`; run `python3 tools/author-audio.py` with the
+installed SoX and FFmpeg commands (about ten seconds). It composes ten 30-second beds, one
+per scene, against each scene's visual timeline, plus twenty-six short transient cues
+(`<scene>-<event>.mp3`). Layers are SoX oscillators and seeded noise with filters, bends,
+tremolo and reverb, and FFmpeg `aevalsrc` expressions for organ clusters, ticking clocks,
+sirens, countdown beeps and impulse trains. Beds are peak-normalized to -12 dBFS and cues
+to -8 through -13 dBFS, then encoded with FFmpeg to 44.1 kHz stereo MP3 at 128 kbit/s.
+Exact encoded bytes can vary by tool version; review regenerated media before updating the
+asset checksums. The per-scene design is documented in `docs/film-audio.md`.
 
 The introduction uses the installed local Kokoro route:
 

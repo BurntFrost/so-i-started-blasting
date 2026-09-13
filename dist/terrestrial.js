@@ -13,6 +13,8 @@ float fbm(vec3 p){return noise(p)*.57+noise(p*2.03)*.28+noise(p*4.11)*.15;}`;
 
 // Fixed geometry, seeded variation, and absolute-time poses make reverse scrubbing exact.
 export function createTerrestrial({ scene, canvas }) {
+  // ULTRA-capable displays get twice the silhouette tessellation; geometry is built once per module.
+  const fine = canvas.dataset.qualityCeiling === 'ultra' ? 2 : 1;
   let seed = 20121991;
   const random = () => { seed = (seed * 1664525 + 1013904223) >>> 0; return seed / 4294967296; };
   const mat = (color, extra = {}) => new THREE.MeshStandardMaterial({ color, roughness: .65, ...extra });
@@ -96,13 +98,13 @@ export function createTerrestrial({ scene, canvas }) {
   const nuclear = group('Terminator 2 — nuclear firestorm');
   const cloudSurface = texturedMaterial('#443732', '#ff7619', 1.6, true);
   const cloud = instances(nuclear, sphere, cloudSurface.material, 72, 'Rolling mushroom cloud lobes');
-  const nuclearCore = new THREE.Mesh(new THREE.SphereGeometry(1, 32, 20), glow(new THREE.Color(2.8, .85, .1), .7));
+  const nuclearCore = new THREE.Mesh(new THREE.SphereGeometry(1, 32 * fine, 20 * fine), glow(new THREE.Color(2.8, .85, .1), .7));
   nuclearCore.name = 'Nuclear fireball'; nuclear.add(nuclearCore);
   const shockMaterial = glow('#ffc77c', .8);
-  const shock = new THREE.Mesh(new THREE.TorusGeometry(1, .035, 8, 100), shockMaterial);
+  const shock = new THREE.Mesh(new THREE.TorusGeometry(1, .035, 8, 100 * fine), shockMaterial);
   shock.rotation.x = Math.PI / 2; shock.position.set(-18, 1.3, -27); nuclear.add(shock);
   const pressureMaterial = new THREE.MeshBasicMaterial({ color: '#b29b84', transparent: true, opacity: .2, depthWrite: false });
-  const pressure = new THREE.Mesh(new THREE.TorusGeometry(1, .065, 8, 100), pressureMaterial);
+  const pressure = new THREE.Mesh(new THREE.TorusGeometry(1, .065, 8, 100 * fine), pressureMaterial);
   pressure.rotation.x = Math.PI / 2; pressure.position.set(-18, 2, -27); nuclear.add(pressure);
   const nuclearLight = new THREE.PointLight('#ff9437', 0, 230, 1.5);
   nuclearLight.position.set(-18, 23, -27); nuclear.add(nuclearLight);
@@ -290,7 +292,7 @@ export function createTerrestrial({ scene, canvas }) {
     const walker = new THREE.Group(); walker.name = `Articulated tripod ${index + 1}`;
     walker.scale.setScalar(scale); invasion.add(walker);
     const head = new THREE.Group(); walker.add(head);
-    const carapace = new THREE.Mesh(new THREE.SphereGeometry(1, 24, 14), machine); carapace.scale.set(13, 5.1, 8);
+    const carapace = new THREE.Mesh(new THREE.SphereGeometry(1, 24 * fine, 14 * fine), machine); carapace.scale.set(13, 5.1, 8);
     carapace.castShadow = true; head.add(carapace);
     const underbody = new THREE.Mesh(sphere, darkMachine); underbody.position.y = -2.3; underbody.scale.set(9, 4, 6); head.add(underbody);
     const crown = new THREE.Mesh(new THREE.ConeGeometry(7.5, 2.6, 3), machine); crown.position.y = 4.5; crown.rotation.y = Math.PI / 6; head.add(crown);

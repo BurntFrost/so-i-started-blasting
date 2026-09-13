@@ -87,8 +87,10 @@ export function createAtmosphere({ scene, camera, canvas }) {
   }
   function requestNebula() {
     if (nebulaRequested) return; nebulaRequested = true;
-    canvas.dataset.nebulaTexture = 'loading';
-    loader.load('/assets/nebula.webp', texture => {
+    // The 4096-wide panorama only downloads where ULTRA can render it; phones keep the 1536 original.
+    const ultra = canvas.dataset.qualityCeiling === 'ultra';
+    canvas.dataset.nebulaTexture = 'loading'; canvas.dataset.nebulaResolution = ultra ? '4096' : '1536';
+    loader.load(ultra ? '/assets/nebula-4k.webp' : '/assets/nebula.webp', texture => {
       texture.colorSpace = THREE.SRGBColorSpace; texture.wrapS = THREE.RepeatWrapping;
       celestialMaterial.uniforms.panorama.value = texture; celestialMaterial.uniforms.ready.value = 1;
       canvas.dataset.nebulaTexture = 'ready'; ready();
@@ -100,7 +102,7 @@ export function createAtmosphere({ scene, camera, canvas }) {
       const collision = config.id === 'melancholia';
       const quality = canvas.dataset.quality || 'high';
       clock.value = t; celestial.visible = space; cloudDome.visible = !space && !collision;
-      mist.visible = !space && !collision && quality !== 'lite'; mist.count = quality === 'high' ? 12 : 6;
+      mist.visible = !space && !collision && quality !== 'lite'; mist.count = quality === 'high' || quality === 'ultra' ? 12 : 6;
       if (space) requestNebula(); else if (!collision) requestWeather();
       celestialMaterial.uniforms.strength.value = config.id === 'interstellar' ? .22 : .35;
       celestial.rotation.y = .7;

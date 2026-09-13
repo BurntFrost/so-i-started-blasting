@@ -1,35 +1,220 @@
 {
   "schema": 1,
   "status": "Current checked-in asset baseline; original byte-for-byte toolchain provenance is not asserted.",
-  "verifiedAt": "2026-09-12",
+  "verifiedAt": "2026-09-13",
   "tools": {
     "blender": "5.2.1 LTS (build 2026-08-25)",
     "gltf-transform": "4.5.0",
     "imagemagick": "7.1.2-31 Q16-HDRI aarch64 8309dc92a:20260903"
   },
   "files": {
-    "dist/assets/explosion-puff.webp": { "sha256": "9ba6b3908884ba28b753e9fc10c0917378fe93b94ded00a69ac67ba58d4cb8a8", "bytes": 712916 },
-    "dist/assets/asphalt-albedo.webp": { "sha256": "19dc0260d16f277ac4613c5c92201042c66b5c76d3f2d6c1089621b6ab5dd288", "bytes": 252338 },
-    "dist/assets/asphalt-normal.webp": { "sha256": "d978cf410e16b77272f2950ef7b4ff12fae368e9a6f958bb48f52c15adcdf2f9", "bytes": 547942 },
-    "dist/assets/asphalt-roughness.webp": { "sha256": "9021749170e7f5e9630a1b497a14b82ba09bc2d65126f09ac36797cf3b36f1dc", "bytes": 70448 },
-    "dist/assets/city-kit.glb": { "sha256": "ec01cda7c0561553b9175883c6e03be44f679c1fc3ef7be0d8b997eb409a93b2", "bytes": 380988 },
-    "dist/assets/concrete-albedo.webp": { "sha256": "76d7affccc721c822731c903a7b19a880503ee5a8b3018da29ca6772eaf588bd", "bytes": 283508 },
-    "dist/assets/concrete-normal.webp": { "sha256": "6deb529bc234e099642f03aefe6dca26d24f2711e5dfc672632304cb5dbb2704", "bytes": 56502 },
-    "dist/assets/concrete-roughness.webp": { "sha256": "359c0de54e40f2a81c156e2e98736255c066b6fe8bea64005d3b9c335fba622f", "bytes": 55148 },
-    "dist/assets/dusk.hdr": { "sha256": "27504c5dd20ffc8490537b152860b80ec9c2bf2832ab28ebd2b6e9f475627411", "bytes": 1526564 },
-    "dist/assets/mothership.glb": { "sha256": "1e33afd4ade27058b650409ee1ec732a9f0142addb2f7fa7beaff38a69e039f8", "bytes": 565324 },
-    "dist/assets/audio/alien-drone.mp3": { "sha256": "d16b1b405cfd1f0843e6fa9dd75f4be2cfe936d272ac5005141db22b931623aa", "bytes": 481114 },
-    "dist/assets/audio/charge.mp3": { "sha256": "576491d5a5c764cef8e1557fe8c6542b823e91813001ebb95286c1da579933d6", "bytes": 81127 },
-    "dist/assets/audio/cosmic-drone.mp3": { "sha256": "7542ac8001f098eb50438f32f249cb43563ad0c1f1c443e00562f288bd401266", "bytes": 481114 },
-    "dist/assets/audio/fracture.mp3": { "sha256": "58aacca7099eafdcd7d08f49dcbd7e37a1ed8b6f0e1ba0392f88a062904ce10e", "bytes": 41003 },
-    "dist/assets/audio/ice-wind.mp3": { "sha256": "e7535baeb3e81d63b55b50f876040c049a8c7fd363ec17ff95909c398c7329f8", "bytes": 481114 },
-    "dist/assets/audio/impact.mp3": { "sha256": "f4feb4dec266d6d7a065a110328f02e63d329186558b6a7e7fb83d91ff25c53a", "bytes": 65244 },
-    "dist/assets/audio/intro.mp3": { "sha256": "4ae62aa5bb14a677581e336004f86a80a44a9436e0741c1717a9541b1dafda41", "bytes": 48944 },
-    "dist/assets/audio/machine-pulse.mp3": { "sha256": "d202c6b95e19e5c91985f2c8202a16cf5400e395a43af862b51797a737912398", "bytes": 481114 },
-    "dist/assets/audio/ocean-storm.mp3": { "sha256": "5e6bd4e8d37543a88e45f78a6b3f3ed4ee4cd04e184256b84ec81f4d106210ec", "bytes": 481114 },
-    "dist/assets/audio/seismic-rumble.mp3": { "sha256": "673eded27dccadfdfce9a0b5c8efce70373cacf3b7702076bdc04a945c2d30ba", "bytes": 481114 },
-    "dist/assets/audio/solar-roar.mp3": { "sha256": "e69529fb57582fde944104d168cb7499a018c961c2155779aded0153b328f097", "bytes": 481114 },
-    "dist/assets/nebula.webp": { "sha256": "e829c0ce2592ef45bb44627ec5863e0ef0c2ca912a7636f46a65a4661b7a0f80", "bytes": 36770 },
-    "dist/assets/storm-noise.webp": { "sha256": "14256537063558477397d0f6c65a7895ea8cd6a33eef2a5df0d3381757871474", "bytes": 25710 }
+    "dist/assets/explosion-puff.webp": {
+      "sha256": "9ba6b3908884ba28b753e9fc10c0917378fe93b94ded00a69ac67ba58d4cb8a8",
+      "bytes": 712916
+    },
+    "dist/assets/asphalt-albedo.webp": {
+      "sha256": "19dc0260d16f277ac4613c5c92201042c66b5c76d3f2d6c1089621b6ab5dd288",
+      "bytes": 252338
+    },
+    "dist/assets/asphalt-normal.webp": {
+      "sha256": "d978cf410e16b77272f2950ef7b4ff12fae368e9a6f958bb48f52c15adcdf2f9",
+      "bytes": 547942
+    },
+    "dist/assets/asphalt-roughness.webp": {
+      "sha256": "9021749170e7f5e9630a1b497a14b82ba09bc2d65126f09ac36797cf3b36f1dc",
+      "bytes": 70448
+    },
+    "dist/assets/city-kit.glb": {
+      "sha256": "ec01cda7c0561553b9175883c6e03be44f679c1fc3ef7be0d8b997eb409a93b2",
+      "bytes": 380988
+    },
+    "dist/assets/concrete-albedo.webp": {
+      "sha256": "76d7affccc721c822731c903a7b19a880503ee5a8b3018da29ca6772eaf588bd",
+      "bytes": 283508
+    },
+    "dist/assets/concrete-normal.webp": {
+      "sha256": "6deb529bc234e099642f03aefe6dca26d24f2711e5dfc672632304cb5dbb2704",
+      "bytes": 56502
+    },
+    "dist/assets/concrete-roughness.webp": {
+      "sha256": "359c0de54e40f2a81c156e2e98736255c066b6fe8bea64005d3b9c335fba622f",
+      "bytes": 55148
+    },
+    "dist/assets/dusk.hdr": {
+      "sha256": "27504c5dd20ffc8490537b152860b80ec9c2bf2832ab28ebd2b6e9f475627411",
+      "bytes": 1526564
+    },
+    "dist/assets/mothership.glb": {
+      "sha256": "1e33afd4ade27058b650409ee1ec732a9f0142addb2f7fa7beaff38a69e039f8",
+      "bytes": 565324
+    },
+    "dist/assets/nebula.webp": {
+      "sha256": "e829c0ce2592ef45bb44627ec5863e0ef0c2ca912a7636f46a65a4661b7a0f80",
+      "bytes": 36770
+    },
+    "dist/assets/storm-noise.webp": {
+      "sha256": "14256537063558477397d0f6c65a7895ea8cd6a33eef2a5df0d3381757871474",
+      "bytes": 25710
+    },
+    "dist/assets/dusk-2k.hdr": {
+      "sha256": "0d6de5d26052d30546ebd291ad6e96de88c342da3e5d8aee37298e9c12647911",
+      "bytes": 5996454
+    },
+    "dist/assets/nebula-4k.webp": {
+      "sha256": "705c62dfda14757b1a309b4ce0f4edbf7f2628f963623c0cbb18bf797faae4bc",
+      "bytes": 99096
+    },
+    "dist/assets/explosion-puff-4k.webp": {
+      "sha256": "0b11d19e22a5a325d45dd1673309e203a31acf0c17284b1585f0958593f6766f",
+      "bytes": 2539662
+    },
+    "dist/assets/audio/2012-collapse.mp3": {
+      "sha256": "e43063e59f0b7db7bfc567aee0ed922be6c2ee2c74092171fd9549691493cabe",
+      "bytes": 41003
+    },
+    "dist/assets/audio/2012-rupture.mp3": {
+      "sha256": "550df4cc2cb7c8e81270db861f07dead230088e40a8ea59f0534377f8fd16ba5",
+      "bytes": 65244
+    },
+    "dist/assets/audio/armageddon-countdown.mp3": {
+      "sha256": "713677a7dcd22127d80fb31851ff619a414b002ab2055b5e76c8faba573dd04b",
+      "bytes": 42674
+    },
+    "dist/assets/audio/armageddon-detonation.mp3": {
+      "sha256": "8c0ef8d2664c853463fba5e70f819cc8997dfcc169c9d19de363a888f89d2d4c",
+      "bytes": 81127
+    },
+    "dist/assets/audio/armageddon-flyby.mp3": {
+      "sha256": "9e5f6e7be42b32dbbfb68af055d8faaa857a4d559eb7e80ed72a93aedbfc9b06",
+      "bytes": 33061
+    },
+    "dist/assets/audio/bed-2012.mp3": {
+      "sha256": "1be63ae0825012ff5855c2dcb04ec0fca2f33e0b96d3f3cd21b26581775762b0",
+      "bytes": 481114
+    },
+    "dist/assets/audio/bed-armageddon.mp3": {
+      "sha256": "e43778e09ac6b69107623afcab695661e6faa5c95414194736da664859c71468",
+      "bytes": 481114
+    },
+    "dist/assets/audio/bed-day-after-tomorrow.mp3": {
+      "sha256": "b2da7227b014a1ee053814910c370486bc4a8a28e78087acaf9534f8f144ca3d",
+      "bytes": 481114
+    },
+    "dist/assets/audio/bed-deep-impact.mp3": {
+      "sha256": "bc57e3b216115b01f1242abe35f8f0dadad3de8ad63f25828f68132cbc1fa260",
+      "bytes": 481114
+    },
+    "dist/assets/audio/bed-independence-day.mp3": {
+      "sha256": "10a2245b212261a9707c7d5c6bd372ebbd264c0fe929fb0a824e4ec37fd3b568",
+      "bytes": 481114
+    },
+    "dist/assets/audio/bed-interstellar.mp3": {
+      "sha256": "92bce3bfdffdad3fc6d9b041882114a281781a2c36ae2306efd25f0db8b731f6",
+      "bytes": 481114
+    },
+    "dist/assets/audio/bed-knowing.mp3": {
+      "sha256": "e4519f8fd764a84fd9886ba7c1fd2573fec0b59d1fad8b60a3408c2dfb8109a4",
+      "bytes": 481114
+    },
+    "dist/assets/audio/bed-melancholia.mp3": {
+      "sha256": "9731ffdbde3a5d52a72fa19bc78c8af780d0db517bd385eb098f4df6a8a313e4",
+      "bytes": 481114
+    },
+    "dist/assets/audio/bed-terminator-2.mp3": {
+      "sha256": "8548a30616972e57d4bf024e554b3fd36e587c5e06f61e0c2565a99ac1f3c3a8",
+      "bytes": 481114
+    },
+    "dist/assets/audio/bed-war-of-the-worlds.mp3": {
+      "sha256": "17a13101fe91eb0581d9a593023295e0a88b093eeabe6772cf92a681e345ede4",
+      "bytes": 481114
+    },
+    "dist/assets/audio/day-after-tomorrow-freeze.mp3": {
+      "sha256": "84ef2017fa1a6d00ba36fddedaa69cfb5cd1a4c5ab73d17ddf8a485ca1b0f499",
+      "bytes": 65244
+    },
+    "dist/assets/audio/day-after-tomorrow-pressure.mp3": {
+      "sha256": "98b3848fe2fcb202d5c8a54928802370d235ed8bc2126a7dd9fb060885359026",
+      "bytes": 48944
+    },
+    "dist/assets/audio/day-after-tomorrow-thunder.mp3": {
+      "sha256": "ffd61f890af76fb0dfcfd920618ec49af46b8a3a3b9baef698a43e2d7ab2acc1",
+      "bytes": 65244
+    },
+    "dist/assets/audio/deep-impact-entry.mp3": {
+      "sha256": "a9406dbd5481717701fa96fba3234735e3f9cac99e11c88cd380bf80d78f645e",
+      "bytes": 48944
+    },
+    "dist/assets/audio/deep-impact-impact.mp3": {
+      "sha256": "9e789945c0820683e5dd0094bf575b116064e58b97022bdcd5fb4d85cc3c0aea",
+      "bytes": 81127
+    },
+    "dist/assets/audio/deep-impact-surge.mp3": {
+      "sha256": "d542f3e4c50b35209fe160c9b8b89f452d604a981993321cd41294378fce1f10",
+      "bytes": 81127
+    },
+    "dist/assets/audio/independence-day-blast.mp3": {
+      "sha256": "5ed155e4dfd6cef6c8b42c4515f00b414e8e74aef7f775270f55ba1192679b9f",
+      "bytes": 65244
+    },
+    "dist/assets/audio/independence-day-charge.mp3": {
+      "sha256": "be36e5220ada99293876bd291ddfc3f903fc4237efddd265d1ad0b2670d0838b",
+      "bytes": 65244
+    },
+    "dist/assets/audio/independence-day-collapse.mp3": {
+      "sha256": "7070f74027e6373246fb0c582cd0fd9d23f63b8206b80bf11a01b7749fb30f47",
+      "bytes": 48944
+    },
+    "dist/assets/audio/interstellar-horizon.mp3": {
+      "sha256": "8995349de112310f08c2ead0b89491c44b824f745e97d1e11e9dd785c2231bbd",
+      "bytes": 65244
+    },
+    "dist/assets/audio/interstellar-orbit.mp3": {
+      "sha256": "0625afb856263fd2f4b4788619c75788ddd21d2cb3838b4b793f5f51a1688fe9",
+      "bytes": 81127
+    },
+    "dist/assets/audio/intro.mp3": {
+      "sha256": "4ae62aa5bb14a677581e336004f86a80a44a9436e0741c1717a9541b1dafda41",
+      "bytes": 48944
+    },
+    "dist/assets/audio/knowing-engulf.mp3": {
+      "sha256": "66cd73e248f41f0f8b562fa432fbc255badc8792e099d98e2cc8f0a52220fcf2",
+      "bytes": 81127
+    },
+    "dist/assets/audio/knowing-eruption.mp3": {
+      "sha256": "96e82e8dac11d719ca5dd3ce308263ac666a63ffd2644c7905b1524703addcfc",
+      "bytes": 65244
+    },
+    "dist/assets/audio/melancholia-collision.mp3": {
+      "sha256": "4f73a185718296e2c3eb974b8706b8d5091b7b32663cce2cebb6fde465ac5fdf",
+      "bytes": 56885
+    },
+    "dist/assets/audio/melancholia-contact.mp3": {
+      "sha256": "23cd54dbec07dba17ea3f31885ab7d0d6d0aa459feae24c734f53c66339948f2",
+      "bytes": 81127
+    },
+    "dist/assets/audio/terminator-2-collapse.mp3": {
+      "sha256": "b471adc0027d85ba14d2ca3a0b27d94cad6e115265b5418ee8973378398b0569",
+      "bytes": 48944
+    },
+    "dist/assets/audio/terminator-2-flash.mp3": {
+      "sha256": "01d8ff37c8c7ee6ee49f8dd6015d825e339a7128bf486faa2ffaa608ad818e6b",
+      "bytes": 48944
+    },
+    "dist/assets/audio/terminator-2-shockwave.mp3": {
+      "sha256": "331249af1f113e462e94d547c0ce26c2d525e90d607e62c0006ffcf4f7ebe294",
+      "bytes": 65244
+    },
+    "dist/assets/audio/war-of-the-worlds-heatray.mp3": {
+      "sha256": "bd33d31b726648d256ae62d08098f25593bdb026e265b1d168a2b30013bdf07a",
+      "bytes": 33061
+    },
+    "dist/assets/audio/war-of-the-worlds-horn.mp3": {
+      "sha256": "1f80398cb233b13bb4bb19155bf4bfbd10371ddfe3f6ba64ce6a0590455056e4",
+      "bytes": 56885
+    },
+    "dist/assets/audio/war-of-the-worlds-lightning.mp3": {
+      "sha256": "7f3dac92d9e6c321a8ae27850d171925e03c882f4a71eba16f8045ec4025eada",
+      "bytes": 41003
+    }
   }
 }

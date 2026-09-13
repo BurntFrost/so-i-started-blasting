@@ -65,3 +65,10 @@ Local review artifacts are generated into ignored `work/media-review`:
 
 The audio authoring source is `tools/author-audio.py`; storm texture source is
 `tools/storm-noise.svg`; `tools/capture-media.mjs` reproduces the screenshots.
+
+
+## Superseded audio
+
+The seven shared beds and three generic effects described above were replaced on
+2026-09-13 by one timeline-composed bed per scene and scene-specific cues; see
+[film-audio.md](film-audio.md). The consent, playback and scrubbing behavior is unchanged.

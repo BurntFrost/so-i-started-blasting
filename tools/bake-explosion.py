@@ -13,16 +13,18 @@ from mathutils import Vector
 parser = argparse.ArgumentParser()
 parser.add_argument('--frames', type=int, default=32)
 parser.add_argument('--only', type=int)
+# 256 is the shipped baseline atlas cell; 512 produces the ULTRA-tier atlas.
+parser.add_argument('--size', type=int, default=256)
 args = parser.parse_args(sys.argv[sys.argv.index('--') + 1:] if '--' in sys.argv else [])
 root = Path(__file__).resolve().parents[1]
-output = root / 'work/explosion-bake/frames'
+output = root / ('work/explosion-bake/frames' if args.size == 256 else f'work/explosion-bake/frames-{args.size}')
 output.mkdir(parents=True, exist_ok=True)
 bpy.ops.wm.read_factory_settings(use_empty=True)
 scene = bpy.context.scene
 scene.render.engine = 'CYCLES'
 scene.cycles.samples = 32
 scene.cycles.use_denoising = True
-scene.render.resolution_x = scene.render.resolution_y = 256
+scene.render.resolution_x = scene.render.resolution_y = args.size
 scene.render.resolution_percentage = 100
 scene.render.film_transparent = True
 scene.render.image_settings.file_format = 'PNG'
