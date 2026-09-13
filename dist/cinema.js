@@ -202,7 +202,11 @@ export function createCinema(world) {
   const phone=()=>matchMedia('(pointer: coarse)').matches||canvas.clientWidth<600;
   // ULTRA renders native Retina/4K pixels, so it unlocks only on dense desktop displays; FPS still governs it.
   const ceilingFor=()=>phone()?1:devicePixelRatio>=1.5?3:2;
-  let ceiling=ceilingFor(),quality=ceiling,frameTotal=0,frameCount=0,fastWindows=0,cooldown=0;
+  // Asset resolution and tessellation are chosen once, from the startup ceiling. The runtime ceiling may
+  // fall below it (phone width) but never rise above it, so ULTRA is never rendered without ULTRA assets.
+  const assetCeiling=ceilingFor();
+  canvas.dataset.qualityCeiling=tiers[assetCeiling].name.toLowerCase();
+  let ceiling=assetCeiling,quality=ceiling,frameTotal=0,frameCount=0,fastWindows=0,cooldown=0;
   const badge=document.querySelector('.render-label');
   function setQuality(next,reason='initial'){
     quality=next;const tier=tiers[next];renderer.setPixelRatio(Math.min(devicePixelRatio,tier.dpr));renderer.shadowMap.enabled=tier.shadows;
@@ -210,7 +214,7 @@ export function createCinema(world) {
     bloom.enabled=tier.bloom;canvas.dataset.antialias=tier.bloom?'fxaa':'native';roofs.forEach((roof,i)=>roof.visible=next>0||i%3===0);armor.visible=next>0;
     for(const p of [sparks,smoke,spray]){p.geometry.setDrawRange(0,Math.floor(p.geometry.attributes.position.count*tier.particles));p.material.uniforms.pixelRatio.value=renderer.getPixelRatio();}
     snow.geometry.setDrawRange(0,Math.floor(snow.geometry.attributes.position.count*tier.particles));debris.count=Math.floor(300*tier.particles);
-    canvas.dataset.quality=tier.name.toLowerCase();canvas.dataset.qualityCeiling=tiers[ceiling].name.toLowerCase();canvas.dataset.pixelRatio=String(renderer.getPixelRatio());
+    canvas.dataset.quality=tier.name.toLowerCase();canvas.dataset.pixelRatio=String(renderer.getPixelRatio());
     telemetry.setQuality(canvas.dataset.quality,reason);
     if(badge)badge.textContent=`AUTO / ${tier.name}`;
     resize();cooldown=3;fastWindows=0;
@@ -222,7 +226,7 @@ export function createCinema(world) {
     if(quality===1)bloom.setSize(Math.round(w*.55),Math.round(h*.55));
     // Bloom is a blur, so ULTRA keeps it near HIGH's pixel count instead of quadrupling the mip chain.
     else if(quality===3)bloom.setSize(Math.round(w*1.2),Math.round(h*1.2));
-    const nextCeiling=ceilingFor();if(nextCeiling!==ceiling){ceiling=nextCeiling;canvas.dataset.qualityCeiling=tiers[ceiling].name.toLowerCase();if(quality>ceiling)setQuality(ceiling,'viewport');}
+    const nextCeiling=Math.min(assetCeiling,ceilingFor());if(nextCeiling!==ceiling){ceiling=nextCeiling;if(quality>ceiling)setQuality(ceiling,'viewport');}
   }
   function measure(delta,active){
     if(!active||delta<=0||delta>1){frameTotal=0;frameCount=0;return;}

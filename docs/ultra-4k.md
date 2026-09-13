@@ -21,8 +21,14 @@ hole.
 | Tessellation | Fixed | Doubled for planet, sun, black hole, fireball and tripod silhouettes when ULTRA is possible |
 
 The canvas exposes `data-quality-ceiling` so modules that build geometry or
-request textures once can decide at construction time. Phones, touch desktops
-and 1x displays are unchanged and never download the larger assets.
+request textures once can decide at construction time. That asset ceiling is
+decided once per page load from the startup display and viewport and never
+changes afterwards: the runtime tier can fall below it (a window shrunk to phone
+width drops to BALANCED and its ULTRA tessellation stays inside the phone
+geometry budget) but never rises above it, so ULTRA is never rendered without
+the ULTRA sky, nebula and atlas. A page opened narrow on a dense display keeps a
+HIGH ceiling until it is reloaded. Phones, touch desktops and 1x displays are
+unchanged and never download the larger assets.
 
 On a 3024×1964 MacBook Pro display, fullscreen ULTRA renders 3024×1964 instead
 of 2570×1669. On a 4K monitor scaled to 1920×1080, it renders 3840×2160 instead

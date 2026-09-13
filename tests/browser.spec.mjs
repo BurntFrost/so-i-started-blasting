@@ -290,9 +290,20 @@ test.describe('desktop ULTRA rendering', () => {
     await expect(canvas).toHaveAttribute('data-nebula-texture', 'ready');
     await expect(canvas).toHaveAttribute('data-nebula-resolution', '4096');
     expect([...new Set(assets)].sort()).toEqual(['dusk-2k.hdr', 'explosion-puff-4k.webp', 'nebula-4k.webp']);
+    // The asset ceiling is fixed at startup; shrinking only lowers the runtime tier, and the retained
+    // ULTRA tessellation must still fit the phone geometry budget.
     await page.setViewportSize({ width: 390, height: 844 });
     await expect(canvas).toHaveAttribute('data-quality', /balanced|lite/);
-    await expect(canvas).toHaveAttribute('data-quality-ceiling', 'balanced');
+    await expect(canvas).toHaveAttribute('data-quality-ceiling', 'ultra');
+    for (const index of [0, 4, 7]) {
+      await select(page, index);
+      await seek(page, 18);
+      expect(Number(await canvas.getAttribute('data-triangles')), `${scenes[index].id}: phone budget with ULTRA tessellation`).toBeLessThan(150000);
+    }
+    // Growing again keeps the startup ceiling; promotion back up waits for measured FPS headroom during playback.
+    await page.setViewportSize({ width: 1280, height: 800 });
+    await expect(canvas).toHaveAttribute('data-quality-ceiling', 'ultra');
+    await expect(canvas).toHaveAttribute('data-quality', /balanced|high|ultra/);
     expect(errors).toEqual([]);
   });
 });
