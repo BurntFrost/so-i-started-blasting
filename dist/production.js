@@ -2,6 +2,7 @@ import * as THREE from 'three';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import { RGBELoader } from 'three/addons/loaders/RGBELoader.js';
 import { MeshoptDecoder } from 'three/addons/libs/meshopt_decoder.module.js';
+import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
 
 const clamp = n => Math.max(0, Math.min(1, n));
 const smooth = n => { n=clamp(n); return n*n*(3-2*n); };
@@ -11,21 +12,40 @@ float fbm(vec3 p){return noise(p)*.53+noise(p*2.03)*.27+noise(p*4.07)*.13+noise(
 
 export async function createProduction(world) {
   const {renderer,scene,camera,canvas,city,buildings,ground,ship,core,tower,blast,
-    wave,foam,ocean,planet,landscape,sun,beam,meteor,tail} = world;
+    wave,foam,planet,landscape,beam,meteor,tail} = world;
+  const waveBase=wave.geometry.attributes.position.array.slice();
   const loader=new GLTFLoader().setMeshoptDecoder(MeshoptDecoder);
   const textureLoader=new THREE.TextureLoader();
-  const [kit,craft,hdr,...maps]=await Promise.all([
-    loader.loadAsync('/assets/city-kit.glb'), loader.loadAsync('/assets/mothership.glb'),
-    new RGBELoader().loadAsync('/assets/dusk.hdr'),
-    ...['/assets/concrete-albedo.webp','/assets/concrete-normal.webp','/assets/concrete-roughness.webp','/assets/asphalt-albedo.webp','/assets/asphalt-normal.webp','/assets/asphalt-roughness.webp'].map(url=>textureLoader.loadAsync(url))
-  ]);
+  const assetStatus = {};
+  const assets = [
+    ['city-model', () => loader.loadAsync('/assets/city-kit.glb')],
+    ['ship-model', () => loader.loadAsync('/assets/mothership.glb')],
+    ['sky-hdr', () => new RGBELoader().loadAsync('/assets/dusk.hdr')],
+    ...[['concrete-albedo','/assets/concrete-albedo.webp'],['concrete-normal','/assets/concrete-normal.webp'],
+      ['concrete-roughness','/assets/concrete-roughness.webp'],['asphalt-albedo','/assets/asphalt-albedo.webp'],
+      ['asphalt-normal','/assets/asphalt-normal.webp'],['asphalt-roughness','/assets/asphalt-roughness.webp']]
+      .map(([stage, url]) => [stage, () => textureLoader.loadAsync(url)])
+  ];
+  const results = await Promise.allSettled(assets.map(async ([stage, load]) => {
+    const result = await load(); assetStatus[stage] = 'ready'; return result;
+  }));
+  const values = results.map((result, i) => {
+    if (result.status === 'fulfilled') return result.value;
+    const stage = assets[i][0]; assetStatus[stage] = 'failed'; world.onAssetError?.(stage); return null;
+  });
+  let [kit, craft, hdr, ...maps] = values;
+  const templateNames = ['Tower_A','Tower_B','Tower_C','Tower_D','Tower_E'];
+  if (kit && templateNames.some(name => !kit.scene.getObjectByName(name))) {
+    assetStatus['city-model'] = 'failed'; world.onAssetError?.('city-model'); kit = null;
+  }
   const anisotropy=Math.min(8,renderer.capabilities.getMaxAnisotropy());
-  maps.forEach((map,i)=>{map.colorSpace=i%3===0?THREE.SRGBColorSpace:THREE.NoColorSpace;map.wrapS=map.wrapT=THREE.RepeatWrapping;map.anisotropy=anisotropy;});
+  maps.forEach((map,i)=>{if(!map)return;map.colorSpace=i%3===0?THREE.SRGBColorSpace:THREE.NoColorSpace;map.wrapS=map.wrapT=THREE.RepeatWrapping;map.anisotropy=anisotropy;});
+  let environment = null, sky = null, skyMaterial = null;
+  if (hdr) {
   const pmrem=new THREE.PMREMGenerator(renderer);
-  const environment=pmrem.fromEquirectangular(hdr);pmrem.dispose();
-  const oldEnvironment=scene.environment;scene.environment=environment.texture;oldEnvironment?.dispose();
+  environment=pmrem.fromEquirectangular(hdr);pmrem.dispose();
   hdr.mapping=THREE.EquirectangularReflectionMapping;
-  const skyMaterial=new THREE.ShaderMaterial({side:THREE.BackSide,depthWrite:false,
+  skyMaterial=new THREE.ShaderMaterial({side:THREE.BackSide,depthWrite:false,
     uniforms:{panorama:{value:hdr},tint:{value:new THREE.Color()},air:{value:new THREE.Color()},exposure:{value:1},storm:{value:0}},
     vertexShader:'varying vec3 direction;void main(){direction=position;gl_Position=projectionMatrix*modelViewMatrix*vec4(position,1.);}',
     fragmentShader:`uniform sampler2D panorama;uniform vec3 tint,air;uniform float exposure,storm;varying vec3 direction;
@@ -36,12 +56,14 @@ export async function createProduction(world) {
     #include <colorspace_fragment>
     gl_FragColor.rgb=mix(gl_FragColor.rgb,air,horizon);
     }`});
-  const sky=new THREE.Mesh(new THREE.SphereGeometry(750,64,32),skyMaterial);sky.rotation.y=2.8;sky.renderOrder=-10;sky.frustumCulled=false;scene.add(sky);
+  sky=new THREE.Mesh(new THREE.SphereGeometry(750,32,16),skyMaterial);sky.rotation.y=2.8;sky.renderOrder=-10;sky.frustumCulled=false;scene.add(sky);
   sky.onBeforeRender=()=>{sky.position.copy(camera.position);sky.updateMatrixWorld();scene.fog.color.getRGB(skyMaterial.uniforms.air.value,renderer.getRenderTarget()?THREE.LinearSRGBColorSpace:renderer.outputColorSpace);};
 
+  }
   const asphalt=new THREE.MeshStandardMaterial({color:'#77848a',map:maps[3],normalMap:maps[4],roughnessMap:maps[5],roughness:.75,metalness:.15});
-  maps.slice(3).forEach(m=>m.repeat.set(45,45));
+  maps.slice(3).forEach(m=>m?.repeat.set(45,45));
   ground.material=asphalt;
+  let seed=7459;const random=()=>{seed=(1664525*seed+1013904223)>>>0;return seed/4294967296;};
   const cityDetails=new THREE.Group();city.add(cityDetails);
   const paving=new THREE.Mesh(new THREE.PlaneGeometry(590,590),asphalt);paving.rotation.x=-Math.PI/2;paving.position.y=-1.01;paving.receiveShadow=true;cityDetails.add(paving);
   const roadMaterial=new THREE.MeshStandardMaterial({color:'#202b31',roughness:.38,metalness:.18});
@@ -59,11 +81,14 @@ export async function createProduction(world) {
   stripes.count=stripeIndex;stripes.instanceMatrix.needsUpdate=true;
 
   // A template is uploaded once; instance matrices retain every building's collapse.
+  const batches=[],materials=[],templateParts=[],skylineTiers=[];
+  const skyline=new THREE.Group();cityDetails.add(skyline);
+  const landmark=new THREE.Group();landmark.position.copy(tower.position);city.add(landmark);
+  const mediumParts = [];
+  if (kit) {
   kit.scene.updateMatrixWorld(true);
-  const batches=[],materials=[],templateNames=['Tower_A','Tower_B','Tower_C','Tower_D','Tower_E'];
-  const templateParts=[];
   for(const name of templateNames){
-    const root=kit.scene.getObjectByName(name);if(!root)throw new Error(`Missing authored model ${name}`);
+    const root=kit.scene.getObjectByName(name);
     const bounds=new THREE.Box3().setFromObject(root),size=bounds.getSize(new THREE.Vector3()),center=bounds.getCenter(new THREE.Vector3());
     const parts=[];
     root.traverse(part=>{if(!part.isMesh)return;
@@ -77,35 +102,54 @@ export async function createProduction(world) {
       materials.push(mat);parts.push({geometry,material:mat});
     });templateParts.push(parts);
   }
-  buildings.forEach(b=>b.visible=false);
   for(let variant=0;variant<5;variant++){
     const members=buildings.filter((_,i)=>i%5===variant);
     for(const part of templateParts[variant]){
-      const mesh=new THREE.InstancedMesh(part.geometry,part.material,members.length);mesh.castShadow=true;mesh.receiveShadow=true;mesh.frustumCulled=false;city.add(mesh);batches.push({mesh,members});
+      const mesh=new THREE.InstancedMesh(part.geometry,part.material,members.length);mesh.castShadow=true;mesh.receiveShadow=true;mesh.frustumCulled=false;city.add(mesh);batches.push({mesh,members,tier:'high'});
     }
     const source=buildings[variant].material,lowMaterial=source.clone();lowMaterial.onBeforeCompile=source.onBeforeCompile;lowMaterial.customProgramCacheKey=source.customProgramCacheKey;
+    lowMaterial.color.copy(buildings[variant].userData.facadeBaseColor || source.color);
     lowMaterial.userData.baseColor=lowMaterial.color.clone();lowMaterial.userData.baseEmission=lowMaterial.emissiveIntensity;materials.push(lowMaterial);
-    const lowMesh=new THREE.InstancedMesh(buildings[0].geometry,lowMaterial,members.length);lowMesh.frustumCulled=false;lowMesh.visible=false;city.add(lowMesh);batches.push({mesh:lowMesh,members,low:true});
+    // A few stepped volumes preserve crowns and setbacks without facade geometry.
+    const shapes = [
+      [[.94,.78,.94,0,.39,0],[.7,.18,.7,0,.87,0],[.18,.04,.18,0,.98,0]],
+      [[1,.9,.78,0,.45,0],[.68,.1,.58,0,.95,0]],
+      [[1,.68,1,0,.34,0],[.76,.2,.76,0,.78,0],[.48,.12,.48,0,.94,0]],
+      [[.76,.94,1,0,.47,0],[1,.24,.6,0,.12,0],[.58,.06,.8,0,.97,0]],
+      [[1,.6,1,0,.3,0],[.76,.17,.76,0,.685,0],[.52,.13,.52,0,.835,0],[.28,.07,.28,0,.935,0],[.06,.03,.06,0,.985,0]]
+    ][variant];
+    const pieces=shapes.map(([x,y,z,px,py,pz])=>new THREE.BoxGeometry(x,y,z).translate(px,py,pz));
+    const geometry=mergeGeometries(pieces);pieces.forEach(piece=>piece.dispose());
+    mediumParts.push({geometry,material:lowMaterial});
+    const mediumMesh=new THREE.InstancedMesh(geometry,lowMaterial,members.length);mediumMesh.frustumCulled=false;mediumMesh.receiveShadow=true;city.add(mediumMesh);batches.push({mesh:mediumMesh,members,tier:'balanced'});
+    const lowMesh=new THREE.InstancedMesh(buildings[0].geometry,lowMaterial,members.length);lowMesh.frustumCulled=false;lowMesh.visible=false;city.add(lowMesh);batches.push({mesh:lowMesh,members,tier:'lite'});
   }
   // A receding skyline removes the isolated tabletop silhouette.
-  let seed=7459;const random=()=>{seed=(1664525*seed+1013904223)>>>0;return seed/4294967296;};
   const backgroundBuildings=[];
   for(let x=-13;x<=13;x++)for(let z=-13;z<=5;z++){
     if(Math.abs(x)<5&&Math.abs(z)<5)continue;
     const b=new THREE.Object3D();b.position.set(x*17+random()*5,-1,z*17+random()*5);b.scale.set(5+random()*6,8+random()*30,5+random()*6);b.updateMatrix();backgroundBuildings.push(b);
   }
-  const skyline=new THREE.Group();cityDetails.add(skyline);
   for(let variant=0;variant<5;variant++)for(const part of templateParts[variant]){
     const members=backgroundBuildings.filter((_,i)=>i%5===variant),mesh=new THREE.InstancedMesh(part.geometry,part.material,members.length);
-    members.forEach((b,i)=>mesh.setMatrixAt(i,b.matrix));mesh.receiveShadow=true;mesh.computeBoundingSphere();skyline.add(mesh);
+    members.forEach((b,i)=>mesh.setMatrixAt(i,b.matrix));mesh.receiveShadow=true;mesh.computeBoundingSphere();skyline.add(mesh);skylineTiers.push({mesh,tier:'high'});
+  }
+  for(let variant=0;variant<5;variant++){
+    const members=backgroundBuildings.filter((_,i)=>i%5===variant),part=mediumParts[variant];
+    const mesh=new THREE.InstancedMesh(part.geometry,part.material,members.length);
+    members.forEach((b,i)=>mesh.setMatrixAt(i,b.matrix));mesh.computeBoundingSphere();skyline.add(mesh);skylineTiers.push({mesh,tier:'balanced'});
   }
   tower.visible=false;
-  const landmark=new THREE.Group();landmark.position.copy(tower.position);city.add(landmark);
-  templateParts[4].forEach(part=>{const mesh=new THREE.Mesh(part.geometry,part.material);mesh.scale.set(10,72,10);mesh.castShadow=true;mesh.receiveShadow=true;landmark.add(mesh);});
-  const previousShipChildren=[...ship.children];previousShipChildren.forEach(child=>child.visible=false);
-  const authoredShip=craft.scene;authoredShip.scale.setScalar(1.45);ship.add(authoredShip);
+  templateParts[4].forEach(part=>{const mesh=new THREE.Mesh(part.geometry,part.material);mesh.scale.set(10,72,10);mesh.castShadow=true;mesh.receiveShadow=true;mesh.userData.tier='high';landmark.add(mesh);});
+  const mediumLandmark=new THREE.Mesh(mediumParts[4].geometry,mediumParts[4].material);mediumLandmark.scale.set(10,72,10);mediumLandmark.userData.tier='balanced';landmark.add(mediumLandmark);
+  }
+
+  const previousShipChildren=[...ship.children];
+  const authoredShip=craft?.scene;
+  if (authoredShip) {authoredShip.scale.setScalar(1.45);ship.add(authoredShip);
   authoredShip.traverse(part=>{if(part.isMesh){part.castShadow=true;part.receiveShadow=true;part.material.envMapIntensity=1.5;}});
-  core.visible=true;core.scale.setScalar(.5);
+  core.visible=true;
+  }
 
   // The fireball has a turbulent surface and cools into dark smoke as it expands.
   const fireUniforms={time:{value:0},fade:{value:1},heat:{value:1}};
@@ -119,7 +163,7 @@ export async function createProduction(world) {
     #include <colorspace_fragment>
     }`});
   const fire=new THREE.Mesh(new THREE.SphereGeometry(1,80,48),fireMaterial);scene.add(fire);
-  const cloudRoot=kit.scene.getObjectByName('Tree_A');
+  const cloudRoot=kit?.scene.getObjectByName('Tree_A');
   const terrainHeight=(x,z)=>-.5+(Math.sin(x*.022)*Math.cos(z*.027)*5-Math.sin(z*.06)*1.5)*clamp((Math.hypot(x,z)-25)/80);
   if(cloudRoot){
     cloudRoot.updateWorldMatrix(true,true);
@@ -130,38 +174,52 @@ export async function createProduction(world) {
   for(let i=0;i<9000;i++){const x=random()*250-125,z=random()*230-100,scale=.4+random()*1.2;dummy.position.set(x,terrainHeight(x,z)+scale*.65,z);dummy.rotation.set((random()-.5)*.5,random()*6.28,(random()-.5)*.5);dummy.scale.setScalar(scale);dummy.updateMatrix();grass.setMatrixAt(i,dummy.matrix);}landscape.add(grass);
   const lawn=landscape.children[0];lawn.material.color.set('#35482b');lawn.material.roughness=1;
   lawn.material.onBeforeCompile=shader=>{shader.vertexShader=shader.vertexShader.replace('#include <common>','#include <common>\nvarying vec3 terrainPoint;').replace('#include <begin_vertex>','#include <begin_vertex>\nterrainPoint=position;');shader.fragmentShader=shader.fragmentShader.replace('#include <common>','#include <common>\nvarying vec3 terrainPoint;'+noise).replace('#include <color_fragment>','#include <color_fragment>\ndiffuseColor.rgb*=.5+fbm(terrainPoint*.15);');};
-  const waveBase=wave.geometry.attributes.position.array.slice();
   // Coordinates are initially planar; the same profile is used by spray below.
   const waveProfile=(v,height,x,t)=>({y:Math.sin(v*Math.PI*.53)*height+(Math.sin(x*.13+t)*1.2)*v,z:Math.sin(v*Math.PI)*24+Math.pow(v,8)*17});
-  function update(t,index){
-    const quality=canvas.dataset.quality;
-    sky.position.copy(camera.position);
-    const space=index>=7;
-    sky.visible=!space;
-    const palette=['#b4c7c4','#bba899','#91afca','#7db9d4','#dba879','#ca9a81','#a297b4','#ffffff','#ffffff','#ffffff'];skyMaterial.uniforms.tint.value.set(palette[index]);skyMaterial.uniforms.exposure.value=index===3?.14:index===2?.3:index===6?.25:.65;skyMaterial.uniforms.storm.value=index>=2?.96:.3;
-    sky.rotation.y=2.8+t*.0006;
-    scene.environmentIntensity=space?.2:index===2?.6:.72;scene.fog.color.set(index===2?'#718797':index===3?'#283e50':index===4?'#594139':index===5?'#51403e':index===6?'#353340':'#5a6364');scene.fog.density=space?0:index===3?.0018:index===2?.0035+smooth(t/30)*.003:.0024;
-    sun.position.set(-90,85,-110);sun.intensity=space?1.5:index===2?1.1:2.7;sun.color.set(space?'#e4ebff':index===3?'#a7cfff':index===2?'#bfdbef':index===6?'#c0b4de':'#ffc596');
-    scene.children.find(o=>o.isHemisphereLight).intensity=space?.12:.38;
-    ground.material.color.set(index===2?'#afc0c8':'#647077');ground.scale.set(1,1,1);ground.visible=index!==5;cityDetails.visible=index!==1&&index!==5;
-    skyline.visible=quality!=='lite';grass.count=quality==='high'?9000:quality==='balanced'?4500:1800;
-    for(const b of buildings){b.visible=false;b.updateMatrix();}
-    for(const batch of batches){batch.mesh.visible=batch.low?quality==='lite':quality!=='lite';batch.members.forEach((b,i)=>batch.mesh.setMatrixAt(i,b.matrix));batch.mesh.instanceMatrix.needsUpdate=true;batch.mesh.castShadow=quality==='high';}
-    const frozen=smooth((t-8)/20);for(const mat of materials){mat.color.copy(mat.userData.baseColor);if(index===2)mat.color.lerp(new THREE.Color('#e2edf0'),frozen*.8);mat.emissiveIntensity=mat.userData.baseEmission*(index===2?1-frozen:1);}
-    const collapse=index===0?smooth((t-15)/10):index===4?smooth((t-13)/10):index===5?smooth((t-9)/15):0;
+  const freezeColor=new THREE.Color('#e2edf0');
+  let lastQuality;
+  function update(t, config){
+    const id=config.id, frozenScene=id==='day-after-tomorrow', cityActive=config.world==='city';
+    const quality=canvas.dataset.quality || 'high';
+    if(sky){
+      sky.visible=!config.space;sky.position.copy(camera.position);sky.rotation.y=2.8+t*.0006;
+      skyMaterial.uniforms.tint.value.set(config.environment.skyTint);
+      skyMaterial.uniforms.exposure.value=config.environment.skyExposure;
+      skyMaterial.uniforms.storm.value=config.environment.skyStorm;
+    }
+    if(quality!==lastQuality){
+      for(const batch of batches){batch.mesh.visible=batch.tier===quality;batch.mesh.castShadow=quality==='high';}
+      for(const batch of skylineTiers)batch.mesh.visible=batch.tier===(quality==='high'?'high':'balanced');
+      landmark.children.forEach(mesh=>mesh.visible=mesh.userData.tier===(quality==='high'?'high':'balanced'));
+      grass.count=quality==='high'?9000:quality==='balanced'?4500:1800;
+      lastQuality=quality;
+    }
+    if(cityActive){
+      ground.material.color.set(frozenScene?'#afc0c8':'#647077');ground.scale.set(1,1,1);ground.visible=id!=='2012';cityDetails.visible=id!=='deep-impact'&&id!=='2012';
+      skyline.visible=quality!=='lite';
+      if(kit){
+        for(const b of buildings){b.visible=false;b.updateMatrix();}
+        for(const batch of batches){
+          if(!batch.mesh.visible)continue;
+          batch.members.forEach((b,i)=>batch.mesh.setMatrixAt(i,b.matrix));batch.mesh.instanceMatrix.needsUpdate=true;
+        }
+      }
+      const frozen=smooth((t-8)/20);
+      for(const mat of materials){mat.color.copy(mat.userData.baseColor);if(frozenScene)mat.color.lerp(freezeColor,frozen*.8);mat.emissiveIntensity=mat.userData.baseEmission*(frozenScene?1-frozen:1);}
+    }
+    const collapse=id==='independence-day'?smooth((t-15)/10):id==='terminator-2'?smooth((t-13)/10):id==='2012'?smooth((t-9)/15):0;
     landmark.scale.y=1-collapse*.85;landmark.rotation.z=collapse*.18;
-    authoredShip.visible=true;previousShipChildren.forEach(c=>{if(c!==core)c.visible=false;});
+    if(authoredShip){authoredShip.visible=true;previousShipChildren.forEach(c=>{if(c!==core)c.visible=false;});}
     core.material.color.setRGB(.3,2.4,1.4);beam.material.color.setRGB(.22,1.3,.75);
-    blast.visible=false;fire.visible=index<2&&t>13&&t<28;fire.position.copy(blast.position);const radius=1+smooth((t-13)/12)*(index===0?48:30);fire.scale.set(radius,radius*.85,radius);fire.position.y+=radius*.22;
+    blast.visible=false;fire.visible=(id==='independence-day'||id==='deep-impact')&&t>13&&t<28;fire.position.copy(blast.position);const radius=1+smooth((t-13)/12)*(id==='independence-day'?48:30);fire.scale.set(radius,radius*.85,radius);fire.position.y+=radius*.22;
     fireUniforms.time.value=t;fireUniforms.fade.value=1-smooth((t-21)/7);fireUniforms.heat.value=1-smooth((t-17)/12)*.78;
     meteor.material.emissiveIntensity=1.4;tail.material.opacity=.15;
-    if(index===1){const travel=smooth((t-14)/16),height=22+travel*60;const positions=wave.geometry.attributes.position;
+    if(id==='deep-impact'){const travel=smooth((t-14)/16),height=22+travel*60;const positions=wave.geometry.attributes.position;
       for(let i=0;i<positions.count;i++){const x=waveBase[i*3]*1.65,v=(waveBase[i*3+1]+37.5)/75,p=waveProfile(v,height,x,t);positions.setXYZ(i,x,p.y,p.z);}positions.needsUpdate=true;wave.geometry.computeVertexNormals();
       const p=foam.geometry.attributes.position;for(let i=0;i<p.count;i++){const x=((i%130)/130*220-110)*1.65,c=waveProfile(1,height,x,t);p.setXYZ(i,x,c.y+Math.sin(i*21+t)*2-(i%5)*.6,wave.position.z+c.z+Math.cos(i*3+t)*3);}p.needsUpdate=true;
     }
     planet.material.uniforms.time.value=t;
-    canvas.dataset.authoredAssets='ready';
+    canvas.dataset.authoredAssets=Object.values(assetStatus).includes('failed')?'degraded':'ready';
   }
-  update(0,0);
-  return {update};
+  return {update,environment:environment?.texture || null,assetStatus};
 }

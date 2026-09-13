@@ -1,5 +1,6 @@
-// Stable order keeps existing analytics names and scene-control indices compatible.
-export const scenes = [
+import { sceneConfigs } from './scene-config.js';
+// Picker order remains compatible; rendering uses the stable ID/configuration.
+const catalogue = [
   {id:'independence-day',name:'Independence Day',title:'A close<br>encounter.',description:"They didn't come in peace.",film:'INDEPENDENCE DAY',year:'1996',category:'ALIEN INVASION',type:'EXTRATERRESTRIAL EVENT',location:'NEW YORK CITY',color:'#ff6138',sky:'#171f22',phases:['SIGNAL DETECTED','WEAPON CHARGING','CITY-WIDE SHOCKWAVE'],labels:['ARRIVAL','CONTACT','AFTERMATH'],visual:'Mothership · energy beam · collapsing skyline'},
   {id:'deep-impact',name:'Deep Impact',title:'One last<br>wave.',description:'No higher ground. No second chances.',film:'DEEP IMPACT',year:'1998',category:'EXTINCTION EVENT',type:'EXTINCTION-LEVEL IMPACT',location:'ATLANTIC COAST',color:'#ff9852',sky:'#34333a',phases:['OBJECT APPROACHING','OCEAN IMPACT','WAVE INBOUND'],labels:['APPROACH','IMPACT','INUNDATION'],visual:'Comet strike · curling tsunami · sea spray'},
   {id:'day-after-tomorrow',name:'The Day After Tomorrow',title:'A world<br>on ice.',description:'The forecast is the end of everything.',film:'THE DAY AFTER TOMORROW',year:'2004',category:'CLIMATE COLLAPSE',type:'GLOBAL SUPERSTORM',location:'MANHATTAN',color:'#8dcfff',sky:'#344555',phases:['PRESSURE FALLING','SUPERSTORM ARRIVES','DEEP FREEZE'],labels:['WARNING','WHITEOUT','DEEP FREEZE'],visual:'Superstorm · wind-driven snow · frozen city'},
@@ -11,3 +12,4 @@ export const scenes = [
   {id:'armageddon',name:'Armageddon',title:'The last<br>approach.',description:'A world hanging by a fracture.',film:'ARMAGEDDON',year:'1998',category:'ASTEROID INTERCEPT',type:'NEAR-EARTH ASTEROID',location:'EARTH APPROACH',color:'#f4a574',sky:'#080b17',phases:['OBJECT ON COLLISION COURSE','CORE FRACTURING','FRAGMENTS DIVERGE'],labels:['APPROACH','FRACTURE','BREAKUP'],visual:'Rugged asteroid · glowing fissures · fragment field',space:true},
   {id:'interstellar',name:'Interstellar',title:'Beyond<br>the horizon.',description:'At the edge of everything we know.',film:'INTERSTELLAR',year:'2014',category:'COSMIC PHENOMENON',type:'BLACK HOLE VISUALIZATION',location:'GARGANTUA',color:'#f5d2a0',sky:'#04050c',phases:['ACCRETION DISK IN VIEW','ORBIT TIGHTENING','AT THE EVENT HORIZON'],labels:['APPROACH','ORBIT','HORIZON'],visual:'Accretion disk · lensed halo · infalling matter',space:true}
 ];
+export const scenes = catalogue.map(scene => ({...scene,...sceneConfigs[scene.id]}));

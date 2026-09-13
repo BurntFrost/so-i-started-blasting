@@ -3,13 +3,16 @@ import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 import { createCinema } from './cinema.js?v=3';
 import { createProduction } from './production.js?v=3';
 import { createGraphicsTelemetry } from './telemetry.js';
+import { reportGraphicsFailure, markGraphicsFailure, showGraphicsFailure } from './runtime-state.js';
 import { scenes } from './scenes.js';
 import { createTerrestrial } from './terrestrial.js';
 import { createCosmic } from './cosmic.js';
 
 const telemetry=createGraphicsTelemetry();
 const canvas=document.querySelector('#world');
-const renderer=new THREE.WebGLRenderer({canvas,antialias:true,powerPreference:'high-performance'});
+let renderer;
+try { renderer=new THREE.WebGLRenderer({canvas,antialias:true,powerPreference:'high-performance'}); }
+catch(error) { reportGraphicsFailure('webgl-init',scenes[0].id); throw markGraphicsFailure(error,'webgl-init'); }
 renderer.setPixelRatio(Math.min(devicePixelRatio,1.7));
 renderer.toneMapping=THREE.ACESFilmicToneMapping;
 renderer.toneMappingExposure=1.3;
@@ -68,43 +71,178 @@ const landscape=new THREE.Group();scene.add(landscape);const lawn=new THREE.Mesh
 const shelter=new THREE.Group();for(let i=0;i<6;i++){const a=i/6*Math.PI*2;const pole=new THREE.Mesh(new THREE.CylinderGeometry(.18,.3,13,6),mat('#baae8a'));pole.position.set(Math.sin(a)*2.5,6,Math.cos(a)*2.5);pole.rotation.z=-Math.cos(a)*.4;pole.rotation.x=Math.sin(a)*.4;shelter.add(pole);}shelter.position.set(8,0,10);landscape.add(shelter);
 const debrisCount=300;const debris=new THREE.InstancedMesh(new THREE.BoxGeometry(1,1,1),mat('#6e5140'),debrisCount);effects.add(debris);const debrisSeeds=Array.from({length:debrisCount},()=>[random()*Math.PI*2,random(),random(),random()]);const dummy=new THREE.Object3D();
 const cinema=createCinema({renderer,scene,camera,canvas,sun,buildings,ground,ship,hullMat,core,beam,blast,ocean,wave,meteor,planet,landscape,windows,snow,debris,foam,clouds,glow,telemetry});
-const production=await createProduction({renderer,scene,camera,canvas,city,buildings,ground,ship,core,tower,blast,wave,foam,ocean,planet,landscape,sun,beam,meteor,tail}).catch(error=>{telemetry.loadFailed();throw error;});
+scene.environment=cinema.environment;
 const terrestrial=createTerrestrial({scene,canvas});
 const cosmic=createCosmic({scene,canvas,camera});
+let production=null,productionRequested=false,authoredWorkPending=false,failed=false;
 let selected=0,time=0,playing=false,speed=1,previous=0,needsRender=true;
 const $=id=>document.getElementById(id),clamp=(v,a=0,b=1)=>Math.max(a,Math.min(b,v)),ease=v=>{v=clamp(v);return v*v*(3-2*v);};
 const originalColors=buildings.map(b=>b.material.color.clone());
+const hemi=scene.children.find(object=>object.isHemisphereLight);
+const finalLight=new THREE.Color('#e0f7ff'),freeze=new THREE.Color('#c0d6e2');
 controls.addEventListener('change',()=>{needsRender=true;});
-function resetCamera(){if(selected===3){camera.position.set(85,31,130);controls.target.set(-8,39,-45);}else{camera.position.set(122,selected===9?78:58,155);controls.target.set(...(selected===9?[0,45,0]:scenes[selected].space?[0,35,0]:[-8,35,-15]));}controls.update();needsRender=true;}
-function syncUI(){const s=scenes[selected];$('time').textContent='00:'+Math.floor(time).toString().padStart(2,'0');$('progress').value=time;$('play').textContent=playing?'Ⅱ':'▶';$('play').setAttribute('aria-label',playing?'Pause simulation':'Play simulation');$('play-status').textContent=time===0?'THE CALM BEFORE':time>=30?'END OF SCENE':playing?'SIMULATION RUNNING':'PAUSED';$('event-label').textContent=s.phases[time<10?0:time<19?1:2];$('blast').innerHTML=time===0?"LET'S DO THIS <span>↗</span>":"BLAST AGAIN <span>↺</span>";}
-function selectScene(index){if(!Number.isInteger(index)||index<0||index>=scenes.length)throw new Error(`Scene must be between 0 and ${scenes.length-1}.`);telemetry.selectScene(index);selected=index;time=0;playing=false;const s=scenes[index];$('scene-title').innerHTML=s.title;$('scene-description').textContent=s.description;$('film-title').textContent=s.film;$('film-year').textContent=s.year;$('scenario-type').textContent=s.type;$('scene-location').textContent=s.location;$('scene-number').textContent=String(index+1).padStart(2,'0');document.documentElement.style.setProperty('--accent',s.color);document.querySelectorAll('.timeline-ticks span').forEach((el,i)=>el.textContent=s.labels[i]);document.querySelectorAll('.scene-card').forEach((el,i)=>{el.classList.toggle('active',i===index);el.setAttribute('aria-pressed',String(i===index));});canvas.setAttribute('aria-label',`Interactive 3D scene inspired by ${s.film}. Drag to orbit, scroll to zoom, or use arrow keys to orbit.`);canvas.dataset.scene=s.id;resetCamera();updateWorld();syncUI();}
-function updateWorld(){needsRender=true;const t=time,s=scenes[selected],hit=ease((t-13)/10);scene.background.set(s.sky);scene.fog.color.set(s.sky);scene.fog.density=selected===2?.004+hit*.004:.0055;sun.color.set(selected===2?'#b4d9fa':selected===3?'#a8d9f0':'#ffe2b7');sun.intensity=selected===2?2-hit:3;
- city.visible=selected!==3&&!s.space;landscape.visible=selected===3;ship.visible=selected===0;beam.visible=selected===0&&t>9&&t<20;core.scale.setScalar(1+ease(t/13)*1.3);ship.position.y=83+(1-ease(t/10))*9;ship.rotation.y=t*.018;beam.material.opacity=clamp((t-9)/3)*clamp((20-t)/3)*.8;beam.scale.x=beam.scale.z=.3+ease((t-9)/4)*2;glow.color.set(selected===0?'#a7ffd1':'#ff9245');glow.intensity=selected<2?Math.sin(clamp((t-10)/13)*Math.PI)*180:0;
- blast.visible=selected<2&&t>13&&t<26;blast.position.set(selected===0?-8:-50,selected===0?3:0,selected===0?-20:-100);const size=.1+hit*(selected===0?60:48);blast.scale.set(size,size*.7,size);blast.material.opacity=(1-ease((t-17)/9))*.7;blast.material.color.set(selected===0?'#ffdb99':'#fff2d4');shockwave.visible=selected<2&&t>13;shockwave.position.copy(blast.position);shockwave.position.y=2;shockwave.scale.setScalar(1+hit*145);shockwave.material.opacity=1-hit;
- ocean.visible=selected===1;wave.visible=selected===1&&t>14;foam.visible=wave.visible;meteor.visible=selected===1&&t<14;tail.visible=meteor.visible;meteor.position.set(85-t*10,145-t*10,-145+t*3);meteor.rotation.set(t*.3,t*.2,0);tail.position.copy(meteor.position).add(new THREE.Vector3(21,21,-6));tail.quaternion.setFromUnitVectors(new THREE.Vector3(0,-1,0),new THREE.Vector3(-1,-1,.3).normalize());
- if(selected===1){wave.position.set(0,0,-115+ease((t-14)/16)*230);ocean.position.y=-1.6+ease((t-25)/5)*13;}
- snow.visible=selected===2;if(snow.visible)for(let i=0;i<Math.min(snowCount,snowGeo.drawRange.count);i++){const [x,y,z,r]=snowSeeds[i];snowPositions[i*3]=((x+110+t*(8+hit*12))%220)-110;snowPositions[i*3+1]=(y-t*(5+r*8)%130+130)%130;snowPositions[i*3+2]=z+Math.sin(t+r*20)*2;}snowGeo.attributes.position.needsUpdate=true;snow.material.opacity=.2+ease(t/15)*.8;
- clouds.visible=selected!==3;cloudMat.opacity=selected===2?.22+hit*.22:.1;clouds.rotation.y=t*.003;
- planet.visible=selected===3;atmosphere.visible=planet.visible;planet.position.set(-45,75,-180+ease(t/30)*90);const radius=35+ease(t/30)*170;planet.scale.setScalar(radius);planet.rotation.y=t*.004;atmosphere.position.copy(planet.position);atmosphere.scale.setScalar(radius*1.02);if(selected===3){scene.fog.density=.002;const bright=ease((t-27)/3);scene.background.lerp(new THREE.Color('#e0f7ff'),bright);renderer.toneMappingExposure=1.3+bright*2;}else renderer.toneMappingExposure=1.3;
- const freeze=new THREE.Color('#c0d6e2');buildings.forEach((b,i)=>{const u=b.userData;let collapse=0;if(selected===0)collapse=ease((t-15-u.delay*7)/7);if(selected===1)collapse=ease((wave.position.z-u.z)/45)*hit;if(selected===4)collapse=ease((t-12-u.delay*8)/8);if(selected===5)collapse=ease((t-8-Math.abs(u.x)*.12)/14);b.scale.y=u.h*(1-collapse*.87);b.rotation.z=u.tilt*collapse;b.position.set(u.x,-1,u.z);if(selected===5){b.position.x+=Math.sign(u.x)*collapse*12;b.position.y-=collapse*(4+Math.abs(u.tilt)*10);}b.material.color.copy(originalColors[i]);if(selected===2)b.material.color.lerp(freeze,hit);});windows.material.opacity=selected===2?.8*(1-hit):selected===0?.8*(1-hit):.8;windows.visible=selected===0?t<17:selected===1?t<22:true;tower.scale.y=selected===0?1-hit*.85:1;tower.rotation.z=selected===0?hit*.25:0;ground.material.color.set(selected===2?'#6e8494':'#141b1d');
- debris.visible=selected===0&&t>14;if(debris.visible)for(let i=0;i<debris.count;i++){const [a,r,h,w]=debrisSeeds[i],p=clamp((t-14-r*3)/12);dummy.position.set(-8+Math.sin(a)*p*(40+r*95),Math.max(.1,Math.sin(p*Math.PI)*(15+h*55)),-20+Math.cos(a)*p*(40+r*95));dummy.rotation.set(p*10+r,p*7,p*9);dummy.scale.setScalar(.3+w*1.5);dummy.updateMatrix();debris.setMatrixAt(i,dummy.matrix);}debris.instanceMatrix.needsUpdate=true;
- cinema.update(t,selected);
- production.update(t,selected);
- terrestrial.update(t,selected);
- cosmic.update(t,selected);
+function resetCamera(){
+ const s=scenes[selected];camera.position.set(...s.camera);controls.target.set(...s.target);controls.update();needsRender=true;
 }
-function start(){time=0;playing=true;syncUI();}
-document.querySelector('.scene-list').innerHTML=scenes.map((s,i)=>`<button class="scene-card" data-scene="${i}" aria-pressed="false" style="--scene-color:${s.color}"><span class="card-no">${String(i+1).padStart(2,'0')}</span><div><span class="card-category">${s.category}</span><h2>${s.name}</h2><p>${s.year} <span>·</span> ${s.location}</p><p class="card-visual">${s.visual}</p></div><span class="card-icon">↗</span></button>`).join('');
+function syncUI(){
+ const s=scenes[selected];$('time').textContent='00:'+Math.floor(time).toString().padStart(2,'0');$('progress').value=time;
+ $('play').textContent=playing?'Ⅱ':'▶';$('play').setAttribute('aria-label',playing?'Pause simulation':'Play simulation');
+ $('play-status').textContent=failed?'RENDERER UNAVAILABLE':time===0?'THE CALM BEFORE':time>=30?'END OF SCENE':playing?'SIMULATION RUNNING':'PAUSED';
+ $('event-label').textContent=s.phases[time<10?0:time<19?1:2];
+ $('blast').innerHTML=time===0?"LET'S DO THIS <span>↗</span>":"BLAST AGAIN <span>↺</span>";
+}
+function failRenderer(stage){
+ if(failed)return;
+ failed=true;playing=false;canvas.dataset.renderState='failed';controls.enabled=false;renderer.setAnimationLoop(null);telemetry.idle();
+ reportGraphicsFailure(stage,scenes[selected].id);syncUI();showGraphicsFailure(stage);
+ document.querySelectorAll('.view-controls button').forEach(button=>button.disabled=true);
+}
+function loadProduction(){
+ if(productionRequested||failed||scenes[selected].world==='space')return;
+ productionRequested=true;canvas.dataset.authoredAssets='loading';
+ let degraded=false;const initiatingScene=scenes[selected].id;
+ createProduction({renderer,scene,camera,canvas,city,buildings,ground,ship,core,tower,blast,wave,foam,ocean,planet,landscape,sun,beam,meteor,tail,
+  onAssetError(){degraded=true;reportGraphicsFailure('authored-assets',initiatingScene);}
+ }).then(result=>{
+  if(failed)return;
+  production=result;authoredWorkPending=true;
+  if(result.environment){scene.environment=result.environment;cinema.environment?.dispose();}
+  canvas.dataset.authoredAssets=degraded?'degraded':'ready';
+  updateWorld();
+ }).catch(()=>{
+  canvas.dataset.authoredAssets='degraded';
+  reportGraphicsFailure('authored-assets',initiatingScene);
+ });
+}
+function selectScene(index){
+ if(!Number.isInteger(index)||index<0||index>=scenes.length)throw new Error(`Scene must be between 0 and ${scenes.length-1}.`);
+ telemetry.selectScene(index);selected=index;time=0;playing=false;const s=scenes[index];
+ $('scene-title').innerHTML=s.title;$('scene-description').textContent=s.description;$('film-title').textContent=s.film;
+ $('film-year').textContent=s.year;$('scenario-type').textContent=s.type;$('scene-location').textContent=s.location;
+ $('scene-number').textContent=String(index+1).padStart(2,'0');document.documentElement.style.setProperty('--accent',s.color);
+ document.querySelectorAll('.timeline-ticks span').forEach((el,i)=>el.textContent=s.labels[i]);
+ document.querySelectorAll('.scene-card').forEach(el=>{const active=el.dataset.sceneId===s.id;el.classList.toggle('active',active);el.setAttribute('aria-pressed',String(active));});
+ canvas.setAttribute('aria-label',`Interactive 3D scene inspired by ${s.film}. Drag to orbit, scroll to zoom, or use arrow keys to orbit.`);
+ canvas.dataset.scene=s.id;
+ if(!failed){resetCamera();updateWorld();}
+ syncUI();
+}
+function applyEnvironment(s,t){
+ const env=s.environment;
+ scene.background.set(s.sky);scene.fog.color.set(env.fog);scene.fog.density=env.fogDensity+ease(t/30)*env.fogGrowth;
+ sun.position.set(-90,85,-110);sun.intensity=env.sunIntensity;sun.color.set(env.sun);
+ hemi.color.set(env.hemi);hemi.groundColor.set('#17191f');hemi.intensity=env.hemiIntensity;
+ if(cinema.rim){cinema.rim.color.set(env.rim);cinema.rim.intensity=env.rimIntensity;}
+ scene.environmentIntensity=env.environmentIntensity;
+ const bright=s.id==='melancholia'?ease((t-27)/3):0;
+ if(bright)scene.background.lerp(finalLight,bright);
+ renderer.toneMappingExposure=1.3+bright*2;
+}
+function updateWorld(){
+ if(failed)return;
+ needsRender=true;const t=time,s=scenes[selected],id=s.id,hit=ease((t-13)/10);
+ const invasion=id==='independence-day',impact=id==='deep-impact',storm=id==='day-after-tomorrow',collision=id==='melancholia',nuclear=id==='terminator-2',fault=id==='2012';
+ city.visible=s.world==='city';landscape.visible=s.world==='landscape';ship.visible=invasion;
+ beam.visible=invasion&&t>9&&t<20;core.scale.setScalar(1+ease(t/13)*1.3);ship.position.y=83+(1-ease(t/10))*9;ship.rotation.y=t*.018;
+ beam.material.opacity=clamp((t-9)/3)*clamp((20-t)/3)*.8;beam.scale.x=beam.scale.z=.3+ease((t-9)/4)*2;
+ glow.color.set(invasion?'#a7ffd1':'#ff9245');glow.intensity=invasion||impact?Math.sin(clamp((t-10)/13)*Math.PI)*180:0;
+ blast.visible=(invasion||impact)&&t>13&&t<26;blast.position.set(invasion?-8:-50,invasion?3:0,invasion?-20:-100);
+ const size=.1+hit*(invasion?60:48);blast.scale.set(size,size*.7,size);blast.material.opacity=(1-ease((t-17)/9))*.7;blast.material.color.set(invasion?'#ffdb99':'#fff2d4');
+ shockwave.visible=(invasion||impact)&&t>13;shockwave.position.copy(blast.position);shockwave.position.y=2;shockwave.scale.setScalar(1+hit*145);shockwave.material.opacity=1-hit;
+ ocean.visible=impact;wave.visible=impact&&t>14;foam.visible=wave.visible;meteor.visible=impact&&t<14;tail.visible=meteor.visible;
+ if(impact){
+  meteor.position.set(85-t*10,145-t*10,-145+t*3);meteor.rotation.set(t*.3,t*.2,0);tail.position.copy(meteor.position).add(new THREE.Vector3(21,21,-6));
+  tail.quaternion.setFromUnitVectors(new THREE.Vector3(0,-1,0),new THREE.Vector3(-1,-1,.3).normalize());
+  wave.position.set(0,0,-115+ease((t-14)/16)*230);ocean.position.y=-1.6+ease((t-25)/5)*13;
+ }
+ snow.visible=storm;
+ if(storm){
+  for(let i=0;i<Math.min(snowCount,snowGeo.drawRange.count);i++){const [x,y,z,r]=snowSeeds[i];snowPositions[i*3]=((x+110+t*(8+hit*12))%220)-110;snowPositions[i*3+1]=(y-t*(5+r*8)%130+130)%130;snowPositions[i*3+2]=z+Math.sin(t+r*20)*2;}
+  snowGeo.attributes.position.needsUpdate=true;
+ }
+ snow.material.opacity=.2+ease(t/15)*.8;clouds.visible=!collision&&!s.space;cloudMat.opacity=storm?.22+hit*.22:.1;clouds.rotation.y=t*.003;
+ planet.visible=collision;atmosphere.visible=collision;
+ if(collision){planet.position.set(-45,75,-180+ease(t/30)*90);const radius=35+ease(t/30)*170;planet.scale.setScalar(radius);planet.rotation.y=t*.004;atmosphere.position.copy(planet.position);atmosphere.scale.setScalar(radius*1.02);}
+ if(city.visible){
+  buildings.forEach((b,i)=>{
+   const u=b.userData;let collapse=0;
+   if(invasion)collapse=ease((t-15-u.delay*7)/7);if(impact)collapse=ease((wave.position.z-u.z)/45)*hit;
+   if(nuclear)collapse=ease((t-12-u.delay*8)/8);if(fault)collapse=ease((t-8-Math.abs(u.x)*.12)/14);
+   b.scale.y=u.h*(1-collapse*.87);b.rotation.z=u.tilt*collapse;b.position.set(u.x,-1,u.z);
+   if(fault){b.position.x+=Math.sign(u.x)*collapse*12;b.position.y-=collapse*(4+Math.abs(u.tilt)*10);}
+   b.material.color.copy(originalColors[i]);if(storm)b.material.color.lerp(freeze,hit);
+  });
+  tower.scale.y=invasion?1-hit*.85:1;tower.rotation.z=invasion?hit*.25:0;
+  ground.material.color.set(storm?'#6e8494':'#141b1d');
+ }
+ ground.visible=!fault;windows.visible=invasion?t<17:impact?t<22:true;windows.material.opacity=storm||invasion?.8*(1-hit):.8;
+ debris.visible=invasion&&t>14;
+ if(debris.visible){
+  for(let i=0;i<debris.count;i++){const [a,r,h,w]=debrisSeeds[i],p=clamp((t-14-r*3)/12);dummy.position.set(-8+Math.sin(a)*p*(40+r*95),Math.max(.1,Math.sin(p*Math.PI)*(15+h*55)),-20+Math.cos(a)*p*(40+r*95));dummy.rotation.set(p*10+r,p*7,p*9);dummy.scale.setScalar(.3+w*1.5);dummy.updateMatrix();debris.setMatrixAt(i,dummy.matrix);}
+  debris.instanceMatrix.needsUpdate=true;
+ }
+ cinema.update(t,s);production?.update(t,s);terrestrial.update(t,s);cosmic.update(t,s);
+ // One owner applies all scene lighting and fog after scene-local geometry updates.
+ applyEnvironment(s,t);
+}
+function start(){if(failed)return;time=0;playing=true;syncUI();}
+document.querySelector('.scene-list').innerHTML=scenes.map((s,i)=>`<button class="scene-card" data-scene="${i}" data-scene-id="${s.id}" aria-pressed="false" style="--scene-color:${s.color}"><span class="card-no">${String(i+1).padStart(2,'0')}</span><div><span class="card-category">${s.category}</span><h2>${s.name}</h2><p>${s.year} <span>·</span> ${s.location}</p><p class="card-visual">${s.visual}</p></div><span class="card-icon">↗</span></button>`).join('');
 $('scene-count').textContent=String(scenes.length).padStart(2,'0');$('anthology-count').textContent=`${scenes.length} SCENES / ONE LAST LOOK.`;
-document.querySelectorAll('[data-scene]').forEach(b=>b.addEventListener('click',()=>{selectScene(Number(b.dataset.scene));document.querySelector('.stage').scrollIntoView({behavior:matchMedia('(prefers-reduced-motion: reduce)').matches?'instant':'smooth'});}));$('blast').addEventListener('click',start);$('replay').addEventListener('click',start);$('play').addEventListener('click',()=>{if(time>=30)time=0;playing=!playing;syncUI();});$('speed').addEventListener('click',()=>{speed=speed===1?.5:speed===.5?2:1;$('speed').textContent=speed+'×';});$('progress').addEventListener('input',e=>{time=Number(e.target.value);playing=false;updateWorld();syncUI();});$('reset-camera').addEventListener('click',resetCamera);$('fullscreen').addEventListener('click',async()=>{try{if(document.fullscreenElement)await document.exitFullscreen();else await document.querySelector('.stage').requestFullscreen();}catch{$('fullscreen').title='Fullscreen is unavailable in this browser';}});
-canvas.addEventListener('keydown',e=>{if(e.key===' '){e.preventDefault();$('play').click();}if(['ArrowLeft','ArrowRight','ArrowUp','ArrowDown'].includes(e.key)){e.preventDefault();const offset=camera.position.clone().sub(controls.target);const spherical=new THREE.Spherical().setFromVector3(offset);if(e.key==='ArrowLeft')spherical.theta-=.1;if(e.key==='ArrowRight')spherical.theta+=.1;if(e.key==='ArrowUp')spherical.phi=Math.max(.15,spherical.phi-.1);if(e.key==='ArrowDown')spherical.phi=Math.min(Math.PI*.48,spherical.phi+.1);camera.position.copy(controls.target).add(new THREE.Vector3().setFromSpherical(spherical));controls.update();}});
-canvas.addEventListener('webglcontextlost',e=>{e.preventDefault();playing=false;$('error').hidden=false;});canvas.addEventListener('webglcontextrestored',()=>location.reload());
-function resize(){const {clientWidth:w,clientHeight:h}=canvas;cinema.resize();camera.aspect=w/h;camera.fov=w<600?66:45;camera.updateProjectionMatrix();updateWorld();}
+document.querySelectorAll('[data-scene]').forEach(button=>button.addEventListener('click',()=>{
+ selectScene(scenes.findIndex(s=>s.id===button.dataset.sceneId));
+ document.querySelector('.stage').scrollIntoView({behavior:matchMedia('(prefers-reduced-motion: reduce)').matches?'instant':'smooth'});
+}));
+$('blast').addEventListener('click',start);$('replay').addEventListener('click',start);
+$('play').addEventListener('click',()=>{if(failed)return;if(time>=30)time=0;playing=!playing;syncUI();});
+$('speed').addEventListener('click',()=>{speed=speed===1?.5:speed===.5?2:1;$('speed').textContent=speed+'×';$('speed').setAttribute('aria-label',`Playback speed: ${speed} times`);});
+$('progress').addEventListener('input',event=>{if(failed)return;time=Number(event.target.value);playing=false;updateWorld();syncUI();});
+$('reset-camera').addEventListener('click',resetCamera);
+$('fullscreen').addEventListener('click',async()=>{
+ try{if(document.fullscreenElement)await document.exitFullscreen();else await $('player').requestFullscreen();}
+ catch{$('fullscreen').title='Fullscreen is unavailable in this browser';}
+});
+document.addEventListener('fullscreenchange',()=>{
+ const active=Boolean(document.fullscreenElement);$('fullscreen').setAttribute('aria-label',active?'Exit fullscreen':'Enter fullscreen');$('fullscreen').setAttribute('aria-pressed',String(active));
+});
+canvas.addEventListener('keydown',event=>{
+ if(failed)return;
+ if(event.key===' '){event.preventDefault();$('play').click();}
+ if(['ArrowLeft','ArrowRight','ArrowUp','ArrowDown'].includes(event.key)){
+  event.preventDefault();const offset=camera.position.clone().sub(controls.target),spherical=new THREE.Spherical().setFromVector3(offset);
+  if(event.key==='ArrowLeft')spherical.theta-=.1;if(event.key==='ArrowRight')spherical.theta+=.1;
+  if(event.key==='ArrowUp')spherical.phi=Math.max(.15,spherical.phi-.1);if(event.key==='ArrowDown')spherical.phi=Math.min(Math.PI*.48,spherical.phi+.1);
+  camera.position.copy(controls.target).add(new THREE.Vector3().setFromSpherical(spherical));controls.update();
+ }
+});
+canvas.addEventListener('webglcontextlost',event=>{event.preventDefault();failRenderer('context-lost');});
+canvas.addEventListener('webglcontextrestored',()=>location.reload());
+function resize(){
+ if(failed)return;
+ const {clientWidth:w,clientHeight:h}=canvas;if(!w||!h)return;
+ cinema.resize();camera.aspect=w/h;camera.fov=w<600?66:45;camera.updateProjectionMatrix();updateWorld();
+}
 new ResizeObserver(resize).observe(canvas.parentElement);
 document.addEventListener('visibilitychange',()=>{previous=0;});
-let lastTime=-1,lastScene=-1,lastUI=0;
+let lastTime=-1,lastScene=-1,lastUI=0,firstFrame=true;
 renderer.info.autoReset=false;
-renderer.setAnimationLoop(now=>{const rawDelta=previous?(now-previous)/1000:0;const delta=Math.min(rawDelta,.1);previous=now;if(document.hidden){cinema.measure(0,false);telemetry.idle();return;}if(playing){time=Math.min(30,time+delta*speed);if(time>=30)playing=false;if(now-lastUI>100||!playing){syncUI();lastUI=now;}}if(time!==lastTime||selected!==lastScene){updateWorld();lastTime=time;lastScene=selected;}const moved=controls.update();if(!needsRender&&!moved&&!playing){cinema.measure(0,false);telemetry.idle();return;}const quality=canvas.dataset.quality;cinema.measure(rawDelta,true);if(quality!==canvas.dataset.quality)updateWorld();renderer.info.reset();cosmic.updateView();cinema.render();telemetry.frame(now,playing||moved);canvas.dataset.triangles=String(renderer.info.render.triangles);canvas.dataset.drawCalls=String(renderer.info.render.calls);needsRender=false;});
-selectScene(0);resize();$('loading').hidden=true;
+renderer.setAnimationLoop(now=>{
+ if(failed)return;
+ const rawDelta=previous?(now-previous)/1000:0,delta=Math.min(rawDelta,.1);previous=now;
+ if(document.hidden){cinema.measure(0,false);telemetry.idle();return;}
+ if(playing){time=Math.min(30,time+delta*speed);if(time>=30)playing=false;if(now-lastUI>100||!playing){syncUI();lastUI=now;}}
+ if(time!==lastTime||selected!==lastScene){updateWorld();lastTime=time;lastScene=selected;}
+ const moved=controls.update();
+ if(!needsRender&&!moved&&!playing){cinema.measure(0,false);telemetry.idle();return;}
+ const quality=canvas.dataset.quality;cinema.measure(rawDelta,true);if(quality!==canvas.dataset.quality)updateWorld();
+ if(authoredWorkPending&&scenes[selected].world!=='space'){telemetry.markAssetsReady();authoredWorkPending=false;}
+ renderer.info.reset();cosmic.updateView();const renderStarted=performance.now();cinema.render();
+ telemetry.frame(now,playing||moved,performance.now()-renderStarted);
+ canvas.dataset.triangles=String(renderer.info.render.triangles);canvas.dataset.drawCalls=String(renderer.info.render.calls);
+ canvas.dataset.renderState='ready';needsRender=false;
+ if(firstFrame){firstFrame=false;$('loading').hidden=true;}
+ // Optional artwork starts only after the baseline scene has rendered.
+ loadProduction();
+});
+selectScene(0);resize();
 const modelContext=document.modelContext;
-if(modelContext?.registerTool){const lifecycle=new AbortController();addEventListener('pagehide',()=>lifecycle.abort(),{once:true});try{Promise.resolve(modelContext.registerTool({name:'set_apocalypse_scene',description:`Select a movie-inspired scene and pause its timeline at a chosen second. Scenes: ${scenes.map((s,i)=>`${i} ${s.name}`).join(', ')}.`,inputSchema:{type:'object',properties:{scene:{type:'integer',minimum:0,maximum:scenes.length-1},seconds:{type:'number',minimum:0,maximum:30}},required:['scene','seconds'],additionalProperties:false},annotations:{readOnlyHint:false,untrustedContentHint:false},execute(input){if(!input||!Number.isInteger(input.scene)||input.scene<0||input.scene>=scenes.length||!Number.isFinite(input.seconds)||input.seconds<0||input.seconds>30)throw new Error(`Supply scene 0–${scenes.length-1} and seconds 0–30.`);selectScene(input.scene);time=input.seconds;updateWorld();syncUI();return{scene:scenes[selected].film,seconds:time,paused:true};}},{signal:lifecycle.signal})).catch(()=>{});}catch{}}
+if(modelContext?.registerTool){const lifecycle=new AbortController();addEventListener('pagehide',()=>lifecycle.abort(),{once:true});try{Promise.resolve(modelContext.registerTool({name:'set_apocalypse_scene',description:`Select a movie-inspired scene and pause its timeline at a chosen second. Scenes: ${scenes.map((s,i)=>`${i} ${s.name}`).join(', ')}.`,inputSchema:{type:'object',properties:{scene:{type:'integer',minimum:0,maximum:scenes.length-1},seconds:{type:'number',minimum:0,maximum:30}},required:['scene','seconds'],additionalProperties:false},annotations:{readOnlyHint:false,untrustedContentHint:false},execute(input){if(failed)throw new Error('Renderer unavailable; reload to retry.');if(!input||!Number.isInteger(input.scene)||input.scene<0||input.scene>=scenes.length||!Number.isFinite(input.seconds)||input.seconds<0||input.seconds>30)throw new Error(`Supply scene 0–${scenes.length-1} and seconds 0–30.`);selectScene(input.scene);time=input.seconds;updateWorld();syncUI();return{scene:scenes[selected].film,seconds:time,paused:true};}},{signal:lifecycle.signal})).catch(()=>{});}catch{}}

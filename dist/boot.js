@@ -1,2 +1,10 @@
 import './analytics.js';
-import('./simulation.js?v=3').catch(()=>{document.getElementById('loading').hidden=true;document.getElementById('error').hidden=false;document.querySelectorAll('.transport button,.transport input,.scene-card').forEach(el=>el.disabled=true);});
+import { graphicsFailureStage, reportGraphicsFailure, showGraphicsFailure } from './runtime-state.js';
+
+document.getElementById('retry')?.addEventListener('click', () => location.reload());
+import('./simulation.js?v=3').catch(error => {
+  const stage = graphicsFailureStage(error);
+  // Renderer initialization reports its own scene before propagating a marked failure.
+  if (stage === 'module-load') reportGraphicsFailure(stage);
+  showGraphicsFailure(stage);
+});

@@ -4,3 +4,9 @@ outputs/
 build/
 .vercel/
 .vercel
+node_modules/
+playwright-report/
+test-results/
+build.staging-*/
+__pycache__/
+*.pyc

@@ -1,13 +1,9 @@
 import { scenes } from './scenes.js';
+import { createGraphicsFailureReporter, registerGraphicsScenes, sendGraphicsEvent } from './runtime-state.js';
+export { reportGraphicsFailure, sendGraphicsEvent } from './runtime-state.js';
 const sceneNames = scenes.map(scene => scene.id);
 const qualityNames = ['lite', 'balanced', 'high'];
-
-// The bootstrap owns the Vercel queue. This adapter never creates identifiers or storage.
-export function sendGraphicsEvent(name, data) {
-  const browser = globalThis.window, privacy = globalThis.navigator;
-  if (!browser || privacy?.globalPrivacyControl || privacy?.doNotTrack === '1' || browser.doNotTrack === '1') return;
-  try { browser.va?.('event', { name, data }); } catch { /* Analytics must not interrupt rendering. */ }
-}
+registerGraphicsScenes(sceneNames);
 
 export function createGraphicsTelemetry({
   clock = () => performance.now(),
@@ -19,7 +15,11 @@ export function createGraphicsTelemetry({
   let pendingReady = { scene, started: 0, hidden: 0 };
   let hiddenAt = page.hidden ? 0 : null;
   let durations = [], elapsed = 0, warmup = 0;
+  let startupElapsed = 0, startupPeak = 0;
+  let authoredRenderPending = false, authoredRenderMeasured = false;
   const readyScenes = new Set(), measuredPairs = new Set(), qualityChanges = new Set();
+  const firstRenders = new Set(), startupSamples = new Set();
+  const reportFailure = createGraphicsFailureReporter(emit);
 
   function resetWindow() { durations = []; elapsed = 0; warmup = 0; previousFrame = null; }
   function reportWindow(complete = false) {
@@ -37,6 +37,7 @@ export function createGraphicsTelemetry({
     const next = sceneNames[index];
     if (!next || next === scene) return;
     reportWindow(); scene = next;
+    startupElapsed = 0; startupPeak = 0;
     pendingReady = readyScenes.has(scene) ? null : { scene, started: clock(), hidden: 0 };
     if (page.hidden) hiddenAt = clock();
   }
@@ -53,16 +54,36 @@ export function createGraphicsTelemetry({
     quality = next;
   }
   function idle() { previousFrame = null; }
-  function frame(timestamp, active) {
+  function markAssetsReady() {
+    if (!authoredRenderMeasured) authoredRenderPending = true;
+  }
+  function frame(timestamp, active, renderMilliseconds) {
     if (page.hidden) { idle(); return; }
+    if (authoredRenderPending && Number.isFinite(renderMilliseconds) && renderMilliseconds >= 0) {
+      authoredRenderPending = false; authoredRenderMeasured = true;
+      emit('Authored Render Work', { scene, milliseconds: Math.round(renderMilliseconds * 10) / 10 });
+    }
+    if (!firstRenders.has(scene) && Number.isFinite(renderMilliseconds) && renderMilliseconds >= 0) {
+      firstRenders.add(scene);
+      // CPU-side first render submission, including synchronous shader/driver work; not GPU timing.
+      emit('First Render Work', { scene, milliseconds: Math.round(renderMilliseconds * 10) / 10 });
+    }
     if (pendingReady) {
       emit('Scene Ready', { scene, ready_ms: Math.max(0, Math.round(clock() - pendingReady.started - pendingReady.hidden)) });
       readyScenes.add(scene); pendingReady = null;
     }
-    if (!active || !quality || measuredPairs.has(`${scene}/${quality}`)) { idle(); return; }
+    if (!active || !quality) { idle(); return; }
     const delta = previousFrame === null ? 0 : timestamp - previousFrame;
     previousFrame = timestamp;
     if (!Number.isFinite(delta) || delta <= 0) return;
+    if (!startupSamples.has(scene)) {
+      startupElapsed += delta; startupPeak = Math.max(startupPeak, delta);
+      if (startupElapsed >= 1000) {
+        startupSamples.add(scene);
+        emit('First Load Stall', { scene, milliseconds: Math.round(startupPeak * 10) / 10 });
+      }
+    }
+    if (measuredPairs.has(`${scene}/${quality}`)) return;
     // Skip a second of shader/quality settling; retain long frames in the measured window.
     if (warmup < 1000) { warmup += delta; return; }
     durations.push(delta); elapsed += delta;
@@ -86,10 +107,9 @@ export function createGraphicsTelemetry({
     resetWindow();
   }
   function loadFailed() {
-    emit('Scene Load Failed', { scene, stage: 'authored-assets' });
-    dispose();
+    reportFailure('authored-assets', scene);
   }
   page.addEventListener('visibilitychange', visibilityChanged);
   browser.addEventListener('pagehide', pageHidden);
-  return { selectScene, setQuality, frame, idle, loadFailed, dispose };
+  return { selectScene, setQuality, frame, idle, markAssetsReady, loadFailed, dispose };
 }

@@ -1,7 +1,8 @@
 import { createHash } from 'node:crypto';
-import { mkdir, readFile, readdir, rm, writeFile } from 'node:fs/promises';
+import { mkdir, mkdtemp, readFile, readdir, rename, rm, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { vendorThree } from './vendor.mjs';
 
 const root = fileURLToPath(new URL('../', import.meta.url));
 const hashedExtensions = new Set(['.js', '.css', '.glb', '.webp', '.hdr']);
@@ -35,9 +36,11 @@ export async function build({ sourceDir = path.join(root, 'dist'), outDir = path
   if (overlaps(sourceDir, outDir) || overlaps(outDir, sourceDir)) {
     throw new Error('Source and output directories must be separate, non-nested directories.');
   }
-  const files = await listFiles(sourceDir);
+  let files = await listFiles(sourceDir);
   if (!files.includes('index.html')) throw new Error('Static source must contain index.html.');
   const source = new Map(await Promise.all(files.map(async name => [name, await readFile(path.join(sourceDir, name))])));
+  await vendorThree(source);
+  files = [...source.keys()].sort();
   const emitted = new Map();
   const visiting = new Set();
 
@@ -72,18 +75,41 @@ export async function build({ sourceDir = path.join(root, 'dist'), outDir = path
     return result;
   }
 
-  // Resolve the complete graph before replacing the last successful build.
+  // Resolve and write the entire graph before replacing the last successful
+  // output. Staging on the same filesystem permits rename and rollback.
   for (const name of files) emit(name);
-  await rm(outDir, { recursive: true, force: true });
-  await mkdir(outDir, { recursive: true });
-  for (const output of emitted.values()) {
-    const destination = path.join(outDir, output.name);
-    await mkdir(path.dirname(destination), { recursive: true });
-    await writeFile(destination, output.bytes);
-  }
   const manifest = Object.fromEntries(files.filter(name => hashedExtensions.has(path.posix.extname(name)))
     .map(name => [`/${name}`, `/${emitted.get(name).name}`]));
-  await writeFile(path.join(outDir, 'asset-manifest.json'), `${JSON.stringify(manifest, null, 2)}\n`);
+  await mkdir(path.dirname(outDir), { recursive: true });
+  const staging = await mkdtemp(`${outDir}.staging-`);
+  const previous = path.join(staging, 'previous');
+  const next = path.join(staging, 'next');
+  let backedUp = false;
+  let preserveBackup = false;
+  try {
+    await mkdir(next);
+    for (const output of emitted.values()) {
+      const destination = path.join(next, output.name);
+      await mkdir(path.dirname(destination), { recursive: true });
+      await writeFile(destination, output.bytes);
+    }
+    await writeFile(path.join(next, 'asset-manifest.json'), `${JSON.stringify(manifest, null, 2)}\n`);
+    try { await rename(outDir, previous); backedUp = true; }
+    catch (error) { if (error.code !== 'ENOENT') throw error; }
+    try { await rename(next, outDir); }
+    catch (error) {
+      if (backedUp) {
+        try { await rename(previous, outDir); }
+        catch (rollbackError) {
+          preserveBackup = true;
+          throw new AggregateError([error, rollbackError], `Build publish failed; previous output preserved at ${previous}`);
+        }
+      }
+      throw error;
+    }
+  } finally {
+    if (!preserveBackup) await rm(staging, { recursive: true, force: true });
+  }
   return manifest;
 }
 
