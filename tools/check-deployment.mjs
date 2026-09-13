@@ -161,6 +161,15 @@ function command(file, args, input) {
   });
 }
 
+export function selectAttemptArtifact(run, artifacts) {
+  const start = Date.parse(run.run_started_at), end = Date.parse(run.updated_at);
+  if (!Number.isFinite(start) || !Number.isFinite(end) || end < start) fail('invalid-release-attempt');
+  const matches = artifacts.filter(artifact => artifact.name.startsWith('release-ready-')
+    && Date.parse(artifact.created_at) >= start && Date.parse(artifact.created_at) <= end);
+  if (matches.length !== 1) fail('release-artifact-evidence-count');
+  return matches[0];
+}
+
 export function validateOperatorEvidence(run, artifact, report, now = Date.now()) {
   if (run.event !== 'repository_dispatch' || run.path !== '.github/workflows/release.yml'
     || run.repository?.full_name !== repository || run.head_branch !== 'main'
@@ -170,6 +179,10 @@ export function validateOperatorEvidence(run, artifact, report, now = Date.now()
   const checked = report.checks[0];
   const expected = validateRelease(checked);
   const age = now - Date.parse(checked.checkedAt);
+  if (selectAttemptArtifact(run, [artifact]) !== artifact
+    || Date.parse(checked.checkedAt) < Date.parse(run.run_started_at)
+    // GitHub artifact timestamps have second precision; the smoke uses milliseconds.
+    || Math.floor(Date.parse(checked.checkedAt) / 1000) > Math.floor(Date.parse(artifact.created_at) / 1000)) fail('invalid-release-attempt-evidence');
   if (!checked.ok || !checked.browser || !Number.isFinite(age) || age < 0 || age > 30 * 60_000
     || !/^[a-f0-9]{64}$/.test(checked.manifestSha256) || !Number.isInteger(checked.assets) || checked.assets < 1) fail('invalid-release-evidence');
   if (artifact.name !== `release-ready-${expected.deploymentId}` || artifact.expired
@@ -182,9 +195,8 @@ async function completeAsOperator(runId) {
   if (!/^\d+$/.test(runId || '')) fail('invalid-github-run-id');
   const gh = async path => JSON.parse((await command('gh', ['api', `repos/${repository}/${path}`])).toString());
   const run = await gh(`actions/runs/${runId}`);
-  const artifacts = (await gh(`actions/runs/${runId}/artifacts`)).artifacts.filter(artifact => artifact.name.startsWith('release-ready-'));
-  if (artifacts.length !== 1) fail('release-artifact-evidence-count');
-  const artifact = artifacts[0];
+  const artifacts = (await gh(`actions/runs/${runId}/artifacts?per_page=100`)).artifacts;
+  const artifact = selectAttemptArtifact(run, artifacts);
   if (!Number.isInteger(artifact.id)) fail('invalid-artifact-id');
   const archive = await command('gh', ['api', `repos/${repository}/actions/artifacts/${artifact.id}/zip`]);
   const bytes = await command('python3', ['-c', 'import io,sys,zipfile; z=zipfile.ZipFile(io.BytesIO(sys.stdin.buffer.read())); i=z.getinfo("release-ready.json"); assert i.file_size <= 1048576; sys.stdout.buffer.write(z.read(i))'], archive);

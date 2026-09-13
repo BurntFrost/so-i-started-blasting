@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { createReleaseMetadata, projectId, repository, validateRelease } from '../tools/release-metadata.mjs';
-import { checkHosted, eventRelease, request, routeProtectedRequest, selectArtifactRun, startArtifactCheck, validateOperatorEvidence } from '../tools/check-deployment.mjs';
+import { checkHosted, eventRelease, request, routeProtectedRequest, selectArtifactRun, selectAttemptArtifact, startArtifactCheck, validateOperatorEvidence } from '../tools/check-deployment.mjs';
 
 const release = { deploymentId: 'dpl_abc123', url: 'https://so-i-started-blasting-abcdef123-burntfrosts-projects.vercel.app',
   sha: 'a'.repeat(40), projectId, environment: 'production' };
@@ -121,12 +121,20 @@ test('artifact completion addresses and reads back only its deployment-specific 
 test('operator evidence binds fresh hosted results to the successful main workflow artifact', () => {
   const now = Date.now();
   const run = { id: 123, event: 'repository_dispatch', path: '.github/workflows/release.yml',
+    run_started_at: new Date(now - 60_000).toISOString(), updated_at: new Date(now).toISOString(),
     repository: { full_name: repository }, head_branch: 'main', head_sha: 'b'.repeat(40), status: 'completed', conclusion: 'success' };
-  const artifact = { name: `release-ready-${release.deploymentId}`, expired: false,
+  const artifact = { name: `release-ready-${release.deploymentId}`, expired: false, created_at: new Date(now).toISOString(),
     workflow_run: { id: 123, head_branch: 'main', head_sha: run.head_sha } };
   const report = { phase: 'ready', dispatch: { senderId: 35613825, action: 'vercel.deployment.ready' },
     checks: [{ ...release, ok: true, browser: true, checkedAt: new Date(now).toISOString(), assets: 4, manifestSha256: 'a'.repeat(64) }] };
   assert.deepEqual(validateOperatorEvidence(run, artifact, report, now), release);
+  assert.deepEqual(validateOperatorEvidence(run, { ...artifact, created_at: new Date(Math.floor(now / 1000) * 1000).toISOString() }, report, now), release);
+  const earlier = { ...artifact, id: 1, created_at: new Date(now - 120_000).toISOString() };
+  assert.equal(selectAttemptArtifact(run, [earlier, artifact]), artifact);
+  assert.throws(() => selectAttemptArtifact(run, [earlier]), /evidence-count/);
+  assert.throws(() => selectAttemptArtifact(run, [artifact, { ...artifact }]), /evidence-count/);
+  assert.throws(() => selectAttemptArtifact({ ...run, run_started_at: 'invalid' }, [artifact]), /invalid-release-attempt/);
+  assert.throws(() => validateOperatorEvidence(run, earlier, report, now));
   for (const mutate of [r => r.event = 'pull_request', r => r.head_branch = 'feature',
     r => r.path = '.github/workflows/other.yml', r => r.conclusion = 'failure',
     r => r.repository.full_name = 'attacker/repo']) {

@@ -65,6 +65,7 @@ continuous monitoring**; examples above are a schema illustration, not live proo
 |---|---|
 | GitHub | Main requires the GitHub Actions `quality` check with strict updates and administrator enforcement; force pushes/deletion remain disabled. Only checkout/setup-node/upload-artifact are allowed; full SHA pins are required. |
 | Vercel | Correct project/team, Node 24.x, Basic build machine with elastic concurrency off, all-deployment SSO protection and fork protection. Repository `vercel.json` supplies static install/build/output settings. Both named production checks require build-ready, block deployment-alias, and time out after 1,800 seconds. |
+| OIDC trusted source | GitHub issuer `https://token.actions.githubusercontent.com`; audience `https://github.com/BurntFrost`; exact repository and `refs/heads/main`; exact `workflow_ref` for `.github/workflows/release.yml@refs/heads/main`; production only. Extra claim keys, identities, issuers, or deployment targets are drift. |
 | Cloudflare DNS/TLS | Both public CNAMEs stay proxied to the approved Vercel DNS target; DNSSEC active, Full (strict), TLS 1.2 minimum, HTTPS redirect and two-year HSTS with subdomains/preload. |
 | WAF order | `ae1954…` blocks non-US traffic; `005c92…` retains the approved crawler expression; `c21256…` rejects old TLS for the exact hosts; `d274fc…` blocks recursively decoded bypass/share parameters. |
 | Cache | `c66e29…` sets cache false for the two public hosts; Vercel owns immutable asset caching. |
@@ -76,6 +77,15 @@ operations are also compared; extra/reordered active rules are drift. Review the
 fresh provider expression before deliberately updating its fingerprint. The check
 cannot prove that a configured credential is valid; public/protected-origin probes
 and certificate checks are separate and remain required.
+
+Vercel's guided **Workflow** field stores the GitHub `workflow` display-name claim;
+it is not the workflow file path. Entering `.github/workflows/release.yml` there
+does not bind the intended file and caused the initial production OIDC check to
+fail. The approved raw/API trust rule uses
+`workflow_ref = BurntFrost/so-i-started-blasting/.github/workflows/release.yml@refs/heads/main`.
+Preserve that exact claim key and value through supported project configuration
+updates; do not replace it with the guided display-name field. The checker records
+only redacted trust metadata, never an OIDC token.
 
 ## Rotation with overlap
 

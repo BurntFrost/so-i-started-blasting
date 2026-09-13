@@ -53,6 +53,13 @@ export function projectVercel(project, config, checks = []) {
   return {
     projectId: project.id, teamId: project.accountId, nodeVersion: project.nodeVersion,
     ssoDeploymentType: project.ssoProtection?.deploymentType, gitForkProtection: project.gitForkProtection,
+    trustedSources: {
+      kinds: Object.keys(project.trustedSources || {}).sort(),
+      // Keep rules as an array so extra issuers, claim keys, and scopes are drift.
+      oidcProviders: Object.entries(project.trustedSources?.oidcProviders || {}).flatMap(([issuer, rules]) => rules.map(rule => ({
+        issuer, label: rule.label, claims: rule.claims, to: rule.to,
+      }))).sort((a, b) => `${a.issuer}/${a.label}`.localeCompare(`${b.issuer}/${b.label}`)),
+    },
     buildMachineType: project.resourceConfig?.buildMachineType,
     elasticConcurrencyEnabled: project.resourceConfig?.elasticConcurrencyEnabled,
     blockingChecks: checks.filter(check => check.blocks !== 'none').map(check => ({

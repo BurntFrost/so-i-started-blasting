@@ -21,7 +21,7 @@ From a reviewed checkout with Node 24, Python 3, and existing authenticated `gh`
 node tools/check-deployment.mjs complete GITHUB_RUN_ID
 ```
 
-The helper downloads through GitHub and verifies repository, default branch, workflow path, dispatch event, successful conclusion, artifact run ID and workflow SHA, plus the validated sender/action recorded by the trusted workflow. It requires a browser pass, exact deployment identity, manifest digest, and a test timestamp no older than 30 minutes. It then verifies Vercel's immutable deployment metadata and exact blocking run before writing success. CLI credentials and signed download URLs are never printed.
+The helper downloads through GitHub and verifies repository, default branch, workflow path, dispatch event, successful conclusion, artifact run ID and workflow SHA, plus the validated sender/action recorded by the trusted workflow. GitHub retains artifacts from earlier attempts, so selection is bounded to the successful attempt's start and completion timestamps; duplicate current-attempt reports fail closed. It requires a browser pass, exact deployment identity, manifest digest, and a test timestamp no older than 30 minutes and within the current attempt. It then verifies Vercel's immutable deployment metadata and exact blocking run before writing success. CLI credentials and signed download URLs are never printed.
 
 The helper reads the nonsecret `VERCEL_RELEASE_CHECK_ID` repository variable with `gh`; a local environment variable can supply the same configured ID. Completed, timed-out, nonblocking, duplicate, or mismatched runs are rejected. Do not replace the command with an unchecked success PATCH. If the 30-minute provider timeout expires, request a fresh deployment/check run and fresh hosted evidence. Rerunning GitHub smoke cannot reopen an expired provider run.
 
@@ -71,6 +71,15 @@ No Actions environment is used. All claims must match. Header: `x-vercel-trusted
 Initial API probe `ckr_614a90c3-ea90-4262-98e2-7a7858399577` on old deployment `dpl_9Dmd3D8zAQbz74hsHcRno9YbUcZa` ran while the check was nonblocking and completed explicitly **failed** with interface-only text. That legacy build lacks release metadata. This proved the API interface, not passing smoke or gate enforcement. The existing project check was subsequently made blocking.
 
 Public probes deliberately fail when another deployment supersedes the event before checking. Inspect the active release rather than accepting a different identity. US-only audience rules can also reject a runner outside that audience; investigate routing instead of weakening policy for CI.
+
+During activation on September 13, 2026, Cloudflare Bot Fight Mode challenged the
+GitHub runner's public probes even from the US. Security Events confirmed
+`managed_challenge` from `botFight`; the same deployment identity and all seven
+delivery checks passed from the operator's Mac. A challenged public workflow is
+not proof of an application outage or a passing public probe. Preserve the
+audience/bot policy and verify both public hosts from an allowed operator route;
+record that evidence separately. OIDC verification of the protected immutable
+artifact still runs before production assignment.
 
 ## Rollback and recovery
 

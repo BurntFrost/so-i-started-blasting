@@ -4,6 +4,7 @@ import test from 'node:test';
 import { checkInfrastructure, compareContract, projectCloudflare, projectVercel, validateSnapshot } from '../tools/check-infrastructure.mjs';
 
 const inventory = JSON.parse(await readFile(new URL('../docs/infrastructure-state.json', import.meta.url), 'utf8'));
+const trustedSources = () => ({ oidcProviders: Object.fromEntries(inventory.vercel.trustedSources.oidcProviders.map(({ issuer, ...rule }) => [issuer, [structuredClone(rule)]])) });
 const now = Date.parse('2026-09-13T15:00:00Z');
 const state = {
   dnsRecords: [{ type: 'CNAME', name: 'example.com', content: 'origin.example', proxied: true }],
@@ -64,6 +65,24 @@ test('a removed or nonblocking artifact gate cannot match the desired configurat
     .some(check => check.check === 'blockingChecks' && check.status === 'drift'));
 });
 
+test('OIDC trust requires the exact workflow_ref claim and narrow production identity', () => {
+  const expected = { trustedSources: inventory.vercel.trustedSources };
+  assert.ok(compareContract('vercel', expected, projectVercel({ trustedSources: trustedSources() }, {})).every(check => check.status === 'ok'));
+  for (const change of [
+    (value, rule) => { rule.claims.workflow = rule.claims.workflow_ref; delete rule.claims.workflow_ref; },
+    (value, rule) => { rule.claims.ref.push('refs/heads/another-branch'); },
+    (value, rule) => { rule.claims.repository.push('BurntFrost/another-repository'); },
+    (value, rule) => { rule.claims.aud.push('https://github.com/another-owner'); },
+    (value, rule) => { rule.to.slugs.push('preview'); },
+    (value, rule) => { value.oidcProviders['https://another-issuer.example'] = [structuredClone(rule)]; },
+    value => { value.otherTrustKind = {}; },
+  ]) {
+    const value = trustedSources(), rule = Object.values(value.oidcProviders)[0][0];
+    change(value, rule);
+    assert.ok(compareContract('vercel', expected, projectVercel({ trustedSources: value }, {})).some(check => check.status === 'drift'));
+  }
+});
+
 test('provider errors and mismatched values never leak into redacted findings', async () => {
   const result = await checkInfrastructure({ inventory, config: {}, snapshot: snapshot(), now,
     readers: { github: async () => { throw new Error('token=never-print-this-secret'); }, vercel: async () => ({ project: { id: 'never-print-this-secret' }, checks: [] }) },
@@ -77,6 +96,7 @@ test('passing provider contracts do not falsely certify the release gate or cont
   const local = { ...inventory, cloudflare: projectCloudflare(state) };
   const project = { id: local.identities.projectId, accountId: local.identities.teamId, nodeVersion: '24.x',
     ssoProtection: { deploymentType: 'all' }, gitForkProtection: true,
+    trustedSources: trustedSources(),
     resourceConfig: { buildMachineType: 'basic', elasticConcurrencyEnabled: false } };
   const result = await checkInfrastructure({ inventory: local, config: local.vercel.effectiveConfig, snapshot: snapshot(), now,
     readers: { github: async () => local.github, vercel: async () => ({ project, checks: local.vercel.blockingChecks }) },

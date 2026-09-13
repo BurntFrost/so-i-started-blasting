@@ -29,6 +29,22 @@
     "teamId": "team_jMtyP7WFqokDZDezN3QVX63o",
     "nodeVersion": "24.x",
     "ssoDeploymentType": "all",
+    "trustedSources": {
+      "kinds": ["oidcProviders"],
+      "oidcProviders": [
+        {
+          "issuer": "https://token.actions.githubusercontent.com",
+          "label": "GitHub production release verification",
+          "claims": {
+            "aud": ["https://github.com/BurntFrost"],
+            "repository": ["BurntFrost/so-i-started-blasting"],
+            "ref": ["refs/heads/main"],
+            "workflow_ref": ["BurntFrost/so-i-started-blasting/.github/workflows/release.yml@refs/heads/main"]
+          },
+          "to": { "slugs": ["production"] }
+        }
+      ]
+    },
     "gitForkProtection": true,
     "buildMachineType": "basic",
     "elasticConcurrencyEnabled": false,
