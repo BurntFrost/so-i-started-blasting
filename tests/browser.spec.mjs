@@ -126,15 +126,22 @@ test('unavailable WebGL is reported distinctly', async ({ page }) => {
   await expectFailure(page, 'webgl-init');
 });
 
-test('a real WebGL context loss stops the player and reports once', async ({ page }) => {
+test('a real WebGL context loss stops playback but keeps fullscreen exit usable', async ({ page }) => {
   await observe(page);
   await load(page);
+  await page.locator('#fullscreen').click();
+  await expect.poll(() => page.evaluate(() => document.fullscreenElement?.id)).toBe('player');
   await page.locator('#world').evaluate(canvas => {
     const extension = canvas.getContext('webgl2').getExtension('WEBGL_lose_context');
     if (!extension) throw new Error('QA WebGL implementation must support WEBGL_lose_context');
     extension.loseContext();
   });
   await expectFailure(page, 'context-lost');
+  await expect(page.locator('#fullscreen')).toBeEnabled();
+  await expect(page.locator('#fullscreen')).toHaveAccessibleName(/exit fullscreen/i);
+  await page.locator('#fullscreen').click();
+  await expect.poll(() => page.evaluate(() => document.fullscreenElement === null)).toBe(true);
+  await expect(page.locator('#error')).toBeVisible();
 });
 
 for (const privacy of ['doNotTrack', 'globalPrivacyControl']) {

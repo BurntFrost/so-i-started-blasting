@@ -82,6 +82,10 @@ Certificate renewal uses the [DNS challenge runbook](docs/certificate-operations
 
 The public header policy matches `vercel.json`: DENY framing, nosniff, strict-origin referrers, restricted device permissions, and two-year HSTS with subdomains/preload intent. Cloudflare's generic security-header transform is disabled so it cannot overwrite these values; its HSTS setting matches the same policy. The preload token does not mean the domain has been submitted to a browser preload list. Cloudflare's content-cache rule retains its immutable legacy ruleset name but is described as Vercel cache ownership and still bypasses duplicate caching.
 
+Content Security Policy starts in **report-only mode**. It permits the local hashed engine, Google fonts, Vercel analytics and preview toolbar, and Cloudflare challenge/analytics scripts. App startup and all ten scenes pass an enforced-policy preview probe. The public Cloudflare bot-detection inline script still produces an expected report-only violation: a response-header Transform Rule nonce arrives too late to nonce that injected script. Do not enforce the policy until a fresh per-response nonce reaches Cloudflare before script injection and both public and preview paths pass browser checks. No script `unsafe-inline`, static nonce, bot-protection exemption, or extra application server was added to hide this incompatibility. Reports are observable in browser security-policy events/console; there is no central report collector.
+
+The project uses the Basic build machine. The first remediation preview completed successfully there, and the required Linux CI suite separately validates the full build and browser regressions. Hardware rendering performance comes from the client graphics changes, not the build-machine size.
+
 This replacement preserves the previous video-clip application in Git history. Its API functions, scheduled clip checks, and package dependencies are no longer part of the current application.
 
 ## Graphics telemetry

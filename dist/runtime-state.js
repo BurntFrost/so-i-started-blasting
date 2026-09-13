@@ -52,5 +52,5 @@ export function showGraphicsFailure(stage) {
   if (canvas) canvas.dataset.renderState = 'failed';
   if (status) status.textContent = 'RENDERER UNAVAILABLE';
   if (play) { play.textContent = '▶'; play.setAttribute('aria-label', 'Play simulation'); }
-  page.querySelectorAll('.transport button,.transport input,.view-controls button').forEach(control => { control.disabled = true; });
+  page.querySelectorAll('.transport button,.transport input,#reset-camera').forEach(control => { control.disabled = true; });
 }

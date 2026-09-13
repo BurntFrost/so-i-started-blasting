@@ -208,23 +208,26 @@ test('bootstrap binds CSP-safe retry and does not relabel marked renderer failur
   }
 });
 
-test('failure UI disables renderer controls while preserving the scene catalogue', () => {
+test('failure UI disables renderer controls while preserving fullscreen and the scene catalogue', () => {
   const previous = Object.getOwnPropertyDescriptor(globalThis, 'document');
   const playAttributes = {};
   const nodes = { loading: { hidden: false }, error: { hidden: true }, 'error-message': { textContent: '' },
     world: { dataset: { renderState: 'ready' } }, 'play-status': { textContent: 'SIMULATION RUNNING' },
     play: { textContent: 'Ⅱ', setAttribute: (name, value) => { playAttributes[name] = value; } } };
-  const controls = [{ disabled: false }, { disabled: false }], view = { disabled: false }, card = { disabled: false };
+  const controls = [{ disabled: false }, { disabled: false }], camera = { disabled: false }, fullscreen = { disabled: false }, card = { disabled: false };
   try {
     Object.defineProperty(globalThis, 'document', { configurable: true, value: {
       getElementById: id => nodes[id],
-      querySelectorAll: selector => [...controls, ...(selector.includes('.view-controls') ? [view] : []), ...(selector.includes('.scene-card') ? [card] : [])],
+      querySelectorAll: selector => [...controls,
+        ...(selector.includes('.view-controls') ? [camera, fullscreen] : selector.includes('#reset-camera') ? [camera] : []),
+        ...(selector.includes('#fullscreen') ? [fullscreen] : []), ...(selector.includes('.scene-card') ? [card] : [])],
     } });
     showGraphicsFailure('context-lost');
     assert.equal(nodes.loading.hidden, true); assert.equal(nodes.error.hidden, false);
     assert.match(nodes['error-message'].textContent, /interrupted/);
     assert.ok(controls.every(control => control.disabled));
-    assert.equal(view.disabled, true);
+    assert.equal(camera.disabled, true);
+    assert.equal(fullscreen.disabled, false);
     assert.equal(card.disabled, false);
     assert.equal(nodes.world.dataset.renderState, 'failed');
     assert.equal(nodes['play-status'].textContent, 'RENDERER UNAVAILABLE');

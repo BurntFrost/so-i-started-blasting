@@ -95,7 +95,6 @@ function failRenderer(stage){
  if(failed)return;
  failed=true;playing=false;canvas.dataset.renderState='failed';controls.enabled=false;renderer.setAnimationLoop(null);telemetry.idle();
  reportGraphicsFailure(stage,scenes[selected].id);syncUI();showGraphicsFailure(stage);
- document.querySelectorAll('.view-controls button').forEach(button=>button.disabled=true);
 }
 function loadProduction(){
  if(productionRequested||failed||scenes[selected].world==='space')return;
