@@ -4,7 +4,9 @@ import * as THREE from 'three';
 // Sampling absolute scene time keeps pause, replay, and reverse scrubbing exact.
 export function createBakedExplosion({ canvas, cloud, core }) {
   let smoke;
-  const uniforms = { atlas: { value: null }, frame: { value: 0 }, opacity: { value: 1 } };
+  // ULTRA-capable displays receive the 512-pixel bake; the 256-pixel atlas remains the default.
+  const cell = canvas.dataset.qualityCeiling === 'ultra' ? 512 : 256;
+  const uniforms = { atlas: { value: null }, frame: { value: 0 }, opacity: { value: 1 }, cell: { value: cell } };
   const material = new THREE.ShaderMaterial({
     uniforms, transparent: true, depthWrite: false,
     vertexShader: `varying vec2 puffUv;
@@ -14,10 +16,10 @@ export function createBakedExplosion({ canvas, cloud, core }) {
       mvPosition.xy+=position.xy*vec2(length(instanceMatrix[0].xyz),length(instanceMatrix[1].xyz));
       gl_Position=projectionMatrix*mvPosition;
     }`,
-    fragmentShader: `uniform sampler2D atlas;uniform float frame,opacity;varying vec2 puffUv;
+    fragmentShader: `uniform sampler2D atlas;uniform float frame,opacity,cell;varying vec2 puffUv;
     vec4 sampleFrame(float index){
-      vec2 cell=vec2(mod(index,8.),3.-floor(index/8.));
-      vec2 uv=(cell+(puffUv*255.+.5)/256.)/vec2(8.,4.);
+      vec2 tile=vec2(mod(index,8.),3.-floor(index/8.));
+      vec2 uv=(tile+(puffUv*(cell-1.)+.5)/cell)/vec2(8.,4.);
       vec4 texel=texture2D(atlas,uv);
       return vec4(texel.rgb*texel.a,texel.a);
     }
@@ -30,8 +32,9 @@ export function createBakedExplosion({ canvas, cloud, core }) {
     }`
   });
   canvas.dataset.explosionBake = 'loading';
+  canvas.dataset.explosionAtlas = String(cell * 8);
   // loadAsync converts browser/network failures to the existing procedural fallback.
-  new THREE.TextureLoader().loadAsync('/assets/explosion-puff.webp').then(texture => {
+  new THREE.TextureLoader().loadAsync(cell === 512 ? '/assets/explosion-puff-4k.webp' : '/assets/explosion-puff.webp').then(texture => {
     texture.colorSpace = THREE.SRGBColorSpace;
     texture.minFilter = texture.magFilter = THREE.LinearFilter;
     texture.generateMipmaps = false;

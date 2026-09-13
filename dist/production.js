@@ -21,7 +21,8 @@ export async function createProduction(world) {
   const assets = [
     ['city-model', () => loader.loadAsync('/assets/city-kit.glb')],
     ['ship-model', () => loader.loadAsync('/assets/mothership.glb')],
-    ['sky-hdr', () => new RGBELoader().loadAsync('/assets/dusk.hdr')],
+    // The 2K panorama is the visible sky, so it downloads only where ULTRA can show it.
+    ['sky-hdr', () => new RGBELoader().loadAsync(canvas.dataset.qualityCeiling==='ultra'?'/assets/dusk-2k.hdr':'/assets/dusk.hdr')],
     ...[['concrete-albedo','/assets/concrete-albedo.webp'],['concrete-normal','/assets/concrete-normal.webp'],
       ['concrete-roughness','/assets/concrete-roughness.webp'],['asphalt-albedo','/assets/asphalt-albedo.webp'],
       ['asphalt-normal','/assets/asphalt-normal.webp'],['asphalt-roughness','/assets/asphalt-roughness.webp']]
@@ -179,7 +180,8 @@ export async function createProduction(world) {
   let lastQuality;
   function update(t, config){
     const id=config.id, frozenScene=id==='day-after-tomorrow', cityActive=config.world==='city';
-    const quality=canvas.dataset.quality || 'high';
+    // ULTRA shares HIGH's authored geometry; only pixel density and shadow resolution differ.
+    const quality=canvas.dataset.quality==='ultra'?'high':canvas.dataset.quality || 'high';
     if(sky){
       sky.visible=!config.space;sky.position.copy(camera.position);sky.rotation.y=2.8+t*.0006;
       skyMaterial.uniforms.tint.value.set(config.environment.skyTint);

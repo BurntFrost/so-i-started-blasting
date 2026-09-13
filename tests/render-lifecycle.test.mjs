@@ -174,6 +174,10 @@ test('BALANCED uses stepped medium geometry and uploads only visible city batche
     production.update(18, config('terminator-2'));
     const high = batches.filter(mesh => mesh.visible);
     assert.ok(high.reduce((sum, mesh) => sum + mesh.geometry.index.count, 0) > balanced.reduce((sum, mesh) => sum + mesh.geometry.index.count, 0) * 20);
+    world.canvas.dataset.quality = 'ultra';
+    production.update(18, config('terminator-2'));
+    assert.deepEqual(batches.filter(mesh => mesh.visible), high, 'ULTRA renders the detailed HIGH city batches');
+    assert.ok(high.every(mesh => mesh.castShadow), 'ULTRA keeps HIGH shadow casting');
     assert.ok(world.errors.includes('concrete-normal'));
     assert.equal(production.assetStatus['city-model'], 'ready');
     assert.equal(world.baselineShip.visible, false);

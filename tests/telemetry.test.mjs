@@ -261,3 +261,13 @@ test('Vercel adapter respects DNT/GPC and analytics failures never escape', () =
     if (oldNavigator) Object.defineProperty(globalThis, 'navigator', oldNavigator); else delete globalThis.navigator;
   }
 });
+
+test('ULTRA is a reported tier and unknown tier names are ignored', () => {
+  const h = harness();
+  h.frame(0); h.frames(70);
+  h.telemetry.setQuality('ultra', 'headroom');
+  assert.deepEqual(h.events.find(event => event.name === 'Graphics Quality').data, { scene: 'independence-day', change: 'high>ultra:headroom' });
+  h.telemetry.setQuality('extreme', 'headroom');
+  assert.equal(h.events.filter(event => event.name === 'Graphics Quality').length, 1);
+  h.telemetry.dispose();
+});

@@ -2,7 +2,7 @@ import { scenes } from './scenes.js';
 import { createGraphicsFailureReporter, registerGraphicsScenes, sendGraphicsEvent } from './runtime-state.js';
 export { reportGraphicsFailure, sendGraphicsEvent } from './runtime-state.js';
 const sceneNames = scenes.map(scene => scene.id);
-const qualityNames = ['lite', 'balanced', 'high'];
+const qualityNames = ['lite', 'balanced', 'high', 'ultra'];
 registerGraphicsScenes(sceneNames);
 
 export function createGraphicsTelemetry({

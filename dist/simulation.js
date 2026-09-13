@@ -14,7 +14,7 @@ const canvas=document.querySelector('#world');
 let renderer;
 try { renderer=new THREE.WebGLRenderer({canvas,antialias:true,powerPreference:'high-performance'}); }
 catch(error) { reportGraphicsFailure('webgl-init',scenes[0].id); throw markGraphicsFailure(error,'webgl-init'); }
-renderer.setPixelRatio(Math.min(devicePixelRatio,1.7));
+renderer.setPixelRatio(Math.min(devicePixelRatio,2));
 renderer.toneMapping=THREE.ACESFilmicToneMapping;
 renderer.toneMappingExposure=1.3;
 const scene=new THREE.Scene();

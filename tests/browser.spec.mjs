@@ -261,3 +261,49 @@ for (const privacy of ['doNotTrack', 'globalPrivacyControl']) {
     expect(await page.evaluate(() => window.__graphicsEvents)).toEqual([]);
   });
 }
+
+test.describe('desktop ULTRA rendering', () => {
+  test.use({ hasTouch: false, deviceScaleFactor: 2, viewport: { width: 1280, height: 800 } });
+  test('dense desktop displays render native pixels with the 4K assets and stay reversible', async ({ page }) => {
+    const errors = await observe(page);
+    const assets = [];
+    page.on('request', request => { if (/dusk-2k|nebula-4k|explosion-puff-4k/.test(request.url())) assets.push(request.url().replace(/.*\//, '').replace(/\.[a-f0-9]{16}\./, '.')); });
+    await load(page);
+    const canvas = page.locator('#world');
+    await expect(canvas).toHaveAttribute('data-quality-ceiling', 'ultra');
+    await expect(canvas).toHaveAttribute('data-quality', 'ultra');
+    await expect(canvas).toHaveAttribute('data-pixel-ratio', '2');
+    await expect(canvas).toHaveAttribute('data-antialias', 'fxaa');
+    await expect(canvas).toHaveAttribute('data-authored-assets', 'ready');
+    await seek(page, 18);
+    expect(Number(await canvas.getAttribute('data-triangles')), 'ULTRA keeps the detailed HIGH city').toBeGreaterThan(150000);
+    expect(await canvas.evaluate(element => element.width === Math.floor(element.clientWidth * 2) && element.height === Math.floor(element.clientHeight * 2))).toBe(true);
+    await select(page, 4);
+    await expect(canvas).toHaveAttribute('data-explosion-atlas', '4096');
+    await seek(page, 18);
+    const first = digest(await canvas.screenshot());
+    await seek(page, 27);
+    expect(digest(await canvas.screenshot())).not.toBe(first);
+    await seek(page, 18);
+    expect(digest(await canvas.screenshot())).toBe(first);
+    await select(page, 9);
+    await expect(canvas).toHaveAttribute('data-nebula-texture', 'ready');
+    await expect(canvas).toHaveAttribute('data-nebula-resolution', '4096');
+    expect([...new Set(assets)].sort()).toEqual(['dusk-2k.hdr', 'explosion-puff-4k.webp', 'nebula-4k.webp']);
+    // The asset ceiling is fixed at startup; shrinking only lowers the runtime tier, and the retained
+    // ULTRA tessellation must still fit the phone geometry budget.
+    await page.setViewportSize({ width: 390, height: 844 });
+    await expect(canvas).toHaveAttribute('data-quality', /balanced|lite/);
+    await expect(canvas).toHaveAttribute('data-quality-ceiling', 'ultra');
+    for (const index of [0, 4, 7]) {
+      await select(page, index);
+      await seek(page, 18);
+      expect(Number(await canvas.getAttribute('data-triangles')), `${scenes[index].id}: phone budget with ULTRA tessellation`).toBeLessThan(150000);
+    }
+    // Growing again keeps the startup ceiling; promotion back up waits for measured FPS headroom during playback.
+    await page.setViewportSize({ width: 1280, height: 800 });
+    await expect(canvas).toHaveAttribute('data-quality-ceiling', 'ultra');
+    await expect(canvas).toHaveAttribute('data-quality', /balanced|high|ultra/);
+    expect(errors).toEqual([]);
+  });
+});

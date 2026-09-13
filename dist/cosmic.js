@@ -18,6 +18,8 @@ const output = `
 
 // Every transform and shader uniform is a function of time, not accumulated frames.
 export function createCosmic({ scene, canvas, camera }) {
+  // ULTRA-capable displays get twice the silhouette tessellation; geometry is built once per module.
+  const fine = canvas.dataset.qualityCeiling === 'ultra' ? 2 : 1;
   let seed = 77493;
   const random = () => { seed = (seed * 1664525 + 1013904223) >>> 0; return seed / 4294967296; };
   function group(name) {
@@ -30,7 +32,7 @@ export function createCosmic({ scene, canvas, camera }) {
   const emissive = (color, intensity = 1) => new THREE.MeshBasicMaterial({ color: new THREE.Color(color).multiplyScalar(intensity) });
 
   function atmosphere(radius, color, opacity = .55) {
-    return new THREE.Mesh(new THREE.SphereGeometry(radius, 48, 32), new THREE.ShaderMaterial({
+    return new THREE.Mesh(new THREE.SphereGeometry(radius, 48 * fine, 32 * fine), new THREE.ShaderMaterial({
       uniforms: { tint: { value: new THREE.Color(color) }, strength: { value: opacity } }, vertexShader: vertex,
       fragmentShader: `uniform vec3 tint;uniform float strength;varying vec3 viewNormal;varying vec3 viewDirection;
       void main(){float rim=pow(1.-abs(dot(normalize(viewNormal),normalize(viewDirection))),3.);gl_FragColor=vec4(tint,rim*strength);${output}}`,
@@ -40,7 +42,7 @@ export function createCosmic({ scene, canvas, camera }) {
 
   function earth(radius, position) {
     const group = new THREE.Group(); group.position.copy(position);
-    const surface = new THREE.Mesh(new THREE.SphereGeometry(radius, 64, 40), new THREE.ShaderMaterial({
+    const surface = new THREE.Mesh(new THREE.SphereGeometry(radius, 64 * fine, 40 * fine), new THREE.ShaderMaterial({
       uniforms: { time, heat: { value: 0 } }, vertexShader: vertex,
       fragmentShader: `uniform float time,heat;varying vec3 point;varying vec3 worldNormal;${noise}
       void main(){vec3 p=normalize(point);float land=fbm(p*4.7+vec3(.4,2.8,.2));
@@ -55,7 +57,7 @@ export function createCosmic({ scene, canvas, camera }) {
       color=color*light+vec3(.95,.45,.15)*cities*.7+vec3(1.6,.19,.016)*heat*(.35+.65*noise(p*22.));
       gl_FragColor=vec4(color,1.);${output}}`
     }));
-    const clouds = new THREE.Mesh(new THREE.SphereGeometry(radius * 1.014, 48, 32), new THREE.ShaderMaterial({
+    const clouds = new THREE.Mesh(new THREE.SphereGeometry(radius * 1.014, 48 * fine, 32 * fine), new THREE.ShaderMaterial({
       uniforms: { time }, vertexShader: vertex,
       fragmentShader: `uniform float time;varying vec3 point;varying vec3 worldNormal;${noise}
       void main(){vec3 p=normalize(point);float broad=fbm(p*6.+vec3(time*.002,0.,0.));
@@ -122,7 +124,7 @@ export function createCosmic({ scene, canvas, camera }) {
   // KNOWING: a granular photosphere, rooted magnetic loops, and a directed CME.
   const solar = group('knowing-solar-flare');
   const sun = new THREE.Group(); sun.position.set(-35, 54, -8); solar.add(sun);
-  const sunSurface = new THREE.Mesh(new THREE.SphereGeometry(31, 80, 56), new THREE.ShaderMaterial({
+  const sunSurface = new THREE.Mesh(new THREE.SphereGeometry(31, 80 * fine, 56 * fine), new THREE.ShaderMaterial({
     uniforms: { time, phase }, vertexShader: vertex,
     fragmentShader: `uniform float time,phase;varying vec3 point;varying vec3 viewNormal;varying vec3 viewDirection;${noise}
     void main(){vec3 p=normalize(point);float grain=fbm(p*39.+vec3(0.,time*.12,0.));float cells=noise(p*83.+grain*2.);
@@ -210,7 +212,7 @@ export function createCosmic({ scene, canvas, camera }) {
   const fragmentSeeds = Array.from({ length: 150 }, () => ({ a: random() * TAU, y: random() * 2 - 1, speed: 9 + random() * 31, size: .4 + Math.pow(random(), 2) * 3.4, offset: random() }));
   const dummy = new THREE.Object3D();
   particles(asteroidScene, 4300, 'debris', '#df8e55');
-  const detonation = new THREE.Mesh(new THREE.SphereGeometry(1, 40, 24), new THREE.ShaderMaterial({
+  const detonation = new THREE.Mesh(new THREE.SphereGeometry(1, 40 * fine, 24 * fine), new THREE.ShaderMaterial({
     uniforms: { time, fade: { value: 0 } }, vertexShader: vertex,
     fragmentShader: `uniform float time,fade;varying vec3 point;${noise}
     void main(){float turbulence=fbm(point*7.+vec3(0.,-time*.4,0.));
@@ -248,8 +250,8 @@ export function createCosmic({ scene, canvas, camera }) {
   // INTERSTELLAR: an accretion disk and geometric lensing approximation.
   const blackHoleScene = group('interstellar-black-hole');
   const blackHole = new THREE.Group(); blackHole.position.y = 50; blackHoleScene.add(blackHole);
-  const horizon = new THREE.Mesh(new THREE.SphereGeometry(16.2, 64, 40), new THREE.MeshBasicMaterial({ color: '#000000', fog: false })); blackHole.add(horizon);
-  const disk = new THREE.Mesh(new THREE.RingGeometry(19, 74, 192, 12), new THREE.ShaderMaterial({
+  const horizon = new THREE.Mesh(new THREE.SphereGeometry(16.2, 64 * fine, 40 * fine), new THREE.MeshBasicMaterial({ color: '#000000', fog: false })); blackHole.add(horizon);
+  const disk = new THREE.Mesh(new THREE.RingGeometry(19, 74, 192 * fine, 12 * fine), new THREE.ShaderMaterial({
     uniforms: { time }, vertexShader: vertex,
     fragmentShader: `uniform float time;varying vec3 point;${noise}
     void main(){float radius=length(point.xy);float r=(radius-19.)/55.;float a=atan(point.y,point.x);
@@ -263,7 +265,7 @@ export function createCosmic({ scene, canvas, camera }) {
   }));
   disk.rotation.x = -Math.PI / 2; blackHole.add(disk);
   const lens = new THREE.Group(); blackHole.add(lens);
-  const halo = new THREE.Mesh(new THREE.RingGeometry(16.9, 34, 160, 8), new THREE.ShaderMaterial({
+  const halo = new THREE.Mesh(new THREE.RingGeometry(16.9, 34, 160 * fine, 8 * fine), new THREE.ShaderMaterial({
     uniforms: { time }, vertexShader: vertex,
     fragmentShader: `uniform float time;varying vec3 point;${noise}
     void main(){float radius=length(point.xy);float a=atan(point.y,point.x);float radial=(radius-16.9)/17.1;
@@ -271,8 +273,8 @@ export function createCosmic({ scene, canvas, camera }) {
     float sides=.3+.7*abs(sin(a));gl_FragColor=vec4(vec3(3.4,1.85,.76)*(.62+plume),lens*sides*.78);${output}}`,
     transparent: true, depthWrite: false, side: THREE.DoubleSide, blending: THREE.AdditiveBlending
   })); lens.add(halo);
-  const photon = new THREE.Mesh(new THREE.TorusGeometry(16.65, .27, 8, 128), emissive('#fff2d2', 4.3)); lens.add(photon);
-  const rearArc = new THREE.Mesh(new THREE.TorusGeometry(25, 2, 9, 120, Math.PI), new THREE.ShaderMaterial({
+  const photon = new THREE.Mesh(new THREE.TorusGeometry(16.65, .27, 8, 128 * fine), emissive('#fff2d2', 4.3)); lens.add(photon);
+  const rearArc = new THREE.Mesh(new THREE.TorusGeometry(25, 2, 9, 120 * fine, Math.PI), new THREE.ShaderMaterial({
     uniforms: { time }, vertexShader: vertex,
     fragmentShader: `uniform float time;varying vec3 point;${noise}void main(){float n=fbm(point*.9+time*.09);gl_FragColor=vec4(vec3(2.5,1.05,.35)*(.55+n),.48);${output}}`,
     transparent: true, depthWrite: false, blending: THREE.AdditiveBlending

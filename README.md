@@ -15,11 +15,11 @@ An interactive 3D apocalypse cinema at [soistartedblasting.com](https://soistart
 | Armageddon | Rugged asteroid, glowing fissures, fragment field |
 | Interstellar | Black hole, accretion disk, lensed halo, orbiting craft |
 
-All scenes use the same reversible 30-second timeline and adaptive quality tiers. Cosmic visuals are cinematic interpretations; the black-hole halo is a geometric lensing approximation. No new remote model downloads are needed for the six added scenes.
+All scenes use the same reversible 30-second timeline and adaptive quality tiers, including an ULTRA tier that renders native Retina and 4K pixels with higher-resolution sky, nebula and explosion assets on dense desktop displays (see [the 4K upgrade](docs/ultra-4k.md)). Cosmic visuals are cinematic interpretations; the black-hole halo is a geometric lensing approximation. No new remote model downloads are needed for the six added scenes.
 
 The simulation includes authored architectural and spacecraft models, physically based surface materials, HDR lighting, animated weather and particles, and adaptive graphics quality for phones. Scene playback, timeline scrubbing, camera orbit, replay, and graphics controls run entirely in the browser.
 
-Enable **Sound** beneath the player for original scene ambience, synchronized impact effects, and a short synthetic introduction. Volume, pause, replay, speed changes, and timeline scrubbing share the simulation clock. Audio downloads only after consent; missing sounds do not interrupt rendering. Layered storm clouds, distant haze, planetary cloud decks, wave foam, and a generated nebula backdrop add depth while respecting the adaptive quality tiers. See [the media upgrade](docs/media-upgrade.md) for tooling, provenance, and verification.
+Enable **Sound** beneath the player for an original film-signature soundscape for every scene (each bed composed against its timeline, with synchronized transients; see [the audio design](docs/film-audio.md)) and a short synthetic introduction. Volume, pause, replay, speed changes, and timeline scrubbing share the simulation clock. Audio downloads only after consent; missing sounds do not interrupt rendering. Layered storm clouds, distant haze, planetary cloud decks, wave foam, and a generated nebula backdrop add depth while respecting the adaptive quality tiers. See [the media upgrade](docs/media-upgrade.md) for tooling, provenance, and verification.
 
 ## Run locally
 

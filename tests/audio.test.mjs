@@ -1,6 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { createSceneAudio, crossedAudioCues, sceneSoundtracks } from '../dist/audio.js';
+import { readdir } from 'node:fs/promises';
+import { audioFiles, createSceneAudio, crossedAudioCues, sceneSoundtracks } from '../dist/audio.js';
 import { scenes } from '../dist/scenes.js';
 
 const frame = (time, extra = {}) => ({ sceneId: 'independence-day', time, speed: 1, playing: true, hidden: false, failed: false, ...extra });
@@ -32,13 +33,27 @@ function harness({ failures = [], pending = false, resumeFails = false, startFai
 test('every scene has a local sound bed and cues within its 30-second timeline', () => {
   assert.deepEqual(Object.keys(sceneSoundtracks).sort(), scenes.map(scene => scene.id).sort());
   for (const { bed, cues } of Object.values(sceneSoundtracks)) {
-    assert.match(bed, /^[a-z-]+$/);
+    assert.match(bed, /^bed-[a-z0-9-]+$/);
     assert.ok(cues.every(cue => cue.at > 0 && cue.at < 30));
   }
 });
 
+test('every scene owns its bed and every referenced sound is declared and present on disk', async () => {
+  const files = new Set(await readdir(new URL('../dist/assets/audio/', import.meta.url)));
+  const beds = Object.values(sceneSoundtracks).map(track => track.bed);
+  assert.equal(new Set(beds).size, beds.length, 'no two scenes share a bed');
+  for (const [sceneId, track] of Object.entries(sceneSoundtracks)) {
+    assert.equal(track.bed, `bed-${sceneId}`);
+    for (const name of [track.bed, ...track.cues.map(item => item.asset), 'intro']) {
+      assert.match(audioFiles[name] || '', /^\/assets\/audio\/[a-z0-9-]+\.mp3$/, `${name} is declared`);
+      assert.ok(files.has(audioFiles[name].split('/').pop()), `${name} exists`);
+    }
+  }
+  for (const name of Object.keys(audioFiles)) assert.ok(name === 'intro' || beds.includes(name) || Object.values(sceneSoundtracks).some(track => track.cues.some(item => item.asset === name)), `${name} is used`);
+});
+
 test('cue crossings distinguish real playback from pauses, reverse scrubs, jumps and scene changes', () => {
-  assert.deepEqual(crossedAudioCues(frame(12.96), frame(13.04)).map(cue => cue.asset), ['impact']);
+  assert.deepEqual(crossedAudioCues(frame(12.96), frame(13.04)).map(cue => cue.asset), ['independence-day-blast']);
   assert.equal(crossedAudioCues(frame(12.96), frame(13.04), true).length, 0);
   for (const [before, after] of [
     [frame(0), frame(14)], [frame(14), frame(12)], [frame(12.96), frame(13.04, { playing: false })],
@@ -91,7 +106,7 @@ test('scrubbing does not fire historical effects, while replay can cross the cue
 });
 
 test('failed asset and blocked browser audio remain isolated from simulation updates', async () => {
-  const missing = harness({ failures: ['alien-drone'] });
+  const missing = harness({ failures: ['bed-independence-day'] });
   missing.audio.update(frame(12)); await missing.audio.enable(); await settle();
   assert.equal(missing.audio.state.state, 'degraded'); assert.equal(missing.audio.state.failedAssets.length, 1);
   assert.doesNotThrow(() => missing.audio.update(frame(12.1)));
@@ -118,6 +133,6 @@ test('late asset completions respect current scene, pause and consent instead of
   await audio.enable(); await settle();
   assert.equal(audio.state.state, 'paused'); assert.equal(sources.length, 0);
   audio.update(frame(10, { sceneId: 'interstellar' }));
-  assert.equal(sources[0].buffer.asset, '/assets/audio/cosmic-drone.mp3');
+  assert.equal(sources[0].buffer.asset, '/assets/audio/bed-interstellar.mp3');
   assert.equal(sources[0].offset, 10); audio.dispose();
 });
