@@ -47,7 +47,7 @@ The full `npm run check` release gate passed with Node 24.21.0 and installed Chr
 | Certificate-tool unit tests | 10 passed; this did not make new live certificate claims |
 | Committed media checksums | All 22 passed |
 | Production build | 54 fingerprinted assets |
-| Browser regressions | 9 passed, including all ten scenes and pixel-identical reverse scrubbing |
+| Browser regressions | 10 passed locally in 20.9 seconds, including all ten scenes at BALANCED and a separate HIGH city probe with pixel-identical reverse scrubbing |
 | Audio browser behavior | No MP3 request before consent; play/pause/seek/volume/speed/scene changes and missing-file fallback passed |
 | Asset decode | All 11 MP3s decoded, 44.1 kHz stereo; final encoded peaks -12.5 to -6.7 dBFS |
 | Additional screenshot capture | Eight scene frames plus a 390px phone layout; no page or shader errors |

@@ -11,7 +11,9 @@ export default defineConfig({
   reporter: process.env.CI ? [['list'], ['html', { open: 'never' }]] : 'list',
   use: {
     baseURL: process.env.TEST_BASE_URL || 'http://127.0.0.1:4174',
-    viewport: { width: 1280, height: 900 },
+    viewport: { width: 800, height: 600 },
+    // Touch-capable desktop exercises BALANCED; a dedicated desktop test covers HIGH.
+    hasTouch: true,
     reducedMotion: 'reduce',
     screenshot: 'only-on-failure',
     trace: 'retain-on-failure',

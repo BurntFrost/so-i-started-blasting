@@ -42,7 +42,7 @@ npx playwright install chromium
 npm run check
 ```
 
-The gate includes unit tests, certificate-checker tests, committed asset checksums, the hashed build, and browser regressions. GitHub's `quality` check runs with Node 24. Browser failure probes cover optional assets, WebGL creation, context loss, deterministic scrubbing, fullscreen, and narrow-screen controls.
+The gate includes unit tests, certificate-checker tests, committed asset checksums, the hashed build, and browser regressions. GitHub's `quality` check runs with Node 24 and reports each stage separately, running fast checks before installing Chromium's headless shell. Browser tests use an 800px touch-capable viewport to exercise all ten scenes at BALANCED quality on software WebGL, plus a dedicated desktop HIGH probe for detailed city geometry, shadows, finishing effects and the phone-size downgrade. Exact reverse-scrub comparisons remain in both tiers. Failure probes cover optional assets, WebGL creation, context loss, fullscreen, and narrow-screen controls. The audio cue probe starts immediately before its simulation timestamp so slow rendering does not turn one simulated second into a wall-clock timeout.
 
 ## Code and assets
 
