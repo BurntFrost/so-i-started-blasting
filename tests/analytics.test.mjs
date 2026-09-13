@@ -14,7 +14,9 @@ function bootstrap({ hostname = 'example.vercel.app', navigator = {}, window = {
 
 test('production bootstrap queues events and strips query strings and fragments', () => {
   const { window, scripts } = bootstrap();
+  assert.equal(scripts.length, 2);
   assert.equal(scripts[0].src, '/_vercel/insights/script.js');
+  assert.equal(scripts[1].src, '/_vercel/speed-insights/script.js');
   const beforeSend = window.vaq[0][1];
   assert.equal(beforeSend({ url: 'https://example.vercel.app/?private=value#fragment' }).url, 'https://example.vercel.app/');
   window.va('event', { name: 'Scene Ready', data: { scene: 'melancholia', ready_ms: 12 } });
@@ -35,4 +37,7 @@ test('a blocked or unavailable analytics script releases its queue', () => {
   scripts[0].onerror();
   assert.equal(window.vaq.length, 0);
   assert.doesNotThrow(() => window.va('event', { name: 'Scene Ready' }));
+  scripts[1].onerror();
+  assert.equal(window.siq.length, 0);
+  assert.doesNotThrow(() => window.si('event', { name: 'Test' }));
 });
