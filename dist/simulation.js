@@ -93,7 +93,9 @@ function resetCamera(){
 function syncUI(){
  syncAudio();
  const s=scenes[selected];$('time').textContent='00:'+Math.floor(time).toString().padStart(2,'0');$('progress').value=time;
- $('play').textContent=playing?'Ⅱ':'▶';$('play').setAttribute('aria-label',playing?'Pause simulation':'Play simulation');
+ const play=$('play'),icon=playing?'Ⅱ':'▶';
+ if(play.textContent!==icon)play.textContent=icon;
+ play.setAttribute('aria-label',playing?'Pause simulation':'Play simulation');
  $('play-status').textContent=failed?'RENDERER UNAVAILABLE':time===0?'THE CALM BEFORE':time>=30?'END OF SCENE':playing?'SIMULATION RUNNING':'PAUSED';
  $('event-label').textContent=s.phases[time<10?0:time<19?1:2];
  $('blast').innerHTML=time===0?"LET'S DO THIS <span>↗</span>":"BLAST AGAIN <span>↺</span>";
