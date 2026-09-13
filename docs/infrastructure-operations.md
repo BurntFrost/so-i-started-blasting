@@ -24,8 +24,8 @@ does not print provider payloads, credential values, or raw errors. Exit codes:
 `0` provider-configuration contract matches, `1` drift, `2` unavailable/invalid
 evidence. **A green configuration check is not proof of an operational release**:
 output always marks release activation unverified because this command does not
-inspect artifact-bound check runs. Use the release checks and runbook for that
-evidence. Unattended use needs scoped read access, not a saved snapshot.
+inspect deployment check runs or hosted smoke results. Use the release checks and
+runbook for that evidence. Unattended use needs scoped read access, not a saved snapshot.
 
 ## Cloudflare snapshot contract
 
@@ -64,7 +64,7 @@ continuous monitoring**; examples above are a schema illustration, not live proo
 | Area | Expected behavior |
 |---|---|
 | GitHub | Main requires the GitHub Actions `quality` check with strict updates and administrator enforcement; force pushes/deletion remain disabled. Only checkout/setup-node/upload-artifact are allowed; full SHA pins are required. |
-| Vercel | Correct project/team, Node 24.x, Basic build machine with elastic concurrency off, all-deployment SSO protection and fork protection. Repository `vercel.json` supplies static install/build/output settings. Both named production checks require build-ready, block deployment-alias, and time out after 1,800 seconds. |
+| Vercel | Correct project/team, Node 24.x, Basic build machine with elastic concurrency off, all-deployment SSO protection and fork protection. Repository `vercel.json` supplies static install/build/output settings. The single named production check, `release-quality`, requires build-ready, blocks deployment-alias, and times out after 1,800 seconds; no other blocking check is expected. |
 | OIDC trusted source | GitHub issuer `https://token.actions.githubusercontent.com`; audience `https://github.com/BurntFrost`; exact repository and `refs/heads/main`; exact `workflow_ref` for `.github/workflows/release.yml@refs/heads/main`; production only. Extra claim keys, identities, issuers, or deployment targets are drift. |
 | Cloudflare DNS/TLS | Both public CNAMEs stay proxied to the approved Vercel DNS target; DNSSEC active, Full (strict), TLS 1.2 minimum, HTTPS redirect and two-year HSTS with subdomains/preload. |
 | WAF order | `ae1954…` blocks non-US traffic; `005c92…` retains the approved crawler expression; `c21256…` rejects old TLS for the exact hosts; `d274fc…` blocks recursively decoded bypass/share parameters. |
