@@ -104,9 +104,9 @@
     ]
   },
   "releaseGate": {
-    "status": "configured-activation-unverified",
-    "requiredCheckNames": ["release-quality", "release-ready"],
+    "status": "configured",
+    "requiredCheckNames": ["release-quality", "release-artifact"],
     "artifactRequirement": "A successful check bound to the immutable deployment ID and expected SHA must precede production alias assignment.",
-    "limitation": "Provider configuration is checked independently of execution. Activation must be verified on an immutable deployment after the release workflow is merged."
+    "limitation": "Provider configuration is checked independently of execution. Each immutable deployment requires fresh hosted evidence and operator completion of its artifact gate."
   }
 }
