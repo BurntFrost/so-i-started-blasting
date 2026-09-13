@@ -38,6 +38,22 @@ export const audioFiles = {
   'bed-interstellar': '/assets/audio/bed-interstellar.mp3',
   'interstellar-orbit': '/assets/audio/interstellar-orbit.mp3',
   'interstellar-horizon': '/assets/audio/interstellar-horizon.mp3',
+  'bed-twister': '/assets/audio/bed-twister.mp3',
+  'twister-thunder': '/assets/audio/twister-thunder.mp3',
+  'twister-touchdown': '/assets/audio/twister-touchdown.mp3',
+  'twister-crash': '/assets/audio/twister-crash.mp3',
+  'bed-dantes-peak': '/assets/audio/bed-dantes-peak.mp3',
+  'dantes-peak-eruption': '/assets/audio/dantes-peak-eruption.mp3',
+  'dantes-peak-lightning': '/assets/audio/dantes-peak-lightning.mp3',
+  'dantes-peak-surge': '/assets/audio/dantes-peak-surge.mp3',
+  'bed-gravity': '/assets/audio/bed-gravity.mp3',
+  'gravity-alert': '/assets/audio/gravity-alert.mp3',
+  'gravity-impact': '/assets/audio/gravity-impact.mp3',
+  'gravity-adrift': '/assets/audio/gravity-adrift.mp3',
+  'bed-wandering-earth': '/assets/audio/bed-wandering-earth.mp3',
+  'wandering-earth-ignition': '/assets/audio/wandering-earth-ignition.mp3',
+  'wandering-earth-detonation': '/assets/audio/wandering-earth-detonation.mp3',
+  'wandering-earth-escape': '/assets/audio/wandering-earth-escape.mp3',
   intro: '/assets/audio/intro.mp3',
 };
 export const sceneSoundtracks = {
@@ -51,6 +67,10 @@ export const sceneSoundtracks = {
   knowing: { bed: 'bed-knowing', cues: [cue(5, 'knowing-eruption'), cue(23, 'knowing-engulf')] },
   armageddon: { bed: 'bed-armageddon', cues: [cue(13, 'armageddon-countdown', .5), cue(16, 'armageddon-detonation'), cue(21, 'armageddon-flyby', .5), cue(24, 'armageddon-flyby', .65), cue(27, 'armageddon-flyby', .45)] },
   interstellar: { bed: 'bed-interstellar', cues: [cue(17, 'interstellar-orbit', .6), cue(26, 'interstellar-horizon', .7)] },
+  twister: { bed: 'bed-twister', cues: [cue(11.2, 'twister-thunder', .65), cue(13, 'twister-touchdown'), cue(15.9, 'twister-crash', .7), cue(16.6, 'twister-thunder', .5), cue(21.3, 'twister-thunder', .6)] },
+  'dantes-peak': { bed: 'bed-dantes-peak', cues: [cue(6, 'dantes-peak-eruption'), cue(9.4, 'dantes-peak-lightning', .6), cue(13.5, 'dantes-peak-surge', .6), cue(17.7, 'dantes-peak-lightning', .5), cue(24, 'dantes-peak-surge', .75)] },
+  gravity: { bed: 'bed-gravity', cues: [cue(6, 'gravity-alert', .5), cue(11.3, 'gravity-impact'), cue(14.6, 'gravity-impact', .75), cue(17.9, 'gravity-impact', .55), cue(22, 'gravity-adrift', .6)] },
+  'wandering-earth': { bed: 'bed-wandering-earth', cues: [cue(16, 'wandering-earth-ignition', .6), cue(22, 'wandering-earth-detonation'), cue(25.5, 'wandering-earth-escape', .65)] },
 };
 
 export function crossedAudioCues(previous, next, discontinuity = false) {

@@ -1,6 +1,9 @@
 """Original film-signature synthesis via SoX and FFmpeg. No sampled film audio.
 
-python3 tools/author-audio.py
+python3 tools/author-audio.py [scene_function ...]
+
+Without arguments every scene is rendered; naming scene functions (for example
+`twister gravity`) renders only those, leaving the other checked-in files untouched.
 
 Each 30-second bed is composed against its scene's visual timeline, so the arc of
 the film moment (approach, arrival, collapse, engulfment) is baked into the
@@ -11,6 +14,7 @@ original renderings or rhythm-inspired figures, never recordings.
 """
 import json
 import subprocess
+import sys
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -444,18 +448,159 @@ def interstellar():
     ], 4, '-9', HALL)
 
 
+def twister():
+    n = 'tw'
+    parts = [
+        (noise(f'{n}-wind', 30, 'pinknoise', ['bandpass', '600', '1.2q', 'tremolo', '0.17', '70']), .55),
+        (noise(f'{n}-gust', 30, 'brownnoise', ['lowpass', '300', 'tremolo', '0.31', '80']), .45),
+        # A distant tornado siren wails through the sighting, then rain arrives with the wall cloud.
+        (at(expression(f'{n}-siren', 10, 'sin(2*PI*560*t+300*sin(2*PI*0.08*t))', ['lowpass', '2200', 'fade', 't', '2', '10', '3']), .5), .08),
+        (at(noise(f'{n}-rain', 26, 'whitenoise', ['highpass', '3500', 'lowpass', '9000', 'tremolo', '0.5', '30', 'fade', 'l', '4', '26', '2']), 4), .1),
+        # The freight-train roar builds from the descent at 8 until the rope-out.
+        (at(noise(f'{n}-roar', 22, 'brownnoise', ['lowpass', '260', 'tremolo', '2.7', '35', 'fade', 'l', '7', '22', '5']), 8), .85),
+        (at(noise(f'{n}-roar-mid', 20, 'pinknoise', ['bandpass', '380', '.8q', 'tremolo', '4.5', '40', 'fade', 'l', '6', '20', '5']), 10), .5),
+        (at(synth(f'{n}-sub', 20, ['sine', '38:31'], ['tremolo', '0.35', '60', 'fade', 'l', '6', '20', '4']), 10), .5),
+        (at(noise(f'{n}-debris', 13, 'brownnoise', ['bandpass', '300', '2q', 'tremolo', '16', '80', 'fade', 'l', '2', '13', '3']), 14), .4),
+        # The farmstead comes apart at 16.
+        (at(noise(f'{n}-crash', 2.5, 'brownnoise', ['bandpass', '500', '1q', 'tremolo', '20', '90', 'fade', 't', '.01', '2.5', '2.2']), 15.8), .6),
+        (at(crackle(f'{n}-splinter', 2, '0.9985', ('bandpass', '2200', '1q', 'fade', 't', '0', '2', '1.6')), 15.9), .35),
+    ]
+    for path, vol in thunder(f'{n}-thunder', 4.5):
+        parts += [(at(path, t), vol * .55) for t in (11.2, 16.6, 21.3)]
+    bed('twister', parts)
+    cue('twister-thunder', thunder(f'{n}-cue-thunder', 3.5), 3.5, '-8', HALL)
+    cue('twister-touchdown', boom(f'{n}-cue-touchdown', 4, '80', '30', '900') + [
+        (noise(f'{n}-cue-touchdown-roar', 4, 'pinknoise', ['bandpass', '400', '1q', 'fade', 't', '.05', '4', '3.5']), .6)], 4, '-9')
+    cue('twister-crash', [
+        (noise(f'{n}-cue-crash', 2.5, 'brownnoise', ['bandpass', '500', '1q', 'tremolo', '20', '90', 'fade', 't', '.01', '2.5', '2.2']), 1),
+        (crackle(f'{n}-cue-splinter', 2.5, '0.9985', ('bandpass', '2200', '1q', 'fade', 't', '0', '2.5', '2')), .5),
+        (synth(f'{n}-cue-crash-sub', 2.5, ['sine', '70:28'], ['fade', 't', '.01', '2.5', '2.2']), .7),
+    ], 2.5, '-10')
+
+
+def dantes_peak():
+    n = 'dp'
+    parts = [
+        (noise(f'{n}-wind', 30, 'pinknoise', ['bandpass', '900', '1.5q', 'tremolo', '0.15', '60']), .3),
+        # Harmonic tremor under the whole eruption; the blast tail and jet roar from 6.
+        (at(synth(f'{n}-tremor', 28, ['sine', '34:30'], ['tremolo', '7', '60', 'fade', 'l', '3', '28', '1']), 2), .35),
+        (at(noise(f'{n}-blast-tail', 14, 'brownnoise', ['lowpass', '160', 'fade', 't', '.05', '14', '12']), 6), .9),
+        (at(noise(f'{n}-jet', 24, 'pinknoise', ['lowpass', '1200', 'tremolo', '0.9', '35', 'fade', 'l', '1', '24', '2']), 6.2), .6),
+        # An ominous low string pad, the surge's roar from 13 and ash hiss from 18.
+        (at(strings(f'{n}-pad', ['D2', 'A2', 'F3'], 12, attack=4, release=4, cutoff='700'), 9), .22),
+        (at(noise(f'{n}-surge', 17, 'brownnoise', ['lowpass', '500', 'tremolo', '1.4', '30', 'fade', 'l', '9', '17', '1']), 13), .8),
+        (at(noise(f'{n}-surge-hiss', 17, 'pinknoise', ['bandpass', '2000', '1q', 'tremolo', '2', '40', 'fade', 'l', '9', '17', '1']), 13), .3),
+        (at(noise(f'{n}-ash', 12, 'whitenoise', ['bandpass', '5000', '1q', 'tremolo', '7', '30', 'fade', 'l', '5', '12', '1']), 18), .08),
+    ]
+    rumble = noise(f'{n}-rumble', 2.5, 'brownnoise', ['lowpass', '100', 'fade', 't', '.3', '2.5', '2'])
+    parts += [(at(rumble, t), vol) for t, vol in ((1.2, .5), (3.4, .6), (5.1, .8))]
+    thud = synth(f'{n}-thud', .7, voices(('sine', '70:35'), ('brownnoise', '100')), ['lowpass', '200', 'fade', 't', '.005', '.7', '.6'])
+    parts += [(at(thud, t), .4) for t in (8.1, 9.6, 11.3, 13.7, 15.2, 18.4, 20.9)]
+    crack = noise(f'{n}-crack', .4, 'whitenoise', ['highpass', '1200', 'fade', 't', '0', '.4', '.35'])
+    parts += [(at(crack, t), .5) for t in (9.4, 12.1, 17.7, 23.5)]
+    bed('dantes-peak', parts)
+    cue('dantes-peak-eruption', boom(f'{n}-cue-eruption', 5, '85', '24', '700') + [
+        (noise(f'{n}-cue-eruption-crack', .5, 'whitenoise', ['bandpass', '1400', '.8q', 'fade', 't', '0', '.5', '.45']), .7),
+        (synth(f'{n}-cue-eruption-jet', 5, ['sine', '40:110'], ['tremolo', '9', '40', 'fade', 't', '.1', '5', '4']), .4)], 5, '-8')
+    cue('dantes-peak-lightning', thunder(f'{n}-cue-lightning', 2.5), 2.5, '-9', HALL)
+    cue('dantes-peak-surge', [
+        (noise(f'{n}-cue-surge', 5, 'brownnoise', ['lowpass', '400', 'fade', 't', '.3', '5', '4']), 1),
+        (noise(f'{n}-cue-surge-hiss', 5, 'pinknoise', ['bandpass', '1600', '1q', 'fade', 't', '.3', '5', '4']), .5),
+    ], 5, '-9')
+
+
+def gravity():
+    n = 'gr'
+    parts = [
+        (synth(f'{n}-sub', 30, ['sine', '36'], ['tremolo', '0.09', '40']), .45),
+        (synth(f'{n}-hum', 30, ['sine', '72'], ['tremolo', '0.3', '30']), .18),
+        # Suit breathing at rest, then a faster second layer once the debris hits.
+        (noise(f'{n}-breath', 30, 'pinknoise', ['bandpass', '650', '1q', 'tremolo', '0.27', '95']), .28),
+        (at(noise(f'{n}-breath-fast', 18, 'pinknoise', ['bandpass', '800', '1q', 'tremolo', '0.55', '95', 'fade', 'l', '4', '18', '2']), 12), .3),
+        (at(expression(f'{n}-alert', 2.4, 'if(lt(mod(t,0.6),0.18),1,0)*sin(2*PI*1180*t)', ['fade', 't', '0', '2.4', '.2']), 6), .12),
+        # An original rising string figure and a high shimmer carry the cascade.
+        (at(strings(f'{n}-rise', ['E2', 'B2', 'E3', 'G3'], 12, attack=6, release=4, cutoff='900'), 8), .25),
+        (at(strings(f'{n}-rise2', ['E3', 'G3', 'B3', 'E4'], 10, attack=4, release=5, cutoff='1400'), 16), .25),
+        (at(synth(f'{n}-shimmer', 14, voices(('sine', '1760'), ('sine', '2640')), ['tremolo', '0.5', '60', 'fade', 'l', '5', '14', '3']), 10), .06),
+        # A heartbeat that quickens, the tumble's rotating whoosh and a thin comms hiss.
+        (at(expression(f'{n}-heart', 20, 'if(lt(mod(t*(1+t/50),0.8),0.05),1,0)*sin(2*PI*55*t)+if(lt(mod(t*(1+t/50)-0.18,0.8),0.04),0.7,0)*sin(2*PI*50*t)',
+                       ['lowpass', '120', 'fade', 'l', '2', '20', '1']), 10), .35),
+        (at(noise(f'{n}-tumble', 8, 'pinknoise', ['bandpass', '350', '1q', 'tremolo', '0.45', '85', 'fade', 'l', '1', '8', '1']), 22), .35),
+        (at(noise(f'{n}-hiss', 8, 'whitenoise', ['bandpass', '3000', '2q', 'tremolo', '0.9', '40', 'fade', 'l', '2', '8', '1']), 22), .06),
+    ]
+    static = noise(f'{n}-static', .5, 'whitenoise', ['bandpass', '1800', '2q', 'tremolo', '9', '80', 'fade', 't', '.02', '.5', '.3'])
+    parts += [(at(static, t), .15) for t in (2.3, 4.7, 7.9)]
+    # Impacts arrive through the suit: no air, so only thumps and a metallic rattle.
+    thump = synth(f'{n}-thump', 1.2, ['sine', '58:24'], ['lowpass', '160', 'fade', 't', '.005', '1.2', '1.1'])
+    rattle = noise(f'{n}-rattle', 1.5, 'brownnoise', ['bandpass', '900', '2q', 'tremolo', '30', '90', 'lowpass', '1200', 'fade', 't', '.01', '1.5', '1.3'])
+    for t in (11.3, 14.6, 17.9, 20.5):
+        parts += [(at(thump, t), .7), (at(rattle, t), .25)]
+    bed('gravity', parts, DRY)
+    cue('gravity-alert', [
+        (expression(f'{n}-cue-alert', 2.6, 'if(lt(mod(t,0.6),0.18),1,0)*sin(2*PI*1180*t)', ['fade', 't', '0', '2.6', '.2']), .8),
+        (noise(f'{n}-cue-alert-static', 2.6, 'whitenoise', ['bandpass', '1800', '2q', 'tremolo', '9', '80', 'fade', 't', '.02', '2.6', '2']), .35),
+    ], 2.6, '-13', DRY)
+    cue('gravity-impact', boom(f'{n}-cue-impact', 2.5, '60', '22', '200') + [
+        (noise(f'{n}-cue-rattle', 2.5, 'brownnoise', ['bandpass', '900', '2q', 'tremolo', '30', '90', 'lowpass', '1200', 'fade', 't', '.01', '2.5', '2.2']), .4)], 2.5, '-9', DRY)
+    cue('gravity-adrift', [
+        (noise(f'{n}-cue-tumble', 5, 'pinknoise', ['bandpass', '350', '1q', 'tremolo', '0.6', '85', 'fade', 't', '.3', '5', '4']), 1),
+        (noise(f'{n}-cue-breath', 5, 'pinknoise', ['bandpass', '800', '1q', 'tremolo', '0.7', '95', 'fade', 't', '.3', '5', '4']), .5),
+    ], 5, '-11', DRY)
+
+
+def wandering_earth():
+    n = 'we'
+    parts = [
+        # Planetary engines: a low sawtooth chord, the roar beneath it and plasma hiss above.
+        (synth(f'{n}-engine', 30, voices(('sawtooth', '32'), ('sine', '48'), ('sine', '64')), ['lowpass', '220', 'tremolo', '0.11', '35']), .55),
+        (noise(f'{n}-roar', 30, 'brownnoise', ['lowpass', '180', 'tremolo', '0.5', '40']), .4),
+        (noise(f'{n}-plasma', 30, 'whitenoise', ['bandpass', '2600', '1q', 'tremolo', '0.35', '55']), .1),
+        # An original D minor pad that turns to D major for the escape.
+        (strings(f'{n}-pad', ['D2', 'A2', 'D3', 'F3'], 22, attack=8, release=5, cutoff='800'), .28),
+        (at(strings(f'{n}-pad-major', ['D3', 'F#3', 'A3', 'D4', 'A4'], 8, attack=2.5, release=3, cutoff='1600'), 24), .38),
+        # The siphoned atmosphere shimmers 8-22; engines rise to full burn 14-17 and hold.
+        (at(synth(f'{n}-stream', 14, voices(('sine', '3100'), ('sine', '4700')), ['tremolo', '9', '85', 'highpass', '2500', 'fade', 'l', '5', '14', '2']), 8), .07),
+        (at(noise(f'{n}-stream-air', 14, 'pinknoise', ['bandpass', '1400', '1.5q', 'tremolo', '0.7', '50', 'fade', 'l', '5', '14', '2']), 8), .25),
+        (at(noise(f'{n}-ignite', 4, 'pinknoise', ['bandpass', '300', '.8q', 'bend', '0,1400,4', 'fade', 'l', '3', '4', '.3']), 14), .45),
+        (at(synth(f'{n}-ignite-tone', 4, ['sine', '55:190'], ['tremolo', '12', '40', 'fade', 'l', '3.2', '4', '.3']), 14), .3),
+        (at(synth(f'{n}-burn', 13, voices(('sawtooth', '65'), ('square', '97')), ['lowpass', '420', 'tremolo', '15', '30', 'fade', 'l', '.5', '13', '1']), 17), .28),
+        # Jupiter ignites at 22; the shock reaches Earth at 23.5.
+        (at(noise(f'{n}-blast-tail', 8, 'brownnoise', ['lowpass', '110', 'fade', 't', '.05', '8', '7']), 22), .9),
+        (at(crackle(f'{n}-fracture', 5, '0.9992', ('bandpass', '800', '1q', 'fade', 't', '0', '5', '3')), 22), .3),
+        (at(noise(f'{n}-shock', 3, 'pinknoise', ['lowpass', '900', 'fade', 't', '.05', '3', '2.5']), 23.5), .5),
+    ]
+    bed('wandering-earth', parts, HALL)
+    cue('wandering-earth-ignition', [
+        (noise(f'{n}-cue-ignite', 3.5, 'pinknoise', ['bandpass', '300', '.8q', 'bend', '0,1600,3.4', 'fade', 'l', '3', '3.5', '.3']), 1),
+        (synth(f'{n}-cue-ignite-tone', 3.5, ['sine', '60:220'], ['tremolo', '12', '40', 'fade', 'l', '3', '3.5', '.3']), .6),
+    ], 3.5, '-10', HALL)
+    cue('wandering-earth-detonation', boom(f'{n}-cue-detonation', 6, '80', '20', '600') + [
+        (noise(f'{n}-cue-detonation-crack', .5, 'whitenoise', ['bandpass', '1200', '.8q', 'fade', 't', '0', '.5', '.45']), .7),
+        (synth(f'{n}-cue-detonation-sub', 6, ['sine', '30:12'], ['fade', 't', '.05', '6', '5']), .8)], 6, '-8', HALL)
+    cue('wandering-earth-escape', [
+        (organ(f'{n}-cue-escape', ['D4', 'A4', 'D5'], 4.5, attack=.8, release=2), .8),
+        (noise(f'{n}-cue-escape-whoosh', 4.5, 'pinknoise', ['lowpass', '600', 'fade', 'h', '1.5', '4.5', '2.5']), .6),
+    ], 4.5, '-11', HALL)
+
+
 SCENES = [independence_day, deep_impact, day_after_tomorrow, melancholia, terminator_2,
-          year_2012, war_of_the_worlds, knowing, armageddon, interstellar]
+          year_2012, war_of_the_worlds, knowing, armageddon, interstellar,
+          twister, dantes_peak, gravity, wandering_earth]
 
 
-def main():
+def main(names=()):
+    known = {scene.__name__: scene for scene in SCENES}
+    unknown = sorted(set(names) - set(known))
+    if unknown:
+        raise SystemExit(f"Unknown scene functions {unknown}; choose from {sorted(known)}.")
     WORK.mkdir(parents=True, exist_ok=True)
     OUTPUT.mkdir(parents=True, exist_ok=True)
     for scene in SCENES:
-        scene()
+        if not names or scene.__name__ in names:
+            scene()
     files = sorted(path.name for path in OUTPUT.glob('*.mp3') if path.name != 'intro.mp3')
     print(json.dumps({'audio_files': len(files), 'output': str(OUTPUT), 'files': files}))
 
 
 if __name__ == '__main__':
-    main()
+    main(sys.argv[1:])

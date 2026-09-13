@@ -99,18 +99,19 @@ export function createAtmosphere({ scene, camera, canvas }) {
   return {
     update(t, config) {
       const space = Boolean(config.space), storm = config.id === 'day-after-tomorrow';
-      const collision = config.id === 'melancholia';
+      const collision = config.id === 'melancholia', supercell = config.id === 'twister', ashfall = config.id === 'dantes-peak';
       const quality = canvas.dataset.quality || 'high';
       clock.value = t; celestial.visible = space; cloudDome.visible = !space && !collision;
       mist.visible = !space && !collision && quality !== 'lite'; mist.count = quality === 'high' || quality === 'ultra' ? 12 : 6;
       if (space) requestNebula(); else if (!collision) requestWeather();
       celestialMaterial.uniforms.strength.value = config.id === 'interstellar' ? .22 : .35;
       celestial.rotation.y = .7;
-      cloudMaterial.uniforms.density.value = storm ? .65 + clamp(t / 30) * .2 : .24;
-      cloudMaterial.uniforms.tint.value.set(storm ? '#597487' : config.id === 'war-of-the-worlds' ? '#655e79' : '#82909a');
+      // The supercell ceiling is dense from the start; the ash ceiling thickens as the column spreads.
+      cloudMaterial.uniforms.density.value = storm ? .65 + clamp(t / 30) * .2 : supercell ? .74 : ashfall ? .26 + clamp((t - 8) / 14) * .52 : .24;
+      cloudMaterial.uniforms.tint.value.set(storm ? '#597487' : supercell ? '#3d4b45' : ashfall ? '#4c4541' : config.id === 'war-of-the-worlds' ? '#655e79' : '#82909a');
       mistMaterial.uniforms.tint.value.set(config.environment.fog);
-      mistMaterial.uniforms.density.value = storm ? .23 : .11;
-      canvas.dataset.atmosphere = space ? 'interstellar-dust' : collision ? 'planetary' : storm ? 'superstorm' : 'layered-haze';
+      mistMaterial.uniforms.density.value = storm || supercell ? .23 : ashfall ? .18 : .11;
+      canvas.dataset.atmosphere = space ? 'interstellar-dust' : collision ? 'planetary' : storm ? 'superstorm' : supercell ? 'supercell' : ashfall ? 'ashfall' : 'layered-haze';
       canvas.dataset.atmosphereLayers = String(space || collision || quality === 'lite' ? 1 : 2);
     }
   };

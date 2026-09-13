@@ -251,7 +251,7 @@ export function createCinema(world) {
     impactLight.position.copy(sparks.material.uniforms.origin.value);impactLight.position.y=18;
     glow.intensity*=7;
     if(blast.visible){blast.material.opacity*=.45;blast.material.color.multiplyScalar(2.5);}
-    bloom.strength=id==='day-after-tomorrow'?.22:id==='melancholia'?.4:id==='interstellar'?.12:config.space?.25:.48;
+    bloom.strength=id==='day-after-tomorrow'?.22:id==='melancholia'?.4:id==='interstellar'?.12:id==='gravity'?.18:config.space?.25:.48;
     bloom.radius=config.space?.35:.65;
     const icy=id==='day-after-tomorrow',warm=id==='terminator-2'||id==='2012';
     antialias.material.uniforms.filmTint.value.set(icy?.96:1,1,warm?.96:1);

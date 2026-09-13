@@ -27,6 +27,7 @@ export function createCosmic({ scene, canvas, camera }) {
   }
   const time = { value: 0 };
   const phase = { value: 0 };
+  const dummy = new THREE.Object3D(), up = new THREE.Vector3(0, 1, 0);
   const metal = new THREE.MeshStandardMaterial({ color: '#b5b5a8', metalness: .76, roughness: .3 });
   const darkMetal = new THREE.MeshStandardMaterial({ color: '#26313b', metalness: .7, roughness: .48 });
   const emissive = (color, intensity = 1) => new THREE.MeshBasicMaterial({ color: new THREE.Color(color).multiplyScalar(intensity) });
@@ -40,15 +41,17 @@ export function createCosmic({ scene, canvas, camera }) {
     }));
   }
 
-  function earth(radius, position) {
+  // A planet that fills the frame needs finer silhouette tessellation than a distant one.
+  function earth(radius, position, detail = 1) {
     const group = new THREE.Group(); group.position.copy(position);
-    const surface = new THREE.Mesh(new THREE.SphereGeometry(radius, 64 * fine, 40 * fine), new THREE.ShaderMaterial({
-      uniforms: { time, heat: { value: 0 } }, vertexShader: vertex,
-      fragmentShader: `uniform float time,heat;varying vec3 point;varying vec3 worldNormal;${noise}
+    const surface = new THREE.Mesh(new THREE.SphereGeometry(radius, Math.round(64 * fine * detail), Math.round(40 * fine * detail)), new THREE.ShaderMaterial({
+      uniforms: { time, heat: { value: 0 }, frost: { value: 0 } }, vertexShader: vertex,
+      fragmentShader: `uniform float time,heat,frost;varying vec3 point;varying vec3 worldNormal;${noise}
       void main(){vec3 p=normalize(point);float land=fbm(p*4.7+vec3(.4,2.8,.2));
       float cloud=fbm(p*16.+vec3(time*.018,0.,0.));float terrain=fbm(p*38.);
       vec3 ocean=vec3(.012,.105,.24);vec3 continents=mix(vec3(.035,.13,.067),vec3(.24,.23,.12),terrain);
       vec3 color=mix(ocean,continents,smoothstep(.50,.56,land));
+      color=mix(color,mix(vec3(.5,.62,.78),vec3(.9,.93,.96),terrain)*(.8+.2*smoothstep(.5,.56,land)),frost);
       color=mix(color,vec3(.82,.90,.94),smoothstep(.58,.74,cloud)*.55);
       color=mix(color,vec3(.76,.85,.89),smoothstep(.87,.97,abs(p.y))*.88);
       float daylight=dot(normalize(worldNormal),normalize(vec3(-.65,.5,.8)));
@@ -71,6 +74,28 @@ export function createCosmic({ scene, canvas, camera }) {
     return { group, surface, clouds, air };
   }
 
+  // Every particle position is a closed-form function of time and its seed; nothing integrates between frames.
+  const motion = {
+    flare: `float distance=fract(seed.y+time*.12);float spread=pow(distance,.7)*(5.+seed.z*19.);
+      p=mix(vec3(-15.,53.,-2.),vec3(92.,13.,24.),distance);
+      p+=vec3(sin(a)*spread*.25,cos(a)*spread,sin(a)*spread);
+      p.y+=sin(distance*3.14159)*14.;opacity=smoothstep(.02,.2,distance)*(1.-smoothstep(.68,1.,distance))*phase;`,
+    debris: `float age=fract(seed.y+time*.055);float spread=8.+age*45.;
+      p=vec3(-34.-age*96.,52.+age*25.,-12.-age*40.)+vec3(sin(a)*spread,cos(a)*spread*.5,cos(a*2.)*spread*.6);
+      opacity=(1.-age)*(.2+phase*.8);`,
+    accretion: `float f=fract(seed.y-time*.035);float radius=17.+pow(f,.6)*65.;float angle=a+time*(.2+(1.-f)*1.25);
+      p=vec3(cos(angle)*radius,50.+sin(seed.z*6.283185)*(.5+f*6.),sin(angle)*radius);
+      opacity=smoothstep(0.,.08,f)*(.3+.7*(1.-f));`,
+    // Kessler fragments stream through the station volume along one shared orbit-crossing direction.
+    streak: `float run=fract(seed.y+time*.07*(1.+seed.z*.8));warmth=seed.z*.3;
+      p=vec3(0.,40.,0.)+vec3(-.482,0.,-.876)*(seed.x-.5)*220.+vec3(.137,.988,-.075)*(seed.w-.5)*150.+vec3(.8655,-.1558,-.476)*(run*640.-320.);
+      opacity=phase*(.08+.35*(1.-abs(run-.5)*2.));`,
+    // Siphoned atmosphere follows a bent path from the origin to the target, widening as it goes.
+    stream: `float s=fract(seed.y+time*.045*(1.+seed.z*.5));warmth=0.;
+      vec3 c=mix(origin,target,.45)+vec3(0.,70.,20.);vec3 path=mix(mix(origin,c,s),mix(c,target,s),s);
+      float spread=(2.+s*28.)*(1.-s*.3);p=path+vec3(sin(a)*spread,cos(a)*spread*.6,sin(a*1.7)*spread);
+      opacity=phase*smoothstep(0.,.05,s)*(1.-smoothstep(.85,1.,s))*.85;`
+  };
   function particles(group, count, kind, tint) {
     const geometry = new THREE.BufferGeometry();
     const seeds = new Float32Array(count * 4);
@@ -78,19 +103,11 @@ export function createCosmic({ scene, canvas, camera }) {
     geometry.setAttribute('position', new THREE.BufferAttribute(new Float32Array(count * 3), 3));
     geometry.setAttribute('seed', new THREE.BufferAttribute(seeds, 4));
     const material = new THREE.ShaderMaterial({
-      uniforms: { time, phase, tint: { value: new THREE.Color(tint).multiplyScalar(2) }, pixelRatio: { value: 1 } },
-      vertexShader: `attribute vec4 seed;uniform float time,phase,pixelRatio;varying float opacity;varying float warmth;
+      uniforms: { time, phase, tint: { value: new THREE.Color(tint).multiplyScalar(2) }, pixelRatio: { value: 1 },
+        origin: { value: new THREE.Vector3() }, target: { value: new THREE.Vector3() } },
+      vertexShader: `attribute vec4 seed;uniform float time,phase,pixelRatio;uniform vec3 origin,target;varying float opacity;varying float warmth;
       void main(){float a=seed.x*6.283185;vec3 p;warmth=seed.z;
-      ${kind === 'flare' ? `float distance=fract(seed.y+time*.12);float spread=pow(distance,.7)*(5.+seed.z*19.);
-      p=mix(vec3(-15.,53.,-2.),vec3(92.,13.,24.),distance);
-      p+=vec3(sin(a)*spread*.25,cos(a)*spread,sin(a)*spread);
-      p.y+=sin(distance*3.14159)*14.;opacity=smoothstep(.02,.2,distance)*(1.-smoothstep(.68,1.,distance))*phase;`
-      : kind === 'debris' ? `float age=fract(seed.y+time*.055);float spread=8.+age*45.;
-      p=vec3(-34.-age*96.,52.+age*25.,-12.-age*40.)+vec3(sin(a)*spread,cos(a)*spread*.5,cos(a*2.)*spread*.6);
-      opacity=(1.-age)*(.2+phase*.8);`
-      : `float f=fract(seed.y-time*.035);float radius=17.+pow(f,.6)*65.;float angle=a+time*(.2+(1.-f)*1.25);
-      p=vec3(cos(angle)*radius,50.+sin(seed.z*6.283185)*(.5+f*6.),sin(angle)*radius);
-      opacity=smoothstep(0.,.08,f)*(.3+.7*(1.-f));`}
+      ${motion[kind]}
       vec4 mv=modelViewMatrix*vec4(p,1.);gl_Position=projectionMatrix*mv;gl_PointSize=clamp((1.5+seed.w*3.)*pixelRatio*230./max(1.,-mv.z),1.,12.);}`,
       fragmentShader: `uniform vec3 tint;varying float opacity;varying float warmth;void main(){float r=length(gl_PointCoord-.5)*2.;if(r>1.)discard;gl_FragColor=vec4(mix(tint,tint*vec3(1.2,.55,.25),warmth),pow(1.-r,2.)*opacity);${output}}`,
       transparent: true, depthWrite: false, blending: THREE.AdditiveBlending
@@ -207,7 +224,7 @@ export function createCosmic({ scene, canvas, camera }) {
   }
   const chunkGeometry = new THREE.IcosahedronGeometry(1, 1);
   const fragmentMat = new THREE.MeshStandardMaterial({ color: '#5b4b41', roughness: .89, metalness: .18 });
-  const fragments = new THREE.InstancedMesh(chunkGeometry, fragmentMat, 150);
+  const fragments = new THREE.InstancedMesh(chunkGeometry, fragmentMat, 150); fragments.userData.total = 150;
   fragments.instanceMatrix.setUsage(THREE.DynamicDrawUsage); fragments.frustumCulled = false; asteroidScene.add(fragments);
   const fragmentSeeds = Array.from({ length: 150 }, () => ({ a: random() * TAU, y: random() * 2 - 1, speed: 9 + random() * 31, size: .4 + Math.pow(random(), 2) * 3.4, offset: random() }));
   const dummy = new THREE.Object3D();
@@ -300,7 +317,172 @@ export function createCosmic({ scene, canvas, camera }) {
       disk.rotation.z = t * .009;    }
     return { group: blackHoleScene, update, updateView: () => lens.lookAt(camera.position) };
   }
-  const factories = { knowing: createSolar, armageddon: createAsteroid, interstellar: createBlackHole };
+  function createOrbit() {
+    seed = 77497;
+  // GRAVITY: a low orbit over the terminator, a station, and a debris cascade tearing it apart.
+  const cascade = group('gravity-debris-cascade');
+  const home = earth(480, new THREE.Vector3(-210, -160, -560), 1.5); cascade.add(home.group);
+  const station = new THREE.Group(); station.name = 'Orbital station'; station.position.set(0, 40, 0); cascade.add(station);
+  const panelMaterial = new THREE.MeshStandardMaterial({ color: '#12224d', metalness: .55, roughness: .3, emissive: '#0a1f5c', emissiveIntensity: .5 });
+  const foil = new THREE.MeshStandardMaterial({ color: '#cfa64a', metalness: .85, roughness: .42 });
+  const white = new THREE.MeshStandardMaterial({ color: '#d8dde2', metalness: .3, roughness: .6 });
+  const unit = new THREE.BoxGeometry(1, 1, 1);
+  const trussHalves = [-1, 1].map(side => {
+    const half = new THREE.Group(); half.position.x = side * 17.5; station.add(half);
+    const beam = new THREE.Mesh(unit, darkMetal); beam.scale.set(35, 2.2, 2.2); half.add(beam);
+    const braces = new THREE.InstancedMesh(unit, metal, 18); half.add(braces);
+    for (let i = 0; i < 18; i++) {
+      dummy.position.set(-16 + (i % 9) * 4, 0, i < 9 ? 1.1 : -1.1); dummy.rotation.set(0, 0, i < 9 ? .6 : -.6); dummy.scale.set(.3, 3.4, .3);
+      dummy.updateMatrix(); braces.setMatrixAt(i, dummy.matrix);
+    }
+    braces.instanceMatrix.needsUpdate = true;
+    return half;
+  });
+  const hub = new THREE.Group(); station.add(hub);
+  for (const [z, length, material] of [[-7, 9, foil], [4, 9, metal], [15, 8, foil]]) {
+    const module = new THREE.Mesh(new THREE.CylinderGeometry(2.4, 2.4, length, 16 * fine), material);
+    module.rotation.x = Math.PI / 2; module.position.z = z; hub.add(module);
+  }
+  const node = new THREE.Mesh(new THREE.SphereGeometry(2.9, 20 * fine, 14 * fine), darkMetal); node.position.z = -1.5; hub.add(node);
+  const radiators = new THREE.InstancedMesh(unit, white, 2); station.add(radiators);
+  [-1, 1].forEach((side, i) => { dummy.position.set(side * 7, -5.5, 5); dummy.rotation.set(1.2, 0, 0); dummy.scale.set(9, .2, 6); dummy.updateMatrix(); radiators.setMatrixAt(i, dummy.matrix); });
+  radiators.instanceMatrix.needsUpdate = true;
+  const panels = new THREE.InstancedMesh(unit, panelMaterial, 8); panels.name = 'Solar wings'; station.add(panels);
+  const wingX = [-30, -18, 18, 30];
+  const panelSeeds = Array.from({ length: 8 }, (_, i) => ({ detach: 11 + i * .85, vx: (random() - .5) * 6, vy: 2 + random() * 4, vz: (random() - .5) * 6, wx: random() * 2, wy: random() * 2, wz: random() * 2 }));
+  const astronaut = new THREE.Group(); astronaut.name = 'Untethered astronaut'; cascade.add(astronaut);
+  const suit = new THREE.Mesh(new THREE.CapsuleGeometry(.55, 1.3, 4, 8 * fine), white); astronaut.add(suit);
+  const visor = new THREE.Mesh(new THREE.SphereGeometry(.5, 12 * fine, 8 * fine), foil); visor.position.y = 1.15; astronaut.add(visor);
+  const streamDirection = new THREE.Vector3(1, -.18, -.55).normalize(), lateral = new THREE.Vector3(-.482, 0, -.876), vertical = new THREE.Vector3(.137, .988, -.075);
+  const debris = new THREE.InstancedMesh(new THREE.IcosahedronGeometry(1, 0), darkMetal, 240); debris.name = 'Kessler debris field'; debris.userData.total = 240;
+  debris.instanceMatrix.setUsage(THREE.DynamicDrawUsage); debris.frustumCulled = false; cascade.add(debris);
+  const debrisSeeds = Array.from({ length: 240 }, () => ({ u: random() - .5, v: random() - .5, offset: random(), speed: 150 + random() * 130, size: .3 + Math.pow(random(), 2) * 2.4, spin: random() * TAU }));
+  particles(cascade, 3200, 'streak', '#cfd8e6');
+  const flashes = [[11.3, -30, 40, 9.5], [14.6, 20, 39, -8], [17.9, 2, 42, 4], [20.5, 30, 40, 9.5]];
+  const impact = new THREE.Mesh(new THREE.SphereGeometry(1, 16 * fine, 10 * fine), new THREE.MeshBasicMaterial({ color: new THREE.Color(4, 3.4, 2.6), transparent: true, opacity: .9, blending: THREE.AdditiveBlending, depthWrite: false }));
+  cascade.add(impact);
+  const impactLight = new THREE.PointLight('#fff1d6', 0, 160, 1.5); cascade.add(impactLight);
+
+    function update(t) {
+      phase.value = ease((t - 8) / 3);
+      home.group.rotation.y = t * .003; home.clouds.rotation.y = t * .0015;
+      const tumble = ease((t - 11) / 19);
+      station.rotation.set(tumble * .9, t * .01, tumble * 1.3);
+      for (let i = 0; i < 8; i++) {
+        const s = panelSeeds[i], loose = ease((t - s.detach) / 1.2), age = Math.max(0, t - s.detach) * loose;
+        dummy.position.set(wingX[Math.floor(i / 2)] + s.vx * age, s.vy * age, (i % 2 ? 1 : -1) * 9.5 + s.vz * age);
+        dummy.rotation.set(.35 + s.wx * age, s.wy * age, s.wz * age); dummy.scale.set(5.2, .15, 14);
+        dummy.updateMatrix(); panels.setMatrixAt(i, dummy.matrix);
+      }
+      panels.instanceMatrix.needsUpdate = true;
+      const snap = ease((t - 14) / 2) * Math.max(0, t - 14), shear = ease((t - 17) / 2) * Math.max(0, t - 17);
+      trussHalves[1].position.set(17.5 + snap * 1.2, -snap * .8, 0); trussHalves[1].rotation.z = -.5 * ease((t - 14) / 2) - snap * .12;
+      hub.rotation.set(shear * .25, 0, ease((t - 17) / 2) * .4); hub.position.y = -shear * .6;
+      const drift = Math.max(0, t - 19);
+      astronaut.visible = t > 19;
+      astronaut.position.set(2 + drift * 1.6, 43 + drift * .9, 4 + drift * .7); astronaut.rotation.set(drift * .9, drift * .5, drift * 1.3);
+      debris.visible = t > 8;
+      for (let i = 0; i < debris.count; i++) {
+        const s = debrisSeeds[i], along = ((t - 8) * s.speed + s.offset * 520) % 520 - 260;
+        dummy.position.set(0, 40, 0).addScaledVector(lateral, s.u * 200).addScaledVector(vertical, s.v * 140).addScaledVector(streamDirection, along);
+        dummy.rotation.set(t * 2 + s.spin, s.spin, t * 1.5); dummy.scale.set(s.size, s.size * .7, s.size * 1.3);
+        dummy.updateMatrix(); debris.setMatrixAt(i, dummy.matrix);
+      }
+      debris.instanceMatrix.needsUpdate = true;
+      impact.visible = false; impactLight.intensity = 0;
+      for (const [at, x, y, z] of flashes) {
+        const age = t - at;
+        if (age < 0 || age > .45) continue;
+        const pulse = Math.sin(clamp(age / .45) * Math.PI);
+        impact.visible = true; impact.position.set(x, y, z); impact.scale.setScalar(.5 + pulse * 9);
+        impactLight.position.set(x, y, z); impactLight.intensity = pulse * 900;
+      }
+    }
+    return { group: cascade, update, fragments: debris };
+  }
+  function createEngines() {
+    seed = 77498;
+  // THE WANDERING EARTH: fusion engines push a frozen Earth past Jupiter, then ignite the gas giant.
+  const exodus = group('wandering-earth-jupiter-flyby');
+  const jupiterPosition = new THREE.Vector3(-190, 130, -520);
+  const jupiter = new THREE.Group(); jupiter.position.copy(jupiterPosition); exodus.add(jupiter);
+  const flash = { value: 0 };
+  const jupiterSurface = new THREE.Mesh(new THREE.SphereGeometry(300, 96 * fine, 64 * fine), new THREE.ShaderMaterial({
+    uniforms: { time, flash }, vertexShader: vertex,
+    fragmentShader: `uniform float time,flash;varying vec3 point;varying vec3 worldNormal;varying vec3 viewNormal;varying vec3 viewDirection;${noise}
+    void main(){vec3 p=normalize(point);float lon=atan(p.z,p.x);
+    float turbulence=fbm(p*3.+vec3(time*.01,0.,0.))*.35;float band=sin(p.y*24.+turbulence*6.);
+    vec3 color=mix(vec3(.5,.28,.14),vec3(.85,.74,.55),smoothstep(-.2,.6,band));
+    color=mix(color,vec3(.93,.9,.84),smoothstep(.6,.9,fbm(p*12.+turbulence))*.4);
+    vec2 spot=vec2(lon-1.2,p.y+.22)*vec2(1.,2.4);float storm=1.-smoothstep(.03,.14,length(spot)+fbm(vec3(spot*20.,time*.05))*.03);
+    color=mix(color,vec3(.66,.26,.13),storm);
+    float daylight=dot(normalize(worldNormal),normalize(vec3(-.65,.5,.8)));float light=.05+max(daylight,0.)*.85;
+    float limb=pow(abs(dot(normalize(viewNormal),normalize(viewDirection))),.45);
+    color=color*light*(.55+.45*limb);
+    color+=vec3(3.,1.7,.7)*flash*pow(max(dot(normalize(worldNormal),normalize(vec3(.37,-.16,.92))),0.),4.);
+    gl_FragColor=vec4(color,1.);${output}}`
+  }));
+  jupiter.add(jupiterSurface, atmosphere(306, '#e9c49c', .35));
+  const earthHome = new THREE.Vector3(14, 42, -6), earthPosition = new THREE.Vector3();
+  const home = earth(26, earthHome); home.surface.material.uniforms.frost.value = 1; exodus.add(home.group);
+  const toJupiter = new THREE.Vector3().subVectors(jupiterPosition, earthHome).normalize();
+  const plume = new THREE.MeshBasicMaterial({ color: new THREE.Color('#4fb4ff').multiplyScalar(1.3), transparent: true, opacity: .55, blending: THREE.AdditiveBlending, depthWrite: false, side: THREE.DoubleSide });
+  const plumeCore = new THREE.MeshBasicMaterial({ color: new THREE.Color('#dff2ff').multiplyScalar(1.7), transparent: true, opacity: .7, blending: THREE.AdditiveBlending, depthWrite: false });
+  const jetGeometry = new THREE.ConeGeometry(1, 1, 6 * fine, 1, true);
+  const jets = new THREE.InstancedMesh(jetGeometry, plume, 240), cores = new THREE.InstancedMesh(jetGeometry, plumeCore, 240);
+  jets.name = 'Fusion engine plumes'; cores.name = 'Plume cores';
+  for (const mesh of [jets, cores]) { mesh.instanceMatrix.setUsage(THREE.DynamicDrawUsage); mesh.frustumCulled = false; exodus.add(mesh); }
+  // Engines cluster on the cap facing Jupiter so their exhaust visibly pushes the planet away from it.
+  const engineSeeds = [];
+  while (engineSeeds.length < 240) {
+    const direction = new THREE.Vector3(random() * 2 - 1, random() * 2 - 1, random() * 2 - 1);
+    if (direction.lengthSq() > 1 || direction.lengthSq() < .05) continue;
+    direction.normalize();
+    if (direction.dot(toJupiter) > .2) engineSeeds.push({ direction, phase: random() * TAU, width: .6 + random() * .7 });
+  }
+  const siphon = particles(exodus, 6500, 'stream', '#9fd4ff');
+  const ignition = new THREE.Mesh(new THREE.SphereGeometry(1, 40 * fine, 24 * fine), new THREE.ShaderMaterial({
+    uniforms: { time, fade: { value: 0 } }, vertexShader: vertex,
+    fragmentShader: `uniform float time,fade;varying vec3 point;${noise}
+    void main(){float turbulence=fbm(point*7.+vec3(0.,-time*.4,0.));
+    vec3 fire=mix(vec3(.25,.028,.003),vec3(2.8,1.25,.27),smoothstep(.24,.74,turbulence));
+    gl_FragColor=vec4(fire,fade*(.7+turbulence*.3));${output}}`,
+    transparent: true, depthWrite: false
+  })); exodus.add(ignition);
+  const shockMaterial = new THREE.MeshBasicMaterial({ color: new THREE.Color('#ffd9a0').multiplyScalar(2.5), transparent: true, opacity: 1, depthWrite: false, blending: THREE.AdditiveBlending });
+  const shock = new THREE.Mesh(new THREE.TorusGeometry(1, .012, 6, 120 * fine), shockMaterial); exodus.add(shock);
+  shock.quaternion.setFromUnitVectors(new THREE.Vector3(0, 0, 1), toJupiter);
+  const ignitionPoint = jupiterPosition.clone().addScaledVector(toJupiter, -296);
+
+    function update(t) {
+      const approach = ease(t / 22), push = ease((t - 23) / 7);
+      phase.value = ease((t - 7) / 8) * (1 - ease((t - 23) / 2));
+      const power = .35 + ease((t - 14) / 3) * .65 + ease((t - 25) / 3) * .4;
+      earthPosition.copy(earthHome).addScaledVector(toJupiter, approach * 40 - push * 75);
+      home.group.position.copy(earthPosition); home.group.rotation.y = t * .02; home.clouds.rotation.y = t * .008;
+      home.air.material.uniforms.tint.value.set(t > 22 && t < 26 ? '#ffb070' : '#8fd4ff');
+      home.surface.material.uniforms.heat.value = Math.sin(clamp((t - 22) / 6) * Math.PI) * .4;
+      jupiter.rotation.y = t * .003;
+      for (let i = 0; i < engineSeeds.length; i++) {
+        const s = engineSeeds[i], length = (5 + 20 * power) * (.85 + .15 * Math.sin(t * 4.3 + s.phase));
+        dummy.position.copy(earthPosition).addScaledVector(s.direction, 26 + length * .5);
+        dummy.quaternion.setFromUnitVectors(up, s.direction);
+        dummy.scale.set(s.width * 1.6, length, s.width * 1.6); dummy.updateMatrix(); jets.setMatrixAt(i, dummy.matrix);
+        dummy.scale.set(s.width * .6, length * 1.15, s.width * .6); dummy.updateMatrix(); cores.setMatrixAt(i, dummy.matrix);
+      }
+      jets.instanceMatrix.needsUpdate = true; cores.instanceMatrix.needsUpdate = true;
+      siphon.material.uniforms.origin.value.copy(earthPosition).addScaledVector(toJupiter, 26);
+      siphon.material.uniforms.target.value.copy(ignitionPoint);
+      const blast = clamp((t - 22) / 5);
+      ignition.visible = t > 22 && t < 27; ignition.position.copy(ignitionPoint);
+      ignition.scale.setScalar(.01 + Math.sin(blast * Math.PI) * 100); ignition.material.uniforms.fade.value = 1 - ease((t - 24) / 3);
+      flash.value = Math.sin(clamp((t - 22) / 4) * Math.PI) * .9;
+      shock.visible = t > 22.3; shock.position.copy(ignitionPoint); shock.scale.setScalar(1 + ease((t - 22.3) / 8) * 900);
+      shockMaterial.opacity = 1 - ease((t - 22.3) / 8);
+    }
+    return { group: exodus, update };
+  }
+  const factories = { knowing: createSolar, armageddon: createAsteroid, interstellar: createBlackHole, gravity: createOrbit, 'wandering-earth': createEngines };
   const loaded = new Map();
   let active, stars;
   function setQuality() {
@@ -316,7 +498,7 @@ export function createCosmic({ scene, canvas, camera }) {
       if (object.userData.fineDetail) object.visible = quality !== 'lite';
     });
     stars.geometry.setDrawRange(0, Math.floor(stars.geometry.attributes.position.count * fraction));
-    if (active.fragments) active.fragments.count = Math.floor(150 * fraction);
+    if (active.fragments) active.fragments.count = Math.floor(active.fragments.userData.total * fraction);
   }
   function update(seconds, config) {
     const factory = factories[config.id];

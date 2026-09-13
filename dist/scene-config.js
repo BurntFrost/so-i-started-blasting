@@ -14,4 +14,8 @@ export const sceneConfigs = {
   'knowing': {...space,renderer:'cosmic',environment:{...starlight}},
   'armageddon': {...space,renderer:'cosmic',environment:{...starlight}},
   'interstellar': {...space,renderer:'cosmic',camera:[122,78,155],target:[0,45,0],environment:{...starlight}},
+  'twister': {world:'landscape',renderer:'terrestrial',camera:[72,36,104],target:[-20,32,-52],environment:{...daylight,fog:'#46524d',fogDensity:.0027,fogGrowth:.0018,sun:'#b7c4b4',sunIntensity:1.05,hemi:'#8da39c',hemiIntensity:.34,rim:'#9fb7c6',rimIntensity:1.2,environmentIntensity:.5,skyTint:'#8da093',skyExposure:.27,skyStorm:.96}},
+  'dantes-peak': {world:'landscape',renderer:'terrestrial',camera:[92,52,136],target:[-22,48,-95],environment:{...daylight,fog:'#5b5350',fogDensity:.0015,fogGrowth:.0024,sun:'#ffd0a4',sunIntensity:2.1,hemi:'#a9b1b3',hemiIntensity:.36,rimIntensity:1.6,environmentIntensity:.6,skyTint:'#b3aea6',skyExposure:.44,skyStorm:.7}},
+  'gravity': {...space,renderer:'cosmic',camera:[88,58,112],target:[0,40,0],environment:{...starlight}},
+  'wandering-earth': {...space,renderer:'cosmic',target:[0,42,0],environment:{...starlight}},
 };

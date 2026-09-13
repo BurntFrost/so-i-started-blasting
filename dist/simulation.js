@@ -151,7 +151,7 @@ function updateWorld(){
  if(failed)return;
  needsRender=true;const t=time,s=scenes[selected],id=s.id,hit=ease((t-13)/10);
  const invasion=id==='independence-day',impact=id==='deep-impact',storm=id==='day-after-tomorrow',collision=id==='melancholia',nuclear=id==='terminator-2',fault=id==='2012';
- city.visible=s.world==='city';landscape.visible=s.world==='landscape';ship.visible=invasion;
+ city.visible=s.world==='city';landscape.visible=s.world==='landscape';shelter.visible=collision;ship.visible=invasion;
  beam.visible=invasion&&t>9&&t<20;core.scale.setScalar(1+ease(t/13)*1.3);ship.position.y=83+(1-ease(t/10))*9;ship.rotation.y=t*.018;
  beam.material.opacity=clamp((t-9)/3)*clamp((20-t)/3)*.8;beam.scale.x=beam.scale.z=.3+ease((t-9)/4)*2;
  glow.color.set(invasion?'#a7ffd1':'#ff9245');glow.intensity=invasion||impact?Math.sin(clamp((t-10)/13)*Math.PI)*180:0;

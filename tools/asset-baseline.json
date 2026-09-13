@@ -215,6 +215,70 @@
     "dist/assets/audio/war-of-the-worlds-lightning.mp3": {
       "sha256": "7f3dac92d9e6c321a8ae27850d171925e03c882f4a71eba16f8045ec4025eada",
       "bytes": 41003
+    },
+    "dist/assets/audio/bed-twister.mp3": {
+      "sha256": "37f128a719a0a5fe2c6f0ecd74961b512f9a89be189b4bbe325b8e68fe428613",
+      "bytes": 481114
+    },
+    "dist/assets/audio/twister-thunder.mp3": {
+      "sha256": "4a6d2e7b149037809a1b78be89a545e5f18030effd6104a1f4fa5f84276f8306",
+      "bytes": 56885
+    },
+    "dist/assets/audio/twister-touchdown.mp3": {
+      "sha256": "bedc01967cb1126613763d62b6cb17a8e6c56ecdc0727d375911927e8c726b05",
+      "bytes": 65244
+    },
+    "dist/assets/audio/twister-crash.mp3": {
+      "sha256": "9adced1e334148e4086e6779dbfd84ab5e75ed4ddf2bcdb62f5ad484eb941156",
+      "bytes": 41003
+    },
+    "dist/assets/audio/bed-dantes-peak.mp3": {
+      "sha256": "b60737c5a9e06004154ba3142a1560aca0cfcbe2e8d78964048b8c35b80f2abf",
+      "bytes": 481114
+    },
+    "dist/assets/audio/dantes-peak-eruption.mp3": {
+      "sha256": "d09c235d8bfed537a17bcd866ac872a25bc35f6d0e2c5a029d6f10f9337e867d",
+      "bytes": 81127
+    },
+    "dist/assets/audio/dantes-peak-lightning.mp3": {
+      "sha256": "7f3dac92d9e6c321a8ae27850d171925e03c882f4a71eba16f8045ec4025eada",
+      "bytes": 41003
+    },
+    "dist/assets/audio/dantes-peak-surge.mp3": {
+      "sha256": "d7cdabad67070a3359c4159f2430e9bd58068e1a61a5fba9372f0604f61ca6f9",
+      "bytes": 81127
+    },
+    "dist/assets/audio/bed-gravity.mp3": {
+      "sha256": "6296e4192ce5103bd22f8cccc4545fd49958e6db5cac9c5908f23e9af4b09056",
+      "bytes": 481114
+    },
+    "dist/assets/audio/gravity-alert.mp3": {
+      "sha256": "8160627d0af3ede78dd86fee5954ea1e07d488ce494685e32c48e3695c2f3631",
+      "bytes": 42674
+    },
+    "dist/assets/audio/gravity-impact.mp3": {
+      "sha256": "48a203bd161d29669fea9c55ab3cb4dc2ad157b896f4d9b27cb2a72c82297a5a",
+      "bytes": 41003
+    },
+    "dist/assets/audio/gravity-adrift.mp3": {
+      "sha256": "596613dcc1e83977b993feb626b2af89b0ce316a9d16cd0f1931e4a92a747924",
+      "bytes": 81127
+    },
+    "dist/assets/audio/bed-wandering-earth.mp3": {
+      "sha256": "47a2992e39ba7a6b7a579eb21462cdeedba56ce748fab9c30ed66ca1d3a3200f",
+      "bytes": 481114
+    },
+    "dist/assets/audio/wandering-earth-ignition.mp3": {
+      "sha256": "a4dc0c1babaee2774901d2483eb99396d6e4ab1a4cac88e8b13503a9029319ca",
+      "bytes": 56885
+    },
+    "dist/assets/audio/wandering-earth-detonation.mp3": {
+      "sha256": "397d7036e4c816b39c34b97a4e9dce59d8d298c79c29258309bb7e33b89e6fdc",
+      "bytes": 97009
+    },
+    "dist/assets/audio/wandering-earth-escape.mp3": {
+      "sha256": "6e2ec43224165a85fb54325df23d8072aca41264d681bb2d8eaca6d2dfb1a1eb",
+      "bytes": 73185
     }
   }
 }
