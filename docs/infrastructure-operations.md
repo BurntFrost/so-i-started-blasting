@@ -63,7 +63,7 @@ continuous monitoring**; examples above are a schema illustration, not live proo
 
 | Area | Expected behavior |
 |---|---|
-| GitHub | Main requires the GitHub Actions `quality` check with strict updates and administrator enforcement; force pushes/deletion remain disabled. Only checkout/setup-node/upload-artifact are allowed; full SHA pins are required. |
+| GitHub | Pull requests into main require the GitHub Actions `quality` check with strict updates. Administrator enforcement is off, so repository administrators may push directly to main; every push to main still runs `quality`, and Vercel assigns production only after its `release-quality` job succeeds for that SHA. Force pushes/deletion remain disabled. Only checkout/setup-node/upload-artifact are allowed; full SHA pins are required. |
 | Vercel | Correct project/team, Node 24.x, Basic build machine with elastic concurrency off, all-deployment SSO protection and fork protection. Repository `vercel.json` supplies static install/build/output settings. The single named production check, `release-quality`, requires build-ready, blocks deployment-alias, and times out after 1,800 seconds; no other blocking check is expected. |
 | OIDC trusted source | GitHub issuer `https://token.actions.githubusercontent.com`; audience `https://github.com/BurntFrost`; exact repository and `refs/heads/main`; exact `workflow_ref` for `.github/workflows/release.yml@refs/heads/main`; production only. Extra claim keys, identities, issuers, or deployment targets are drift. |
 | Cloudflare DNS/TLS | Both public CNAMEs stay proxied to the approved Vercel DNS target; DNSSEC active, Full (strict), TLS 1.2 minimum, HTTPS redirect and two-year HSTS with subdomains/preload. |
