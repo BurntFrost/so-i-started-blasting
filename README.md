@@ -1,6 +1,21 @@
 # So I Started Blasting
 
-An interactive 3D apocalypse cinema at [soistartedblasting.com](https://soistartedblasting.com/), with original scenes inspired by *Independence Day*, *Deep Impact*, *The Day After Tomorrow*, and *Melancholia*.
+An interactive 3D apocalypse cinema at [soistartedblasting.com](https://soistartedblasting.com/), with ten original movie-inspired scenes and cosmic visualizations.
+
+| Film inspiration | Visualization |
+| --- | --- |
+| Independence Day | Mothership, energy beam, collapsing skyline |
+| Deep Impact | Comet strike, tsunami, sea spray |
+| The Day After Tomorrow | Superstorm, snowfall, frozen city |
+| Melancholia | Rogue planet, atmosphere, final collision |
+| Terminator 2 | Nuclear fireball, mushroom cloud, expanding shockwave |
+| 2012 | Fractured crust, glowing chasm, tumbling debris |
+| War of the Worlds | Walking tripods, scanning heat rays, red growth |
+| Knowing | Solar photosphere, magnetic loops, superflare |
+| Armageddon | Rugged asteroid, glowing fissures, fragment field |
+| Interstellar | Black hole, accretion disk, lensed halo, orbiting craft |
+
+All scenes use the same reversible 30-second timeline and adaptive quality tiers. Cosmic visuals are cinematic interpretations; the black-hole halo is a geometric lensing approximation. No new remote model downloads are needed for the six added scenes.
 
 The simulation includes authored architectural and spacecraft models, physically based surface materials, HDR lighting, animated weather and particles, and adaptive graphics quality for phones. Scene playback, timeline scrubbing, camera orbit, replay, and graphics controls run entirely in the browser.
 
@@ -32,6 +47,8 @@ Run verification with `node --test tests/*.test.mjs`.
 | `dist/index.html`, `dist/style.css` | Interface and layout |
 | `dist/boot.js` | Browser startup and failure handling |
 | `dist/simulation.js` | Scene construction, animation, camera, and controls |
+| `dist/scenes.js` | Shared scene catalogue for the picker, analytics, and control API |
+| `dist/terrestrial.js`, `dist/cosmic.js` | Six additional procedural scene visualizations |
 | `dist/cinema.js` | Materials, effects, and adaptive graphics |
 | `dist/production.js` | Model loading, instancing, and environment setup |
 | `dist/analytics.js`, `dist/telemetry.js` | Analytics bootstrap and sampled graphics measurements |

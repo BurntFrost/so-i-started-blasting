@@ -1,4 +1,5 @@
-const sceneNames = ['independence-day', 'deep-impact', 'day-after-tomorrow', 'melancholia'];
+import { scenes } from './scenes.js';
+const sceneNames = scenes.map(scene => scene.id);
 const qualityNames = ['lite', 'balanced', 'high'];
 
 // The bootstrap owns the Vercel queue. This adapter never creates identifiers or storage.

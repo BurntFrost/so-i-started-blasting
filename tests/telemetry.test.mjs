@@ -2,7 +2,9 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
 // Browser modules stay buildless; a data URL also makes their ESM format explicit to Node.
-const source = await readFile(new URL('../dist/telemetry.js', import.meta.url), 'utf8');
+const catalog = await readFile(new URL('../dist/scenes.js', import.meta.url), 'utf8');
+const catalogUrl = `data:text/javascript;base64,${Buffer.from(catalog).toString('base64')}`;
+const source = (await readFile(new URL('../dist/telemetry.js', import.meta.url), 'utf8')).replace('./scenes.js', catalogUrl);
 const { createGraphicsTelemetry, sendGraphicsEvent } = await import(`data:text/javascript;base64,${Buffer.from(source).toString('base64')}`);
 
 function harness() {
@@ -43,6 +45,19 @@ test('one bounded sample per scene/tier produces mean FPS and p95 with only two 
   assert.ok(Math.abs(rate[0].data.fps - 71.4) < .4);
   assert.equal(tail[0].data.milliseconds, 50);
   assert.ok(h.events.every(event => Object.keys(event.data).length === 2));
+  h.telemetry.dispose();
+});
+
+test('all anthology scenes emit distinct stable names, including newly added scenes', async () => {
+  const { scenes } = await import(catalogUrl);
+  const h = harness();
+  for (let index = 0; index < scenes.length; index++) {
+    h.telemetry.selectScene(index); h.frame(25, false);
+  }
+  assert.deepEqual(h.events.map(event => event.data.scene), scenes.map(scene => scene.id));
+  assert.equal(new Set(h.events.map(event => event.data.scene)).size, 10);
+  h.telemetry.selectScene(10); h.frame(25, false);
+  assert.equal(h.events.length, 10);
   h.telemetry.dispose();
 });
 

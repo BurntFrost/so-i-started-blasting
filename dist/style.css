@@ -1,4 +1,8 @@
 @import url('https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@500;600;700;800&family=Barlow:wght@400;500;600;700&display=swap');
+.scene-list .scene-card{min-width:0;min-height:166px}.scene-card>div{min-width:0}.scene-list .card-visual{font-size:11px;line-height:1.5;color:#adb0b9;margin-top:12px}.scene-list .scene-card:hover{border-color:var(--scene-color)}
+@media(min-width:1200px){.anthology .scene-list{grid-template-columns:repeat(5,minmax(0,1fr))}.scene-list .scene-card{padding:20px 12px;gap:10px}.scene-list .card-icon{display:none}}
+@media(min-width:601px) and (max-width:1199px){.anthology .scene-list{grid-template-columns:repeat(2,minmax(0,1fr))}}
+@media(max-width:600px){.scene-list .scene-card{min-height:178px}.scene-list .card-visual{font-size:10px}.scene-list .scene-card p{overflow-wrap:anywhere}}
 .stage .scene-spec{background:#081018a6;padding:12px 14px;border-radius:2px}.stage .view-controls button{background:#081018bb}
 @media(min-width:601px){main .stage{height:clamp(580px,68vh,860px)}.stage h1{font-size:clamp(64px,6vw,94px)}.stage .vignette{background:linear-gradient(90deg,#08090bc9,transparent 40%),linear-gradient(0deg,#08090b77,transparent 22%)}}
 @media(max-width:600px){main .stage{height:630px}.stage #world{position:absolute;top:250px;height:calc(100% - 250px)}.stage .scene-spec{display:none}.stage .render-label{display:block;font-size:8px}.stage .orbit-hint{font-size:8px;letter-spacing:.5px}.stage .orbit-hint span{padding:0 4px}}

@@ -224,7 +224,8 @@ export function createCinema(world) {
     impactLight.position.copy(sparks.material.uniforms.origin.value);impactLight.position.y=18;
     glow.intensity*=7;
     if(blast.visible){blast.material.opacity*=.45;blast.material.color.multiplyScalar(2.5);}
-    bloom.strength=index===2?.22:index===3?.4:.48;
+    bloom.strength=index===2?.22:index===3?.4:index===9?.12:index>=7?.25:.48;
+    bloom.radius=index>=7?.35:.65;
     // Keep the alien craft inside the narrow phone framing.
     if(phone()&&index===0)ship.position.y-=12;
     ground.material.envMapIntensity=index===2?.2:.6;

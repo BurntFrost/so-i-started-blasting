@@ -136,17 +136,20 @@ export async function createProduction(world) {
   function update(t,index){
     const quality=canvas.dataset.quality;
     sky.position.copy(camera.position);
-    const palette=['#b4c7c4','#bba899','#91afca','#7db9d4'];skyMaterial.uniforms.tint.value.set(palette[index]);skyMaterial.uniforms.exposure.value=index===3?.14:index===2?.3:.65;skyMaterial.uniforms.storm.value=index>=2?.96:.3;
+    const space=index>=7;
+    sky.visible=!space;
+    const palette=['#b4c7c4','#bba899','#91afca','#7db9d4','#dba879','#ca9a81','#a297b4','#ffffff','#ffffff','#ffffff'];skyMaterial.uniforms.tint.value.set(palette[index]);skyMaterial.uniforms.exposure.value=index===3?.14:index===2?.3:index===6?.25:.65;skyMaterial.uniforms.storm.value=index>=2?.96:.3;
     sky.rotation.y=2.8+t*.0006;
-    scene.environmentIntensity=index===2?.6:.72;scene.fog.color.set(index===2?'#718797':index===3?'#283e50':'#5a6364');scene.fog.density=index===3?.0018:index===2?.0035+smooth(t/30)*.003:.0024;
-    sun.position.set(-90,85,-110);sun.intensity=index===2?1.1:2.7;sun.color.set(index===3?'#a7cfff':index===2?'#bfdbef':'#ffc596');
-    scene.children.find(o=>o.isHemisphereLight).intensity=.38;
-    ground.material.color.set(index===2?'#afc0c8':'#647077');ground.scale.set(1,1,1);cityDetails.visible=index!==1;
+    scene.environmentIntensity=space?.2:index===2?.6:.72;scene.fog.color.set(index===2?'#718797':index===3?'#283e50':index===4?'#594139':index===5?'#51403e':index===6?'#353340':'#5a6364');scene.fog.density=space?0:index===3?.0018:index===2?.0035+smooth(t/30)*.003:.0024;
+    sun.position.set(-90,85,-110);sun.intensity=space?1.5:index===2?1.1:2.7;sun.color.set(space?'#e4ebff':index===3?'#a7cfff':index===2?'#bfdbef':index===6?'#c0b4de':'#ffc596');
+    scene.children.find(o=>o.isHemisphereLight).intensity=space?.12:.38;
+    ground.material.color.set(index===2?'#afc0c8':'#647077');ground.scale.set(1,1,1);ground.visible=index!==5;cityDetails.visible=index!==1&&index!==5;
     skyline.visible=quality!=='lite';grass.count=quality==='high'?9000:quality==='balanced'?4500:1800;
     for(const b of buildings){b.visible=false;b.updateMatrix();}
     for(const batch of batches){batch.mesh.visible=batch.low?quality==='lite':quality!=='lite';batch.members.forEach((b,i)=>batch.mesh.setMatrixAt(i,b.matrix));batch.mesh.instanceMatrix.needsUpdate=true;batch.mesh.castShadow=quality==='high';}
     const frozen=smooth((t-8)/20);for(const mat of materials){mat.color.copy(mat.userData.baseColor);if(index===2)mat.color.lerp(new THREE.Color('#e2edf0'),frozen*.8);mat.emissiveIntensity=mat.userData.baseEmission*(index===2?1-frozen:1);}
-    landmark.scale.y=index===0?1-smooth((t-15)/10)*.85:1;landmark.rotation.z=index===0?smooth((t-15)/10)*.18:0;
+    const collapse=index===0?smooth((t-15)/10):index===4?smooth((t-13)/10):index===5?smooth((t-9)/15):0;
+    landmark.scale.y=1-collapse*.85;landmark.rotation.z=collapse*.18;
     authoredShip.visible=true;previousShipChildren.forEach(c=>{if(c!==core)c.visible=false;});
     core.material.color.setRGB(.3,2.4,1.4);beam.material.color.setRGB(.22,1.3,.75);
     blast.visible=false;fire.visible=index<2&&t>13&&t<28;fire.position.copy(blast.position);const radius=1+smooth((t-13)/12)*(index===0?48:30);fire.scale.set(radius,radius*.85,radius);fire.position.y+=radius*.22;
