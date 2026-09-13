@@ -76,6 +76,87 @@ test('missing assets and dynamic local paths fail before replacing a successful 
   await assert.rejects(build(options), /Use literal local asset URLs/);
 });
 
+for (const expression of [
+  '`/assets/${name}`', '`/assets/${name || "fallback"}`',
+  "'/assets/' + name + '.mp3'", "'/assets/' /* track */ + name + '.mp3'",
+  "import('./' + name + '.js')", "import(('./') + name + '.js')",
+  "('/assets/') + name + '.mp3'", "(( /* prefix */ '/assets/' /* end */ )) + name + '.mp3'",
+  "('/assets/' + name + '.mp3')",
+  "prefix + '/assets/' + name + '.mp3'",
+  "('https://example.com' && prefix) + '/assets/' + name",
+  "('https://example.com' ? prefix : alternate) + '/assets/' + name",
+  "('https://example.com' ? '/assets/' : '/fallback/') + name + '.mp3'"
+]) {
+  test(`computed local reference ${expression} fails without replacing the previous build`, async t => {
+    const options = await fixture(t);
+    const first = await build(options);
+    const html = await readFile(path.join(options.outDir, 'index.html'), 'utf8');
+    await writeFile(path.join(options.sourceDir, 'scene.js'), `export const asset = ${expression};`);
+    await assert.rejects(build(options), /Use literal local asset URLs/);
+    assert.deepEqual(JSON.parse(await readFile(path.join(options.outDir, 'asset-manifest.json'), 'utf8')), first);
+    assert.equal(await readFile(path.join(options.outDir, 'index.html'), 'utf8'), html);
+  });
+}
+
+test('external, data and request-time provider paths remain unchanged', async t => {
+  const options = await fixture(t);
+  const html = '<link rel="icon" href="data:image/svg+xml,%3Csvg fill=\'%23f90\'/%3E"><script src="/boot.js"></script>';
+  await writeFile(path.join(options.sourceDir, 'index.html'), html);
+  const references = [
+    '`https://example.com/assets/${name}.mp3`',
+    "'https://example.com/assets/' + name + '.mp3'",
+    "'https://example.com' + /* separator */ '/asset.js'",
+    "('https://example.com' + name) + (/* separator */ '/asset.js')",
+    "('https://example.com' + (flag ? first : second)) + '/asset.js'",
+    "'https://example.com' + // separator\n '/asset.js'",
+    '`//example.com/assets/${name}.mp3`',
+    "'data:audio/mpeg;base64,' + bytes",
+    "'/_vercel/' + name + '/script.js'",
+    "('/_vercel/' + name) + /* separator */ ('/script.js')",
+    '`/_vercel/${name}/script.js`'
+  ];
+  const text = `export const assets = [${references.join(',')}];`;
+  await writeFile(path.join(options.sourceDir, 'scene.js'), text);
+  const manifest = await build(options);
+  assert.equal(await readFile(path.join(options.outDir, manifest['/scene.js']), 'utf8'), text);
+  assert.ok((await readFile(path.join(options.outDir, 'index.html'), 'utf8')).includes("data:image/svg+xml,%3Csvg fill='%23f90'/%3E"));
+});
+
+test('grouped literal assets still rewrite around comments, regexes and unrelated strings', async t => {
+  const options = await fixture(t);
+  const text = [
+    '// A comment\'s "/assets/missing.mp3" is not a runtime reference.',
+    'const quoted = /["\']/; if (enabled) /["\']/.test(input);',
+    'const ratio = 12 / 3;',
+    'const note = "not a \'/assets/missing.mp3\' reference";',
+    'export const model = ((/* grouping */ "/assets/city.glb"));'
+  ].join('\n');
+  await writeFile(path.join(options.sourceDir, 'scene.js'), text);
+  const manifest = await build(options);
+  const output = await readFile(path.join(options.outDir, manifest['/scene.js']), 'utf8');
+  assert.equal(output, text.replace('"/assets/city.glb"', `"${manifest['/assets/city.glb']}"`));
+});
+
+test('release identity is staged atomically without changing static asset hashes', async t => {
+  const options = await fixture(t);
+  const first = await build(options);
+  const previousEnv = process.env;
+  t.after(() => { process.env = previousEnv; });
+  process.env = { ...process.env, VERCEL: '1', VERCEL_DEPLOYMENT_ID: 'dpl_fixture123',
+    VERCEL_URL: 'so-i-started-blasting-abc123xyz-burntfrosts-projects.vercel.app',
+    VERCEL_GIT_COMMIT_SHA: 'a'.repeat(40), VERCEL_PROJECT_ID: 'prj_t9xPKJ22rXL1adwZON1A1FH4pWr6', VERCEL_ENV: 'preview' };
+  assert.deepEqual(await build(options), first);
+  const release = JSON.parse(await readFile(path.join(options.outDir, 'release.json'), 'utf8'));
+  assert.equal(release.deploymentId, 'dpl_fixture123');
+  assert.equal(release.sha, 'a'.repeat(40));
+  delete process.env.VERCEL_GIT_COMMIT_SHA;
+  await assert.rejects(build(options), /invalid-release-metadata/);
+  assert.deepEqual(JSON.parse(await readFile(path.join(options.outDir, 'release.json'), 'utf8')), release);
+  assert.deepEqual(JSON.parse(await readFile(path.join(options.outDir, 'asset-manifest.json'), 'utf8')), first);
+  await writeFile(path.join(options.sourceDir, 'release.json'), '{}');
+  await assert.rejects(build(options), /reserved for deployment identity/);
+});
+
 test('Three engine and used addons are local, pinned, licensed and fingerprinted transitively', async t => {
   const options = await fixture(t);
   await writeFile(path.join(options.sourceDir, 'scene.js'), "import * as THREE from 'three'; import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js'; export {THREE,GLTFLoader};");

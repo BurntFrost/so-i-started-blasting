@@ -76,6 +76,7 @@ scene.environment=cinema.environment;
 const terrestrial=createTerrestrial({scene,canvas});
 const cosmic=createCosmic({scene,canvas,camera});
 let production=null,productionRequested=false,authoredWorkPending=false,failed=false;
+const productionAssets=new AbortController();
 let selected=0,time=0,playing=false,speed=1,previous=0,needsRender=true;
 const $=id=>document.getElementById(id),clamp=(v,a=0,b=1)=>Math.max(a,Math.min(b,v)),ease=v=>{v=clamp(v);return v*v*(3-2*v);};
 const audio=createSceneAudio({button:$('sound-toggle'),volumeInput:$('sound-volume'),status:$('sound-status'),player:$('player')});
@@ -85,6 +86,7 @@ const hemi=scene.children.find(object=>object.isHemisphereLight);
 const finalLight=new THREE.Color('#e0f7ff'),freeze=new THREE.Color('#c0d6e2');
 controls.addEventListener('change',()=>{needsRender=true;});
 canvas.addEventListener('atmosphere-ready',()=>{needsRender=true;});
+canvas.addEventListener('explosion-ready',()=>{updateWorld();});
 function resetCamera(){
  const s=scenes[selected];camera.position.set(...s.camera);controls.target.set(...s.target);controls.update();needsRender=true;
 }
@@ -98,14 +100,14 @@ function syncUI(){
 }
 function failRenderer(stage){
  if(failed)return;
- failed=true;playing=false;canvas.dataset.renderState='failed';controls.enabled=false;renderer.setAnimationLoop(null);telemetry.idle();
+  failed=true;productionAssets.abort();playing=false;canvas.dataset.renderState='failed';controls.enabled=false;renderer.setAnimationLoop(null);telemetry.idle();
  reportGraphicsFailure(stage,scenes[selected].id);syncUI();showGraphicsFailure(stage);
 }
 function loadProduction(){
  if(productionRequested||failed||scenes[selected].world==='space')return;
  productionRequested=true;canvas.dataset.authoredAssets='loading';
  let degraded=false;const initiatingScene=scenes[selected].id;
- createProduction({renderer,scene,camera,canvas,city,buildings,ground,ship,core,tower,blast,wave,foam,ocean,planet,landscape,sun,beam,meteor,tail,
+ createProduction({renderer,scene,camera,canvas,city,buildings,ground,ship,core,tower,blast,wave,foam,ocean,planet,landscape,sun,beam,meteor,tail,assetSignal:productionAssets.signal,
   onAssetError(){degraded=true;reportGraphicsFailure('authored-assets',initiatingScene);}
  }).then(result=>{
   if(failed)return;
@@ -114,6 +116,7 @@ function loadProduction(){
   canvas.dataset.authoredAssets=degraded?'degraded':'ready';
   updateWorld();
  }).catch(()=>{
+  if(failed)return;
   canvas.dataset.authoredAssets='degraded';
   reportGraphicsFailure('authored-assets',initiatingScene);
  });

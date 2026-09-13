@@ -1,0 +1,68 @@
+name: Release
+on:
+  repository_dispatch:
+    types: [vercel.deployment.ready, vercel.deployment.success, vercel.deployment.promoted]
+permissions:
+  contents: read
+jobs:
+  hosted-smoke:
+    if: >-
+      github.event.action == 'vercel.deployment.ready' &&
+      github.event.sender.id == 35613825 &&
+      github.event.client_payload.project.id == 'prj_t9xPKJ22rXL1adwZON1A1FH4pWr6' &&
+      github.event.client_payload.environment == 'production' &&
+      github.event.client_payload.git.ref == 'main'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    permissions:
+      contents: read
+      statuses: write
+      id-token: write
+    steps:
+      # repository_dispatch executes the workflow from main. Never check out a payload PR ref.
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        with:
+          node-version-file: .node-version
+          cache: npm
+      - run: npm ci --ignore-scripts
+      - run: npx playwright install --with-deps --only-shell chromium
+      - name: Verify the immutable deployment and report on its SHA
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+          VERCEL_RELEASE_CHECK_ID: ${{ vars.VERCEL_RELEASE_CHECK_ID }}
+        run: node tools/check-deployment.mjs ready > release-ready.json
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        if: always()
+        with:
+          name: release-ready-${{ github.event.client_payload.id }}
+          path: release-ready.json
+          retention-days: 30
+  public-smoke:
+    if: >-
+      (github.event.action == 'vercel.deployment.success' || github.event.action == 'vercel.deployment.promoted') &&
+      github.event.sender.id == 35613825 &&
+      github.event.client_payload.project.id == 'prj_t9xPKJ22rXL1adwZON1A1FH4pWr6' &&
+      github.event.client_payload.environment == 'production' &&
+      github.event.client_payload.git.ref == 'main'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        with:
+          node-version-file: .node-version
+      - name: Verify both public hosts serve the promoted identity
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+        run: node tools/check-deployment.mjs public > release-public.json
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        if: always()
+        with:
+          name: release-public-${{ github.event.client_payload.id }}
+          path: release-public.json
+          retention-days: 30

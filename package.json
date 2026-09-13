@@ -9,9 +9,12 @@
   "scripts": {
     "build": "node tools/build.mjs",
     "test": "node --test tests/*.test.mjs",
-    "test:browser": "playwright test",
+    "test:browser": "playwright test --project=chromium",
+    "test:webkit": "playwright test --project=webkit",
+    "check:public": "node tools/check-public.mjs",
+    "infrastructure:verify": "node tools/check-infrastructure.mjs",
     "test:certificates": "python3 -m unittest discover -s tests -p 'test_*.py'",
-    "check": "npm test && npm run test:certificates && npm run assets:verify && npm run build && npm run test:browser",
+    "check": "npm test && npm run test:certificates && npm run assets:verify && npm run build && npm run test:browser && npm run test:webkit",
     "serve": "node tools/serve.mjs",
     "assets:verify": "node tools/asset-baseline.mjs"
   },

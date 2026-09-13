@@ -43,6 +43,14 @@ test('local development and privacy opt-outs do not load analytics', () => {
   }
 });
 
+test('Speed Insights vital hooks sanitize the event shape used by the served collector', () => {
+  const { window } = bootstrap();
+  const sanitize = window.siq[0][1];
+  const event = { type: 'vital', url: 'https://example.vercel.app/?probe=private#fragment', route: '/' };
+  assert.deepEqual(JSON.parse(JSON.stringify(sanitize(event))), { type: 'vital', url: 'https://example.vercel.app/', route: '/' });
+  assert.equal(event.url, 'https://example.vercel.app/?probe=private#fragment');
+});
+
 test('a blocked analytics script releases only its own queue', () => {
   for (const [index, name, other] of [[0, 'va', 'si'], [1, 'si', 'va']]) {
     const { window, scripts } = bootstrap();

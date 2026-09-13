@@ -11,8 +11,8 @@ nebula backdrop, separate planetary cloud shells and rim lighting, brighter wave
 foam, billowing nuclear clouds and restrained highlight grading. LITE keeps the
 native renderer and a single atmospheric layer. Effects remain reversible.
 
-Local preview: [Open the cinema](http://127.0.0.1:4174/).
-These changes are in the local workspace; they have not been deployed.
+The audio and graphics upgrade was merged in PR #8 and is included in the
+[production cinema](https://soistartedblasting.com/).
 
 ## Tools and assets
 

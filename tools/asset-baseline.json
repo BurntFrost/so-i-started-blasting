@@ -8,6 +8,7 @@
     "imagemagick": "7.1.2-31 Q16-HDRI aarch64 8309dc92a:20260903"
   },
   "files": {
+    "dist/assets/explosion-puff.webp": { "sha256": "9ba6b3908884ba28b753e9fc10c0917378fe93b94ded00a69ac67ba58d4cb8a8", "bytes": 712916 },
     "dist/assets/asphalt-albedo.webp": { "sha256": "19dc0260d16f277ac4613c5c92201042c66b5c76d3f2d6c1089621b6ab5dd288", "bytes": 252338 },
     "dist/assets/asphalt-normal.webp": { "sha256": "d978cf410e16b77272f2950ef7b4ff12fae368e9a6f958bb48f52c15adcdf2f9", "bytes": 547942 },
     "dist/assets/asphalt-roughness.webp": { "sha256": "9021749170e7f5e9630a1b497a14b82ba09bc2d65126f09ac36797cf3b36f1dc", "bytes": 70448 },

@@ -38,7 +38,7 @@ There is no application backend or required environment variable. Edit `dist`, t
 Run the complete release gate:
 
 ```sh
-npx playwright install chromium
+npx playwright install chromium webkit
 npm run check
 ```
 
@@ -85,7 +85,13 @@ Certificate renewal uses the [DNS challenge runbook](docs/certificate-operations
 
 The public header policy matches `vercel.json`: DENY framing, nosniff, strict-origin referrers, restricted device permissions, and two-year HSTS with subdomains/preload intent. Cloudflare's generic security-header transform is disabled so it cannot overwrite these values; its HSTS setting matches the same policy. The preload token does not mean the domain has been submitted to a browser preload list. Cloudflare's content-cache rule retains its immutable legacy ruleset name but is described as Vercel cache ownership and still bypasses duplicate caching.
 
-Content Security Policy starts in **report-only mode**. It permits the local hashed engine, Google fonts, Vercel analytics and preview toolbar, and Cloudflare challenge/analytics scripts. App startup and all ten scenes pass an enforced-policy preview probe. The public Cloudflare bot-detection inline script still produces an expected report-only violation: a response-header Transform Rule nonce arrives too late to nonce that injected script. Do not enforce the policy until a fresh per-response nonce reaches Cloudflare before script injection and both public and preview paths pass browser checks. No script `unsafe-inline`, static nonce, bot-protection exemption, or extra application server was added to hide this incompatibility. Reports are observable in browser security-policy events/console; there is no central report collector.
+Content Security Policy enforces compatible resource and document restrictions. The stricter script policy remains **report-only** because Cloudflare injects a bot-detection inline script: a response-header Transform Rule nonce arrives too late to nonce that script. Do not enforce the script restriction until a fresh per-response nonce reaches Cloudflare before injection and both public and preview paths pass browser checks. No script `unsafe-inline`, static nonce, bot-protection exemption, or extra application server was added to hide this incompatibility. Reports are observable in browser security-policy events/console; there is no central report collector.
+
+The release gate also runs three WebKit startup and lifecycle checks. These validate the browser engine, not physical iPhone performance or guaranteed back/forward-cache restoration. Optional artwork has a 15-second per-asset deadline and is canceled when the renderer fails; late results are disposed rather than applied to a failed renderer.
+
+The daily Operations workflow verifies certificate lead times, public delivery, immutable caching, and origin isolation. Run `npm run check:public` for an immediate delivery check. Deployment-specific verification and rollback are documented in [release operations](docs/release-operations.md). Workflow files must be activated and verified in provider settings before they constitute a production gate.
+
+Dependabot groups weekly npm and action updates. Three.js upgrades require a coordinated manual change to the pinned version, vendoring assertion, and visual baselines; they are excluded from automatic version updates.
 
 The project uses the Basic build machine. The first remediation preview completed successfully there, and the required Linux CI suite separately validates the full build and browser regressions. Hardware rendering performance comes from the client graphics changes, not the build-machine size.
 

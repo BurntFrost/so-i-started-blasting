@@ -3,6 +3,7 @@ import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import { RGBELoader } from 'three/addons/loaders/RGBELoader.js';
 import { MeshoptDecoder } from 'three/addons/libs/meshopt_decoder.module.js';
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
+import { disposeAsset, loadOptionalAssets } from './asset-loading.js';
 
 const clamp = n => Math.max(0, Math.min(1, n));
 const smooth = n => { n=clamp(n); return n*n*(3-2*n); };
@@ -26,17 +27,15 @@ export async function createProduction(world) {
       ['asphalt-normal','/assets/asphalt-normal.webp'],['asphalt-roughness','/assets/asphalt-roughness.webp']]
       .map(([stage, url]) => [stage, () => textureLoader.loadAsync(url)])
   ];
-  const results = await Promise.allSettled(assets.map(async ([stage, load]) => {
-    const result = await load(); assetStatus[stage] = 'ready'; return result;
-  }));
+  const results = await loadOptionalAssets(assets.map(([, load]) => load), { signal: world.assetSignal });
   const values = results.map((result, i) => {
-    if (result.status === 'fulfilled') return result.value;
+    if (result.status === 'fulfilled') { assetStatus[assets[i][0]] = 'ready'; return result.value; }
     const stage = assets[i][0]; assetStatus[stage] = 'failed'; world.onAssetError?.(stage); return null;
   });
   let [kit, craft, hdr, ...maps] = values;
   const templateNames = ['Tower_A','Tower_B','Tower_C','Tower_D','Tower_E'];
   if (kit && templateNames.some(name => !kit.scene.getObjectByName(name))) {
-    assetStatus['city-model'] = 'failed'; world.onAssetError?.('city-model'); kit = null;
+    assetStatus['city-model'] = 'failed'; world.onAssetError?.('city-model'); disposeAsset(kit); kit = null;
   }
   const anisotropy=Math.min(8,renderer.capabilities.getMaxAnisotropy());
   maps.forEach((map,i)=>{if(!map)return;map.colorSpace=i%3===0?THREE.SRGBColorSpace:THREE.NoColorSpace;map.wrapS=map.wrapT=THREE.RepeatWrapping;map.anisotropy=anisotropy;});

@@ -114,6 +114,47 @@ test('failed optional models and maps preserve baseline city and ship and do not
   });
 });
 
+test('stalled optional models settle after 15 seconds and keep procedural fallback usable', async t => {
+  t.mock.timers.enable({ apis: ['setTimeout'] });
+  await withAssets(['concrete', 'asphalt'], async () => {
+    GLTFLoader.prototype.loadAsync = () => new Promise(() => {});
+    const world = productionWorld();
+    let production;
+    const pending = createProduction(world).then(result => { production = result; });
+    await new Promise(setImmediate);
+    t.mock.timers.tick(15_000);
+    await new Promise(setImmediate);
+    assert.ok(production, 'a stalled optional asset must not keep authored readiness pending');
+    await pending;
+    production.update(18, config('war-of-the-worlds'));
+    assert.equal(world.canvas.dataset.authoredAssets, 'degraded');
+    assert.equal(world.errors.length, 9);
+    assert.equal(new Set(world.errors).size, 9);
+    assert.ok(world.buildings.every(building => building.visible));
+    assert.equal(world.tower.visible, true);
+    assert.equal(world.baselineShip.visible, true);
+  });
+});
+
+test('cancelled authored loading cannot mutate the world when a model arrives later', async () => {
+  await withAssets(['concrete', 'asphalt'], async () => {
+    let resolveModel;
+    const model = new Promise(resolve => { resolveModel = resolve; });
+    GLTFLoader.prototype.loadAsync = () => model;
+    const controller = new AbortController(), world = productionWorld();
+    world.assetSignal = controller.signal;
+    const before = snapshot(world.scene);
+    const pending = assert.rejects(createProduction(world), { name: 'AbortError' });
+    await new Promise(setImmediate);
+    controller.abort();
+    await pending;
+    resolveModel(kit());
+    await new Promise(setImmediate);
+    assert.equal(snapshot(world.scene), before);
+    assert.equal(world.errors.length, 0);
+  });
+});
+
 test('BALANCED uses stepped medium geometry and uploads only visible city batches', async () => {
   await withAssets(['concrete-normal'], async () => {
     const world = productionWorld(), production = await createProduction(world);

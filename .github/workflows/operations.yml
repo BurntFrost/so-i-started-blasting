@@ -1,0 +1,42 @@
+name: Operations
+on:
+  schedule:
+    - cron: '17 14 * * *'
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: production-operations
+  cancel-in-progress: false
+jobs:
+  production-health:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
+        with:
+          node-version-file: .node-version
+      - name: Verify served edge and origin certificates
+        run: |
+          if timeout 360s python3 tools/check-certificates.py --repeats 10 --timeout 3 > certificate-health.json; then
+            exit 0
+          else
+            result=$?
+            if [ ! -s certificate-health.json ]; then
+              printf '{"ok":false,"error":"certificate-check-process-failed"}\n' > certificate-health.json
+            fi
+            exit "$result"
+          fi
+      - name: Verify public delivery and origin isolation
+        if: always()
+        run: node tools/check-public.mjs > public-health.json
+      - name: Preserve operational evidence
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        if: always()
+        with:
+          name: production-health-${{ github.run_id }}
+          path: |
+            certificate-health.json
+            public-health.json
+          retention-days: 14
