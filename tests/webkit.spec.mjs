@@ -34,7 +34,9 @@ test('WebKit initializes and obeys audio consent, pause/resume, and scene change
   await page.locator('#play').click();
   await expect(player).toHaveAttribute('data-audio-state', 'playing');
   await expect(player).toHaveAttribute('data-audio-sources', /^[1-9]\d*$/);
-  await page.locator('#play').click();
+  // Span a UI refresh: WebKit drops the click if its pressed text node is replaced.
+  await page.locator('#play').click({ delay: 300 });
+  await expect(player).toHaveAttribute('data-audio-state', 'paused');
   await expect(player).toHaveAttribute('data-audio-sources', '0');
   await page.locator('#play').click();
   await expect(player).toHaveAttribute('data-audio-state', 'playing');
