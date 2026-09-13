@@ -17,7 +17,7 @@ float fbm(vec3 p){return noise(p)*.57+noise(p*2.03)*.28+noise(p*4.11)*.15;}`;
 export function createCinema(world) {
   const { renderer, scene, camera, canvas, sun, buildings, ground, ship, hullMat,
     core, beam, blast, ocean, wave, meteor, planet, landscape, windows, snow,
-    debris, foam, clouds, glow } = world;
+    debris, foam, clouds, glow, telemetry } = world;
   let seed = 90210;
   const random = () => { seed = (seed * 1664525 + 1013904223) >>> 0; return seed / 4294967296; };
   const material = (color, values = {}) => new THREE.MeshStandardMaterial({ color, ...values });
@@ -182,12 +182,13 @@ export function createCinema(world) {
   const phone=()=>matchMedia('(pointer: coarse)').matches||canvas.clientWidth<600;
   let ceiling=phone()?1:2,quality=ceiling,frameTotal=0,frameCount=0,fastWindows=0,cooldown=0;
   const badge=document.querySelector('.render-label');
-  function setQuality(next){
+  function setQuality(next,reason='initial'){
     quality=next;const tier=tiers[next];renderer.setPixelRatio(Math.min(devicePixelRatio,tier.dpr));renderer.shadowMap.enabled=tier.shadows;
     bloom.enabled=tier.bloom;roofs.forEach((roof,i)=>roof.visible=next>0||i%3===0);armor.visible=next>0;
     for(const p of [sparks,smoke,spray]){p.geometry.setDrawRange(0,Math.floor(p.geometry.attributes.position.count*tier.particles));p.material.uniforms.pixelRatio.value=renderer.getPixelRatio();}
     snow.geometry.setDrawRange(0,Math.floor(snow.geometry.attributes.position.count*tier.particles));debris.count=Math.floor(300*tier.particles);
     canvas.dataset.quality=tier.name.toLowerCase();canvas.dataset.pixelRatio=String(renderer.getPixelRatio());
+    telemetry.setQuality(canvas.dataset.quality,reason);
     if(badge)badge.textContent=`AUTO / ${tier.name}`;
     resize();cooldown=3;fastWindows=0;
   }
@@ -195,15 +196,15 @@ export function createCinema(world) {
     const w=canvas.clientWidth,h=canvas.clientHeight;if(!w||!h)return;
     renderer.setSize(w,h,false);composer.setPixelRatio(renderer.getPixelRatio());composer.setSize(w,h);
     if(quality===1)bloom.setSize(Math.round(w*.55),Math.round(h*.55));
-    const nextCeiling=phone()?1:2;if(nextCeiling!==ceiling){ceiling=nextCeiling;if(quality>ceiling)setQuality(ceiling);}
+    const nextCeiling=phone()?1:2;if(nextCeiling!==ceiling){ceiling=nextCeiling;if(quality>ceiling)setQuality(ceiling,'viewport');}
   }
   function measure(delta,active){
     if(!active||delta<=0||delta>1){frameTotal=0;frameCount=0;return;}
     if(cooldown>0){cooldown-=delta;return;}
     frameTotal+=delta;frameCount++;if(frameTotal<3)return;
     const fps=frameCount/frameTotal;canvas.dataset.fps=String(Math.round(fps));frameTotal=0;frameCount=0;
-    if(fps<38&&quality>0)setQuality(quality-1);
-    else if(fps>57&&quality<ceiling){if(++fastWindows>=4)setQuality(quality+1);}
+    if(fps<38&&quality>0)setQuality(quality-1,'slow');
+    else if(fps>57&&quality<ceiling){if(++fastWindows>=4)setQuality(quality+1,'headroom');}
     else fastWindows=0;
   }
   function update(t,index){

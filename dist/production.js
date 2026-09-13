@@ -17,7 +17,7 @@ export async function createProduction(world) {
   const [kit,craft,hdr,...maps]=await Promise.all([
     loader.loadAsync('/assets/city-kit.glb'), loader.loadAsync('/assets/mothership.glb'),
     new RGBELoader().loadAsync('/assets/dusk.hdr'),
-    ...['concrete-albedo','concrete-normal','concrete-roughness','asphalt-albedo','asphalt-normal','asphalt-roughness'].map(name=>textureLoader.loadAsync(`/assets/${name}.webp`))
+    ...['/assets/concrete-albedo.webp','/assets/concrete-normal.webp','/assets/concrete-roughness.webp','/assets/asphalt-albedo.webp','/assets/asphalt-normal.webp','/assets/asphalt-roughness.webp'].map(url=>textureLoader.loadAsync(url))
   ]);
   const anisotropy=Math.min(8,renderer.capabilities.getMaxAnisotropy());
   maps.forEach((map,i)=>{map.colorSpace=i%3===0?THREE.SRGBColorSpace:THREE.NoColorSpace;map.wrapS=map.wrapT=THREE.RepeatWrapping;map.anisotropy=anisotropy;});
