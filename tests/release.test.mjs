@@ -1,16 +1,18 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { createReleaseMetadata, projectId, repository, validateRelease } from '../tools/release-metadata.mjs';
-import { checkHosted, eventRelease, main, request, routeProtectedRequest } from '../tools/check-deployment.mjs';
+import { catalogueSize, checkHosted, eventRelease, main, request, routeProtectedRequest } from '../tools/check-deployment.mjs';
 
 const release = { deploymentId: 'dpl_abc123', url: 'https://so-i-started-blasting-abcdef123-burntfrosts-projects.vercel.app',
   sha: 'a'.repeat(40), projectId, environment: 'production' };
 const assets = Object.fromEntries(['js', 'css', 'webp', 'mp3'].map(extension => [`/file.${extension}`, `/immutable/file.${'a'.repeat(16)}.${extension}`]));
+assets['/scenes.js'] = `/immutable/scenes.${'b'.repeat(16)}.js`;
+const catalogue = "const catalogue=[{id:'independence-day',name:'x'},{id:'twister'},{id:'gravity'}];export const scenes=catalogue;";
 const event = () => ({ action: 'vercel.deployment.ready', sender: { login: 'vercel[bot]', id: 35613825 },
   repository: { full_name: repository }, client_payload: { id: release.deploymentId, url: release.url,
     git: { sha: release.sha, ref: 'main' }, project: { id: projectId }, environment: 'production', state: { type: 'pending' } } });
 const response = (body, status = 200, headers = {}) => new Response(body, { status, headers });
-function fixture({ metadata = release, missingAsset = false, protectedOrigin = false, manifest = assets } = {}) {
+function fixture({ metadata = release, missingAsset = false, protectedOrigin = false, manifest = assets, scenesModule = catalogue } = {}) {
   return async (url, options) => {
     assert.equal(options.redirect, 'manual');
     const path = new URL(url).pathname;
@@ -18,7 +20,8 @@ function fixture({ metadata = release, missingAsset = false, protectedOrigin = f
     if (path === '/release.json') return response(JSON.stringify(metadata));
     if (path === '/asset-manifest.json') return response(JSON.stringify(manifest));
     if (path === '/') return response(`<title>So I Started Blasting</title><canvas id="world"></canvas><script src="${assets['/file.js']}"></script>`);
-    return missingAsset ? response('', 404) : response('', 200, { 'cache-control': 'public, max-age=31536000, immutable' });
+    if (missingAsset) return response('', 404);
+    return response(path === assets['/scenes.js'] && options.method !== 'HEAD' ? scenesModule : '', 200, { 'cache-control': 'public, max-age=31536000, immutable' });
   };
 }
 
@@ -51,10 +54,22 @@ test('only trusted production main dispatches can authorize a hosted check', () 
 
 test('hosted smoke checks identity before page/assets and includes the browser result', async () => {
   let rendered = false;
-  const result = await checkHosted(release, { fetcher: fixture(), browserSmoke: async origin => { assert.equal(origin, release.url); rendered = true; } });
+  const result = await checkHosted(release, { fetcher: fixture(), browserSmoke: async (origin, headers, options) => {
+    assert.equal(origin, release.url); assert.equal(options.scenes, 3); rendered = true;
+  } });
   assert.equal(result.ok, true);
-  assert.equal(result.assets, 4);
+  assert.equal(result.assets, 5);
+  assert.equal(result.scenes, 3);
   assert.equal(rendered, true);
+});
+
+test('the expected scene count comes from the deployed catalogue, never the workflow checkout', async () => {
+  assert.equal(catalogueSize(catalogue), 3);
+  assert.equal(catalogueSize("[{id:'a'},{id:'a'}]"), 1);
+  const { '/scenes.js': omitted, ...withoutScenes } = assets;
+  assert.ok(omitted);
+  await assert.rejects(checkHosted(release, { fetcher: fixture({ manifest: withoutScenes }) }), /missing-scenes-module/);
+  await assert.rejects(checkHosted(release, { fetcher: fixture({ scenesModule: 'export const scenes = [];' }) }), /invalid-scenes-module/);
 });
 
 test('hosted smoke fails for SHA/deployment mismatch, missing asset, or protected origin', async () => {
