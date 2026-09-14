@@ -165,10 +165,12 @@ export async function createProduction(world) {
   const fire=new THREE.Mesh(new THREE.SphereGeometry(1,80,48),fireMaterial);scene.add(fire);
   const cloudRoot=kit?.scene.getObjectByName('Tree_A');
   const terrainHeight=(x,z)=>-.5+(Math.sin(x*.022)*Math.cos(z*.027)*5-Math.sin(z*.06)*1.5)*clamp((Math.hypot(x,z)-25)/80);
+  // The authored tree is HIGH-tier geometry (about 5,200 triangles each); lower tiers keep the procedural crowns.
+  const trees=[];
   if(cloudRoot){
     cloudRoot.updateWorldMatrix(true,true);
     const treeBounds=new THREE.Box3().setFromObject(cloudRoot),treeHeight=treeBounds.max.y-treeBounds.min.y;
-    landscape.children.slice(1,-1).forEach((tree,i)=>{tree.children.forEach(c=>c.visible=false);const clone=cloudRoot.clone(true);clone.scale.setScalar((15+i%5*1.3)/treeHeight);clone.traverse(part=>{if(part.isMesh){part.castShadow=true;part.receiveShadow=true;}});tree.position.y=terrainHeight(tree.position.x,tree.position.z);tree.add(clone);});
+    landscape.children.slice(1,-1).forEach((tree,i)=>{const procedural=tree.children.filter(c=>c.visible);const clone=cloudRoot.clone(true);clone.scale.setScalar((15+i%5*1.3)/treeHeight);clone.traverse(part=>{if(part.isMesh){part.castShadow=true;part.receiveShadow=true;}});tree.position.y=terrainHeight(tree.position.x,tree.position.z);tree.add(clone);trees.push({procedural,authored:clone});});
   }
   const grass=new THREE.InstancedMesh(new THREE.ConeGeometry(.09,1.3,3),new THREE.MeshStandardMaterial({color:'#6b8057',roughness:1}),9000);
   for(let i=0;i<9000;i++){const x=random()*250-125,z=random()*230-100,scale=.4+random()*1.2;dummy.position.set(x,terrainHeight(x,z)+scale*.65,z);dummy.rotation.set((random()-.5)*.5,random()*6.28,(random()-.5)*.5);dummy.scale.setScalar(scale);dummy.updateMatrix();grass.setMatrixAt(i,dummy.matrix);}landscape.add(grass);
@@ -193,6 +195,7 @@ export async function createProduction(world) {
       for(const batch of skylineTiers)batch.mesh.visible=batch.tier===(quality==='high'?'high':'balanced');
       landmark.children.forEach(mesh=>mesh.visible=mesh.userData.tier===(quality==='high'?'high':'balanced'));
       grass.count=quality==='high'?9000:quality==='balanced'?4500:1800;
+      for(const tree of trees){tree.authored.visible=quality==='high';for(const part of tree.procedural)part.visible=quality!=='high';}
       lastQuality=quality;
     }
     if(cityActive){
