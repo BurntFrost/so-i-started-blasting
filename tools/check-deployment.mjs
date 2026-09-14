@@ -2,6 +2,7 @@ import { readFile, appendFile } from 'node:fs/promises';
 import { pathToFileURL } from 'node:url';
 import { createHash } from 'node:crypto';
 import { deploymentUrl, validateRelease, projectId, repository } from './release-metadata.mjs';
+import { scenes } from '../dist/scenes.js';
 
 export const releaseCheck = 'release-ready';
 const maxBytes = 1024 * 1024;
@@ -101,7 +102,8 @@ export async function smokeBrowser(origin, headers) {
     await page.goto(origin, { waitUntil: 'domcontentloaded', timeout: 30_000 });
     await page.waitForFunction(() => Number(document.querySelector('#world')?.dataset.drawCalls) > 0
       && document.querySelector('#loading')?.hidden, undefined, { timeout: 45_000 });
-    if (await page.locator('.scene-card').count() !== 10) fail('browser-scene-count');
+    // The workflow runs from main, so the checkout's catalogue is the expected card count for a main deployment.
+    if (await page.locator('.scene-card').count() !== scenes.length) fail('browser-scene-count');
     await page.locator('.scene-card[data-scene="1"]').click();
     await page.waitForFunction(() => document.querySelector('.scene-card[data-scene="1"]')?.getAttribute('aria-pressed') === 'true');
     if (errors || await page.locator('#error').isVisible()) fail('browser-render-failed');
