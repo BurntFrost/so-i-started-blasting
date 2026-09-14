@@ -37,7 +37,7 @@ npm run serve
 
 Open the localhost URL printed by the server. Node 24, npm, Python 3 (verification), and a WebGL-capable browser are required. Three.js 0.170.0 and its used addons are copied from the locked npm dependency into the hashed build, with their license. Rendering has no runtime CDN dependency; Google Fonts is optional and falls back to system fonts. Models, texture maps, and the HDR environment are included in this repository.
 
-There is no application backend or required environment variable. Edit `dist`, then rebuild; its bare module imports require the build step. Baseline scenes render before optional artwork finishes loading. Failed maps use simpler materials, failed models retain procedural geometry, and each new terrestrial/cosmic scene is constructed only on its first selection.
+There is no application backend or required environment variable. Edit `dist`, then rebuild; its bare module imports require the build step. Baseline scenes render before optional artwork finishes loading. Failed maps use simpler materials, failed models retain procedural geometry, and each new terrestrial/cosmic scene is constructed only on its first selection. The authored landscape tree is HIGH-tier geometry; BALANCED and LITE keep the procedural crowns so the landscape scenes fit the phone budget.
 
 Run the complete release gate:
 

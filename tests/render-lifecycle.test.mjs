@@ -75,11 +75,18 @@ function productionWorld() {
 }
 function kit() {
   const scene = new THREE.Group();
-  for (const name of ['Tower_A', 'Tower_B', 'Tower_C', 'Tower_D', 'Tower_E']) {
+  for (const name of ['Tower_A', 'Tower_B', 'Tower_C', 'Tower_D', 'Tower_E', 'Tree_A']) {
     const part = new THREE.Mesh(new THREE.BoxGeometry(1, 1, 1, 10, 10, 10), new THREE.MeshStandardMaterial({ color: '#6789ab' }));
     part.name = name; scene.add(part);
   }
   return { scene };
+}
+function proceduralTree() {
+  const tree = new THREE.Group();
+  const part = () => new THREE.Mesh(new THREE.BoxGeometry(), new THREE.MeshStandardMaterial());
+  const hiddenCone = part(); hiddenCone.visible = false;
+  tree.add(part(), hiddenCone, part(), part());
+  return tree;
 }
 async function withAssets(failures, run) {
   const original = [GLTFLoader.prototype.loadAsync, RGBELoader.prototype.loadAsync, THREE.TextureLoader.prototype.loadAsync];
@@ -154,6 +161,32 @@ test('cancelled authored loading cannot mutate the world when a model arrives la
     await new Promise(setImmediate);
     assert.equal(snapshot(world.scene), before);
     assert.equal(world.errors.length, 0);
+  });
+});
+
+test('only HIGH shows the authored landscape tree; lower tiers keep the procedural crowns within the phone budget', async () => {
+  await withAssets([], async () => {
+    const world = productionWorld();
+    const trees = Array.from({ length: 3 }, proceduralTree);
+    world.landscape.add(...trees, new THREE.Group());
+    const production = await createProduction(world);
+    const authored = tree => tree.children.at(-1), crowns = tree => [tree.children[0], tree.children[2], tree.children[3]];
+    assert.ok(trees.every(tree => tree.children.length === 5), 'each tree gained one authored clone');
+    production.update(18, config('melancholia', 'landscape'));
+    for (const tree of trees) {
+      assert.equal(authored(tree).visible, false, 'BALANCED hides the authored tree');
+      assert.ok(crowns(tree).every(part => part.visible), 'BALANCED shows the procedural trunk and crowns');
+      assert.equal(tree.children[1].visible, false, 'the retired cone stays hidden');
+    }
+    world.canvas.dataset.quality = 'high';
+    production.update(18, config('melancholia', 'landscape'));
+    for (const tree of trees) {
+      assert.equal(authored(tree).visible, true, 'HIGH shows the authored tree');
+      assert.ok(crowns(tree).every(part => !part.visible), 'HIGH hides the procedural crowns');
+    }
+    world.canvas.dataset.quality = 'lite';
+    production.update(18, config('melancholia', 'landscape'));
+    assert.ok(trees.every(tree => !authored(tree).visible && crowns(tree).every(part => part.visible)), 'LITE also keeps the procedural crowns');
   });
 });
 
