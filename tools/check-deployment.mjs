@@ -2,9 +2,10 @@ import { readFile, appendFile } from 'node:fs/promises';
 import { pathToFileURL } from 'node:url';
 import { createHash } from 'node:crypto';
 import { deploymentUrl, validateRelease, projectId, repository } from './release-metadata.mjs';
-import { scenes } from '../dist/scenes.js';
 
 export const releaseCheck = 'release-ready';
+// The deployed catalogue module is inspected as text, never evaluated.
+export const catalogueSize = source => new Set([...source.matchAll(/\{id:'([a-z0-9-]+)'/g)].map(match => match[1])).size;
 const maxBytes = 1024 * 1024;
 const requestTimeout = 15_000;
 const knownErrors = /^(invalid-|release-|untrusted-|unsuccessful-|unexpected-|missing-|protected-|http-|response-|asset-|browser-|github-|oidc-)/;
@@ -67,8 +68,13 @@ export async function checkHosted(expected, { origin = expected.url, headers = {
       if (!response.headers.get('cache-control')?.includes('immutable')) fail('asset-cache-policy');
     }));
   }
-  if (browserSmoke) await browserSmoke(origin, headers);
-  return { ok: true, ...expected, origin, assets: assets.length,
+  // The deployed revision decides how many cards its page must render: a ready dispatch can be
+  // processed after a later main commit changed the catalogue in the workflow's own checkout.
+  if (!manifest['/scenes.js']) fail('missing-scenes-module');
+  const scenes = catalogueSize((await get(manifest['/scenes.js'])).text);
+  if (!scenes) fail('invalid-scenes-module');
+  if (browserSmoke) await browserSmoke(origin, headers, { scenes });
+  return { ok: true, ...expected, origin, assets: assets.length, scenes,
     browser: Boolean(browserSmoke), checkedAt: new Date().toISOString(),
     manifestSha256: createHash('sha256').update(manifestResponse.text).digest('hex') };
 }
@@ -85,7 +91,7 @@ export async function routeProtectedRequest(route, origin, headers) {
   } catch { return route.abort(); }
 }
 
-export async function smokeBrowser(origin, headers) {
+export async function smokeBrowser(origin, headers, { scenes }) {
   const { chromium } = await import('@playwright/test');
   let browser;
   try {
@@ -102,8 +108,7 @@ export async function smokeBrowser(origin, headers) {
     await page.goto(origin, { waitUntil: 'domcontentloaded', timeout: 30_000 });
     await page.waitForFunction(() => Number(document.querySelector('#world')?.dataset.drawCalls) > 0
       && document.querySelector('#loading')?.hidden, undefined, { timeout: 45_000 });
-    // The workflow runs from main, so the checkout's catalogue is the expected card count for a main deployment.
-    if (await page.locator('.scene-card').count() !== scenes.length) fail('browser-scene-count');
+    if (await page.locator('.scene-card').count() !== scenes) fail('browser-scene-count');
     await page.locator('.scene-card[data-scene="1"]').click();
     await page.waitForFunction(() => document.querySelector('.scene-card[data-scene="1"]')?.getAttribute('aria-pressed') === 'true');
     if (errors || await page.locator('#error').isVisible()) fail('browser-render-failed');
