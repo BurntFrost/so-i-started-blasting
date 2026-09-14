@@ -35,7 +35,7 @@ or film recording is included.
 
 | Files | Creation and processing |
 |---|---|
-| `audio/bed-*.mp3` (ten beds, one per scene, 30 seconds each) | Original SoX/FFmpeg synthesis composed against each scene's visual timeline; source `tools/author-audio.py` (2026-09-13 film-signature pass). Oscillators, seeded noise, filters, pitch bends, `aevalsrc` expressions (organ clusters, ticking clocks, sirens, impulse trains) and reverb. `bed-melancholia.mp3` contains an original synthesized rendering of the opening measures of Wagner's Tristan und Isolde Prelude (1859, public domain); `bed-knowing.mp3` uses a low-string figure on the dactylic rhythm of Beethoven's Seventh Symphony, second movement (1812, public domain) with an original melodic line. Peak-normalized to -12 dBFS before MP3 encoding. |
+| `audio/bed-*.mp3` (ten beds, one per scene, 30 seconds each) | Original SoX/FFmpeg synthesis composed against each scene's visual timeline; source `tools/author-audio.py` (2026-09-13 film-signature pass). Oscillators, seeded noise, filters, pitch bends, `aevalsrc` expressions (organ clusters, ticking clocks, sirens, impulse trains) and reverb. `bed-melancholia.mp3` (retired 2026-09-13 with the Melancholia scene) contained an original synthesized rendering of the opening measures of Wagner's Tristan und Isolde Prelude (1859, public domain); `bed-knowing.mp3` uses a low-string figure on the dactylic rhythm of Beethoven's Seventh Symphony, second movement (1812, public domain) with an original melodic line. Peak-normalized to -12 dBFS before MP3 encoding. |
 | `audio/<scene>-<event>.mp3` (twenty-six transient cues, 2 to 5 seconds) | Original SoX/FFmpeg synthesis from the same script: blasts, thunder, foghorn blasts, heat rays, countdown beeps, collisions, flybys, organ swells. Normalized to -8 to -13 dBFS depending on the event. |
 | `audio/intro.mp3` | Local Kokoro through HyperFrames 0.8.36, generic `bm_george` voice at speed 0.9. Text: “A front-row seat to the end of everything.” FFmpeg filtering and -20 LUFS target; 2.987 seconds. |
 | `storm-noise.webp` | Original SVG fractal turbulence, seed 90210, four octaves, stitched tiles. Rendered by resvg from `tools/storm-noise.svg` and lossless WebP encoded; 256×256 linear grayscale shader data. |
@@ -53,6 +53,14 @@ ComfyUI's local Stable Diffusion route was attempted but stopped during unusuall
 slow Python-import I/O, before any inference. The shipped bitmap came from the
 built-in imagegen tool. The local storm texture and audio used the installed CLI
 toolchain; no new media package or model was installed.
+
+## Scene pass, 2026-09-13
+
+`audio/bed-day-the-earth-stood-still.mp3` and its four cues (`day-the-earth-stood-still-landing`,
+`-visor`, `-swarm`, `-ascent`) replaced the three Melancholia files; the four Day After Tomorrow
+files were regenerated with heavier wind. All are original SoX/FFmpeg synthesis from
+`tools/author-audio.py`; the theremin-style line is an original melody played on a synthesized
+vibrato sine, not a recording or transcription of the 1951 score.
 
 ## Baked nuclear volume proof, 2026-09-13
 

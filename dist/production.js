@@ -13,7 +13,7 @@ float fbm(vec3 p){return noise(p)*.53+noise(p*2.03)*.27+noise(p*4.07)*.13+noise(
 
 export async function createProduction(world) {
   const {renderer,scene,camera,canvas,city,buildings,ground,ship,core,tower,blast,
-    wave,foam,planet,landscape,beam,meteor,tail} = world;
+    wave,foam,landscape,beam,meteor,tail} = world;
   const waveBase=wave.geometry.attributes.position.array.slice();
   const loader=new GLTFLoader().setMeshoptDecoder(MeshoptDecoder);
   const textureLoader=new THREE.TextureLoader();
@@ -98,7 +98,7 @@ export async function createProduction(world) {
       geometry.applyMatrix4(part.matrixWorld);geometry.translate(-center.x,-bounds.min.y,-center.z);geometry.scale(1/size.x,1/size.y,1/size.z);
       const mat=part.material.clone();mat.envMapIntensity=1.1;
       if(/stone|concrete|brick/i.test(mat.name)){mat.map=maps[0];mat.normalMap=maps[1];mat.roughnessMap=maps[2];mat.normalScale.set(.35,.35);}
-      mat.userData.baseColor=mat.color.clone();mat.userData.baseEmission=mat.emissiveIntensity;
+      mat.userData.baseColor=mat.color.clone();mat.userData.baseEmission=mat.emissiveIntensity;mat.userData.baseRoughness=mat.roughness;
       materials.push(mat);parts.push({geometry,material:mat});
     });templateParts.push(parts);
   }
@@ -109,7 +109,7 @@ export async function createProduction(world) {
     }
     const source=buildings[variant].material,lowMaterial=source.clone();lowMaterial.onBeforeCompile=source.onBeforeCompile;lowMaterial.customProgramCacheKey=source.customProgramCacheKey;
     lowMaterial.color.copy(buildings[variant].userData.facadeBaseColor || source.color);
-    lowMaterial.userData.baseColor=lowMaterial.color.clone();lowMaterial.userData.baseEmission=lowMaterial.emissiveIntensity;materials.push(lowMaterial);
+    lowMaterial.userData.baseColor=lowMaterial.color.clone();lowMaterial.userData.baseEmission=lowMaterial.emissiveIntensity;lowMaterial.userData.baseRoughness=lowMaterial.roughness;materials.push(lowMaterial);
     // A few stepped volumes preserve crowns and setbacks without facade geometry.
     const shapes = [
       [[.94,.78,.94,0,.39,0],[.7,.18,.7,0,.87,0],[.18,.04,.18,0,.98,0]],
@@ -170,7 +170,7 @@ export async function createProduction(world) {
   if(cloudRoot){
     cloudRoot.updateWorldMatrix(true,true);
     const treeBounds=new THREE.Box3().setFromObject(cloudRoot),treeHeight=treeBounds.max.y-treeBounds.min.y;
-    landscape.children.slice(1,-1).forEach((tree,i)=>{const procedural=tree.children.filter(c=>c.visible);const clone=cloudRoot.clone(true);clone.scale.setScalar((15+i%5*1.3)/treeHeight);clone.traverse(part=>{if(part.isMesh){part.castShadow=true;part.receiveShadow=true;}});tree.position.y=terrainHeight(tree.position.x,tree.position.z);tree.add(clone);trees.push({procedural,authored:clone});});
+    landscape.children.slice(1).forEach((tree,i)=>{const procedural=tree.children.filter(c=>c.visible);const clone=cloudRoot.clone(true);clone.scale.setScalar((15+i%5*1.3)/treeHeight);clone.traverse(part=>{if(part.isMesh){part.castShadow=true;part.receiveShadow=true;}});tree.position.y=terrainHeight(tree.position.x,tree.position.z);tree.add(clone);trees.push({procedural,authored:clone});});
   }
   const grass=new THREE.InstancedMesh(new THREE.ConeGeometry(.09,1.3,3),new THREE.MeshStandardMaterial({color:'#6b8057',roughness:1}),9000);
   for(let i=0;i<9000;i++){const x=random()*250-125,z=random()*230-100,scale=.4+random()*1.2;dummy.position.set(x,terrainHeight(x,z)+scale*.65,z);dummy.rotation.set((random()-.5)*.5,random()*6.28,(random()-.5)*.5);dummy.scale.setScalar(scale);dummy.updateMatrix();grass.setMatrixAt(i,dummy.matrix);}landscape.add(grass);
@@ -178,7 +178,7 @@ export async function createProduction(world) {
   lawn.material.onBeforeCompile=shader=>{shader.vertexShader=shader.vertexShader.replace('#include <common>','#include <common>\nvarying vec3 terrainPoint;').replace('#include <begin_vertex>','#include <begin_vertex>\nterrainPoint=position;');shader.fragmentShader=shader.fragmentShader.replace('#include <common>','#include <common>\nvarying vec3 terrainPoint;'+noise).replace('#include <color_fragment>','#include <color_fragment>\ndiffuseColor.rgb*=.5+fbm(terrainPoint*.15);');};
   // Coordinates are initially planar; the same profile is used by spray below.
   const waveProfile=(v,height,x,t)=>({y:Math.sin(v*Math.PI*.53)*height+(Math.sin(x*.13+t)*1.2)*v,z:Math.sin(v*Math.PI)*24+Math.pow(v,8)*17});
-  const freezeColor=new THREE.Color('#e2edf0');
+  const freezeColor=new THREE.Color('#e6eff3');
   let lastQuality;
   function update(t, config){
     const id=config.id, frozenScene=id==='day-after-tomorrow', cityActive=config.world==='city';
@@ -199,7 +199,7 @@ export async function createProduction(world) {
       lastQuality=quality;
     }
     if(cityActive){
-      ground.material.color.set(frozenScene?'#afc0c8':'#647077');ground.scale.set(1,1,1);ground.visible=id!=='2012';cityDetails.visible=id!=='deep-impact'&&id!=='2012';
+      ground.material.color.set(frozenScene?'#c4d3da':'#647077');ground.scale.set(1,1,1);ground.visible=id!=='2012';cityDetails.visible=id!=='deep-impact'&&id!=='2012';
       skyline.visible=quality!=='lite';
       if(kit){
         for(const b of buildings){b.visible=false;b.updateMatrix();}
@@ -209,7 +209,7 @@ export async function createProduction(world) {
         }
       }
       const frozen=smooth((t-8)/20);
-      for(const mat of materials){mat.color.copy(mat.userData.baseColor);if(frozenScene)mat.color.lerp(freezeColor,frozen*.8);mat.emissiveIntensity=mat.userData.baseEmission*(frozenScene?1-frozen:1);}
+      for(const mat of materials){mat.color.copy(mat.userData.baseColor);if(frozenScene)mat.color.lerp(freezeColor,frozen*.85);mat.emissiveIntensity=mat.userData.baseEmission*(frozenScene?1-frozen:1);mat.roughness=mat.userData.baseRoughness*(frozenScene?1-frozen*.75:1);}
     }
     const collapse=id==='independence-day'?smooth((t-15)/10):id==='terminator-2'?smooth((t-13)/10):id==='2012'?smooth((t-9)/15):0;
     landmark.scale.y=1-collapse*.85;landmark.rotation.z=collapse*.18;
@@ -222,7 +222,6 @@ export async function createProduction(world) {
       for(let i=0;i<positions.count;i++){const x=waveBase[i*3]*1.65,v=(waveBase[i*3+1]+37.5)/75,p=waveProfile(v,height,x,t);positions.setXYZ(i,x,p.y,p.z);}positions.needsUpdate=true;wave.geometry.computeVertexNormals();
       const p=foam.geometry.attributes.position;for(let i=0;i<p.count;i++){const x=((i%130)/130*220-110)*1.65,c=waveProfile(1,height,x,t);p.setXYZ(i,x,c.y+Math.sin(i*21+t)*2-(i%5)*.6,wave.position.z+c.z+Math.cos(i*3+t)*3);}p.needsUpdate=true;
     }
-    planet.material.uniforms.time.value=t;
     canvas.dataset.authoredAssets=Object.values(assetStatus).includes('failed')?'degraded':'ready';
   }
   return {update,environment:environment?.texture || null,assetStatus};

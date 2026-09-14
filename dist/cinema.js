@@ -19,7 +19,7 @@ float fbm(vec3 p){return noise(p)*.57+noise(p*2.03)*.28+noise(p*4.11)*.15;}`;
 // Shared, deterministic geometry and GPU particles keep scrubbing reversible.
 export function createCinema(world) {
   const { renderer, scene, camera, canvas, sun, buildings, ground, ship, hullMat,
-    core, beam, blast, ocean, wave, meteor, planet, landscape, windows, snow,
+    core, beam, blast, ocean, wave, meteor, landscape, windows, snow,
     debris, foam, clouds, glow, telemetry } = world;
   const atmosphere = createAtmosphere(world);
   let seed = 90210;
@@ -102,7 +102,7 @@ export function createCinema(world) {
   const impactLight = new THREE.PointLight('#ff8138',0,250,1.3);impactLight.position.set(-8,18,-20);scene.add(impactLight);
   renderer.shadowMap.type=THREE.PCFSoftShadowMap;
 
-  // Roughen the asteroid silhouette and replace the flat planetary coloring.
+  // Roughen the asteroid silhouette.
   const rockPosition=meteor.geometry.attributes.position;
   for(let i=0;i<rockPosition.count;i++){
     const x=rockPosition.getX(i),y=rockPosition.getY(i),z=rockPosition.getZ(i);
@@ -110,27 +110,11 @@ export function createCinema(world) {
     rockPosition.setXYZ(i,x*scale,y*scale,z*scale);
   }
   meteor.geometry.computeVertexNormals();meteor.material.roughness=.95;
-  const planetTime={value:0};
-  planet.material.dispose();
-  planet.material=new THREE.ShaderMaterial({uniforms:{time:planetTime},vertexShader:`varying vec3 spherePoint;varying vec3 sphereNormal;varying vec3 sphereView;void main(){spherePoint=position;sphereNormal=normalize(mat3(modelMatrix)*normal);vec4 world=modelMatrix*vec4(position,1.);sphereView=cameraPosition-world.xyz;gl_Position=projectionMatrix*viewMatrix*world;}`,
-    fragmentShader:`uniform float time;varying vec3 spherePoint;varying vec3 sphereNormal;varying vec3 sphereView;${noiseGLSL}
-    void main(){vec3 p=normalize(spherePoint);vec3 normal=normalize(sphereNormal);vec3 view=normalize(sphereView);
-    float bands=fbm(p*7.+vec3(time*.009,0,0));float cloud=fbm(p*27.+vec3(bands*2.,time*.006,0.));
-    float curl=sin(p.y*38.+bands*8.);float cloudCover=smoothstep(.52,.74,cloud+curl*.055);
-    vec3 surface=mix(vec3(.013,.058,.12),vec3(.12,.35,.43),smoothstep(.23,.78,bands));
-    surface=mix(surface,vec3(.64,.79,.82),cloudCover*.82);
-    float daylight=dot(normal,normalize(vec3(-.65,.45,.75)));float light=.075+max(daylight,0.);
-    float limb=pow(1.-max(dot(normal,view),0.),3.);
-    vec3 scattering=vec3(.05,.20,.33)*limb*smoothstep(-.3,.55,daylight);
-    gl_FragColor=vec4(surface*light+scattering,1.);
-    #include <tonemapping_fragment>
-    #include <colorspace_fragment>
-    }`});
-  // Low rolling terrain and irregular foliage give the collision a human scale.
+  // Low rolling terrain and irregular foliage give the park a human scale.
   const lawn=landscape.children[0]; const lp=lawn.geometry.attributes.position;
   for(let i=0;i<lp.count;i++){const x=lp.getX(i),y=lp.getY(i);lp.setZ(i,(Math.sin(x*.022)*Math.cos(y*.027)*5+Math.sin(y*.06)*1.5)*clamp((Math.hypot(x,y)-25)/80));}
   lawn.geometry.computeVertexNormals();lawn.receiveShadow=true;
-  landscape.children.slice(1,-1).forEach(tree=>{
+  landscape.children.slice(1).forEach(tree=>{
     const old=tree.children[1];old.visible=false;
     for(let i=0;i<3;i++){const crown=new THREE.Mesh(new THREE.IcosahedronGeometry(5,1),material(i%2?'#253e32':'#354c3a',{roughness:1}));crown.position.set((i-1)*2.8,12+i*2,Math.sin(i)*2);crown.scale.set(1,1.3,1);crown.castShadow=true;tree.add(crown);}
   });
@@ -241,7 +225,7 @@ export function createCinema(world) {
     const id=config.id, impact=id==='independence-day'||id==='deep-impact';
     windows.visible=false;clouds.visible=false;
     atmosphere.update(t,config);
-    waterTime.value=t;planetTime.value=t;
+    waterTime.value=t;
     const age=t-13;
     sparks.visible=impact&&age>0&&age<12;smoke.visible=impact&&age>0;
     for(const p of [sparks,smoke]){p.material.uniforms.time.value=age;p.material.uniforms.origin.value.set(id==='independence-day'?-8:-50,3,id==='independence-day'?-20:-100);}
@@ -251,7 +235,7 @@ export function createCinema(world) {
     impactLight.position.copy(sparks.material.uniforms.origin.value);impactLight.position.y=18;
     glow.intensity*=7;
     if(blast.visible){blast.material.opacity*=.45;blast.material.color.multiplyScalar(2.5);}
-    bloom.strength=id==='day-after-tomorrow'?.22:id==='melancholia'?.4:id==='interstellar'?.12:id==='gravity'?.18:config.space?.25:.48;
+    bloom.strength=id==='day-after-tomorrow'?.22:id==='day-the-earth-stood-still'?.38:id==='interstellar'?.12:id==='gravity'?.18:config.space?.25:.48;
     bloom.radius=config.space?.35:.65;
     const icy=id==='day-after-tomorrow',warm=id==='terminator-2'||id==='2012';
     antialias.material.uniforms.filmTint.value.set(icy?.96:1,1,warm?.96:1);

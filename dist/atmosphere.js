@@ -34,12 +34,12 @@ export function createAtmosphere({ scene, camera, canvas }) {
   celestial.visible = false; celestial.renderOrder = -20; celestial.frustumCulled = false; scene.add(celestial);
 
   const cloudMaterial = new THREE.ShaderMaterial({
-    uniforms: { weatherMap, weatherReady, time: clock, density: { value: .3 }, tint: { value: new THREE.Color('#627783') } },
+    uniforms: { weatherMap, weatherReady, time: clock, density: { value: .3 }, wind: { value: 1 }, tint: { value: new THREE.Color('#627783') } },
     vertexShader: domeVertex,
-    fragmentShader: `uniform float time,density;uniform vec3 tint;varying vec3 direction;${turbulence}
+    fragmentShader: `uniform float time,density,wind;uniform vec3 tint;varying vec3 direction;${turbulence}
     void main(){vec3 d=normalize(direction);if(d.y<-.06)discard;
-    vec2 p=d.xz/max(.2,d.y+.4)*.42+vec2(time*.002,-time*.0008);
-    float broad=weather(p),detail=weather(p*2.3+vec2(.17,time*.001));
+    vec2 p=d.xz/max(.2,d.y+.4)*.42+vec2(time*.002,-time*.0008)*wind;
+    float broad=weather(p),detail=weather(p*2.3+vec2(.17,time*.001*wind));
     float thickness=smoothstep(.32,.73,broad*.7+detail*.3);
     float horizon=smoothstep(-.04,.17,d.y)*(1.-smoothstep(.8,1.,d.y));
     float silver=pow(clamp(detail-broad+.35,0.,1.),3.);
@@ -73,6 +73,7 @@ export function createAtmosphere({ scene, camera, canvas }) {
     dummy.updateMatrix(); mist.setMatrixAt(i, dummy.matrix);
   }
   mist.instanceMatrix.needsUpdate = true; scene.add(mist);
+  const whiteout = new THREE.Color('#c4d4dd');
   for (const dome of [celestial, cloudDome]) dome.onBeforeRender = () => {
     dome.position.copy(camera.position); dome.updateMatrixWorld();
   };
@@ -99,20 +100,23 @@ export function createAtmosphere({ scene, camera, canvas }) {
   return {
     update(t, config) {
       const space = Boolean(config.space), storm = config.id === 'day-after-tomorrow';
-      const collision = config.id === 'melancholia', supercell = config.id === 'twister', ashfall = config.id === 'dantes-peak';
+      const supercell = config.id === 'twister', ashfall = config.id === 'dantes-peak';
       const quality = canvas.dataset.quality || 'high';
-      clock.value = t; celestial.visible = space; cloudDome.visible = !space && !collision;
-      mist.visible = !space && !collision && quality !== 'lite'; mist.count = quality === 'high' || quality === 'ultra' ? 12 : 6;
-      if (space) requestNebula(); else if (!collision) requestWeather();
+      clock.value = t; celestial.visible = space; cloudDome.visible = !space;
+      mist.visible = !space && quality !== 'lite'; mist.count = quality === 'high' || quality === 'ultra' ? 12 : 6;
+      if (space) requestNebula(); else requestWeather();
       celestialMaterial.uniforms.strength.value = config.id === 'interstellar' ? .22 : .35;
       celestial.rotation.y = .7;
-      // The supercell ceiling is dense from the start; the ash ceiling thickens as the column spreads.
-      cloudMaterial.uniforms.density.value = storm ? .65 + clamp(t / 30) * .2 : supercell ? .74 : ashfall ? .26 + clamp((t - 8) / 14) * .52 : .24;
+      // The supercell ceiling is dense from the start; the ash ceiling thickens as the column spreads;
+      // the superstorm ceiling races overhead and whitens as the blizzard closes in.
+      cloudMaterial.uniforms.density.value = storm ? .7 + clamp((t - 4) / 16) * .28 : supercell ? .74 : ashfall ? .26 + clamp((t - 8) / 14) * .52 : .24;
+      cloudMaterial.uniforms.wind.value = storm ? 5 + clamp(t / 20) * 7 : supercell ? 2.5 : 1;
       cloudMaterial.uniforms.tint.value.set(storm ? '#597487' : supercell ? '#3d4b45' : ashfall ? '#4c4541' : config.id === 'war-of-the-worlds' ? '#655e79' : '#82909a');
+      if (storm) cloudMaterial.uniforms.tint.value.lerp(whiteout, clamp((t - 8) / 18) * .6);
       mistMaterial.uniforms.tint.value.set(config.environment.fog);
-      mistMaterial.uniforms.density.value = storm || supercell ? .23 : ashfall ? .18 : .11;
-      canvas.dataset.atmosphere = space ? 'interstellar-dust' : collision ? 'planetary' : storm ? 'superstorm' : supercell ? 'supercell' : ashfall ? 'ashfall' : 'layered-haze';
-      canvas.dataset.atmosphereLayers = String(space || collision || quality === 'lite' ? 1 : 2);
+      mistMaterial.uniforms.density.value = storm ? .23 + clamp((t - 6) / 20) * .22 : supercell ? .23 : ashfall ? .18 : .11;
+      canvas.dataset.atmosphere = space ? 'interstellar-dust' : storm ? 'superstorm' : supercell ? 'supercell' : ashfall ? 'ashfall' : 'layered-haze';
+      canvas.dataset.atmosphereLayers = String(space || quality === 'lite' ? 1 : 2);
     }
   };
 }

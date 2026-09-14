@@ -6,12 +6,12 @@ An interactive 3D apocalypse cinema at [soistartedblasting.com](https://soistart
 | --- | --- |
 | Independence Day | Mothership, energy beam, collapsing skyline |
 | Deep Impact | Comet strike, tsunami, sea spray |
-| The Day After Tomorrow | Superstorm, snowfall, frozen city |
-| Melancholia | Rogue planet, atmosphere, final collision |
+| The Day After Tomorrow | Whiteout blizzard, spindrift, snow drifts, glazed streets, icicles |
+| The Day the Earth Stood Still | Luminous sphere landing, GORT, nanite swarm consuming the park, departing arks |
 | Terminator 2 | Nuclear fireball, mushroom cloud, expanding shockwave |
 | 2012 | Fractured crust, glowing chasm, tumbling debris |
 | War of the Worlds | Walking tripods, scanning heat rays, red growth |
-| Knowing | Solar photosphere, magnetic loops, superflare |
+| Knowing | Active region, flare flash, eruptive prominence, corona, CME front, engulfed Earth |
 | Armageddon | Rugged asteroid, glowing fissures, fragment field |
 | Interstellar | Black hole, accretion disk, lensed halo, orbiting craft |
 | Twister | Rotating wall cloud, F5 funnel, debris spiral, shredded farmstead |
@@ -19,7 +19,7 @@ An interactive 3D apocalypse cinema at [soistartedblasting.com](https://soistart
 | Gravity | Earth from low orbit, station, Kessler debris storm, tumbling wreckage |
 | The Wandering Earth | Frozen Earth, fusion engine plumes, siphoned atmosphere, Jupiter ignition |
 
-All scenes use the same reversible 30-second timeline and adaptive quality tiers, including an ULTRA tier that renders native Retina and 4K pixels with higher-resolution sky, nebula and explosion assets on dense desktop displays (see [the 4K upgrade](docs/ultra-4k.md)). Cosmic visuals are cinematic interpretations; the black-hole halo is a geometric lensing approximation. No new remote model downloads are needed for the ten scenes added after the original four; the newest four reuse the landscape and space worlds.
+All scenes use the same reversible 30-second timeline and adaptive quality tiers, including an ULTRA tier that renders native Retina and 4K pixels with higher-resolution sky, nebula and explosion assets on dense desktop displays (see [the 4K upgrade](docs/ultra-4k.md)). Cosmic visuals are cinematic interpretations; the black-hole halo is a geometric lensing approximation. No new remote model downloads are needed for the ten scenes added after the original four; the newest four reuse the landscape and space worlds, and The Day the Earth Stood Still replaced Melancholia in the landscape world.
 
 The simulation includes authored architectural and spacecraft models, physically based surface materials, HDR lighting, animated weather and particles, and adaptive graphics quality for phones. Scene playback, timeline scrubbing, camera orbit, replay, and graphics controls run entirely in the browser.
 
@@ -58,7 +58,7 @@ The gate includes unit tests, certificate-checker tests, committed asset checksu
 | `dist/scenes.js` | Shared scene catalogue for the picker, analytics, and control API |
 | `dist/scene-config.js` | Stable renderer identity, camera, and centralized scene environment settings |
 | `dist/runtime-state.js` | Privacy-aware bootstrap failures and shared failure UI |
-| `dist/terrestrial.js`, `dist/cosmic.js` | Ten additional procedural scene visualizations |
+| `dist/terrestrial.js`, `dist/cosmic.js` | Twelve procedural scene visualizations (terrestrial storms, invasions and the visitation; cosmic events) |
 | `dist/cinema.js` | Materials, effects, and adaptive graphics |
 | `dist/atmosphere.js`, `dist/audio.js` | Optional atmospheric textures and consent-based synchronized sound |
 | `dist/production.js` | Model loading, instancing, and environment setup |

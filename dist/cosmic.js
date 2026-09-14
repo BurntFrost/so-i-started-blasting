@@ -41,12 +41,14 @@ export function createCosmic({ scene, canvas, camera }) {
     }));
   }
 
-  // A planet that fills the frame needs finer silhouette tessellation than a distant one.
-  function earth(radius, position, detail = 1) {
+  // A planet that fills the frame needs finer silhouette tessellation than a distant one; the light
+  // direction defaults to the shared key light and can follow a star that is actually in the scene.
+  function earth(radius, position, detail = 1, light = new THREE.Vector3(-.65, .5, .8)) {
     const group = new THREE.Group(); group.position.copy(position);
+    const lightDirection = { value: light.clone().normalize() };
     const surface = new THREE.Mesh(new THREE.SphereGeometry(radius, Math.round(64 * fine * detail), Math.round(40 * fine * detail)), new THREE.ShaderMaterial({
-      uniforms: { time, heat: { value: 0 }, frost: { value: 0 } }, vertexShader: vertex,
-      fragmentShader: `uniform float time,heat,frost;varying vec3 point;varying vec3 worldNormal;${noise}
+      uniforms: { time, heat: { value: 0 }, frost: { value: 0 }, light: lightDirection }, vertexShader: vertex,
+      fragmentShader: `uniform float time,heat,frost;uniform vec3 light;varying vec3 point;varying vec3 worldNormal;${noise}
       void main(){vec3 p=normalize(point);float land=fbm(p*4.7+vec3(.4,2.8,.2));
       float cloud=fbm(p*16.+vec3(time*.018,0.,0.));float terrain=fbm(p*38.);
       vec3 ocean=vec3(.012,.105,.24);vec3 continents=mix(vec3(.035,.13,.067),vec3(.24,.23,.12),terrain);
@@ -54,19 +56,19 @@ export function createCosmic({ scene, canvas, camera }) {
       color=mix(color,mix(vec3(.5,.62,.78),vec3(.9,.93,.96),terrain)*(.8+.2*smoothstep(.5,.56,land)),frost);
       color=mix(color,vec3(.82,.90,.94),smoothstep(.58,.74,cloud)*.55);
       color=mix(color,vec3(.76,.85,.89),smoothstep(.87,.97,abs(p.y))*.88);
-      float daylight=dot(normalize(worldNormal),normalize(vec3(-.65,.5,.8)));
-      float light=.035+max(daylight,0.);float night=1.-smoothstep(-.25,.07,daylight);
+      float daylight=dot(normalize(worldNormal),light);
+      float lit=.035+max(daylight,0.);float night=1.-smoothstep(-.25,.07,daylight);
       float cities=pow(noise(p*175.),14.)*smoothstep(.51,.58,land)*night;
-      color=color*light+vec3(.95,.45,.15)*cities*.7+vec3(1.6,.19,.016)*heat*(.35+.65*noise(p*22.));
+      color=color*lit+vec3(.95,.45,.15)*cities*.7+vec3(1.6,.19,.016)*heat*(.35+.65*noise(p*22.));
       gl_FragColor=vec4(color,1.);${output}}`
     }));
     const clouds = new THREE.Mesh(new THREE.SphereGeometry(radius * 1.014, 48 * fine, 32 * fine), new THREE.ShaderMaterial({
-      uniforms: { time }, vertexShader: vertex,
-      fragmentShader: `uniform float time;varying vec3 point;varying vec3 worldNormal;${noise}
+      uniforms: { time, light: lightDirection }, vertexShader: vertex,
+      fragmentShader: `uniform float time;uniform vec3 light;varying vec3 point;varying vec3 worldNormal;${noise}
       void main(){vec3 p=normalize(point);float broad=fbm(p*6.+vec3(time*.002,0.,0.));
       float wisps=fbm(p*18.+broad*2.);float cloud=smoothstep(.49,.73,wisps);
-      float light=.09+max(dot(normalize(worldNormal),normalize(vec3(-.65,.5,.8))),0.);
-      gl_FragColor=vec4(vec3(.81,.87,.9)*light,cloud*.65);${output}}`,
+      float lit=.09+max(dot(normalize(worldNormal),light),0.);
+      gl_FragColor=vec4(vec3(.81,.87,.9)*lit,cloud*.65);${output}}`,
       transparent: true, depthWrite: false
     }));
     clouds.name = 'Independent planetary cloud deck'; clouds.userData.fineDetail = true;
@@ -76,10 +78,18 @@ export function createCosmic({ scene, canvas, camera }) {
 
   // Every particle position is a closed-form function of time and its seed; nothing integrates between frames.
   const motion = {
-    flare: `float distance=fract(seed.y+time*.12);float spread=pow(distance,.7)*(5.+seed.z*19.);
-      p=mix(vec3(-15.,53.,-2.),vec3(92.,13.,24.),distance);
-      p+=vec3(sin(a)*spread*.25,cos(a)*spread,sin(a)*spread);
-      p.y+=sin(distance*3.14159)*14.;opacity=smoothstep(.02,.2,distance)*(1.-smoothstep(.68,1.,distance))*phase;`,
+    // The ejection streams from the flare site (origin) along the Earth-facing axis (target) in a
+    // widening, twisting cone; particles cool from white to red as they travel.
+    flare: `float d=fract(seed.y+time*.09);float reach=pow(d,.85)*104.;float spread=pow(d,.7)*(4.+seed.z*26.)*(1.+phase*.3);
+      vec3 u=normalize(cross(target,vec3(0.,1.,0.)));vec3 v=cross(target,u);float swirl=a+d*7.+time*.6;
+      p=origin+target*reach+(u*cos(swirl)+v*sin(swirl))*spread;
+      float arrived=1.-smoothstep((time-5.)*7.-8.,(time-5.)*7.,reach);
+      warmth=d;opacity=smoothstep(.01,.12,d)*(1.-smoothstep(.72,1.,d))*phase*arrived*(.5+.5*seed.w);`,
+    // Flare ejecta: a one-shot burst thrown outward from the eruption site at five seconds.
+    ejecta: `float age=max(0.,time-5.-seed.w*.6);float speed=14.+seed.z*34.;
+      vec3 dir=normalize(vec3(seed.x-.5,seed.y-.5,seed.z-.5)+target*.9);
+      p=origin+dir*age*speed*(1.-age*.03);warmth=seed.y*.5;
+      opacity=step(.001,age)*(1.-smoothstep(1.,4.5,age))*.9;`,
     debris: `float age=fract(seed.y+time*.055);float spread=8.+age*45.;
       p=vec3(-34.-age*96.,52.+age*25.,-12.-age*40.)+vec3(sin(a)*spread,cos(a)*spread*.5,cos(a*2.)*spread*.6);
       opacity=(1.-age)*(.2+phase*.8);`,
@@ -138,18 +148,51 @@ export function createCosmic({ scene, canvas, camera }) {
   }
   function createSolar() {
     seed = 77494;
-  // KNOWING: a granular photosphere, rooted magnetic loops, and a directed CME.
+  // KNOWING: an active region swells on the Earth-facing limb, erupts in a flare flash and a coronal
+  // mass ejection, and the plasma front engulfs Earth.
   const solar = group('knowing-solar-flare');
-  const sun = new THREE.Group(); sun.position.set(-35, 54, -8); solar.add(sun);
+  const sunCenter = new THREE.Vector3(-35, 54, -8), earthCenter = new THREE.Vector3(58, 23, 18);
+  const axis = new THREE.Vector3().subVectors(earthCenter, sunCenter).normalize();
+  const site = sunCenter.clone().addScaledVector(axis, 31.4);
+  const activity = { value: 0 }, flash = { value: 0 }, front = { value: 0 };
+  const sun = new THREE.Group(); sun.position.copy(sunCenter); solar.add(sun);
   const sunSurface = new THREE.Mesh(new THREE.SphereGeometry(31, 80 * fine, 56 * fine), new THREE.ShaderMaterial({
-    uniforms: { time, phase }, vertexShader: vertex,
-    fragmentShader: `uniform float time,phase;varying vec3 point;varying vec3 viewNormal;varying vec3 viewDirection;${noise}
-    void main(){vec3 p=normalize(point);float grain=fbm(p*39.+vec3(0.,time*.12,0.));float cells=noise(p*83.+grain*2.);
-    float spots=smoothstep(.63,.76,fbm(p*8.));float limb=.48+.52*pow(abs(dot(normalize(viewNormal),normalize(viewDirection))),.35);
-    vec3 color=mix(vec3(1.6,.12,.008),vec3(3.7,1.25,.18),smoothstep(.22,.74,grain));
-    color*=mix(.74,1.22,cells)*(1.-spots*.72)*limb;gl_FragColor=vec4(color*(1.+phase*.35),1.);${output}}`
+    uniforms: { time, phase, activity, site: { value: axis } }, vertexShader: vertex,
+    fragmentShader: `uniform float time,phase,activity;uniform vec3 site;varying vec3 point;varying vec3 viewNormal;varying vec3 viewDirection;${noise}
+    void main(){vec3 p=normalize(point);float grain=fbm(p*39.+vec3(0.,time*.12,0.));float churn=fbm(p*17.-vec3(time*.05,0.,time*.03));
+    float cells=noise(p*83.+grain*2.);float spots=smoothstep(.63,.76,fbm(p*8.));
+    float limb=.48+.52*pow(abs(dot(normalize(viewNormal),normalize(viewDirection))),.35);
+    vec3 color=mix(vec3(1.6,.12,.008),vec3(3.7,1.25,.18),smoothstep(.22,.74,grain*.75+churn*.25));
+    float region=pow(max(dot(p,site),0.),14.);float faculae=smoothstep(.42,.72,fbm(p*15.+vec3(time*.25)))*region;
+    color*=mix(.74,1.22,cells)*(1.-spots*.72)*limb;
+    color+=vec3(2.8,1.5,.4)*activity*(region*.8+faculae*2.2)+vec3(1.,.55,.2)*phase*.35;
+    gl_FragColor=vec4(color,1.);${output}}`
   }));
   sun.add(sunSurface, atmosphere(32.8, '#ff9a24', 1.1), atmosphere(36.5, '#e84b0c', .34));
+  // The corona is a camera-facing plane through the sun's centre; the photosphere occludes its inner disk.
+  const spriteVertex = 'varying vec2 spriteUv;void main(){spriteUv=uv*2.-1.;gl_Position=projectionMatrix*modelViewMatrix*vec4(position,1.);}';
+  const corona = new THREE.Mesh(new THREE.PlaneGeometry(1, 1), new THREE.ShaderMaterial({
+    uniforms: { time, phase, activity }, vertexShader: spriteVertex,
+    fragmentShader: `uniform float time,phase,activity;varying vec2 spriteUv;${noise}
+    void main(){float r=length(spriteUv);float ang=atan(spriteUv.y,spriteUv.x);vec2 d=vec2(cos(ang),sin(ang));
+    float broad=fbm(vec3(d*3.5,time*.05));float fine=fbm(vec3(d*11.,r*4.-time*.09));
+    float disk=.36;float reach=disk+.08+broad*.3+fine*.14+phase*.16;
+    float glow=exp(-(r-disk)*9.)*.42;float streamers=smoothstep(reach,reach-.28,r)*smoothstep(.42,.88,fine)*.5;
+    float outside=smoothstep(disk-.02,disk+.03,r);
+    vec3 color=mix(vec3(1.1,.36,.07),vec3(1.9,1.1,.45),fine)*(1.+activity*.35+phase*.6);
+    gl_FragColor=vec4(color,(glow+streamers)*outside*(1.-smoothstep(.85,1.,r)));${output}}`,
+    transparent: true, depthWrite: false, blending: THREE.AdditiveBlending
+  }));
+  corona.name = 'Solar corona'; corona.position.copy(sunCenter); corona.scale.set(172, 172, 1); solar.add(corona);
+  const flareFlash = new THREE.Mesh(new THREE.PlaneGeometry(1, 1), new THREE.ShaderMaterial({
+    uniforms: { flash }, vertexShader: spriteVertex,
+    fragmentShader: `uniform float flash;varying vec2 spriteUv;void main(){float r=length(spriteUv);float ang=atan(spriteUv.y,spriteUv.x);
+    float core=pow(max(0.,1.-r*1.6),2.5);float halo=exp(-r*3.2)*.7;
+    float rays=(pow(abs(sin(ang*5.+.7)),28.)*.7+pow(abs(sin(ang*13.-.4)),60.)*.45)*smoothstep(1.,.15,r);
+    gl_FragColor=vec4(vec3(3.6,2.4,1.3)*(core*1.4+halo+rays)*flash,flash*min(1.,core*2.+halo+rays));${output}}`,
+    transparent: true, depthWrite: false, depthTest: false, blending: THREE.AdditiveBlending
+  }));
+  flareFlash.name = 'Flare flash'; flareFlash.position.copy(site).addScaledVector(axis, 2); flareFlash.scale.setScalar(70); flareFlash.renderOrder = 5; solar.add(flareFlash);
   const loops = new THREE.Group(); sun.add(loops); loops.userData.fineDetail = true;
   const loopMat = emissive('#ff6b15', 3.3);
   for (let i = 0; i < 23; i++) {
@@ -164,23 +207,71 @@ export function createCosmic({ scene, canvas, camera }) {
     const mesh = new THREE.Mesh(new THREE.TubeGeometry(new THREE.CatmullRomCurve3(points), 36, .13 + random() * .16, 5, false), loopMat);
     loops.add(mesh);
   }
-  const solarEarth = earth(9, new THREE.Vector3(58, 23, 18)); solar.add(solarEarth.group);
-  const flare = particles(solar, 10000, 'flare', '#ffac44');
+  // The eruptive prominence: an arch rooted at the active region that lifts off during the flare.
+  const prominence = new THREE.Group(); prominence.position.copy(site); prominence.quaternion.setFromUnitVectors(up, axis); solar.add(prominence);
+  const archPoints = [];
+  for (let j = 0; j <= 40; j++) { const a = j / 40 * Math.PI; archPoints.push(new THREE.Vector3(Math.cos(a) * 7, Math.sin(a) * 9, Math.sin(a * 2) * 1.5)); }
+  const archMaterial = new THREE.MeshBasicMaterial({ color: new THREE.Color('#ff8a2a').multiplyScalar(3.4), transparent: true, opacity: 0, depthWrite: false, blending: THREE.AdditiveBlending });
+  const arch = new THREE.Mesh(new THREE.TubeGeometry(new THREE.CatmullRomCurve3(archPoints), 48, .55, 6, false), archMaterial); arch.name = 'Eruptive prominence'; prominence.add(arch);
+  // The coronal mass ejection: a turbulent bubble whose front reaches Earth around twenty seconds.
+  const bubble = new THREE.Mesh(new THREE.SphereGeometry(1, 56 * fine, 36 * fine), new THREE.ShaderMaterial({
+    uniforms: { time, front }, vertexShader: vertex,
+    fragmentShader: `uniform float time,front;varying vec3 point;varying vec3 viewNormal;varying vec3 viewDirection;${noise}
+    void main(){vec3 p=normalize(point);float turbulence=fbm(p*3.5+vec3(time*.09,-time*.05,0.))*.6+fbm(p*9.-vec3(0.,time*.2,0.))*.4;
+    float rim=pow(1.-abs(dot(normalize(viewNormal),normalize(viewDirection))),1.6);
+    vec3 color=mix(vec3(1.4,.35,.06),vec3(2.6,1.3,.45),turbulence);
+    gl_FragColor=vec4(color,(rim*.55+turbulence*.14)*front);${output}}`,
+    transparent: true, depthWrite: false, blending: THREE.AdditiveBlending
+  }));
+  bubble.name = 'Coronal mass ejection'; bubble.visible = false; solar.add(bubble);
+  const light = new THREE.Vector3().subVectors(sunCenter, earthCenter).normalize().multiplyScalar(.55).add(new THREE.Vector3(-.65, .5, .8).multiplyScalar(.45));
+  const solarEarth = earth(9, earthCenter, 1, light); solar.add(solarEarth.group);
+  const stream = particles(solar, 16000, 'flare', '#ffac44');
+  const ejecta = particles(solar, 3000, 'ejecta', '#ffd9a0');
+  for (const cloud of [stream, ejecta]) { cloud.material.uniforms.origin.value.copy(site); cloud.material.uniforms.target.value.copy(axis); }
   const solarShock = new THREE.Mesh(new THREE.TorusGeometry(1, .003, 6, 96), new THREE.MeshBasicMaterial({ color: '#ffc46d', transparent: true, opacity: .25, depthWrite: false, blending: THREE.AdditiveBlending }));
-  solarShock.position.copy(sun.position); solarShock.rotation.set(0, Math.PI / 2, -.28); solar.add(solarShock);
+  solarShock.name = 'Bow shock'; solarShock.quaternion.setFromUnitVectors(new THREE.Vector3(0, 0, 1), axis); solar.add(solarShock);
+  // The plasma front wraps Earth in fire once the ejection arrives.
+  const engulf = new THREE.Mesh(new THREE.SphereGeometry(1, 40 * fine, 26 * fine), new THREE.ShaderMaterial({
+    uniforms: { time, fade: { value: 0 } }, vertexShader: vertex,
+    fragmentShader: `uniform float time,fade;varying vec3 point;varying vec3 viewNormal;varying vec3 viewDirection;${noise}
+    void main(){vec3 p=normalize(point);float turbulence=fbm(p*6.+vec3(time*.35,-time*.5,0.));
+    float rim=pow(1.-abs(dot(normalize(viewNormal),normalize(viewDirection))),1.3);
+    vec3 fire=mix(vec3(.9,.12,.01),vec3(3.,1.5,.4),smoothstep(.28,.72,turbulence));
+    gl_FragColor=vec4(fire,fade*(rim*.7+turbulence*.35));${output}}`,
+    transparent: true, depthWrite: false, blending: THREE.AdditiveBlending
+  }));
+  engulf.name = 'Engulfed Earth'; engulf.position.copy(earthCenter); engulf.visible = false; solar.add(engulf);
+  const calmAir = new THREE.Color('#49a9ff'), searedAir = new THREE.Color('#ff8b39');
 
     function update(t) {
-      phase.value = ease((t - 5) / 8);
-      sun.rotation.set(.1, t * .013, -.12); loops.rotation.y = t * .018;
+      const burst = Math.sin(clamp((t - 5) / 2.6) * Math.PI), afterglow = ease((t - 5) / .6) * (1 - ease((t - 7.6) / 8)) * .3;
+      activity.value = ease(t / 5) * (1 - ease((t - 5) / 3) * .55);
+      flash.value = burst + afterglow; phase.value = ease((t - 5) / 8);
+      loops.rotation.y = t * .01;
+      loopMat.color.set('#ff6b15').multiplyScalar(3.3 * (1 + activity.value * .9 + burst * .8));
+      const rise = ease((t - 4.5) / 7);
+      arch.scale.setScalar(.25 + rise * 3.4); arch.rotation.y = t * .12;
+      archMaterial.opacity = ease((t - 4.4) / 1.2) * (1 - ease((t - 12) / 6));
+      const progress = ease((t - 7) / 14), radius = 3 + progress * 48;
+      bubble.visible = t > 7; bubble.position.copy(site).addScaledVector(axis, radius * .5); bubble.scale.setScalar(radius);
+      front.value = ease((t - 7) / 2) * (1 - progress * .6) * (1 - ease((t - 25) / 5));
+      stream.visible = t > 5; ejecta.visible = t > 5 && t < 12;
+      solarShock.visible = t > 7 && t < 26; solarShock.position.copy(site).addScaledVector(axis, radius * 1.5);
+      solarShock.scale.setScalar(2 + progress * 44); solarShock.material.opacity = (1 - progress) * .35;
       solarEarth.group.rotation.y = t * .025;
       solarEarth.clouds.rotation.y = t * .009;
       solarEarth.surface.material.uniforms.heat.value = ease((t - 20) / 10) * 1.1;
-      solarEarth.air.material.uniforms.tint.value.set(t > 23 ? '#ff8b39' : '#49a9ff');
-      flare.visible = t > 5;
-      solarShock.visible = t > 8 && t < 27; solarShock.scale.setScalar(32 + ease((t - 8) / 19) * 99);
-      solarShock.material.opacity = (1 - ease((t - 8) / 19)) * .3;
+      const seared = ease((t - 19) / 3);
+      solarEarth.air.material.uniforms.tint.value.copy(calmAir).lerp(searedAir, seared);
+      solarEarth.air.material.uniforms.strength.value = .42 + seared * .5;
+      const swallow = ease((t - 21.5) / 6);
+      engulf.visible = t > 21.5; engulf.scale.setScalar(9 * (1.15 + swallow * .75));
+      engulf.material.uniforms.fade.value = swallow * (.85 + .15 * Math.sin(t * 9));
     }
-    return { group: solar, update };
+    // The corona and the flash are camera-facing sprites, so they follow the viewer like the lensed halo.
+    function updateView() { corona.lookAt(camera.position); flareFlash.lookAt(camera.position); }
+    return { group: solar, update, updateView };
   }
   function createAsteroid() {
     seed = 77495;
