@@ -4,8 +4,9 @@
     {
       "name": "cinema",
       "runtimeExecutable": "sh",
-      "runtimeArgs": ["-c", "npm run build && PORT=4175 node tools/serve.mjs"],
-      "port": 4175
+      "runtimeArgs": ["-c", "npm run build && node tools/serve.mjs"],
+      "port": 4175,
+      "autoPort": true
     }
   ]
 }
