@@ -15,7 +15,7 @@ page.on('console', entry => { if (entry.type() === 'error' && /THREE|WebGL|shade
 try {
   await page.goto(process.env.TEST_BASE_URL || 'http://127.0.0.1:4174');
   await page.locator('#world[data-authored-assets="ready"]').waitFor();
-  for (const [index, seconds, name] of [[0, 16, 'alien-impact'], [1, 22, 'tsunami'], [2, 24, 'superstorm'], [3, 12, 'rogue-planet'], [4, 12, 'nuclear'], [7, 18, 'solar'], [8, 18, 'asteroid'], [9, 12, 'black-hole'],
+  for (const [index, seconds, name] of [[0, 16, 'alien-impact'], [1, 22, 'tsunami'], [2, 24, 'superstorm'], [3, 22, 'visitation'], [4, 12, 'nuclear'], [7, 18, 'solar'], [8, 18, 'asteroid'], [9, 12, 'black-hole'],
     [10, 17, 'tornado'], [11, 20, 'eruption'], [12, 15, 'debris-cascade'], [13, 23, 'jupiter']]) {
     await page.locator(`.scene-card[data-scene="${index}"]`).click();
     await page.locator('#progress').evaluate((input, time) => {

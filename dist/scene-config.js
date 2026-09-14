@@ -6,8 +6,8 @@ const starlight = {...daylight,fogDensity:0,sun:'#e4ebff',sunIntensity:1.5,hemiI
 export const sceneConfigs = {
   'independence-day': {...city,renderer:'original',environment:{...daylight,rim:'#4aaca2'}},
   'deep-impact': {...city,renderer:'original',environment:{...daylight,skyTint:'#bba899',rim:'#77b8d9'}},
-  'day-after-tomorrow': {...city,renderer:'original',environment:{...daylight,fog:'#718797',fogDensity:.0035,fogGrowth:.003,sun:'#bfdbef',sunIntensity:1.1,hemi:'#93b5d4',environmentIntensity:.6,skyTint:'#91afca',skyExposure:.3,skyStorm:.96}},
-  'melancholia': {world:'landscape',renderer:'original',camera:[85,31,130],target:[-8,39,-45],environment:{...daylight,fog:'#283e50',fogDensity:.0018,sun:'#a7cfff',rimIntensity:1.4,skyTint:'#7db9d4',skyExposure:.14,skyStorm:.96}},
+  'day-after-tomorrow': {...city,renderer:'terrestrial',environment:{...daylight,fog:'#8a9fae',fogDensity:.0035,fogGrowth:.0052,sun:'#bfdbef',sunIntensity:1.1,hemi:'#93b5d4',environmentIntensity:.6,skyTint:'#91afca',skyExposure:.3,skyStorm:.96}},
+  'day-the-earth-stood-still': {world:'landscape',renderer:'terrestrial',camera:[88,26,128],target:[-8,30,-40],environment:{...daylight,fog:'#2c3a43',fogDensity:.0016,fogGrowth:.0024,sun:'#c9d8e3',sunIntensity:1.5,hemi:'#8fa4b4',hemiIntensity:.34,rim:'#9fd8cf',rimIntensity:1.6,environmentIntensity:.55,skyTint:'#8ea6b4',skyExposure:.2,skyStorm:.85}},
   'terminator-2': {...city,renderer:'terrestrial',environment:{...daylight,fog:'#594139',skyTint:'#dba879',skyStorm:.96}},
   '2012': {...city,renderer:'terrestrial',environment:{...daylight,fog:'#51403e',skyTint:'#ca9a81',skyStorm:.96}},
   'war-of-the-worlds': {...city,renderer:'terrestrial',environment:{...daylight,fog:'#353340',sun:'#c0b4de',skyTint:'#a297b4',skyExposure:.25,skyStorm:.96}},

@@ -8,9 +8,9 @@ Without arguments every scene is rendered; naming scene functions (for example
 Each 30-second bed is composed against its scene's visual timeline, so the arc of
 the film moment (approach, arrival, collapse, engulfment) is baked into the
 time-locked bed. Cues carry the discrete transients that must not replay when
-scrubbing. Everything is oscillators, noise, filters and expressions; the two
-public-domain compositions (Wagner's Tristan Prelude, Beethoven's Seventh) are
-original renderings or rhythm-inspired figures, never recordings.
+scrubbing. Everything is oscillators, noise, filters and expressions; the one
+public-domain composition still referenced (Beethoven's Seventh) is a rhythm-inspired
+figure, never a recording; the visitor's theremin-style glide is an original line.
 """
 import json
 import subprocess
@@ -211,12 +211,14 @@ def deep_impact():
 def day_after_tomorrow():
     n = 'dat'
     parts = [
-        (noise(f'{n}-wind', 30, 'pinknoise', ['bandpass', '720', '1.4q', 'tremolo', '0.19', '75']), .6),
-        (noise(f'{n}-howl', 30, 'pinknoise', ['bandpass', '320', '2q', 'tremolo', '0.13', '60']), .5),
-        # The superstorm arrives between 8 and 20.
-        (at(noise(f'{n}-storm', 14, 'pinknoise', ['bandpass', '1100', '1q', 'tremolo', '0.3', '50', 'fade', 'l', '6', '14', '3']), 8), .7),
-        (at(noise(f'{n}-storm-body', 14, 'brownnoise', ['lowpass', '200', 'fade', 'l', '6', '14', '3']), 8), .6),
+        (noise(f'{n}-wind', 30, 'pinknoise', ['bandpass', '720', '1.4q', 'tremolo', '0.19', '75']), .75),
+        (noise(f'{n}-howl', 30, 'pinknoise', ['bandpass', '320', '2q', 'tremolo', '0.13', '60']), .65),
+        # Gusts strengthen from 6 and the superstorm arrives between 8 and 20; blown snow hisses from 12.
+        (at(noise(f'{n}-gusts', 24, 'pinknoise', ['bandpass', '900', '.9q', 'tremolo', '0.42', '85', 'fade', 'l', '6', '24', '2']), 6), .5),
+        (at(noise(f'{n}-storm', 14, 'pinknoise', ['bandpass', '1100', '1q', 'tremolo', '0.3', '50', 'fade', 'l', '6', '14', '3']), 8), .85),
+        (at(noise(f'{n}-storm-body', 14, 'brownnoise', ['lowpass', '200', 'fade', 'l', '6', '14', '3']), 8), .75),
         (at(noise(f'{n}-hail', 20, 'whitenoise', ['highpass', '5000', 'tremolo', '0.9', '40', 'fade', 'l', '3', '20', '2']), 10), .12),
+        (at(noise(f'{n}-blizzard', 18, 'whitenoise', ['bandpass', '2600', '.6q', 'tremolo', '0.7', '50', 'fade', 'l', '8', '18', '2']), 12), .16),
         (at(noise(f'{n}-roll1', 5, 'brownnoise', ['lowpass', '350', 'fade', 't', '.2', '5', '4.5']), 12.5), .6),
         (at(noise(f'{n}-roll2', 5, 'brownnoise', ['lowpass', '350', 'fade', 't', '.2', '5', '4.5']), 17), .45),
         # Deep freeze from 20: groaning ice and a crystalline shimmer.
@@ -237,31 +239,47 @@ def day_after_tomorrow():
     ], 4, '-10', HALL)
 
 
-def melancholia():
-    n = 'mel'
+def day_the_earth_stood_still():
+    n = 'tdtess'
     parts = [
-        (synth(f'{n}-space', 30, ['sine', '41'], ['tremolo', '0.1', '60']), .6),
-        (noise(f'{n}-void', 30, 'brownnoise', ['lowpass', '120']), .35),
-        # The rogue planet's pressure rises across the whole approach.
-        (synth(f'{n}-approach', 30, ['sine', '55:82'], ['tremolo', '0.13', '50', 'fade', 'l', '6', '30', '.5']), .45),
+        # The sphere's sub-harmonic hum and the park's night air.
+        (synth(f'{n}-hum', 30, voices(('sine', '38'), ('sine', '57'), ('sine', '76.5')), ['tremolo', '0.16', '55']), .55),
+        (noise(f'{n}-air', 30, 'pinknoise', ['bandpass', '500', '1q', 'tremolo', '0.12', '40']), .18),
+        # An original theremin-style line (a nod to the 1951 score): a vibrato sine that sinks slowly while it sways.
+        (expression(f'{n}-theremin', 26, 'sin(2*PI*(660*t-1.731*t*t-347.3*cos(2*PI*0.055*t))+0.6*sin(2*PI*5.5*t))*min(t/4,1)',
+                    ['lowpass', '2400', 'fade', 't', '3', '26', '4']), .16),
+        # Descent 0-9: rising pressure, then the landing thump and its rumble at 9.
+        (noise(f'{n}-descent', 9, 'pinknoise', ['bandpass', '260', '1q', 'bend', '0,-600,9', 'fade', 'l', '7', '9', '.5']), .4),
+        (at(noise(f'{n}-landing-tail', 8, 'brownnoise', ['lowpass', '140', 'fade', 't', '.05', '8', '7']), 9), .7),
+        (at(synth(f'{n}-landing-sub', 3, ['sine', '60:24'], ['fade', 't', '.01', '3', '2.6']), 9), .6),
+        # GORT emerges 10-13 with a slow metallic groan; the visor charges and hisses 14-19.
+        (at(synth(f'{n}-gort', 4, ['sawtooth', f'{p(-38)}:{p(-36)}'], ['lowpass', '380', 'tremolo', '3', '40', 'fade', 't', '.6', '4', '1.5']), 10), .35),
+        (at(synth(f'{n}-visor', 5, voices(('sine', '3200'), ('sine', '4810')), ['tremolo', '14', '70', 'highpass', '2500', 'fade', 'l', '2', '5', '.8']), 14), .07),
+        (at(noise(f'{n}-visor-hiss', 5, 'whitenoise', ['bandpass', '5200', '1.2q', 'tremolo', '2', '45', 'fade', 'l', '2', '5', '.8']), 14), .08),
+        # The swarm 19-30: an insectile buzz of detuned reeds that thickens as it spreads, with matter crackling apart.
+        (at(synth(f'{n}-swarm', 11, voices(('sawtooth', '118'), ('sawtooth', '121.5'), ('square', '236.8'), ('sawtooth', '181')), ['lowpass', '1600', 'tremolo', '31', '60', 'fade', 'l', '5', '11', '.3']), 19), .32),
+        (at(noise(f'{n}-swarm-air', 11, 'pinknoise', ['bandpass', '1900', '1q', 'tremolo', '44', '55', 'fade', 'l', '6', '11', '.3']), 19), .28),
+        (at(crackle(f'{n}-devour', 10, '0.9988', ('bandpass', '1400', '1q', 'fade', 'l', '4', '10', '.5')), 20), .25),
+        # The sphere departs at 27.
+        (at(noise(f'{n}-ascent', 3, 'pinknoise', ['bandpass', '400', '.8q', 'bend', '0,1800,3', 'fade', 'l', '2', '3', '.4']), 27), .5),
+        (at(synth(f'{n}-ascent-tone', 3, ['sine', '80:640'], ['tremolo', '9', '35', 'fade', 'l', '2.4', '3', '.3']), 27), .3),
     ]
-    # Original rendering of the opening measures of Wagner's Tristan Prelude (1859, public domain).
-    parts += phrase(f'{n}-cellos', [('A3', 2), ('F4', 2.5), ('E4', 3.5), ('D#4', 2.5)], 2, .45)
-    parts.append((at(strings(f'{n}-tristan-chord', ['F3', 'B3', 'D#4', 'G#4'], 6.2, attack=3, release=1.5), 6.5), .3))
-    parts += phrase(f'{n}-winds', [('G#4', 1), ('A4', 1), ('A#4', 1), ('B4', 2.2)], 12.3, .34, cutoff='2200')
-    parts.append((at(strings(f'{n}-resolution', ['E3', 'G#3', 'D4', 'B4'], 10.5, attack=2.5, release=3), 17), .4))
-    # Atmospheres touch from 22; the collision white-out begins at 27.
-    parts.append((at(noise(f'{n}-contact', 5.5, 'whitenoise', ['bandpass', '900', '2q', 'tremolo', '0.8', '60', 'fade', 'l', '4', '5.5', '1']), 22), .35))
-    parts.append((at(synth(f'{n}-tension', 6, ['sine', f'{p(-16)}:{p(5)}'], ['fade', 'l', '4', '6', '1']), 21.5), .2))
-    parts.append((at(noise(f'{n}-whiteout', 3, 'pinknoise', ['lowpass', '2500', 'fade', 't', '.1', '3', '1.5']), 27), .9))
-    parts.append((at(noise(f'{n}-whiteout-sub', 3, 'brownnoise', ['lowpass', '90', 'fade', 't', '.05', '3', '1.2']), 27), .9))
-    bed('melancholia', parts, HALL)
-    cue('melancholia-contact', [
-        (crackle(f'{n}-cue-contact-crackle', 5, '0.9985', ('bandpass', '1600', '1q', 'fade', 'l', '3', '5', '1')), .7),
-        (synth(f'{n}-cue-contact-rise', 5, ['sine', '220:1760'], ['tremolo', '6', '40', 'fade', 'l', '3.5', '5', '.8']), .6),
-    ], 5, '-11')
-    cue('melancholia-collision', boom(f'{n}-cue-collision', 3.5, '70', '22', '600') + [
-        (noise(f'{n}-cue-collision-wall', 3.5, 'whitenoise', ['lowpass', '3000', 'fade', 't', '.02', '3.5', '3']), .8)], 3.5, '-8', HALL)
+    bed('day-the-earth-stood-still', parts, HALL)
+    cue('day-the-earth-stood-still-landing', boom(f'{n}-cue-landing', 4, '75', '22', '500') + [
+        (synth(f'{n}-cue-landing-ring', 2.5, voices(('sine', '2093'), ('sine', '3136')), ['fade', 't', '.005', '2.5', '2.2', 'highpass', '900']), .25)], 4, '-8', HALL)
+    cue('day-the-earth-stood-still-visor', [
+        (synth(f'{n}-cue-visor', 2.5, ['sine', '900:5200'], ['tremolo', '18', '60', 'fade', 't', '.05', '2.5', '1.8']), .7),
+        (noise(f'{n}-cue-visor-hiss', 2.5, 'whitenoise', ['bandpass', '4800', '1q', 'bend', '0,2400,2.5', 'fade', 't', '.05', '2.5', '1.8']), .5),
+    ], 2.5, '-11', DRY)
+    cue('day-the-earth-stood-still-swarm', [
+        (synth(f'{n}-cue-swarm', 3.5, voices(('sawtooth', '110:126'), ('square', '221:238')), ['lowpass', '1400', 'tremolo', '34', '70', 'fade', 't', '.05', '3.5', '2.5']), .8),
+        (crackle(f'{n}-cue-swarm-crackle', 3.5, '0.9985', ('bandpass', '1800', '1q', 'fade', 't', '0', '3.5', '2.5')), .5),
+        (synth(f'{n}-cue-swarm-sub', 3.5, ['sine', '64:30'], ['fade', 't', '.01', '3.5', '3']), .6),
+    ], 3.5, '-9')
+    cue('day-the-earth-stood-still-ascent', [
+        (noise(f'{n}-cue-ascent', 3, 'pinknoise', ['bandpass', '500', '.8q', 'bend', '0,2000,3', 'fade', 'l', '2.2', '3', '.5']), 1),
+        (synth(f'{n}-cue-ascent-tone', 3, ['sine', '110:880'], ['tremolo', '8', '30', 'fade', 'l', '2.4', '3', '.4']), .45),
+    ], 3, '-10', HALL)
 
 
 def terminator_2():
@@ -583,7 +601,7 @@ def wandering_earth():
     ], 4.5, '-11', HALL)
 
 
-SCENES = [independence_day, deep_impact, day_after_tomorrow, melancholia, terminator_2,
+SCENES = [independence_day, deep_impact, day_after_tomorrow, day_the_earth_stood_still, terminator_2,
           year_2012, war_of_the_worlds, knowing, armageddon, interstellar,
           twister, dantes_peak, gravity, wandering_earth]
 

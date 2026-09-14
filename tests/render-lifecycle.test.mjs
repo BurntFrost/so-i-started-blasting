@@ -9,6 +9,14 @@ import { createCosmic } from '../dist/cosmic.js';
 import { createProduction } from '../dist/production.js';
 
 const config = (id, world = 'city') => ({ id, world, space: world === 'space', environment: { skyTint: '#fff', skyExposure: .6, skyStorm: .3 } });
+// The superstorm hangs icicles from the baseline city's roof edges and the visitor's swarm consumes the landscape trees.
+const cityBuildings = () => Array.from({ length: 6 }, (_, i) => ({ userData: { x: -40 + i * 17, z: 3 + (i % 2) * 17, h: 8 + i * 3, w: 4 + i % 3, d: 3 + i % 2 } }));
+function parkLandscape() {
+  const landscape = new THREE.Group(), lawn = new THREE.Mesh(new THREE.PlaneGeometry(10, 10), new THREE.MeshStandardMaterial());
+  landscape.add(lawn);
+  for (let i = 0; i < 5; i++) { const tree = new THREE.Group(); tree.position.set(-60 + i * 30, 0, -70); landscape.add(tree); }
+  return landscape;
+}
 function snapshot(group) {
   group.updateMatrixWorld(true);
   const values = [];
@@ -22,14 +30,15 @@ function snapshot(group) {
 
 test('procedural factories construct only visited IDs and scrub reversibly in any visit order', () => {
   for (const [create, ids, names, world, extra] of [
-    [createTerrestrial, ['war-of-the-worlds', 'terminator-2', '2012', 'twister', 'dantes-peak'],
-      ['War of the Worlds — tripod invasion', 'Terminator 2 — nuclear firestorm', '2012 — continental rupture', 'Twister — F5 outbreak', "Dante's Peak — Plinian eruption"], 'city', 0],
+    [createTerrestrial, ['war-of-the-worlds', 'terminator-2', '2012', 'twister', 'dantes-peak', 'day-after-tomorrow', 'day-the-earth-stood-still'],
+      ['War of the Worlds — tripod invasion', 'Terminator 2 — nuclear firestorm', '2012 — continental rupture', 'Twister — F5 outbreak', "Dante's Peak — Plinian eruption",
+        'The Day After Tomorrow — superstorm', 'The Day the Earth Stood Still — visitation'], 'city', 0],
     [createCosmic, ['interstellar', 'knowing', 'armageddon', 'gravity', 'wandering-earth'],
       ['interstellar-black-hole', 'knowing-solar-flare', 'armageddon-asteroid', 'gravity-debris-cascade', 'wandering-earth-jupiter-flyby'], 'space', 1]
   ]) {
     const scene = new THREE.Scene(), canvas = { dataset: { quality: 'balanced', pixelRatio: '1.25' } }, camera = new THREE.PerspectiveCamera();
     camera.position.set(122, 78, 155);
-    const renderer = create({ scene, canvas, camera });
+    const renderer = create({ scene, canvas, camera, buildings: cityBuildings(), landscape: parkLandscape() });
     assert.equal(scene.children.length, 0, 'construction does not allocate unvisited scene graphs');
     renderer.update(18, config('independence-day'));
     assert.equal(scene.children.length, 0);
@@ -48,7 +57,7 @@ test('procedural factories construct only visited IDs and scrub reversibly in an
       renderer.update(18, config(id, world)); renderer.updateView?.();
       assert.equal(snapshot(group), first);
     }
-    const other = new THREE.Scene(), replay = create({ scene: other, canvas, camera });
+    const other = new THREE.Scene(), replay = create({ scene: other, canvas, camera, buildings: cityBuildings(), landscape: parkLandscape() });
     for (const id of [...ids].reverse()) replay.update(18, config(id, world));
     replay.updateView?.();
     for (const [i, id] of ids.entries()) {
@@ -59,6 +68,23 @@ test('procedural factories construct only visited IDs and scrub reversibly in an
   }
 });
 
+test('the visitor swarm consumes the landscape trees as a function of time and restores them for other scenes', () => {
+  const scene = new THREE.Scene(), canvas = { dataset: { quality: 'balanced', pixelRatio: '1.25' } }, camera = new THREE.PerspectiveCamera();
+  const landscape = parkLandscape(), trees = landscape.children.slice(1);
+  const renderer = createTerrestrial({ scene, canvas, camera, landscape });
+  renderer.update(12, config('day-the-earth-stood-still', 'landscape'));
+  assert.ok(trees.every(tree => tree.scale.x === 1), 'the park is intact while the sphere lands');
+  renderer.update(29, config('day-the-earth-stood-still', 'landscape'));
+  const eaten = trees.map(tree => tree.scale.x);
+  assert.ok(eaten.every(scale => scale < .2), 'the swarm has consumed the trees by the end');
+  renderer.update(12, config('day-the-earth-stood-still', 'landscape'));
+  assert.ok(trees.every(tree => tree.scale.x === 1), 'reverse scrubbing regrows the trees');
+  renderer.update(29, config('day-the-earth-stood-still', 'landscape'));
+  assert.deepEqual(trees.map(tree => tree.scale.x), eaten, 'consumption is a function of time only');
+  renderer.update(29, config('twister', 'landscape'));
+  assert.ok(trees.every(tree => tree.scale.x === 1), 'leaving the scene restores the trees for the other landscape scenes');
+});
+
 function productionWorld() {
   const scene = new THREE.Scene(); scene.fog = new THREE.FogExp2('#456789', .012); scene.environmentIntensity = .83;
   const city = new THREE.Group(), landscape = new THREE.Group(), ship = new THREE.Group(); scene.add(city, landscape, ship);
@@ -67,9 +93,8 @@ function productionWorld() {
   const ground = mesh(), core = mesh(), tower = mesh(), blast = mesh(), wave = mesh(new THREE.PlaneGeometry(220, 75, 5, 5));
   const buildings = Array.from({ length: 15 }, (_, i) => { const b = mesh(new THREE.BoxGeometry(1, 1, 1).translate(0, .5, 0)); b.position.x = i * 8; b.scale.set(4, 20, 4); city.add(b); return b; });
   const baselineShip = mesh(); ship.add(baselineShip, core); city.add(ground, tower); landscape.add(mesh(new THREE.PlaneGeometry(200, 200)));
-  const planet = new THREE.Mesh(new THREE.SphereGeometry(), new THREE.ShaderMaterial({ uniforms: { time: { value: 0 } } }));
   const errors = [], camera = new THREE.PerspectiveCamera(), canvas = { dataset: { quality: 'balanced' } };
-  return { scene, city, landscape, ship, buildings, ground, core, tower, blast, wave, planet, camera, canvas,
+  return { scene, city, landscape, ship, buildings, ground, core, tower, blast, wave, camera, canvas,
     foam: mesh(new THREE.PlaneGeometry()), beam: mesh(), meteor: mesh(), tail: mesh(), baselineShip, errors,
     renderer: { capabilities: { getMaxAnisotropy: () => 1 } }, onAssetError: stage => errors.push(stage) };
 }
@@ -168,25 +193,41 @@ test('only HIGH shows the authored landscape tree; lower tiers keep the procedur
   await withAssets([], async () => {
     const world = productionWorld();
     const trees = Array.from({ length: 3 }, proceduralTree);
-    world.landscape.add(...trees, new THREE.Group());
+    world.landscape.add(...trees);
     const production = await createProduction(world);
     const authored = tree => tree.children.at(-1), crowns = tree => [tree.children[0], tree.children[2], tree.children[3]];
     assert.ok(trees.every(tree => tree.children.length === 5), 'each tree gained one authored clone');
-    production.update(18, config('melancholia', 'landscape'));
+    production.update(18, config('day-the-earth-stood-still', 'landscape'));
     for (const tree of trees) {
       assert.equal(authored(tree).visible, false, 'BALANCED hides the authored tree');
       assert.ok(crowns(tree).every(part => part.visible), 'BALANCED shows the procedural trunk and crowns');
       assert.equal(tree.children[1].visible, false, 'the retired cone stays hidden');
     }
     world.canvas.dataset.quality = 'high';
-    production.update(18, config('melancholia', 'landscape'));
+    production.update(18, config('day-the-earth-stood-still', 'landscape'));
     for (const tree of trees) {
       assert.equal(authored(tree).visible, true, 'HIGH shows the authored tree');
       assert.ok(crowns(tree).every(part => !part.visible), 'HIGH hides the procedural crowns');
     }
     world.canvas.dataset.quality = 'lite';
-    production.update(18, config('melancholia', 'landscape'));
+    production.update(18, config('day-the-earth-stood-still', 'landscape'));
     assert.ok(trees.every(tree => !authored(tree).visible && crowns(tree).every(part => part.visible)), 'LITE also keeps the procedural crowns');
+  });
+});
+
+test('the superstorm glazes the authored facades and paves the streets with ice', async () => {
+  await withAssets([], async () => {
+    const world = productionWorld(), production = await createProduction(world);
+    production.update(2, config('day-after-tomorrow'));
+    const facades = world.city.children.filter(object => object.isInstancedMesh && object.visible).map(mesh => mesh.material);
+    assert.ok(facades.length > 0);
+    const before = facades.map(material => material.roughness);
+    production.update(28, config('day-after-tomorrow'));
+    facades.forEach((material, i) => assert.ok(material.roughness < before[i] * .6, 'frozen facades turn glossy'));
+    production.update(2, config('day-after-tomorrow'));
+    facades.forEach((material, i) => assert.equal(material.roughness, before[i], 'reverse scrubbing thaws the glaze'));
+    production.update(28, config('terminator-2'));
+    facades.forEach((material, i) => assert.equal(material.roughness, before[i], 'other city scenes keep the dry facades'));
   });
 });
 

@@ -12,7 +12,9 @@ mix(mix(hash(i+vec3(0,0,1)),hash(i+vec3(1,0,1)),f.x),mix(hash(i+vec3(0,1,1)),has
 float fbm(vec3 p){return noise(p)*.57+noise(p*2.03)*.28+noise(p*4.11)*.15;}`;
 
 // Fixed geometry, seeded variation, and absolute-time poses make reverse scrubbing exact.
-export function createTerrestrial({ scene, canvas }) {
+// The baseline city buildings and the landscape group are shared with the simulation: the superstorm
+// hangs icicles from the roof edges and the visitor's swarm consumes the park trees.
+export function createTerrestrial({ scene, canvas, buildings = [], landscape }) {
   // ULTRA-capable displays get twice the silhouette tessellation; geometry is built once per module.
   const fine = canvas.dataset.qualityCeiling === 'ultra' ? 2 : 1;
   let seed = 20121991;
@@ -24,6 +26,11 @@ export function createTerrestrial({ scene, canvas }) {
   const rock = new THREE.IcosahedronGeometry(1, 0);
   const box = new THREE.BoxGeometry(1, 1, 1);
   const cylinder = new THREE.CylinderGeometry(1, 1, 1, 7);
+  const rimGlow = (tint, strength) => new THREE.ShaderMaterial({
+    uniforms: { tint: { value: new THREE.Color(tint) }, strength: { value: strength } },
+    vertexShader: 'varying vec3 rimNormal;varying vec3 rimView;void main(){vec4 mv=modelViewMatrix*vec4(position,1.);rimNormal=normalize(normalMatrix*normal);rimView=normalize(-mv.xyz);gl_Position=projectionMatrix*mv;}',
+    fragmentShader: 'uniform vec3 tint;uniform float strength;varying vec3 rimNormal;varying vec3 rimView;void main(){float rim=pow(1.-abs(dot(rimNormal,rimView)),3.);gl_FragColor=vec4(tint,rim*strength);}',
+    transparent: true, depthWrite: false, blending: THREE.AdditiveBlending });
   const dummy = new THREE.Object3D();
   const up = new THREE.Vector3(0, 1, 0);
   const delta = new THREE.Vector3();
@@ -79,8 +86,29 @@ export function createTerrestrial({ scene, canvas }) {
       p=vec3(origin.x+bend.x+cos(angle)*r,origin.y+h,origin.z+bend.y+sin(angle)*r);
       alpha=step(0.,age)*(1.-smoothstep(58.,78.,h))*(1.-settle*.8)*.32;`,
     ash: `float fall=mod(seed.z*150.+time*(9.+seed.w*7.),150.);p=vec3((seed.x-.5)*330.,150.-fall,(seed.y-.5)*330.-40.);
-      alpha=smoothstep(10.,18.,time)*smoothstep(0.,8.,fall)*smoothstep(0.,8.,150.-fall)*(.5+.5*seed.y)*.26;`
+      alpha=smoothstep(10.,18.,time)*smoothstep(0.,8.,fall)*smoothstep(0.,8.,150.-fall)*(.5+.5*seed.y)*.26;`,
+    // Superstorm snow streams downwind across the whole city; the gust strength climbs from flurries to a whiteout.
+    blizzard: `float gust=8.+smoothstep(4.,18.,time)*40.;float fall=6.+seed.w*10.;
+      p=vec3(mod(seed.x*320.+time*gust*(.75+seed.z*.5),320.)-160.,mod(seed.y*140.-time*fall,140.)-1.,mod(seed.z*300.+time*gust*.28+sin(time*1.9+seed.w*11.)*3.,300.)-150.);
+      alpha=(.18+.82*smoothstep(3.,16.,time))*(.45+.55*seed.w);`,
+    // Spindrift: sheets of blown snow that hug the frozen streets.
+    spindrift: `float gust=10.+smoothstep(6.,20.,time)*46.;
+      p=vec3(mod(seed.x*340.+time*gust*(.8+seed.z*.4),340.)-170.,-.4+seed.y*seed.y*7.5+sin(time*2.3+seed.w*8.)*.6,mod(seed.z*300.+time*gust*.3,300.)-150.);
+      alpha=smoothstep(8.,20.,time)*(1.-seed.y*seed.y)*.3;`,
+    // Nanites hold in a tight cloud on GORT's body, then spread as an expanding disk that swallows the park.
+    swarm: `float spread=smoothstep(19.,30.,time);float hold=1.-spread;
+      float r=(1.2+seed.y*3.5)*hold+spread*(20.+seed.y*250.);float angle=a+time*(2.2+seed.z*5.)/(1.+r*.04);
+      float h=seed.w*(hold*24.+spread*(2.+r*.09))+sin(time*4.+seed.x*20.)*(.3+spread*1.5);
+      p=vec3(origin.x+cos(angle)*r,max(.2,origin.y+h),origin.z+sin(angle)*r);
+      alpha=smoothstep(17.5,19.5,time)*(.4+.5*seed.w)*(1.-smoothstep(150.,260.,r));`,
+    // The swarm's dust body: boiling gray puffs that roll outward at ground level behind the front.
+    plague: `float spread=smoothstep(19.,30.,time);float r=spread*(6.+seed.y*250.);float angle=a+time*(.6+seed.z*1.5);
+      p=vec3(origin.x+cos(angle)*r,1.5+seed.w*(4.+spread*14.),origin.z+sin(angle)*r);
+      alpha=smoothstep(19.,21.,time)*(1.-smoothstep(.6,1.,seed.y))*.45;`
   };
+  // Snowflakes and nanites stay crisp points; every other kind is a soft turbulent puff.
+  const crisp = new Set(['embers', 'blizzard', 'swarm']);
+  const pointCap = { embers: '12.', blizzard: '7.', swarm: '5.' };
   function particles(parent, kind, count, tint, size) {
     const geometry = new THREE.BufferGeometry();
     const seeds = new Float32Array(count * 4);
@@ -95,11 +123,11 @@ export function createTerrestrial({ scene, canvas }) {
       void main(){float a=seed.x*6.283185;vec3 p=vec3(0.);variation=seed.w;
       ${motion[kind]}
       vec4 mv=modelViewMatrix*vec4(p,1.);gl_Position=projectionMatrix*mv;
-      gl_PointSize=clamp(size*ratio*240./max(1.,-mv.z),1.,${kind === 'embers' ? '12.' : '100.'});}`,
+      gl_PointSize=clamp(size*ratio*240./max(1.,-mv.z),1.,${pointCap[kind] || '100.'});}`,
       fragmentShader: `uniform vec3 tint;varying float alpha;varying float variation;${noise}
       void main(){vec2 p=gl_PointCoord-.5;float r=length(p)*2.;if(r>1.)discard;
       float a=(1.-smoothstep(.05,1.,r))*alpha;
-      ${kind === 'embers' ? '' : 'a*=smoothstep(.18,.6,fbm(vec3(p*5.,variation*13.)));'}
+      ${crisp.has(kind) ? '' : 'a*=smoothstep(.18,.6,fbm(vec3(p*5.,variation*13.)));'}
       gl_FragColor=vec4(tint,a);}` });
     const mesh = new THREE.Points(geometry, material); mesh.frustumCulled = false; parent.add(mesh);
     return { mesh, count, uniforms };
@@ -640,19 +668,183 @@ export function createTerrestrial({ scene, canvas }) {
   }
     return { group: eruption, update: updateEruption, particles: ashFall };
   }
+  function createSuperstorm() {
+    seed = 20042004;
+  // THE DAY AFTER TOMORROW: the superstorm buries Manhattan in wind-driven snow, piles drifts along the
+  // streets, glazes the roads with ice and hangs icicles from every roof edge.
+  const superstorm = group('The Day After Tomorrow — superstorm');
+  const snowMaterial = mat('#e4edf3', { roughness: .96 });
+  const drifts = instances(superstorm, new THREE.SphereGeometry(1, 12 * fine, 7 * fine), snowMaterial, 132, 'Snow drifts');
+  drifts.receiveShadow = true;
+  // Drifts pile against the building fronts along the 17-unit street grid.
+  const driftSeeds = Array.from({ length: 132 }, (_, i) => {
+    const road = -4 + (i % 9), along = -72 + Math.floor(i / 9) * 10.3 + random() * 6, side = i % 2 ? 1 : -1, offset = 1.9 + random() * 1.4;
+    const crossStreet = i % 3 === 0;
+    return { x: crossStreet ? along : road * 17 + side * offset, z: crossStreet ? road * 17 + side * offset : along,
+      w: 3 + random() * 4.5, h: .7 + random() * 1.1, d: 2 + random() * 3, spin: random() * tau, onset: random() };
+  });
+  const iceMaterial = new THREE.MeshStandardMaterial({ color: '#c3d9e4', roughness: .1, metalness: .06, transparent: true, opacity: 0, envMapIntensity: 1.3, depthWrite: false });
+  iceMaterial.onBeforeCompile = shader => {
+    shader.vertexShader = shader.vertexShader.replace('#include <common>', '#include <common>\nvarying vec3 icePoint;').replace('#include <begin_vertex>', '#include <begin_vertex>\nicePoint=position;');
+    shader.fragmentShader = shader.fragmentShader.replace('#include <common>', '#include <common>\nvarying vec3 icePoint;' + noise)
+      .replace('#include <color_fragment>', '#include <color_fragment>\nfloat veins=fbm(icePoint*.11);diffuseColor.rgb=mix(diffuseColor.rgb,vec3(.96,.98,1.),smoothstep(.56,.66,veins)*.55);diffuseColor.a*=.75+veins*.5;')
+      .replace('#include <roughnessmap_fragment>', '#include <roughnessmap_fragment>\nroughnessFactor+=smoothstep(.56,.66,veins)*.5;');
+  };
+  iceMaterial.customProgramCacheKey = () => 'terrestrial-ice-sheet-v1';
+  const ice = new THREE.Mesh(new THREE.PlaneGeometry(600, 600), iceMaterial); ice.name = 'Frozen streets';
+  ice.rotation.x = -Math.PI / 2; ice.position.y = -.86; ice.renderOrder = -1; ice.receiveShadow = true; ice.visible = false; superstorm.add(ice);
+  // A unit icicle hangs from the origin so scaling y is its length.
+  const icicleGeometry = new THREE.ConeGeometry(.16, 1, 5); icicleGeometry.rotateX(Math.PI); icicleGeometry.translate(0, -.5, 0);
+  const icicleCount = buildings.length * 4;
+  const icicles = instances(superstorm, icicleGeometry, new THREE.MeshStandardMaterial({ color: '#dff1fa', roughness: .12, metalness: .05, transparent: true, opacity: .85 }), Math.max(1, icicleCount), 'Roof-edge icicles');
+  icicles.count = 0;
+  const icicleSeeds = Array.from({ length: icicleCount }, () => ({ offset: random(), length: 1.2 + random() * 2.6, onset: random(), radius: .7 + random() * .8 }));
+  const blizzard = particles(superstorm, 'blizzard', 14000, '#e9f2f8', 1.4);
+  const spindrift = particles(superstorm, 'spindrift', 900, '#dde8ef', 30);
+
+  function updateSuperstorm(t, detail) {
+    const glaze = ease((t - 13) / 12);
+    drifts.count = detail === 0 ? 60 : detail === 1 ? 96 : 132;
+    for (let i = 0; i < drifts.count; i++) {
+      const s = driftSeeds[i], pile = ease((t - 9 - s.onset * 9) / 12), h = s.h * pile;
+      pose(drifts, i, s.x, -1 + h * .35, s.z, s.w * (.6 + pile * .4), Math.max(.001, h), s.d * (.6 + pile * .4), 0, s.spin, 0);
+    }
+    drifts.instanceMatrix.needsUpdate = true;
+    ice.visible = glaze > 0; iceMaterial.opacity = glaze * .88;
+    icicles.visible = t > 11; icicles.count = detail === 0 ? Math.floor(icicleCount / 2) : icicleCount;
+    for (let i = 0; i < icicles.count; i++) {
+      const s = icicleSeeds[i], u = buildings[Math.floor(i / 4)].userData, front = i % 4 < 2;
+      const drop = s.length * ease((t - 11 - s.onset * 9) / 8);
+      pose(icicles, i, front ? u.x - u.w / 2 + s.offset * u.w : u.x + u.w / 2 + .05, -1 + u.h - .05,
+        front ? u.z + u.d / 2 + .05 : u.z - u.d / 2 + s.offset * u.d, s.radius, Math.max(.001, drop), s.radius);
+    }
+    icicles.instanceMatrix.needsUpdate = true;
+  }
+    return { group: superstorm, update: updateSuperstorm, particles: [blizzard, spindrift] };
+  }
+  function createVisitation() {
+    seed = 20082008;
+  // THE DAY THE EARTH STOOD STILL: a luminous sphere lands in the park, GORT walks out and stands guard,
+  // then dissolves into a nanite swarm that spreads across the meadow and consumes the trees.
+  const visitation = group('The Day the Earth Stood Still — visitation');
+  const landing = new THREE.Vector3(-12, 30, -34), stand = new THREE.Vector3(-2, 0, 24);
+  const sphereClock = { value: 0 };
+  const luminous = glowValue => new THREE.ShaderMaterial({
+    uniforms: { time: sphereClock, glow: { value: glowValue } },
+    vertexShader: 'varying vec3 sphereNormal;varying vec3 spherePoint;varying vec3 sphereView;void main(){spherePoint=position;vec4 mv=modelViewMatrix*vec4(position,1.);sphereNormal=normalize(normalMatrix*normal);sphereView=normalize(-mv.xyz);gl_Position=projectionMatrix*mv;}',
+    fragmentShader: `uniform float time,glow;varying vec3 sphereNormal;varying vec3 spherePoint;varying vec3 sphereView;${noise}
+    void main(){vec3 p=normalize(spherePoint);float drift=fbm(p*2.2+vec3(time*.07,time*.04,0.));
+    float cloud=fbm(p*5.5+drift*2.5-vec3(0.,time*.11,time*.05));float veil=smoothstep(.3,.8,cloud);
+    float rim=pow(1.-abs(dot(sphereNormal,sphereView)),2.2);
+    vec3 color=mix(vec3(.01,.12,.14),vec3(.25,.95,.85),veil);color=mix(color,vec3(1.6,2.4,2.2),pow(veil,3.)*.6)*glow;color+=vec3(.25,.95,.85)*rim*.9*glow;
+    gl_FragColor=vec4(color,.94);
+    #include <tonemapping_fragment>
+    #include <colorspace_fragment>
+    }`,
+    transparent: true
+  });
+  const sphereMaterial = luminous(1);
+  const orb = new THREE.Mesh(new THREE.SphereGeometry(28, 64 * fine, 40 * fine), sphereMaterial); orb.name = 'Luminous sphere'; visitation.add(orb);
+  const halo = new THREE.Mesh(new THREE.SphereGeometry(30.5, 40 * fine, 26 * fine), rimGlow('#7fe9d2', .5)); halo.name = 'Sphere halo'; visitation.add(halo);
+  // The arks: distant spheres that rise from beyond the tree line as the cleansing begins.
+  const arkMaterial = luminous(.6);
+  const arks = [[-190, -230], [150, -260], [-120, -300], [210, -170], [60, -330], [-265, -140]].map(([x, z], i) => {
+    const ark = new THREE.Mesh(new THREE.SphereGeometry(9 + i % 3 * 2, 24 * fine, 16 * fine), arkMaterial); ark.name = 'Departing ark'; ark.position.set(x, -40, z); visitation.add(ark); return ark;
+  });
+  const ringMaterial = glow('#9ff2e0', 0);
+  const ring = new THREE.Mesh(new THREE.TorusGeometry(1, .35, 6, 90 * fine), ringMaterial); ring.name = 'Landing pressure ring';
+  ring.rotation.x = -Math.PI / 2; ring.position.set(landing.x, 2, landing.z); ring.visible = false; visitation.add(ring);
+  const sphereLight = new THREE.PointLight('#8ff0d8', 0, 260, 1.4); visitation.add(sphereLight);
+  const gort = new THREE.Group(); gort.name = 'GORT'; gort.visible = false; visitation.add(gort);
+  const shell = mat('#191d21', { metalness: .6, roughness: .32 });
+  const limbs = instances(gort, cylinder, shell, 8, 'GORT limbs');
+  const joints = instances(gort, sphere, shell, 8, 'GORT joints');
+  const plates = instances(gort, box, shell, 5, 'GORT torso plates');
+  const head = new THREE.Mesh(new THREE.CapsuleGeometry(1.7, 2.2, 4, 10 * fine), shell); head.position.set(0, 25.8, 0); head.castShadow = true; gort.add(head);
+  const visor = new THREE.Mesh(box, glow(new THREE.Color(1.2, 3, 2.6), 0)); visor.scale.set(2.4, .35, .6); visor.position.set(0, 26.2, 1.4); gort.add(visor);
+  const beam = new THREE.Mesh(cylinder, glow(new THREE.Color(.8, 2.6, 2.2), 0)); beam.visible = false; gort.add(beam);
+  const scorch = new THREE.Mesh(new THREE.CircleGeometry(2.2, 20), glow('#bafff0', 0)); scorch.rotation.x = -Math.PI / 2; scorch.visible = false; gort.add(scorch);
+  const beamLight = new THREE.PointLight('#a5fff0', 0, 90, 1.6); gort.add(beamLight);
+  for (const mesh of [limbs, joints, plates]) mesh.castShadow = true;
+  const hip = [new THREE.Vector3(), new THREE.Vector3()], knee = [new THREE.Vector3(), new THREE.Vector3()], foot = [new THREE.Vector3(), new THREE.Vector3()];
+  const shoulder = [new THREE.Vector3(), new THREE.Vector3()], elbow = [new THREE.Vector3(), new THREE.Vector3()], wrist = [new THREE.Vector3(), new THREE.Vector3()];
+  const trees = landscape ? landscape.children.filter(child => child.isGroup) : [];
+  const swarm = particles(visitation, 'swarm', 6000, '#8a9195', 1.6);
+  const plague = particles(visitation, 'plague', 700, '#6f7578', 26);
+  for (const cloud of [swarm, plague]) cloud.uniforms.origin.value.copy(stand);
+
+  function updateVisitation(t, detail) {
+    const descent = ease(t / 9), settled = ease((t - 9) / 1), depart = ease((t - 27) / 3), landingFlash = Math.sin(clamp((t - 8.4) / 1.4) * Math.PI);
+    sphereClock.value = t;
+    orb.position.set(landing.x, 265 - descent * 235 + Math.sin(t * .8) * .5 * settled + depart * depart * 220, landing.z);
+    orb.rotation.set(t * .05, t * .11, 0);
+    halo.position.copy(orb.position); halo.scale.setScalar(1 + landingFlash * .12 + depart * .3);
+    sphereMaterial.uniforms.glow.value = 1 + landingFlash * 1.2 + depart * .8;
+    halo.material.uniforms.strength.value = .5 + landingFlash * .8 + depart * .6;
+    sphereLight.position.copy(orb.position).y -= 22;
+    sphereLight.intensity = (300 + descent * 900 + landingFlash * 3000) * (1 - depart) * (detail === 0 ? .6 : 1);
+    ring.visible = t > 9 && t < 12.5; ring.scale.setScalar(1 + ease((t - 9) / 3.5) * 95); ringMaterial.opacity = (1 - ease((t - 9) / 3.5)) * .8;
+    arks.forEach((ark, i) => { ark.position.y = -40 + ease((t - 21 - i * 1.1) / 7) * 260; ark.visible = t > 21 + i * 1.1; });
+    // GORT walks out of the sphere between 10.5 and 16.5, turns to face the meadow, then dissolves from 19.
+    const walk = clamp((t - 10.5) / 6), amp = 1 - ease((t - 16.2) / .6), gone = ease((t - 19) / 4);
+    gort.visible = t > 10 && t < 23.2;
+    gort.position.set(landing.x + walk * (stand.x - landing.x), 0, -6 + walk * (stand.z + 6));
+    gort.rotation.y = .32 + ease((t - 16.3) / 1.2) * .25;
+    gort.scale.set(1 - gone * .97, 1 - gone * .999, 1 - gone * .97);
+    const stride = walk * 11.4;
+    let limb = 0, joint = 0;
+    for (const side of [0, 1]) {
+      const sign = side ? 1 : -1, swing = stride + side * Math.PI;
+      hip[side].set(sign * 2.4, 13.5, 0);
+      knee[side].set(sign * 2.6, 7.6 + Math.max(0, Math.sin(swing)) * 1.4 * amp, Math.sin(swing) * 2.6 * amp);
+      foot[side].set(sign * 2.8, .9 + Math.max(0, Math.sin(swing)) * 1.8 * amp, Math.cos(swing) * 4.5 * amp);
+      segment(limbs, limb++, hip[side], knee[side], 1.45); segment(limbs, limb++, knee[side], foot[side], 1.15);
+      shoulder[side].set(sign * 4.6, 21.8, 0);
+      elbow[side].set(sign * 5.2, 16.2, -Math.sin(swing) * 1.8 * amp);
+      wrist[side].set(sign * 5.5, 10.8, -Math.sin(swing) * 3.2 * amp);
+      segment(limbs, limb++, shoulder[side], elbow[side], 1.1); segment(limbs, limb++, elbow[side], wrist[side], .9);
+      for (const point of [hip[side], knee[side], shoulder[side], elbow[side]]) pose(joints, joint++, point.x, point.y, point.z, 1.5, 1.5, 1.5);
+      pose(plates, side, foot[side].x, foot[side].y, foot[side].z + .6, 2.4, 1.6, 4.2);
+    }
+    pose(plates, 2, 0, 18, 0, 7.4, 9.5, 4.2); pose(plates, 3, 0, 20.5, 0, 8.4, 4.5, 4.8); pose(plates, 4, 0, 13.3, 0, 6, 2.6, 3.6);
+    for (const mesh of [limbs, joints, plates]) mesh.instanceMatrix.needsUpdate = true;
+    const beamPower = ease((t - 14.5) / 1) * (1 - ease((t - 19) / .8)) * (.6 + .4 * Math.abs(Math.sin(t * 3)));
+    visor.material.opacity = ease((t - 13) / 1.5) * (1 - gone) * (.6 + beamPower * .4);
+    beam.visible = beamPower > .02; scorch.visible = beam.visible;
+    if (beam.visible) {
+      // The visor beam sweeps the meadow in front of GORT; positions are in his local frame.
+      segmentStart.set(0, 26.2, 1.4); segmentEnd.set(Math.sin(t * 1.3) * 40, .5, 30 + Math.cos(t * .9) * 25);
+      delta.subVectors(segmentEnd, segmentStart); const length = delta.length();
+      beam.position.copy(segmentStart).addScaledVector(delta, .5); beam.quaternion.setFromUnitVectors(up, delta.normalize()); beam.scale.set(.3, length, .3);
+      beam.material.opacity = beamPower * .7;
+      scorch.position.copy(segmentEnd); scorch.scale.setScalar(1 + beamPower); scorch.material.opacity = beamPower * .8;
+      beamLight.position.copy(segmentEnd).y += 2;
+    }
+    beamLight.intensity = detail === 0 ? 0 : beamPower * 160;
+    // The swarm front spreads from GORT's last position; trees crumble to nothing as it passes.
+    const front = ease((t - 19) / 11) * 260;
+    for (const tree of trees) {
+      const distance = Math.hypot(tree.position.x - stand.x, tree.position.z - stand.z);
+      tree.scale.setScalar(Math.max(.02, 1 - ease((front - distance) / 24) * .98));
+    }
+  }
+    return { group: visitation, update: updateVisitation, particles: [swarm, plague], leave: () => { for (const tree of trees) tree.scale.setScalar(1); } };
+  }
   const factories = {
     'terminator-2': createNuclear,
     '2012': createRupture,
     'war-of-the-worlds': createInvasion,
     'twister': createTornado,
-    'dantes-peak': createEruption
+    'dantes-peak': createEruption,
+    'day-after-tomorrow': createSuperstorm,
+    'day-the-earth-stood-still': createVisitation
   };
   const loaded = new Map();
   let active;
   return {
     update(time, config) {
       const factory = factories[config.id];
-      if (active && active !== loaded.get(config.id)) active.group.visible = false;
+      if (active && active !== loaded.get(config.id)) { active.group.visible = false; active.leave?.(); }
       if (!factory) { active = undefined; return; }
       if (!loaded.has(config.id)) loaded.set(config.id, factory());
       active = loaded.get(config.id); active.group.visible = true;
@@ -660,10 +852,11 @@ export function createTerrestrial({ scene, canvas }) {
       const quality = canvas.dataset.quality;
       const detail = quality === 'lite' ? 0 : quality === 'balanced' ? 1 : 2;
       active.update(t, detail);
-      const selectedParticles = active.particles;
-      selectedParticles.uniforms.time.value = t;
-      selectedParticles.uniforms.ratio.value = Math.min(Number(canvas.dataset.pixelRatio) || 1, 2);
-      selectedParticles.mesh.geometry.setDrawRange(0, Math.floor(selectedParticles.count * [ .35, .65, 1 ][detail]));
+      for (const selected of [].concat(active.particles)) {
+        selected.uniforms.time.value = t;
+        selected.uniforms.ratio.value = Math.min(Number(canvas.dataset.pixelRatio) || 1, 2);
+        selected.mesh.geometry.setDrawRange(0, Math.floor(selected.count * [ .35, .65, 1 ][detail]));
+      }
     }
   };
 }

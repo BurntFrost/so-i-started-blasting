@@ -3,7 +3,7 @@
 Each scene now has its own 30-second bed composed against that scene's visual
 timeline, plus scene-specific transient cues. Nothing is sampled from any film:
 every sound is synthesized by `tools/author-audio.py` with SoX and FFmpeg, and the
-two musical references are public-domain compositions rendered from scratch. The
+remaining musical reference is a public-domain composition rendered from scratch. The
 audio behavior (consent before download, beds resuming at the timeline position,
 cues that fire only when playback crosses them, no replay while scrubbing) is
 unchanged from the earlier pass.
@@ -14,8 +14,8 @@ unchanged from the earlier pass.
 |---|---|---|
 | Independence Day | Sub-bass mothership hum with metallic craft resonance, sonar-like signal pings and radio static while the signal is detected; the weapon charge builds under the ship 9–13 s; blast tail, rolling firestorm and debris rattle through the collapse | charge 9 s, blast 13 s, collapse 16 s |
 | Deep Impact | Ocean and storm gusts under a mournful string pad that lifts from D minor to B-flat major; a descending comet whistle and rip of air 4–13 s; the wall of water rises 14–28 s with sea spray | entry 10 s, impact 13 s, surge 25 s |
-| The Day After Tomorrow | Howling wind and a lower moan; the superstorm arrives 8–20 s with hail hiss and thunder rolls; from 20 s the deep freeze brings groaning ice and a crystalline shimmer | pressure drop 9 s, thunder 12 s and 16.5 s, freeze 20 s |
-| Melancholia | Deep space and the rogue planet's rising pressure under an original synthesized rendering of the opening of Wagner's Tristan Prelude (cello line, the Tristan chord, the rising wind figure, resolution); atmospheres touch from 22 s; white-out at 27 s | contact 22 s, collision 27 s |
+| The Day After Tomorrow | Howling wind and a lower moan, both heavier than before, with gusts strengthening from 6 s; the superstorm arrives 8–20 s with hail hiss, blown-snow hiss from 12 s and thunder rolls; from 20 s the deep freeze brings groaning ice and a crystalline shimmer | pressure drop 9 s, thunder 12 s and 16.5 s, freeze 20 s |
+| The Day the Earth Stood Still | The sphere's sub-harmonic hum and night air under an original theremin-style line (a nod to the 1951 score's instrument, not its melody); pressure falls through the descent and the landing thumps at 9 s; GORT's metallic groan 10–14 s and the visor's charge hiss 14–19 s; from 19 s an insectile buzz of detuned reeds thickens as the swarm spreads, with matter crackling apart; the sphere departs at 27 s | landing 9 s, visor 14.5 s, swarm 19 s, ascent 27 s |
 | Terminator 2 | The last quiet morning with soft wind, a city hum and wind chimes; the thermal flash rings at 4 s and the fireball roars up; the shock front's hurricane, debris and glass 13–23 s; fallout wind with a sparse industrial metallic figure | flash 4 s, shockwave 13 s, collapse 15.5 s |
 | 2012 | Earth groans and rising pressure; the fault opens at 3 s and the ground never settles, with rock cracking, two distant sirens and three building collapses; dust after 24 s | rupture 3 s, collapse 10 s, 14.5 s and 21 s |
 | War of the Worlds | Ominous drone, ground tremor and electrical charge with three thunder rolls as the lightning strikes; emergence at 6 s; the machines walk from 9 s with servo whines on each step and a mechanical pulse | lightning 1.5 s, 3.5 s, 5.5 s; horn blasts 8 s, 16 s, 26 s; heat rays 20.5 s and 23.5 s |
@@ -37,9 +37,9 @@ The site is public and the repository rule is that no film soundtrack or film
 recording is included. Film scores and sound design are copyrighted, so
 "reflecting the movie" is done by evoking each film's sonic identity with original
 synthesis. Wagner's Tristan und Isolde (1859) and Beethoven's Seventh Symphony
-(1812) are public-domain compositions; the Melancholia bed renders the Tristan
-opening from note names, and the Knowing bed borrows only the Allegretto's
-rhythm with a different melodic line. No recording of either work was used.
+(1812) is a public-domain composition; the Knowing bed borrows only the Allegretto's
+rhythm with a different melodic line. No recording of the work was used. The Melancholia
+bed and its Tristan rendering were retired with that scene on 2026-09-13.
 MusicGen output was not used because the local model is licensed for
 noncommercial prototyping only.
 
@@ -48,11 +48,15 @@ noncommercial prototyping only.
 | Set | Files | Size |
 |---|---:|---:|
 | Beds | 14 | 6.5 MB |
-| Cues | 38 | 2.3 MB |
+| Cues | 40 | 2.4 MB |
 | Intro | 1 | 48 KB |
 
 Audio still downloads only after sound consent, and only the selected scene's bed
 and cues are fetched. The previous eleven files totaled 3.6 MB.
+
+The 2026-09-13 scene pass regenerated only `day_after_tomorrow` (heavier wind, gusts and
+blown-snow hiss) and rendered the new `day_the_earth_stood_still` bed and four cues; the
+three Melancholia files were deleted. Listening review of these nine files is pending.
 
 ## Verification (2026-09-13)
 

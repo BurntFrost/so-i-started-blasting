@@ -98,8 +98,8 @@ test('every built scene renders offline from CDNs, scrubs reversibly, and keeps 
   await page.locator('#fullscreen').click();
   await expect.poll(() => page.evaluate(() => document.fullscreenElement === null)).toBe(true);
   await page.setViewportSize({ width: 390, height: 844 });
-  // City scenes and the two landscape scenes carry the most geometry; the space scenes confirm the budget everywhere.
-  for (const index of [0, 4, 5, 6, 10, 11, 12, 13]) {
+  // City scenes (including the superstorm's drifts and icicles) and the three landscape scenes carry the most geometry; the space scenes confirm the budget everywhere.
+  for (const index of [0, 2, 3, 4, 5, 6, 10, 11, 12, 13]) {
     await select(page, index);
     await seek(page, 18);
     await expect(page.locator('#world')).toHaveAttribute('data-quality', /balanced|lite/);
