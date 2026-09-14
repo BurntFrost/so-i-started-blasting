@@ -177,7 +177,7 @@ export function createCosmic({ scene, canvas, camera }) {
     void main(){float r=length(spriteUv);float ang=atan(spriteUv.y,spriteUv.x);vec2 d=vec2(cos(ang),sin(ang));
     float broad=fbm(vec3(d*3.5,time*.05));float fine=fbm(vec3(d*11.,r*4.-time*.09));
     float disk=.36;float reach=disk+.08+broad*.3+fine*.14+phase*.16;
-    float glow=exp(-(r-disk)*9.)*.42;float streamers=smoothstep(reach,reach-.28,r)*smoothstep(.42,.88,fine)*.5;
+    float glow=exp(-(r-disk)*9.)*.42;float streamers=(1.-smoothstep(reach-.28,reach,r))*smoothstep(.42,.88,fine)*.5;
     float outside=smoothstep(disk-.02,disk+.03,r);
     vec3 color=mix(vec3(1.1,.36,.07),vec3(1.9,1.1,.45),fine)*(1.+activity*.35+phase*.6);
     gl_FragColor=vec4(color,(glow+streamers)*outside*(1.-smoothstep(.85,1.,r)));${output}}`,
@@ -188,7 +188,7 @@ export function createCosmic({ scene, canvas, camera }) {
     uniforms: { flash }, vertexShader: spriteVertex,
     fragmentShader: `uniform float flash;varying vec2 spriteUv;void main(){float r=length(spriteUv);float ang=atan(spriteUv.y,spriteUv.x);
     float core=pow(max(0.,1.-r*1.6),2.5);float halo=exp(-r*3.2)*.7;
-    float rays=(pow(abs(sin(ang*5.+.7)),28.)*.7+pow(abs(sin(ang*13.-.4)),60.)*.45)*smoothstep(1.,.15,r);
+    float rays=(pow(abs(sin(ang*5.+.7)),28.)*.7+pow(abs(sin(ang*13.-.4)),60.)*.45)*(1.-smoothstep(.15,1.,r));
     gl_FragColor=vec4(vec3(3.6,2.4,1.3)*(core*1.4+halo+rays)*flash,flash*min(1.,core*2.+halo+rays));${output}}`,
     transparent: true, depthWrite: false, depthTest: false, blending: THREE.AdditiveBlending
   }));
