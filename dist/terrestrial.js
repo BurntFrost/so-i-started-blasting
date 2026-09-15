@@ -888,7 +888,9 @@ export function createTerrestrial({ scene, canvas, buildings = [], landscape }) 
     fieldTexture = texture; fieldMaterial.map = texture; barrierMaterial.map = barrierTexture;
     fieldMaterial.needsUpdate = true; barrierMaterial.needsUpdate = true;
     canvas.dataset.atFieldTexture = 'ready';
-  }).catch(() => { canvas.dataset.atFieldTexture = 'fallback'; });
+    // A paused timeline renders nothing on its own, so the simulation must be woken to show the lattice.
+    canvas.dispatchEvent?.(new Event('at-field-ready'));
+  }).catch(() => { canvas.dataset.atFieldTexture = 'fallback'; canvas.dispatchEvent?.(new Event('at-field-ready')); });
   const crossMaterial = glow(new THREE.Color(2.4, 1.75, 1.3), .9);
   const crosses = instances(impact, box, crossMaterial, 12, 'Crosses of light');
   // x, z, eruption second, height, width, yaw.

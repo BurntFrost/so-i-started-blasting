@@ -85,12 +85,18 @@ test('the visitor swarm consumes the landscape trees as a function of time and r
   assert.ok(trees.every(tree => tree.scale.x === 1), 'leaving the scene restores the trees for the other landscape scenes');
 });
 
-test('the A.T. field mask follows the ULTRA asset ceiling and its arrival never changes geometry', async () => {
+test('the A.T. field mask follows the ULTRA asset ceiling, wakes the paused simulation and never changes geometry', async () => {
   const original = THREE.TextureLoader.prototype.loadAsync, requested = [];
-  THREE.TextureLoader.prototype.loadAsync = async function (url) { requested.push(url); return new THREE.Texture(); };
+  THREE.TextureLoader.prototype.loadAsync = async function (url) {
+    requested.push(url);
+    if (url.includes('fail')) throw new Error('Injected texture failure');
+    return new THREE.Texture();
+  };
   try {
     for (const [ceiling, expected, resolution] of [['ultra', '/assets/at-field-4k.webp', '4096'], [undefined, '/assets/at-field.webp', '1024']]) {
-      const scene = new THREE.Scene(), canvas = { dataset: { quality: 'balanced', pixelRatio: '1.25', ...(ceiling ? { qualityCeiling: ceiling } : {}) } };
+      const scene = new THREE.Scene(), canvas = Object.assign(new EventTarget(), { dataset: { quality: 'balanced', pixelRatio: '1.25', ...(ceiling ? { qualityCeiling: ceiling } : {}) } });
+      let wakeups = 0;
+      canvas.addEventListener('at-field-ready', () => wakeups++);
       const renderer = createTerrestrial({ scene, canvas, buildings: cityBuildings(), landscape: parkLandscape() });
       renderer.update(14, config('evangelion'));
       assert.equal(requested.at(-1), expected);
@@ -98,11 +104,24 @@ test('the A.T. field mask follows the ULTRA asset ceiling and its arrival never 
       const group = scene.getObjectByName('The End of Evangelion — Third Impact'), before = snapshot(group);
       await new Promise(setImmediate);
       assert.equal(canvas.dataset.atFieldTexture, 'ready');
+      assert.equal(wakeups, 1, 'a paused timeline is woken once the mask arrives');
       assert.ok(scene.getObjectByName('A.T. field').material.map, 'the loaded mask reaches the field material');
       assert.ok(scene.getObjectByName('A.T. field barrier').material.map, 'the barrier gets its own repeat of the same mask');
       renderer.update(14, config('evangelion'));
       assert.equal(snapshot(group), before, 'texture arrival does not change geometry');
     }
+    // A failed download keeps the flat fallback plane and still wakes the simulation so its state is reported.
+    const scene = new THREE.Scene(), canvas = Object.assign(new EventTarget(), { dataset: { quality: 'balanced', pixelRatio: '1.25', qualityCeiling: 'fail' } });
+    let wakeups = 0;
+    canvas.addEventListener('at-field-ready', () => wakeups++);
+    THREE.TextureLoader.prototype.loadAsync = async function () { throw new Error('Injected texture failure'); };
+    const renderer = createTerrestrial({ scene, canvas, buildings: cityBuildings(), landscape: parkLandscape() });
+    renderer.update(14, config('evangelion'));
+    await new Promise(setImmediate);
+    assert.equal(canvas.dataset.atFieldTexture, 'fallback');
+    assert.equal(wakeups, 1);
+    assert.equal(scene.getObjectByName('A.T. field').material.map, null);
+    assert.equal(scene.getObjectByName('A.T. field').visible, true, 'the fallback plane still plays');
   } finally { THREE.TextureLoader.prototype.loadAsync = original; }
 });
 
