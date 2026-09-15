@@ -14,7 +14,7 @@ float fbm(vec3 p){return noise(p)*.57+noise(p*2.03)*.28+noise(p*4.11)*.15;}`;
 // Fixed geometry, seeded variation, and absolute-time poses make reverse scrubbing exact.
 // The baseline city buildings and the landscape group are shared with the simulation: the superstorm
 // hangs icicles from the roof edges and the visitor's swarm consumes the park trees.
-export function createTerrestrial({ scene, canvas, buildings = [], landscape }) {
+export function createTerrestrial({ scene, canvas, camera, buildings = [], landscape }) {
   // ULTRA-capable displays get twice the silhouette tessellation; geometry is built once per module.
   const fine = canvas.dataset.qualityCeiling === 'ultra' ? 2 : 1;
   let seed = 20121991;
@@ -84,7 +84,12 @@ export function createTerrestrial({ scene, canvas, buildings = [], landscape }) 
       float h=(1.+seed.z*seed.z*72.*lift)*(1.-settle*.85);float r=(4.+seed.y*26.)*(.35+.65*lift)*(1.+h*.02);
       float angle=a+time*(2.6+seed.y*1.4)+h*.05;vec2 bend=lean*(h/95.)*(h/95.);
       p=vec3(origin.x+bend.x+cos(angle)*r,origin.y+h,origin.z+bend.y+sin(angle)*r);
-      alpha=step(0.,age)*(1.-smoothstep(58.,78.,h))*(1.-settle*.8)*.32;`,
+      alpha=step(0.,age)*(1.-smoothstep(58.,78.,h))*(1.-settle*.8)*.24;`,
+    // Twister inflow: low dust streams race across the fields into the funnel base and lift near it.
+    inflow: `float cycle=9.;float age=mod(time*(.6+seed.w*.4)+seed.z*cycle,cycle);float r=4.+(30.+seed.y*150.)*(1.-age/cycle);
+      float angle=a+time*.9+(180.-r)*.02;
+      p=vec3(origin.x+cos(angle)*r,origin.y+.6+seed.z*3.+(1.-smoothstep(4.,40.,r))*seed.x*30.,origin.z+sin(angle)*r);
+      alpha=smoothstep(8.,14.,time)*(1.-smoothstep(26.,30.,time)*.8)*smoothstep(0.,1.5,age)*(1.-smoothstep(7.5,9.,age))*.22;`,
     ash: `float fall=mod(seed.z*150.+time*(9.+seed.w*7.),150.);p=vec3((seed.x-.5)*330.,150.-fall,(seed.y-.5)*330.-40.);
       alpha=smoothstep(10.,18.,time)*smoothstep(0.,8.,fall)*smoothstep(0.,8.,150.-fall)*(.5+.5*seed.y)*.26;`,
     // Superstorm snow streams downwind across the whole city; the gust strength climbs from flurries to a whiteout.
@@ -112,7 +117,7 @@ export function createTerrestrial({ scene, canvas, buildings = [], landscape }) 
   };
   // Snowflakes, nanites and rising souls stay crisp points; every other kind is a soft turbulent puff.
   const crisp = new Set(['embers', 'blizzard', 'swarm', 'ascension']);
-  const pointCap = { embers: '12.', blizzard: '7.', swarm: '5.', ascension: '7.' };
+  const pointCap = { embers: '12.', blizzard: '7.', swarm: '5.', ascension: '7.', vortex: '55.', inflow: '40.' };
   function particles(parent, kind, count, tint, size) {
     const geometry = new THREE.BufferGeometry();
     const seeds = new Float32Array(count * 4);
@@ -444,21 +449,23 @@ export function createTerrestrial({ scene, canvas, buildings = [], landscape }) 
   }
   // Each strike shows its bolt for a sixth of a second while its flash fades over a third.
   function strike(t, strikes, bolts, light) {
-    let flash = 0, active;
+    let flash = 0, active, activeIndex;
     for (const mesh of bolts) mesh.visible = false;
     for (const [at, index] of strikes) {
       const age = t - at;
       if (age < 0 || age > .34) continue;
-      bolts[index].visible = age < .16; flash = Math.max(flash, 1 - age / .34); active = bolts[index];
+      bolts[index].visible = age < .16; flash = Math.max(flash, 1 - age / .34); active = bolts[index]; activeIndex = index;
     }
     light.intensity = flash * light.userData.peak;
     if (active) light.position.copy(active.userData.tip);
+    return { flash, active: activeIndex };
   }
   function createTornado() {
     seed = 19961996;
   // TWISTER: a rotating wall cloud lowers an F5 funnel that crosses a farmstead.
   const outbreak = group('Twister — F5 outbreak');
   const base = t => [-95 + t * 4, -95 + t * 2.2];
+  // LITE and BALANCED keep the two-shell mesh funnel, which the phone geometry budget already covers.
   const funnelSurface = (() => {
     const material = mat('#3a3733', { roughness: 1, transparent: true, opacity: .92, side: THREE.DoubleSide, depthWrite: false });
     const shape = { value: new THREE.Vector4(4, 60, 100, 1.7) }, lean = { value: new THREE.Vector2() }, clock = { value: 0 };
@@ -481,14 +488,143 @@ export function createTerrestrial({ scene, canvas, buildings = [], landscape }) 
   const funnelGeometry = new THREE.CylinderGeometry(1, 1, 1, 48 * fine, 36, true);
   const funnel = new THREE.Mesh(funnelGeometry, funnelSurface.material); funnel.name = 'Condensation funnel'; funnel.frustumCulled = false; outbreak.add(funnel);
   const core = new THREE.Mesh(funnelGeometry, funnelSurface.material); core.name = 'Funnel core'; core.frustumCulled = false; core.scale.set(.5, 1, .5); outbreak.add(core);
+
+  // HIGH and ULTRA march the funnel and the wall cloud as volumes. Every sample is a closed-form function of
+  // world position and absolute time, so the march is exactly reversible and needs no history buffer. Each hull
+  // is drawn tight around its volume: front faces start the ray at the hull surface and the depth test lets the
+  // farm and the trees occlude it, while a camera inside a hull marches from the near plane to the back faces.
+  const volumeGLSL = `${noise}
+  float terrain(vec2 xz){return -.5+(sin(xz.x*.022)*cos(xz.y*.027)*5.-sin(xz.y*.06)*1.5)*clamp((length(xz)-25.)/80.,0.,1.);}`;
+  const stormUniforms = () => ({ time: { value: 0 }, steps: { value: 32 }, inside: { value: 0 }, flash: { value: 0 }, flashPoint: { value: new THREE.Vector3() },
+    origin: { value: new THREE.Vector3() }, sunDirection: { value: new THREE.Vector3(-90, 85, -110).normalize() },
+    sunColor: { value: new THREE.Color('#b7c4b4').multiplyScalar(1.05) }, skyColor: { value: new THREE.Color('#8da39c') },
+    fogColor: { value: new THREE.Color('#46524d') }, fogDensity: { value: .0027 } });
+  const volumeMaterial = (uniforms, vertexShader, fragmentShader) => new THREE.ShaderMaterial({ uniforms, vertexShader, fragmentShader, transparent: true, depthWrite: false });
+  const funnelVolume = new THREE.Mesh(new THREE.CylinderGeometry(1, 1, 1, 48 * fine, 24, false), volumeMaterial(
+    { ...stormUniforms(), shape: { value: new THREE.Vector4(4, 60, 100, 1.7) }, lean: { value: new THREE.Vector2() }, skirt: { value: 0 }, spread: { value: 0 } },
+    `uniform vec4 shape;uniform vec2 lean;uniform float skirt;varying vec3 hullPoint;
+    float profile(float h){return mix(shape.x,shape.y,pow(clamp(h,0.,1.),shape.w));}
+    void main(){float h=position.y+.5;float r=profile(h)*1.3+skirt*(1.-smoothstep(0.,.2,h));
+    vec4 world=modelMatrix*vec4(vec3(position.x*r,h*shape.z,position.z*r)+vec3(lean.x,0.,lean.y)*h*h,1.);
+    hullPoint=world.xyz;gl_Position=projectionMatrix*viewMatrix*world;}`,
+    `uniform float time,steps,inside,flash,skirt,spread,fogDensity;uniform vec3 origin,sunDirection,sunColor,skyColor,fogColor,flashPoint;uniform vec4 shape;uniform vec2 lean;varying vec3 hullPoint;
+    ${volumeGLSL}
+    float profile(float h){return mix(shape.x,shape.y,pow(clamp(h,0.,1.),shape.w));}
+    // Density and dust share at a world point: the condensation funnel, three suction vortices orbiting the
+    // base, and the debris bowl kicked up once the funnel is on the ground.
+    vec3 field(vec3 p,bool detail){
+      float h=(p.y-origin.y)/shape.z;if(h<0.||h>1.)return vec3(0.);
+      vec2 q=p.xz-origin.xz-lean*h*h;float radius=length(q),angle=atan(q.y,q.x),R=profile(h);
+      float twist=angle-time*(2.4-h*1.5)-h*7.;
+      vec3 n=vec3(cos(twist)*(1.+radius/R)*1.6,h*9.-time*.9,sin(twist)*(1.+radius/R)*1.6);
+      float ragged=fbm(n*1.25);
+      float body=(1.-smoothstep(.72,1.,radius/(R*(.7+ragged*.55))))*smoothstep(0.,.015,h);
+      float sub=0.;
+      for(int k=0;k<3;k++){float ph=float(k)*2.0944+time*3.3;sub+=1.-smoothstep(0.,R*.22,length(q-vec2(cos(ph),sin(ph))*R*.95));}
+      float d=body+sub*(1.-smoothstep(0.,.3,h))*spread*.8;
+      float grain=detail&&d>.001?fbm(n*3.3+11.):.5;
+      d*=.6+.4*grain;
+      float bowl=0.;
+      if(h<.36&&skirt>0.){
+        float spin=angle-time*1.5;vec2 qr=vec2(cos(spin),sin(spin))*radius;
+        float lobes=detail?fbm(vec3(qr*.11,h*20.)):.5;
+        float low=1.-smoothstep(0.,.25*(.55+.9*lobes),h);
+        float reach=R+skirt*low*(.8+.5*lobes);
+        bowl=(1.-smoothstep(.3,1.,radius/reach))*low*(.5+.5*lobes)*1.1;}
+      d+=bowl;return vec3(d,bowl/max(d,1e-3),grain);
+    }
+    void main(){
+      vec3 rayDir=normalize(hullPoint-cameraPosition);
+      float hEntry=clamp((hullPoint.y-origin.y)/shape.z,0.,1.);
+      float chord=(profile(hEntry)*1.3+skirt*(1.-smoothstep(0.,.2,hEntry)))*2.3;
+      vec3 start=inside>.5?cameraPosition:hullPoint;
+      float span=inside>.5?length(hullPoint-cameraPosition):chord;
+      // A per-pixel offset turns step slices into fine noise; it depends only on the pixel, so scrubbing stays exact.
+      float dt=clamp(span/steps,.6,2.5),jitter=fract(sin(dot(gl_FragCoord.xy,vec2(12.9898,78.233)))*43758.5453);
+      float alpha=0.,firstHit=-1.;vec3 col=vec3(0.);
+      for(int i=0;i<64;i++){
+        if(float(i)>=steps||alpha>.97)break;
+        float s=(float(i)+jitter)*dt;vec3 p=start+rayDir*s;
+        if(p.y<terrain(p.xz))break;
+        vec3 f=field(p,true);
+        if(f.x>.002){
+          float h=clamp((p.y-origin.y)/shape.z,0.,1.);
+          float shade=exp(-field(p+sunDirection*(profile(h)*.45+2.),false).x*2.6);
+          // Condensation is near-black grey; the debris bowl is warm dust; the grain paints the rotating bands.
+          vec3 albedo=mix(vec3(.11,.115,.11),vec3(.3,.25,.19),f.y)*(.55+.9*f.z);
+          vec3 light=(sunColor*(.08+.92*shade)*1.1+skyColor*mix(.12,.55,h))*mix(1.,.55,f.y)+vec3(.75,.85,1.15)*flash*3.*exp(-(1.-h)*2.5);
+          float a=1.-exp(-f.x*dt*1.3);
+          col+=(1.-alpha)*a*albedo*light;alpha+=(1.-alpha)*a;
+          if(firstHit<0.)firstHit=s;
+        }
+      }
+      if(alpha<.003)discard;
+      float dist=length(start+rayDir*max(firstHit,0.)-cameraPosition);
+      gl_FragColor=vec4(mix(col/alpha,fogColor,1.-exp(-fogDensity*fogDensity*dist*dist)),alpha);
+      #include <tonemapping_fragment>
+      #include <colorspace_fragment>
+    }`));
+  funnelVolume.name = 'Funnel volume'; funnelVolume.frustumCulled = false; funnelVolume.renderOrder = 3; funnelVolume.visible = false; outbreak.add(funnelVolume);
+  const wallVolume = new THREE.Mesh(new THREE.CylinderGeometry(1, 1, 1, 48 * fine, 1, false).translate(0, .5, 0), volumeMaterial(
+    { ...stormUniforms(), radius: { value: 120 }, thickness: { value: 30 } },
+    'varying vec3 hullPoint;void main(){vec4 world=modelMatrix*vec4(position,1.);hullPoint=world.xyz;gl_Position=projectionMatrix*viewMatrix*world;}',
+    `uniform float time,steps,inside,flash,fogDensity,radius,thickness;uniform vec3 origin,sunDirection,sunColor,skyColor,fogColor,flashPoint;varying vec3 hullPoint;
+    ${volumeGLSL}
+    // The rotating wall cloud: a lumpy slab whose underside sags toward the funnel top.
+    float field(vec3 p,bool detail){
+      vec2 q=p.xz-origin.xz;float radial=length(q)/radius;if(radial>1.)return 0.;
+      float h=(p.y-origin.y)/thickness,angle=atan(q.y,q.x),rot=angle-time*.12-radial*1.6;
+      vec3 n=vec3(cos(rot)*radial*3.2,h*2.2+time*.04,sin(rot)*radial*3.2);
+      float lumps=fbm(n*1.3);
+      // The underside hangs in lumps and sags toward the funnel top.
+      float under=.3-(1.-radial)*.22+(lumps-.5)*.3;
+      float body=(1.-smoothstep(.5,1.,radial/(.55+lumps*.4)))*smoothstep(under,under+.15,h)*(1.-smoothstep(.75,1.05,h));
+      if(detail&&body>.001)body*=.6+.4*fbm(n*3.1+5.);
+      return body;
+    }
+    void main(){
+      vec3 rayDir=normalize(hullPoint-cameraPosition);
+      vec3 start=inside>.5?cameraPosition:hullPoint;
+      float span=inside>.5?length(hullPoint-cameraPosition):min(thickness*1.4/max(abs(rayDir.y),.15),radius*2.2);
+      float dt=clamp(span/steps,1.,6.),jitter=fract(sin(dot(gl_FragCoord.xy,vec2(12.9898,78.233)))*43758.5453);
+      float alpha=0.,firstHit=-1.;vec3 col=vec3(0.);
+      for(int i=0;i<32;i++){
+        if(float(i)>=steps||alpha>.97)break;
+        float s=(float(i)+jitter)*dt;vec3 p=start+rayDir*s;
+        float d=field(p,true);
+        if(d>.002){
+          float h=clamp((p.y-origin.y)/thickness,0.,1.),grain=fbm(p*.045+vec3(0.,time*.03,0.));
+          vec3 albedo=mix(vec3(.12,.135,.13),vec3(.17,.15,.125),grain)*(.7+.6*grain);
+          vec3 light=skyColor*mix(.6,1.2,h)*1.1+sunColor*.08+vec3(.8,.9,1.25)*flash*4.*exp(-length(p-flashPoint)/45.);
+          float a=1.-exp(-d*dt*.9);
+          col+=(1.-alpha)*a*albedo*light;alpha+=(1.-alpha)*a;
+          if(firstHit<0.)firstHit=s;
+        }
+      }
+      if(alpha<.003)discard;
+      float dist=length(start+rayDir*max(firstHit,0.)-cameraPosition);
+      gl_FragColor=vec4(mix(col/alpha,fogColor,1.-exp(-fogDensity*fogDensity*dist*dist)),alpha);
+      #include <tonemapping_fragment>
+      #include <colorspace_fragment>
+    }`));
+  wallVolume.name = 'Wall cloud volume'; wallVolume.frustumCulled = false; wallVolume.renderOrder = 2; wallVolume.visible = false; wallVolume.scale.set(120, 30, 120); outbreak.add(wallVolume);
+
   const cloudSurface = texturedMaterial('#3a4441', '#000000', 0, true);
   const wall = instances(outbreak, sphere, cloudSurface.material, 40, 'Rotating wall cloud');
   const wallSeeds = Array.from({ length: 40 }, () => ({ angle: random() * tau, radial: random(), size: .75 + random() * .5, twist: random() * tau }));
   const dustSurface = texturedMaterial('#6b6052', '#000000', 0, true);
   const dust = instances(outbreak, sphere, dustSurface.material, 24, 'Ground debris cloud');
   const dustSeeds = Array.from({ length: 24 }, () => ({ angle: random() * tau, radial: random(), size: .7 + random() * .6, twist: random() * tau }));
+  const debrisSeeds = count => Array.from({ length: count }, () => ({ angle: random() * tau, radial: random(), height: random(), pickup: random(), spin: random() * tau, size: .5 + random() * 1.5 }));
   const planks = instances(outbreak, box, mat('#7d6a55', { roughness: .9 }), 140, 'Airborne farm debris');
-  const plankSeeds = Array.from({ length: 140 }, () => ({ angle: random() * tau, radial: random(), height: random(), pickup: random(), spin: random() * tau, size: .5 + random() * 1.5 }));
+  const plankSeeds = debrisSeeds(140);
+  // Heavier debris rides the same spiral and is stretched along its own velocity, which reads as motion blur
+  // without any frame history.
+  const sheets = instances(outbreak, box, mat('#6e5a4a', { roughness: .85, side: THREE.DoubleSide }), 40, 'Airborne roof panels'), sheetSeeds = debrisSeeds(40);
+  const limbs = instances(outbreak, cylinder, mat('#3c3128', { roughness: .95 }), 40, 'Airborne tree limbs'), limbSeeds = debrisSeeds(40);
+  const clods = instances(outbreak, rock, mat('#4a3b2c', { roughness: 1 }), 90, 'Airborne dirt clods'), clodSeeds = debrisSeeds(90);
+  const rain = instances(outbreak, box, mat('#8fa3ac', { transparent: true, opacity: .3, depthWrite: false }), 900, 'Rain curtain');
+  const rainSeeds = Array.from({ length: 900 }, () => ({ angle: random() * tau, radial: random(), phase: random() }));
   const farm = new THREE.Group(); farm.name = 'Farmstead'; farm.position.set(-30, terrainHeight(-30, -58), -58); outbreak.add(farm);
   // A triangular prism whose ridge runs along x, apex one unit up and eaves half a unit down.
   const prism = new THREE.CylinderGeometry(1, 1, 1, 3, 1); prism.rotateY(Math.PI / 2); prism.rotateZ(Math.PI / 2);
@@ -513,25 +649,78 @@ export function createTerrestrial({ scene, canvas, buildings = [], landscape }) 
   part(wheel, new THREE.TorusGeometry(2.6, .12, 5, 20), steel, 0, 0, 0, 1, 1, 1);
   for (let i = 0; i < 4; i++) part(wheel, box, steel, 0, 0, 0, 5.2, .5, .08).rotation.z = i * Math.PI / 4;
   const fence = instances(farm, box, mat('#8c7b64', { roughness: .9 }), 50, 'Fence line');
-  const bolts = [bolt(outbreak, new THREE.Vector3(-20, 100, -95), new THREE.Vector3(-4, terrainHeight(-4, -112), -112), 'Lightning strike east'),
-    bolt(outbreak, new THREE.Vector3(-70, 100, -30), new THREE.Vector3(-82, terrainHeight(-82, -8), -8), 'Lightning strike west'),
-    bolt(outbreak, new THREE.Vector3(30, 100, -70), new THREE.Vector3(46, terrainHeight(46, -86), -86), 'Lightning strike north')];
+  const boltStarts = [new THREE.Vector3(-20, 100, -95), new THREE.Vector3(-70, 100, -30), new THREE.Vector3(30, 100, -70)];
+  const bolts = [bolt(outbreak, boltStarts[0], new THREE.Vector3(-4, terrainHeight(-4, -112), -112), 'Lightning strike east'),
+    bolt(outbreak, boltStarts[1], new THREE.Vector3(-82, terrainHeight(-82, -8), -8), 'Lightning strike west'),
+    bolt(outbreak, boltStarts[2], new THREE.Vector3(46, terrainHeight(46, -86), -86), 'Lightning strike north')];
   const strikes = [[11.2, 0], [16.6, 1], [21.3, 2]];
   const flashLight = new THREE.PointLight('#cfe0ff', 0, 300, 1.4); flashLight.userData.peak = 1300; outbreak.add(flashLight);
-  const funnelDust = particles(outbreak, 'vortex', 1500, '#8a7e70', 20);
+  const funnelDust = particles(outbreak, 'vortex', 1000, '#5b544b', 20);
+  const inflow = particles(outbreak, 'inflow', 1200, '#57514a', 14);
+  const trees = landscape ? landscape.children.slice(1).filter(child => child.isGroup) : [];
 
-  function updateTornado(t, detail) {
+  // Position of one debris seed on the spiral at time t, its size factor (zero before pickup) and its angle.
+  const spiral = (s, t, bx, bz, ground, lx, lz) => {
+    const age = t - 12.5 - s.pickup * 3, lift = ease(age / 4), settle = ease((t - 26) / 4);
+    const h = (1 + s.height * s.height * 60 * lift) * (1 - settle * .85), r = (5 + s.radial * 24) * (.35 + .65 * lift) * (1 + h * .02);
+    const angle = s.angle + t * (2.4 + s.radial * 1.2) + h * .05, bend = (h / 95) ** 2;
+    return [bx + lx * bend + Math.cos(angle) * r, ground + h, bz + lz * bend + Math.sin(angle) * r, age > 0 ? s.size : .001, angle];
+  };
+  // A streak is aligned to its velocity, sampled 40 ms ahead on the same closed-form spiral, and elongated with speed.
+  const streak = (mesh, i, s, t, bx, bz, ground, lx, lz, width, depth, stretch) => {
+    const [x, y, z, size] = spiral(s, t, bx, bz, ground, lx, lz), [x2, y2, z2] = spiral(s, t + .04, bx, bz, ground, lx, lz);
+    segmentStart.set(x, y, z); segmentEnd.set(x2, y2, z2); delta.subVectors(segmentEnd, segmentStart);
+    const speed = delta.length() / .04;
+    dummy.position.copy(segmentStart); dummy.quaternion.setFromUnitVectors(up, speed > 1e-6 ? delta.normalize() : up); dummy.rotateY(s.spin + t * 3);
+    dummy.scale.set(width * size, size * (1 + Math.min(speed * stretch, 2.5)), depth * size); dummy.updateMatrix(); mesh.setMatrixAt(i, dummy.matrix);
+  };
+  function pourRain(t, bx, bz, ground, count) {
+    rain.count = t > 6 ? count : 0;
+    for (let i = 0; i < rain.count; i++) {
+      const s = rainSeeds[i], r = 55 + s.radial * 110, a = s.angle + t * .05;
+      const x = bx + Math.cos(a) * r, z = bz + Math.sin(a) * r, y = ground + (((s.phase * 90 - t * 46) % 90) + 90) % 90;
+      // Drops slant into the inflow: down and toward the funnel.
+      segmentStart.set(x, y, z); segmentEnd.set(x - Math.cos(a) * 1.3, y - 3.4, z - Math.sin(a) * 1.3);
+      segment(rain, i, segmentStart, segmentEnd, .05);
+    }
+    rain.instanceMatrix.needsUpdate = true;
+  }
+  // Trees tilt toward the funnel with the inflow; the pull fades with distance and flutters in the gusts.
+  function leanTrees(t, bx, bz, spread) {
+    const storm = ease((t - 6) / 8);
+    trees.forEach((tree, i) => {
+      const dx = bx - tree.position.x, dz = bz - tree.position.z, dist = Math.hypot(dx, dz);
+      const pull = (storm * .35 + spread * .65) * (1 - ease((dist - 15) / 125));
+      if (pull <= 0 || dist < 1e-6) { tree.rotation.set(0, 0, 0); return; }
+      const lean = pull * .55 * (1 + Math.sin(t * 6.5 + i * 1.9) * .18);
+      tree.rotation.set(lean * dz / dist, 0, -lean * dx / dist);
+    });
+  }
+
+  function updateTornado(t, detail, config) {
     const down = ease((t - 8) / 5), spread = ease((t - 13) / 6), ropeOut = ease((t - 26) / 4);
     const [bx, bz] = base(t), ground = terrainHeight(bx, bz), height = 25 + down * 75, wobble = 1 + ropeOut * 3;
     const lx = -7 + Math.sin(t * .6) * 6 * wobble, lz = -3.5 + Math.cos(t * .45) * 5 * wobble;
+    const volumetric = detail === 2, ultra = canvas.dataset.quality === 'ultra', env = config?.environment || {};
     funnelSurface.shape.value.set((3 + spread * 11) * (1 - ropeOut * .85), 42 + spread * 24, height, 1.6 + ropeOut * .6);
     funnelSurface.lean.value.set(lx, lz); funnelSurface.clock.value = t;
     // The funnel hangs from the wall cloud; its top stays at the ceiling while the tip descends.
-    for (const mesh of [funnel, core]) mesh.position.set(bx, 100 + ground - height, bz);
-    core.visible = detail > 0;
+    for (const mesh of [funnel, core, funnelVolume]) mesh.position.set(bx, 100 + ground - height, bz);
+    funnel.visible = !volumetric; core.visible = detail === 1; funnelVolume.visible = volumetric; wallVolume.visible = volumetric;
     cloudSurface.clock.value = t; dustSurface.clock.value = t;
-    wall.count = detail === 0 ? 24 : 40;
     const cx = bx + lx, cz = bz + lz;
+    wallVolume.position.set(cx, ground + 88, cz);
+    const flashState = strike(t, strikes, bolts, flashLight), skirt = spread * 24 * (1 - ropeOut * .7);
+    for (const [volume, steps] of [[funnelVolume, ultra ? 48 : 32], [wallVolume, ultra ? 18 : 14]]) {
+      const u = volume.material.uniforms;
+      u.time.value = t; u.steps.value = steps; u.flash.value = flashState.flash; u.origin.value.copy(volume.position);
+      if (flashState.active !== undefined) u.flashPoint.value.copy(boltStarts[flashState.active]);
+      u.fogColor.value.set(env.fog ?? '#46524d'); u.fogDensity.value = (env.fogDensity ?? .0027) + ease(t / 30) * (env.fogGrowth ?? .0018);
+    }
+    const funnelUniforms = funnelVolume.material.uniforms;
+    funnelUniforms.shape.value.copy(funnelSurface.shape.value); funnelUniforms.lean.value.set(lx, lz);
+    funnelUniforms.skirt.value = skirt; funnelUniforms.spread.value = spread;
+    wall.visible = !volumetric; wall.count = detail === 0 ? 24 : 40;
     for (let i = 0; i < wall.count; i++) {
       // A wide, flat rotating slab under the ceiling; its underside stays above the funnel top.
       const s = wallSeeds[i], a = s.angle + t * (.06 + (1 - s.radial) * .16), r = 16 + s.radial * 72;
@@ -539,7 +728,7 @@ export function createTerrestrial({ scene, canvas, buildings = [], landscape }) 
         32 * s.size, 7 * s.size, 32 * s.size, s.twist, a, s.twist * .3);
     }
     wall.instanceMatrix.needsUpdate = true;
-    dust.visible = t > 12.6;
+    dust.visible = !volumetric && t > 12.6;
     for (let i = 0; i < dust.count; i++) {
       const s = dustSeeds[i], a = s.angle + t * (1.8 + s.radial), r = (6 + s.radial * 16) * (.4 + spread * .6) * (1 - ropeOut * .7);
       const size = (5 + spread * 6) * s.size * (1 - ropeOut * .6);
@@ -548,13 +737,18 @@ export function createTerrestrial({ scene, canvas, buildings = [], landscape }) 
     dust.instanceMatrix.needsUpdate = true;
     planks.count = detail === 0 ? 60 : detail === 1 ? 100 : 140;
     for (let i = 0; i < planks.count; i++) {
-      const s = plankSeeds[i], age = t - 12.5 - s.pickup * 3, lift = ease(age / 4), settle = ease((t - 26) / 4);
-      const h = (1 + s.height * s.height * 60 * lift) * (1 - settle * .85), r = (5 + s.radial * 24) * (.35 + .65 * lift) * (1 + h * .02);
-      const angle = s.angle + t * (2.4 + s.radial * 1.2) + h * .05, bend = (h / 95) ** 2, size = age > 0 ? s.size : .001;
-      pose(planks, i, bx + lx * bend + Math.cos(angle) * r, ground + h, bz + lz * bend + Math.sin(angle) * r,
-        size * 3, size * .3, size * .9, t * 3 + s.spin, angle, t * 2);
+      const [x, y, z, size, angle] = spiral(plankSeeds[i], t, bx, bz, ground, lx, lz);
+      pose(planks, i, x, y, z, size * 3, size * .3, size * .9, t * 3 + plankSeeds[i].spin, angle, t * 2);
     }
     planks.instanceMatrix.needsUpdate = true;
+    const heavy = [.3, .6, 1][detail];
+    sheets.count = Math.round(40 * heavy); limbs.count = Math.round(40 * heavy); clods.count = Math.round(90 * heavy);
+    for (let i = 0; i < sheets.count; i++) streak(sheets, i, sheetSeeds[i], t, bx, bz, ground, lx, lz, 1.3, .08, .04);
+    for (let i = 0; i < limbs.count; i++) streak(limbs, i, limbSeeds[i], t, bx, bz, ground, lx, lz, .35, .35, .045);
+    for (let i = 0; i < clods.count; i++) streak(clods, i, clodSeeds[i], t, bx, bz, ground, lx, lz, .7, .7, .03);
+    for (const mesh of [sheets, limbs, clods]) mesh.instanceMatrix.needsUpdate = true;
+    pourRain(t, bx, bz, ground, Math.round(900 * heavy));
+    leanTrees(t, bx, bz, spread);
     const hit = ease((t - 15.4) / 2.2), hitBarn = ease((t - 15.9) / 2.2);
     houseRoof.position.set(hit * Math.cos(t * 2.7) * 18, 6.65 + hit * 40, hit * Math.sin(t * 2.7) * 18);
     houseRoof.rotation.set(hit * t * 2.2, hit * t * 1.1, hit * .9);
@@ -573,10 +767,26 @@ export function createTerrestrial({ scene, canvas, buildings = [], landscape }) 
         2.5, .12, .12, pull * t * 1.7, pull * i * .7, pull * t * 2.3);
     }
     fence.instanceMatrix.needsUpdate = true;
-    strike(t, strikes, bolts, flashLight);
     funnelDust.uniforms.origin.value.set(bx, ground, bz); funnelDust.uniforms.lean.value.set(lx, lz);
+    inflow.uniforms.origin.value.set(bx, ground, bz);
   }
-    return { group: outbreak, update: updateTornado, particles: funnelDust };
+  // Camera-only state: a camera inside a hull marches from itself to the hull's back faces instead.
+  function updateTornadoView(camera) {
+    if (!camera) return;
+    const c = camera.position, funnelUniforms = funnelVolume.material.uniforms, wallUniforms = wallVolume.material.uniforms;
+    const shape = funnelUniforms.shape.value, h = (c.y - funnelVolume.position.y) / shape.z;
+    let insideFunnel = false;
+    if (h >= 0 && h <= 1) {
+      const qx = c.x - funnelVolume.position.x - funnelUniforms.lean.value.x * h * h, qz = c.z - funnelVolume.position.z - funnelUniforms.lean.value.y * h * h;
+      insideFunnel = Math.hypot(qx, qz) < (shape.x + (shape.y - shape.x) * Math.pow(h, shape.w)) * 1.3 + funnelUniforms.skirt.value * (1 - ease(h / .2));
+    }
+    funnelUniforms.inside.value = insideFunnel ? 1 : 0; funnelVolume.material.side = insideFunnel ? THREE.BackSide : THREE.FrontSide;
+    const dy = c.y - wallVolume.position.y;
+    const insideWall = dy >= 0 && dy <= wallUniforms.thickness.value && Math.hypot(c.x - wallVolume.position.x, c.z - wallVolume.position.z) < wallUniforms.radius.value;
+    wallUniforms.inside.value = insideWall ? 1 : 0; wallVolume.material.side = insideWall ? THREE.BackSide : THREE.FrontSide;
+  }
+  function leaveTornado() { for (const tree of trees) tree.rotation.set(0, 0, 0); }
+    return { group: outbreak, update: updateTornado, updateView: updateTornadoView, leave: leaveTornado, particles: [funnelDust, inflow] };
   }
   function createEruption() {
     seed = 19971997;
@@ -1010,12 +1220,14 @@ export function createTerrestrial({ scene, canvas, buildings = [], landscape }) 
       const t = Math.max(0, Math.min(30, time));
       const quality = canvas.dataset.quality;
       const detail = quality === 'lite' ? 0 : quality === 'balanced' ? 1 : 2;
-      active.update(t, detail);
+      active.update(t, detail, config);
       for (const selected of [].concat(active.particles)) {
         selected.uniforms.time.value = t;
         selected.uniforms.ratio.value = Math.min(Number(canvas.dataset.pixelRatio) || 1, 2);
         selected.mesh.geometry.setDrawRange(0, Math.floor(selected.count * [ .35, .65, 1 ][detail]));
       }
-    }
+    },
+    // Camera-dependent state runs every rendered frame, including orbits with a paused timeline.
+    updateView() { active?.updateView?.(camera); }
   };
 }

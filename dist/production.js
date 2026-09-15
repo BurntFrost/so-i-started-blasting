@@ -175,7 +175,14 @@ export async function createProduction(world) {
   const grass=new THREE.InstancedMesh(new THREE.ConeGeometry(.09,1.3,3),new THREE.MeshStandardMaterial({color:'#6b8057',roughness:1}),9000);
   for(let i=0;i<9000;i++){const x=random()*250-125,z=random()*230-100,scale=.4+random()*1.2;dummy.position.set(x,terrainHeight(x,z)+scale*.65,z);dummy.rotation.set((random()-.5)*.5,random()*6.28,(random()-.5)*.5);dummy.scale.setScalar(scale);dummy.updateMatrix();grass.setMatrixAt(i,dummy.matrix);}landscape.add(grass);
   const lawn=landscape.children[0];lawn.material.color.set('#35482b');lawn.material.roughness=1;
-  lawn.material.onBeforeCompile=shader=>{shader.vertexShader=shader.vertexShader.replace('#include <common>','#include <common>\nvarying vec3 terrainPoint;').replace('#include <begin_vertex>','#include <begin_vertex>\nterrainPoint=position;');shader.fragmentShader=shader.fragmentShader.replace('#include <common>','#include <common>\nvarying vec3 terrainPoint;'+noise).replace('#include <color_fragment>','#include <color_fragment>\ndiffuseColor.rgb*=.5+fbm(terrainPoint*.15);');};
+  // Countryside scenes plough part of the meadow into crop rows; the park keeps its lawn.
+  const fieldPlots={value:0};
+  lawn.material.onBeforeCompile=shader=>{shader.uniforms.fieldPlots=fieldPlots;shader.vertexShader=shader.vertexShader.replace('#include <common>','#include <common>\nvarying vec3 terrainPoint;').replace('#include <begin_vertex>','#include <begin_vertex>\nterrainPoint=position;');shader.fragmentShader=shader.fragmentShader.replace('#include <common>','#include <common>\nvarying vec3 terrainPoint;uniform float fieldPlots;'+noise).replace('#include <color_fragment>',`#include <color_fragment>
+    float meadow=.5+fbm(terrainPoint*.15);
+    float plots=smoothstep(.56,.64,fbm(terrainPoint*.021+vec3(3.,0.,7.)))*fieldPlots;
+    float rows=.8+.2*smoothstep(.3,.7,fract(terrainPoint.x*.28+fbm(terrainPoint*.04)*1.6));
+    diffuseColor.rgb=mix(diffuseColor.rgb*meadow,vec3(.2,.155,.11)*rows*(.7+fbm(terrainPoint*.4)*.4),plots);`);};
+  lawn.material.customProgramCacheKey=()=>'production-lawn-v2';
   // Coordinates are initially planar; the same profile is used by spray below.
   const waveProfile=(v,height,x,t)=>({y:Math.sin(v*Math.PI*.53)*height+(Math.sin(x*.13+t)*1.2)*v,z:Math.sin(v*Math.PI)*24+Math.pow(v,8)*17});
   const freezeColor=new THREE.Color('#e6eff3');
@@ -184,6 +191,7 @@ export async function createProduction(world) {
     const id=config.id, frozenScene=id==='day-after-tomorrow', cityActive=config.world==='city';
     // ULTRA shares HIGH's authored geometry; only pixel density and shadow resolution differ.
     const quality=canvas.dataset.quality==='ultra'?'high':canvas.dataset.quality || 'high';
+    fieldPlots.value=id==='twister'||id==='dantes-peak'?1:0;
     if(sky){
       sky.visible=!config.space;sky.position.copy(camera.position);sky.rotation.y=2.8+t*.0006;
       skyMaterial.uniforms.tint.value.set(config.environment.skyTint);

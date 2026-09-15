@@ -299,3 +299,56 @@ test('BALANCED uses stepped medium geometry and uploads only visible city batche
     assert.equal(world.baselineShip.visible, false);
   });
 });
+
+test('Twister marches its funnel and wall cloud as volumes only at HIGH and above; lower tiers keep the mesh funnel', () => {
+  const scene = new THREE.Scene(), canvas = { dataset: { quality: 'balanced', pixelRatio: '1.25' } }, camera = new THREE.PerspectiveCamera();
+  const renderer = createTerrestrial({ scene, canvas, camera, landscape: parkLandscape() });
+  const twister = () => renderer.update(18, config('twister', 'landscape'));
+  const named = name => scene.getObjectByName('Twister — F5 outbreak').getObjectByName(name);
+  twister();
+  assert.equal(named('Condensation funnel').visible, true);
+  assert.equal(named('Funnel volume').visible, false);
+  assert.equal(named('Wall cloud volume').visible, false);
+  assert.equal(named('Rotating wall cloud').visible, true);
+  const balancedRain = named('Rain curtain').count;
+  canvas.dataset.quality = 'high'; twister();
+  assert.equal(named('Condensation funnel').visible, false);
+  assert.equal(named('Funnel volume').visible, true);
+  assert.equal(named('Wall cloud volume').visible, true);
+  assert.equal(named('Rotating wall cloud').visible, false);
+  assert.equal(named('Funnel volume').material.uniforms.steps.value, 32);
+  assert.equal(named('Wall cloud volume').material.uniforms.steps.value, 14);
+  assert.ok(named('Rain curtain').count > balancedRain, 'HIGH pours more rain');
+  canvas.dataset.quality = 'ultra'; twister();
+  assert.equal(named('Funnel volume').material.uniforms.steps.value, 48);
+  assert.equal(named('Wall cloud volume').material.uniforms.steps.value, 18);
+  // The march starts at the camera when it is inside a hull, so the hull flips to its back faces.
+  camera.position.copy(named('Funnel volume').position).add(new THREE.Vector3(0, 50, 0)); renderer.updateView();
+  assert.equal(named('Funnel volume').material.side, THREE.BackSide);
+  camera.position.set(300, 300, 300); renderer.updateView();
+  assert.equal(named('Funnel volume').material.side, THREE.FrontSide);
+  canvas.dataset.quality = 'lite'; twister();
+  assert.equal(named('Condensation funnel').visible, true);
+  assert.equal(named('Funnel volume').visible, false);
+  assert.ok(named('Rain curtain').count < balancedRain, 'LITE pours less rain');
+});
+
+test('Twister leans the landscape trees into the inflow as a function of time and restores them on leave', () => {
+  const scene = new THREE.Scene(), canvas = { dataset: { quality: 'high', pixelRatio: '2' } }, camera = new THREE.PerspectiveCamera();
+  const landscape = parkLandscape(), trees = landscape.children.slice(1);
+  // The shared grass field is also a landscape child and must never be rotated around the world origin.
+  const grass = new THREE.InstancedMesh(new THREE.ConeGeometry(.09, 1.3, 3), new THREE.MeshStandardMaterial(), 4); landscape.add(grass);
+  const renderer = createTerrestrial({ scene, canvas, camera, landscape });
+  const upright = () => trees.every(tree => tree.rotation.x === 0 && tree.rotation.z === 0);
+  renderer.update(2, config('twister', 'landscape'));
+  assert.ok(upright(), 'the plain is calm before the storm builds');
+  renderer.update(18, config('twister', 'landscape'));
+  assert.ok(!upright(), 'trees bend toward the funnel while it is on the ground');
+  assert.ok(grass.rotation.x === 0 && grass.rotation.z === 0, 'the grass field stays on the ground');
+  const leaning = trees.map(tree => [tree.rotation.x, tree.rotation.z]);
+  renderer.update(27, config('twister', 'landscape'));
+  renderer.update(18, config('twister', 'landscape'));
+  assert.deepEqual(trees.map(tree => [tree.rotation.x, tree.rotation.z]), leaning, 'the lean is a function of time only');
+  renderer.update(12, config('day-the-earth-stood-still', 'landscape'));
+  assert.ok(upright(), 'leaving the scene stands the trees back up for the other landscape scenes');
+});
