@@ -19,6 +19,7 @@ hole.
 | Nebula | `nebula.webp` 1536×768 | `nebula-4k.webp` 4096×2048 when ULTRA is possible |
 | Explosion | `explosion-puff.webp` 256 px cells | `explosion-puff-4k.webp` 512 px cells when ULTRA is possible |
 | Tessellation | Fixed | Doubled for planet, sun, black hole, fireball and tripod silhouettes when ULTRA is possible |
+| A.T. field (added 2026-09-15) | none | `at-field.webp` 1024×1024 hexagon lattice; `at-field-4k.webp` 4096×4096 when ULTRA is possible, requested by The End of Evangelion |
 
 The canvas exposes `data-quality-ceiling` so modules that build geometry or
 request textures once can decide at construction time. That asset ceiling is
@@ -41,9 +42,17 @@ of 3264×1836.
 | `dusk-2k.hdr` | 5,996,454 | ULTRA ceiling, after the first frame, city scenes |
 | `nebula-4k.webp` | 99,096 | ULTRA ceiling, first space scene |
 | `explosion-puff-4k.webp` | 2,539,662 | ULTRA ceiling, first Terminator 2 selection |
+| `at-field-4k.webp` | 348,276 | ULTRA ceiling, first End of Evangelion selection |
 
 The 4K atlas decodes to 32 MiB of texture memory without mipmaps. The 2K HDR
-replaces rather than adds to the 1K download on ULTRA-capable machines.
+replaces rather than adds to the 1K download on ULTRA-capable machines. The A.T.
+field lattice is a single-channel mask that the renderer multiplies into an
+additive orange material and tiles with `RepeatWrapping`; its 4096 version keeps
+the hexagon edges crisp when the field spreads across the whole city at native
+Retina resolution, and the 1K file is a Lanczos downscale of the same render. The
+canvas reports `data-at-field-texture` (`loading`, `ready`, `fallback`) and
+`data-at-field-resolution` (`4096` or `1024`), which the ULTRA browser probe asserts
+alongside the three earlier assets.
 
 Surface texture maps stay at 1K: ground and facades are seen at grazing angles
 under fog, and 4K versions of all six maps would add roughly 20 MB.

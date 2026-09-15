@@ -104,11 +104,15 @@ export function createTerrestrial({ scene, canvas, buildings = [], landscape }) 
     // The swarm's dust body: boiling gray puffs that roll outward at ground level behind the front.
     plague: `float spread=smoothstep(19.,30.,time);float r=spread*(6.+seed.y*250.);float angle=a+time*(.6+seed.z*1.5);
       p=vec3(origin.x+cos(angle)*r,1.5+seed.w*(4.+spread*14.),origin.z+sin(angle)*r);
-      alpha=smoothstep(19.,21.,time)*(1.-smoothstep(.6,1.,seed.y))*.45;`
+      alpha=smoothstep(19.,21.,time)*(1.-smoothstep(.6,1.,seed.y))*.45;`,
+    // Souls rise from the whole city as points of light once the anti-A.T. field spreads at 24.
+    ascension: `float start=24.+seed.w*4.;float age=max(0.,time-start);
+      p=vec3((seed.x-.5)*340.,-.5+age*(7.+seed.z*9.)+sin(time*1.7+seed.y*30.)*.8,(seed.y-.5)*300.-20.);
+      alpha=step(start,time)*smoothstep(0.,1.,age)*(1.-smoothstep(45.,130.,p.y))*.9;`
   };
-  // Snowflakes and nanites stay crisp points; every other kind is a soft turbulent puff.
-  const crisp = new Set(['embers', 'blizzard', 'swarm']);
-  const pointCap = { embers: '12.', blizzard: '7.', swarm: '5.' };
+  // Snowflakes, nanites and rising souls stay crisp points; every other kind is a soft turbulent puff.
+  const crisp = new Set(['embers', 'blizzard', 'swarm', 'ascension']);
+  const pointCap = { embers: '12.', blizzard: '7.', swarm: '5.', ascension: '7.' };
   function particles(parent, kind, count, tint, size) {
     const geometry = new THREE.BufferGeometry();
     const seeds = new Float32Array(count * 4);
@@ -118,7 +122,7 @@ export function createTerrestrial({ scene, canvas, buildings = [], landscape }) 
     const uniforms = { time: { value: 0 }, size: { value: size }, ratio: { value: 1 }, tint: { value: new THREE.Color(tint) },
       origin: { value: new THREE.Vector3() }, lean: { value: new THREE.Vector2() } };
     const material = new THREE.ShaderMaterial({ uniforms, transparent: true, depthWrite: false,
-      blending: kind === 'embers' ? THREE.AdditiveBlending : THREE.NormalBlending,
+      blending: kind === 'embers' || kind === 'ascension' ? THREE.AdditiveBlending : THREE.NormalBlending,
       vertexShader: `attribute vec4 seed;uniform float time,size,ratio;uniform vec3 origin;uniform vec2 lean;varying float alpha;varying float variation;
       void main(){float a=seed.x*6.283185;vec3 p=vec3(0.);variation=seed.w;
       ${motion[kind]}
@@ -830,6 +834,158 @@ export function createTerrestrial({ scene, canvas, buildings = [], landscape }) 
   }
     return { group: visitation, update: updateVisitation, particles: [swarm, plague], leave: () => { for (const tree of trees) tree.scale.setScalar(1); } };
   }
+  function createInstrumentality() {
+    seed = 19970719;
+  // THE END OF EVANGELION: nine white winged units circle the fortress city at dusk, a lance falls and opens
+  // the geofront into a cross of light, the A.T. field spreads over the streets and a luminous giant rises.
+  const impact = group('The End of Evangelion — Third Impact');
+  const origin = new THREE.Vector3(-10, 0, -70);
+  const radiantClock = { value: 0 };
+  const radiant = strength => new THREE.ShaderMaterial({
+    uniforms: { time: radiantClock, glow: { value: strength } },
+    vertexShader: 'varying vec3 bodyNormal;varying vec3 bodyPoint;varying vec3 bodyView;void main(){bodyPoint=position;vec4 mv=modelViewMatrix*vec4(position,1.);bodyNormal=normalize(normalMatrix*normal);bodyView=normalize(-mv.xyz);gl_Position=projectionMatrix*mv;}',
+    fragmentShader: `uniform float time,glow;varying vec3 bodyNormal;varying vec3 bodyPoint;varying vec3 bodyView;${noise}
+    void main(){vec3 p=normalize(bodyPoint);float drift=fbm(p*1.7+vec3(0.,-time*.05,time*.03));
+    float veil=smoothstep(.2,.85,fbm(p*4.+drift*2.+vec3(0.,-time*.08,0.)));
+    float rim=pow(1.-abs(dot(bodyNormal,bodyView)),2.4);
+    vec3 color=mix(vec3(.7,.64,.6),vec3(.95,.76,.58),veil*.55)*glow+vec3(1.2,.8,.55)*rim*.5*glow;
+    gl_FragColor=vec4(color,.94);
+    #include <tonemapping_fragment>
+    #include <colorspace_fragment>
+    }`,
+    transparent: true
+  });
+  // A low moon behind the skyline; its material ignores fog so it stays a hard disc at the horizon.
+  const moon = new THREE.Mesh(new THREE.SphereGeometry(1, 24 * fine, 16 * fine), new THREE.MeshBasicMaterial({ color: '#d9b8ab', fog: false }));
+  moon.name = 'Low moon'; moon.position.set(-188, 116, -265); moon.scale.setScalar(26); impact.add(moon);
+  const moonHalo = new THREE.Mesh(new THREE.SphereGeometry(1, 24 * fine, 16 * fine), rimGlow('#e8a58c', .28));
+  moonHalo.name = 'Moon halo'; moonHalo.position.copy(moon.position); moonHalo.scale.setScalar(31); impact.add(moonHalo);
+  // Nine white winged units: a capsule body with two hinged wing slabs each.
+  const unitMaterial = mat('#ece6e0', { roughness: .5, emissive: '#ffcdb0', emissiveIntensity: .3 });
+  const units = instances(impact, new THREE.CapsuleGeometry(1, 2.4, 4, 10 * fine), unitMaterial, 9, 'Mass production units');
+  const wings = instances(impact, box, unitMaterial, 18, 'Mass production unit wings');
+  units.castShadow = true; wings.castShadow = true;
+  const unitSeeds = Array.from({ length: 9 }, () => ({ phase: random() * tau, bob: .7 + random() * .6, flap: 2 + random() * .8 }));
+  const lanceMaterial = glow(new THREE.Color(3.2, .35, .3), .95);
+  const lance = new THREE.Mesh(cylinder, lanceMaterial); lance.name = 'Lance'; lance.scale.set(.7, 110, .7); lance.visible = false; impact.add(lance);
+  const lanceHalo = new THREE.Mesh(cylinder, glow('#ff6a5a', .18)); lanceHalo.name = 'Lance halo'; lanceHalo.scale.set(3, 112, 3); lanceHalo.visible = false; impact.add(lanceHalo);
+  // The A.T. field is the anthology's 4K asset: a seamless hexagon mask multiplied into additive orange.
+  const fieldColor = new THREE.Color(1.6, .62, .28);
+  const fieldMaterial = new THREE.MeshBasicMaterial({ color: fieldColor, transparent: true, opacity: 0, depthWrite: false, blending: THREE.AdditiveBlending, side: THREE.DoubleSide, fog: false });
+  const barrierMaterial = fieldMaterial.clone();
+  const field = new THREE.Mesh(new THREE.PlaneGeometry(1, 1), fieldMaterial); field.name = 'A.T. field';
+  // The field hangs above the rooftops so the lattice reads from the orbit camera instead of hiding between towers.
+  field.rotation.x = -Math.PI / 2; field.position.set(origin.x, 78, origin.z); field.renderOrder = 3; field.visible = false; impact.add(field);
+  const barrier = new THREE.Mesh(new THREE.PlaneGeometry(1, 1), barrierMaterial); barrier.name = 'A.T. field barrier';
+  barrier.rotation.y = .53; barrier.position.set(origin.x, 105, origin.z + 14); barrier.renderOrder = 3; barrier.visible = false; impact.add(barrier);
+  let fieldTexture = null;
+  const ultra = canvas.dataset.qualityCeiling === 'ultra';
+  canvas.dataset.atFieldTexture = 'loading'; canvas.dataset.atFieldResolution = ultra ? '4096' : '1024';
+  // Only the mask is asynchronous: the planes keep their absolute-time poses whether or not it arrives.
+  new THREE.TextureLoader().loadAsync(ultra ? '/assets/at-field-4k.webp' : '/assets/at-field.webp').then(texture => {
+    texture.wrapS = texture.wrapT = THREE.RepeatWrapping; texture.colorSpace = THREE.NoColorSpace; texture.anisotropy = 8;
+    const barrierTexture = texture.clone(); barrierTexture.repeat.set(.63, .46); barrierTexture.offset.set(.185, .27);
+    fieldTexture = texture; fieldMaterial.map = texture; barrierMaterial.map = barrierTexture;
+    fieldMaterial.needsUpdate = true; barrierMaterial.needsUpdate = true;
+    canvas.dataset.atFieldTexture = 'ready';
+  }).catch(() => { canvas.dataset.atFieldTexture = 'fallback'; });
+  const crossMaterial = glow(new THREE.Color(2.4, 1.75, 1.3), .9);
+  const crosses = instances(impact, box, crossMaterial, 12, 'Crosses of light');
+  // x, z, eruption second, height, width, yaw.
+  const crossSeeds = [[origin.x, origin.z, 12, 205, 5.2, .53], [58, -18, 13.4, 150, 3.4, .2], [-72, 26, 14.9, 135, 3.1, -.4],
+    [24, 44, 16.3, 120, 2.8, .9], [-46, -112, 17.6, 165, 3.2, -.15], [92, -60, 18.7, 115, 2.7, .6]];
+  const crossLight = new THREE.PointLight('#ffd0a8', 0, 320, 1.5); crossLight.position.set(origin.x, 80, origin.z); impact.add(crossLight);
+  const lclMaterial = new THREE.MeshBasicMaterial({ color: '#ff6a35', transparent: true, opacity: 0, depthWrite: false });
+  const lcl = new THREE.Mesh(new THREE.PlaneGeometry(600, 600), lclMaterial); lcl.name = 'Sea of LCL';
+  lcl.rotation.x = -Math.PI / 2; lcl.position.y = -.8; lcl.renderOrder = -1; lcl.visible = false; impact.add(lcl);
+  const ringMaterial = glow('#ffc6a1', 0);
+  const ring = new THREE.Mesh(new THREE.TorusGeometry(1, .045, 8, 100 * fine), ringMaterial); ring.name = 'Anti-A.T. field pulse';
+  ring.rotation.x = Math.PI / 2; ring.position.set(origin.x, 3, origin.z); ring.visible = false; impact.add(ring);
+  // The giant: a faceless luminous figure that rises out of the geofront and opens its arms.
+  const giant = new THREE.Group(); giant.name = 'Luminous giant'; giant.visible = false; giant.position.copy(origin); impact.add(giant);
+  const bodyMaterial = radiant(1);
+  const limb = (geometry, x, y, z, sx, sy, sz, name, parent = giant) => {
+    const mesh = new THREE.Mesh(geometry, bodyMaterial); mesh.name = name; mesh.position.set(x, y, z); mesh.scale.set(sx, sy, sz);
+    mesh.castShadow = true; parent.add(mesh); return mesh;
+  };
+  const legGeometry = new THREE.CapsuleGeometry(1, 3, 6, 12 * fine), armGeometry = new THREE.CapsuleGeometry(1, 3.2, 6, 12 * fine);
+  limb(legGeometry, -11, 50, 0, 9, 20, 9, 'Giant left leg'); limb(legGeometry, 11, 50, 0, 9, 20, 9, 'Giant right leg');
+  limb(sphere, 0, 104, 0, 20, 14, 13, 'Giant pelvis');
+  limb(new THREE.CapsuleGeometry(1, 1.7, 6, 16 * fine), 0, 150, 0, 24, 21, 15, 'Giant torso');
+  limb(sphere, -26, 182, 0, 8, 8, 8, 'Giant left shoulder'); limb(sphere, 26, 182, 0, 8, 8, 8, 'Giant right shoulder');
+  const arms = [-1, 1].map(sign => {
+    const pivot = new THREE.Group(); pivot.position.set(sign * 27, 182, 0); giant.add(pivot);
+    limb(armGeometry, 0, -41, 0, 7, 16, 7, sign < 0 ? 'Giant left arm' : 'Giant right arm', pivot);
+    return [pivot, sign];
+  });
+  limb(cylinder, 0, 196, 0, 7, 12, 7, 'Giant neck');
+  limb(sphere, 0, 214, 0, 14, 17, 14, 'Giant head');
+  const headHalo = new THREE.Mesh(sphere, rimGlow('#ffd3b0', .5)); headHalo.name = 'Giant head halo'; headHalo.position.set(0, 214, 0); headHalo.scale.set(16, 19, 16); giant.add(headHalo);
+  const haloMaterial = glow(new THREE.Color(1.6, 1.2, .8), 0);
+  const halo = new THREE.Mesh(new THREE.TorusGeometry(1, .05, 8, 96 * fine), haloMaterial); halo.name = 'Halo';
+  halo.position.set(0, 246, 0); halo.rotation.x = Math.PI / 2 - .3; halo.scale.setScalar(30); giant.add(halo);
+  const giantLight = new THREE.PointLight('#ffb890', 0, 420, 1.4); giantLight.position.set(0, 150, 34); giant.add(giantLight);
+  const ascension = particles(impact, 'ascension', 4000, '#ffb27a', 2.2);
+
+  function updateInstrumentality(t, detail) {
+    radiantClock.value = t;
+    const settle = ease((t - 8) / 2), ascend = ease((t - 26) / 4), vanish = ease((t - 27) / 3);
+    // The circling angle eases into a hold between 8 and 10 with a continuous rate.
+    const u = clamp((t - 8) / 2), sweep = .3 * (t < 8 ? t : 8 + 2 * u - u * u);
+    units.count = detail === 0 ? 6 : 9; wings.count = units.count * 2;
+    for (let i = 0; i < units.count; i++) {
+      const s = unitSeeds[i], theta = i / 9 * tau + sweep;
+      const x = origin.x + Math.cos(theta) * 125, z = origin.z + Math.sin(theta) * 125;
+      const y = 126 - ease(t / 10) * 30 + Math.sin(t * s.bob + s.phase) * 2.5 + ascend * ascend * 260;
+      const yaw = -theta + settle * Math.PI / 2, size = 3.4 * (1 - vanish * .999);
+      const flap = (.35 - settle * .12) + Math.sin(t * s.flap + s.phase) * (.42 - settle * .3);
+      pose(units, i, x, y, z, size, size, size, 0, yaw, 0);
+      for (const [k, sign] of [[0, -1], [1, 1]]) {
+        // Each wing slab hinges at the shoulder and extends along its own x axis before the yaw is applied.
+        const reach = size * 3.7, dx = sign * (size * .87 + Math.cos(flap) * reach), dy = size * .73 + Math.sin(flap) * reach;
+        pose(wings, i * 2 + k, x + dx * Math.cos(yaw), y + dy, z - dx * Math.sin(yaw), size * 7.3, size * .17, size * 2, 0, yaw, sign * flap);
+      }
+    }
+    units.instanceMatrix.needsUpdate = true; wings.instanceMatrix.needsUpdate = true;
+    const fall = ease((t - 10) / 2);
+    lance.visible = t > 9.6 && t < 19.6; lanceHalo.visible = lance.visible;
+    lance.position.set(origin.x, 340 - fall * 285, origin.z); lanceHalo.position.copy(lance.position);
+    lance.rotation.set(-.04, t * 2, .06); lanceHalo.rotation.copy(lance.rotation);
+    lanceMaterial.opacity = .95 * ease((t - 9.6) / .4) * (1 - ease((t - 17) / 2.5)); lanceHalo.material.opacity = lanceMaterial.opacity * .2;
+    const flare = Math.sin(clamp((t - 10.8) / 1.6) * Math.PI);
+    barrier.visible = flare > .01; barrier.scale.set(170 * (1 + flare * .12), 120 * (1 + flare * .12), 1); barrierMaterial.opacity = flare * .75;
+    const crossCount = detail === 0 ? 3 : 6; crosses.count = crossCount * 2; crosses.visible = t > 12;
+    for (let i = 0; i < crossCount; i++) {
+      const [x, z, erupt, height, width, spin] = crossSeeds[i];
+      const grow = ease((t - erupt) / 1.4), linger = 1 - ease((t - erupt - 8) / 5), h = height * grow;
+      pose(crosses, i * 2, x, h / 2 - 1, z, width, Math.max(.001, h), width, 0, spin, 0);
+      pose(crosses, i * 2 + 1, x, h * .7, z, width * 9 * grow + .001, width * 1.05, width * 1.05, 0, spin, 0);
+      color.setScalar(linger); crosses.setColorAt(i * 2, color); crosses.setColorAt(i * 2 + 1, color);
+    }
+    crosses.instanceMatrix.needsUpdate = true; crosses.instanceColor.needsUpdate = true;
+    crossLight.intensity = 1500 * ease((t - 12) / .5) * (1 - ease((t - 15) / 8)) * (detail === 0 ? .6 : 1);
+    const spread = ease((t - 12) / 5), fieldSize = 40 + spread * 500;
+    field.visible = t > 12; field.scale.set(fieldSize, fieldSize, 1);
+    fieldMaterial.opacity = (fieldTexture ? .6 : .22) * ease((t - 12) / 1.2) * (1 - ease((t - 26) / 4)) * (.86 + .14 * Math.sin(t * 5));
+    if (fieldTexture) {
+      // Hexagons keep a fixed 24-unit pitch while the plane grows; the offset pins the lattice to the centre.
+      const rx = fieldSize / 216, ry = rx * 1.0393;
+      fieldTexture.repeat.set(rx, ry); fieldTexture.offset.set(.5 - rx / 2, .5 - ry / 2);
+    }
+    lclMaterial.opacity = ease((t - 24) / 5) * .55; lcl.visible = lclMaterial.opacity > 0;
+    const pulse = ease((t - 24) / 5);
+    ring.visible = t > 24 && pulse < 1; ring.scale.set(1 + pulse * 420, 1 + pulse * 420, 1 + pulse * 6); ringMaterial.opacity = (1 - pulse) * .9;
+    const rise = ease((t - 19) / 7), embrace = ease((t - 24) / 5);
+    giant.visible = t > 19;
+    giant.position.set(origin.x, -262 + rise * 262, origin.z); giant.rotation.set(0, .53, Math.sin(t * .3) * .012);
+    for (const [pivot, sign] of arms) pivot.rotation.z = sign * (.14 + embrace * 1.3);
+    bodyMaterial.uniforms.glow.value = 1 + embrace * .25 + Math.sin(t * 2) * .03;
+    haloMaterial.opacity = ease((t - 22) / 3) * .9; halo.rotation.z = t * .1; halo.scale.setScalar(30 * (1 + embrace * .35));
+    headHalo.material.uniforms.strength.value = .5 + embrace * .7;
+    giantLight.intensity = (rise * 700 + embrace * 1100) * (detail === 0 ? .6 : 1);
+  }
+    return { group: impact, update: updateInstrumentality, particles: ascension };
+  }
   const factories = {
     'terminator-2': createNuclear,
     '2012': createRupture,
@@ -837,7 +993,8 @@ export function createTerrestrial({ scene, canvas, buildings = [], landscape }) 
     'twister': createTornado,
     'dantes-peak': createEruption,
     'day-after-tomorrow': createSuperstorm,
-    'day-the-earth-stood-still': createVisitation
+    'day-the-earth-stood-still': createVisitation,
+    'evangelion': createInstrumentality
   };
   const loaded = new Map();
   let active;

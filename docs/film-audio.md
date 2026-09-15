@@ -26,6 +26,7 @@ unchanged from the earlier pass.
 | Dante's Peak | Mountain wind and three seismic rumbles under a harmonic tremor; blast tail and jet roar from 6 s with lava-bomb thuds and four lightning cracks; an ominous D-minor string pad from 9 s; the surge's roar and hiss grow from 13 s with ash hiss after 18 s | eruption 6 s, lightning 9.4 s and 17.7 s, surge 13.5 s and 24 s |
 | Gravity | Sub drone and suit breathing with radio static; an alert tone at 6 s; an original rising string figure and shimmer from 8 s; muffled thumps and metallic rattle at each impact with a quickening heartbeat from 10 s; the tumble's rotating whoosh and comms hiss from 22 s | alert 6 s, impacts 11.3 s, 14.6 s and 17.9 s, adrift 22 s |
 | The Wandering Earth | Planetary-engine sawtooth chord, roar and plasma hiss under an original D-minor pad; the siphoned atmosphere shimmers 8–22 s; engines rise to full burn 14–17 s and hold; Jupiter's ignition tail and fracture crackle at 22 s, the shock at 23.5 s, and the pad turns to D major for the escape | ignition 16 s, detonation 22 s, escape 25.5 s |
+| The End of Evangelion | Geofront sub-harmonic hum and thin dusk air under an original hymn-like string progression (A minor, F, D minor, E) that resolves to an A-major organ at 24 s; slow wing beats through the first ten seconds and a metallic shriek as the units settle at 7.5 s; the lance whistles down 10–12 s and lands with a sub thump; crosses of light erupt at 12, 13.4, 14.9, 16.3, 17.6 and 18.7 s, each with a choral ring over a blast tail; the A.T. field shimmers 12–26 s; a deep organ swell and rumble carry the giant's rise from 19 s; the anti-A.T. pulse at 24 s rings out in bells and the sea of souls ascends as a rising shimmer from 26 s | lance 10 s, crosses 12 s, 13.4 s, 14.9 s and 16.3 s, rise 19 s, pulse 24 s |
 
 Timings follow the render modules' own easing windows (for example the Terminator 2
 ignition at 4 s, the 2012 rupture at 3 s, the Armageddon split at 16 s, the
@@ -47,8 +48,8 @@ noncommercial prototyping only.
 
 | Set | Files | Size |
 |---|---:|---:|
-| Beds | 14 | 6.5 MB |
-| Cues | 40 | 2.4 MB |
+| Beds | 15 | 7.2 MB |
+| Cues | 44 | 2.7 MB |
 | Intro | 1 | 48 KB |
 
 Audio still downloads only after sound consent, and only the selected scene's bed
@@ -94,6 +95,11 @@ The four scenes added afterwards (Twister, Dante's Peak, Gravity, The Wandering
 Earth) were checked the same way for decode, duration (beds 30 s, cues 2.5 to 6 s)
 and encoded peaks (beds -12.4 to -12.6 dBFS, cues -8.4 to -13.5 dBFS); their
 listening review is still pending.
+
+The End of Evangelion files (2026-09-15) were checked the same way: the bed is
+30.00 s at -12.5 dBFS and the four cues run 2.6 to 5.0 s at -8.4 to -10.5 dBFS.
+The hymn-like progression is an original chord sequence; nothing from the film's
+score or its closing song was transcribed. Listening review is pending.
 
 ## Rebuilding
 
