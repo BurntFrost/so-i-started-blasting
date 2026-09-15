@@ -70,7 +70,7 @@ const landscape=new THREE.Group();scene.add(landscape);const lawn=new THREE.Mesh
 const debrisCount=300;const debris=new THREE.InstancedMesh(new THREE.BoxGeometry(1,1,1),mat('#6e5140'),debrisCount);effects.add(debris);const debrisSeeds=Array.from({length:debrisCount},()=>[random()*Math.PI*2,random(),random(),random()]);const dummy=new THREE.Object3D();
 const cinema=createCinema({renderer,scene,camera,canvas,sun,buildings,ground,ship,hullMat,core,beam,blast,ocean,wave,meteor,landscape,windows,snow,debris,foam,clouds,glow,telemetry});
 scene.environment=cinema.environment;
-const terrestrial=createTerrestrial({scene,canvas,buildings,landscape});
+const terrestrial=createTerrestrial({scene,canvas,camera,buildings,landscape});
 const cosmic=createCosmic({scene,canvas,camera});
 let production=null,productionRequested=false,authoredWorkPending=false,failed=false;
 const productionAssets=new AbortController();
@@ -241,7 +241,7 @@ renderer.setAnimationLoop(now=>{
  if(!needsRender&&!moved&&!playing){cinema.measure(0,false);telemetry.idle();return;}
  const quality=canvas.dataset.quality;cinema.measure(rawDelta,true);if(quality!==canvas.dataset.quality)updateWorld();
  if(authoredWorkPending&&scenes[selected].world!=='space'){telemetry.markAssetsReady();authoredWorkPending=false;}
- renderer.info.reset();cosmic.updateView();const renderStarted=performance.now();cinema.render();
+ renderer.info.reset();cosmic.updateView();terrestrial.updateView();const renderStarted=performance.now();cinema.render();
  telemetry.frame(now,playing||moved,performance.now()-renderStarted);
  canvas.dataset.triangles=String(renderer.info.render.triangles);canvas.dataset.drawCalls=String(renderer.info.render.calls);
  canvas.dataset.renderState='ready';needsRender=false;
