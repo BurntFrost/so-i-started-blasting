@@ -601,9 +601,66 @@ def wandering_earth():
     ], 4.5, '-11', HALL)
 
 
+def evangelion():
+    n = 'eoe'
+    parts = [
+        # The geofront's sub-harmonic hum and thin dusk air.
+        (synth(f'{n}-hum', 30, voices(('sine', '41'), ('sine', '61.5'), ('sine', '82.4')), ['tremolo', '0.13', '45']), .5),
+        (noise(f'{n}-air', 30, 'pinknoise', ['bandpass', '420', '.9q', 'tremolo', '0.09', '35']), .16),
+        # An original hymn-like progression: A minor, F, D minor, then E resolving to A major as everyone becomes one.
+        (strings(f'{n}-am', ['A2', 'E3', 'A3', 'C4'], 10.5, attack=4, release=3, cutoff='900'), .24),
+        (at(strings(f'{n}-f', ['F2', 'C3', 'F3', 'A3'], 5.5, attack=1.5, release=2, cutoff='1000'), 10), .24),
+        (at(strings(f'{n}-dm', ['D2', 'A2', 'D3', 'F3'], 5.5, attack=1.5, release=2, cutoff='1000'), 15), .26),
+        (at(strings(f'{n}-e', ['E2', 'B2', 'E3', 'G#3'], 5, attack=1.5, release=2, cutoff='1100'), 20), .28),
+        (at(organ(f'{n}-a-major', ['A2', 'E3', 'A3', 'C#4', 'E4'], 7, attack=2.5, release=3), 24), .36),
+        # Nine winged units circle overhead: slow wing beats, then a thin metallic shriek as they settle at 8.
+        (expression(f'{n}-wings', 10, 'sin(2*PI*46*t)*exp(-7*mod(t,1.55))*(0.4+0.6*min(t/3,1))', ['lowpass', '260', 'fade', 't', '.5', '10', '2']), .38),
+        (at(synth(f'{n}-shriek', 3, ['sawtooth', '1180:1520'], ['bandpass', '1600', '1.4q', 'tremolo', '7', '55', 'fade', 'l', '1', '3', '1.5']), 7.5), .06),
+        # The lance falls 10-12 with a whistle and lands with a thump at 12.
+        (at(synth(f'{n}-lance', 2.2, ['sine', '2400:220'], ['tremolo', '22', '30', 'fade', 'l', '.6', '2.2', '.3']), 10), .16),
+        (at(noise(f'{n}-lance-air', 2.2, 'whitenoise', ['bandpass', '2200', '.9q', 'bend', '0,-2000,2.2', 'fade', 'l', '.8', '2.2', '.2']), 10), .12),
+        (at(synth(f'{n}-lance-sub', 3, ['sine', '58:22'], ['fade', 't', '.01', '3', '2.6']), 12), .55),
+        # Crosses of light erupt at 12, 13.4, 14.9, 16.3, 17.6 and 18.7, each with a bright choral ring over the blast tail.
+        (at(noise(f'{n}-cross-tail', 9, 'brownnoise', ['lowpass', '150', 'fade', 't', '.05', '9', '8']), 12), .55),
+    ]
+    for start, vol in ((12, .3), (13.4, .2), (14.9, .18), (16.3, .16), (17.6, .15), (18.7, .14)):
+        parts.append((at(organ(f'{n}-ring-{start:g}', ['A4', 'E5', 'A5'], 3.5, attack=.15, release=2.5), start), vol))
+    parts += [
+        # The A.T. field shimmers over the streets 12-26.
+        (at(synth(f'{n}-field', 14, voices(('sine', '3120'), ('sine', '4680')), ['tremolo', '6', '80', 'highpass', '2600', 'fade', 'l', '2', '14', '3']), 12), .05),
+        (at(noise(f'{n}-field-hiss', 14, 'whitenoise', ['bandpass', '5400', '1.1q', 'tremolo', '5', '50', 'fade', 'l', '2', '14', '3']), 12), .05),
+        # The giant rises 19-26 on a deep organ swell and rumble; the anti-A.T. pulse at 24 rings out in bells.
+        (at(organ(f'{n}-rise', ['A1', 'E2', 'A2'], 11, attack=5, release=4), 19), .4),
+        (at(noise(f'{n}-rumble', 11, 'brownnoise', ['lowpass', '95', 'fade', 'l', '5', '11', '3']), 19), .5),
+        (at(synth(f'{n}-pulse-sub', 5, ['sine', '52:18'], ['fade', 't', '.01', '5', '4.5']), 24), .6),
+        (at(noise(f'{n}-pulse', 5, 'pinknoise', ['lowpass', '700', 'fade', 'h', '.05', '5', '4.5']), 24), .4),
+        (at(synth(f'{n}-bells', 6, voices(('sine', '880'), ('sine', '1320'), ('sine', '2200')), ['fade', 't', '.005', '6', '5.5', 'highpass', '400']), 24), .14),
+        # The sea of souls ascends 26-30 as a rising shimmer.
+        (at(noise(f'{n}-ascend', 4, 'pinknoise', ['bandpass', '900', '.7q', 'bend', '0,2400,4', 'fade', 'l', '2.5', '4', '.5']), 26), .3),
+    ]
+    bed('evangelion', parts, HALL)
+    cue('evangelion-lance', [
+        (synth(f'{n}-cue-lance', 2.4, ['sine', '2600:240'], ['tremolo', '22', '30', 'fade', 'l', '.5', '2.4', '.3']), .7),
+        (noise(f'{n}-cue-lance-air', 2.4, 'whitenoise', ['bandpass', '2400', '.9q', 'bend', '0,-2100,2.4', 'fade', 'l', '.6', '2.4', '.2']), .6),
+        (at(synth(f'{n}-cue-lance-thump', .6, ['sine', '70:24'], ['fade', 't', '.005', '.6', '.5']), 2), .9),
+    ], 2.6, '-10', DRY)
+    cue('evangelion-cross', boom(f'{n}-cue-cross', 4.5, '92', '24', '700') + [
+        (organ(f'{n}-cue-cross-ring', ['A4', 'E5', 'A5', 'C#6'], 4.5, attack=.12, release=3.5), .45),
+        (noise(f'{n}-cue-cross-crack', .4, 'whitenoise', ['bandpass', '1500', '.8q', 'fade', 't', '0', '.4', '.35']), .5),
+    ], 4.5, '-8', HALL)
+    cue('evangelion-rise', [
+        (organ(f'{n}-cue-rise', ['A1', 'E2', 'A2', 'E3'], 5, attack=2.5, release=2.5), .8),
+        (noise(f'{n}-cue-rise-rumble', 5, 'brownnoise', ['lowpass', '110', 'fade', 'l', '2.5', '5', '2']), .7),
+    ], 5, '-10', HALL)
+    cue('evangelion-pulse', boom(f'{n}-cue-pulse', 4, '70', '18', '500') + [
+        (synth(f'{n}-cue-pulse-bell', 4, voices(('sine', '880'), ('sine', '1320'), ('sine', '2200')), ['fade', 't', '.005', '4', '3.6', 'highpass', '400']), .35),
+        (noise(f'{n}-cue-pulse-whoosh', 4, 'pinknoise', ['lowpass', '900', 'fade', 'h', '.05', '4', '3.5']), .5),
+    ], 4, '-9', HALL)
+
+
 SCENES = [independence_day, deep_impact, day_after_tomorrow, day_the_earth_stood_still, terminator_2,
           year_2012, war_of_the_worlds, knowing, armageddon, interstellar,
-          twister, dantes_peak, gravity, wandering_earth]
+          twister, dantes_peak, gravity, wandering_earth, evangelion]
 
 
 def main(names=()):

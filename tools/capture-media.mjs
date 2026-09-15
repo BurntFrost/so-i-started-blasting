@@ -16,7 +16,7 @@ try {
   await page.goto(process.env.TEST_BASE_URL || 'http://127.0.0.1:4174');
   await page.locator('#world[data-authored-assets="ready"]').waitFor();
   for (const [index, seconds, name] of [[0, 16, 'alien-impact'], [1, 22, 'tsunami'], [2, 24, 'superstorm'], [3, 22, 'visitation'], [4, 12, 'nuclear'], [7, 18, 'solar'], [8, 18, 'asteroid'], [9, 12, 'black-hole'],
-    [10, 17, 'tornado'], [11, 20, 'eruption'], [12, 15, 'debris-cascade'], [13, 23, 'jupiter']]) {
+    [10, 17, 'tornado'], [11, 20, 'eruption'], [12, 15, 'debris-cascade'], [13, 23, 'jupiter'], [14, 25, 'third-impact']]) {
     await page.locator(`.scene-card[data-scene="${index}"]`).click();
     await page.locator('#progress').evaluate((input, time) => {
       input.value = String(time); input.dispatchEvent(new Event('input', { bubbles: true }));

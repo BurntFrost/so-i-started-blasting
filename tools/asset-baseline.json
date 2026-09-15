@@ -1,7 +1,7 @@
 {
   "schema": 1,
   "status": "Current checked-in asset baseline; original byte-for-byte toolchain provenance is not asserted.",
-  "verifiedAt": "2026-09-13",
+  "verifiedAt": "2026-09-15",
   "tools": {
     "blender": "5.2.1 LTS (build 2026-08-25)",
     "gltf-transform": "4.5.0",
@@ -68,6 +68,14 @@
       "sha256": "0b11d19e22a5a325d45dd1673309e203a31acf0c17284b1585f0958593f6766f",
       "bytes": 2539662
     },
+    "dist/assets/at-field.webp": {
+      "sha256": "d397655a95ff93ecedf804c1f64bc9e3e9d406f24e52478d2d0a3ec25a82b94d",
+      "bytes": 62436
+    },
+    "dist/assets/at-field-4k.webp": {
+      "sha256": "4fc0ee1cde62a51967cf46b28290704e82bda8802eb867a6735342027e26f79e",
+      "bytes": 348276
+    },
     "dist/assets/audio/2012-collapse.mp3": {
       "sha256": "e43063e59f0b7db7bfc567aee0ed922be6c2ee2c74092171fd9549691493cabe",
       "bytes": 41003
@@ -110,6 +118,10 @@
     },
     "dist/assets/audio/bed-deep-impact.mp3": {
       "sha256": "bc57e3b216115b01f1242abe35f8f0dadad3de8ad63f25828f68132cbc1fa260",
+      "bytes": 481114
+    },
+    "dist/assets/audio/bed-evangelion.mp3": {
+      "sha256": "8ab23c4b336343333ba0d96d919fc33e897331031dac45f3a2785b92f061960c",
       "bytes": 481114
     },
     "dist/assets/audio/bed-gravity.mp3": {
@@ -194,6 +206,22 @@
     },
     "dist/assets/audio/deep-impact-surge.mp3": {
       "sha256": "d542f3e4c50b35209fe160c9b8b89f452d604a981993321cd41294378fce1f10",
+      "bytes": 81127
+    },
+    "dist/assets/audio/evangelion-cross.mp3": {
+      "sha256": "20aaa8507755811c929e154d949cc20fedef7b8f5b952618f690ae7297a1ea07",
+      "bytes": 73185
+    },
+    "dist/assets/audio/evangelion-lance.mp3": {
+      "sha256": "25c6b4fea009f50fc617c251b236c1b150c0d9b6b2ca69493754826bdef33c88",
+      "bytes": 42674
+    },
+    "dist/assets/audio/evangelion-pulse.mp3": {
+      "sha256": "d694215ff36b43dff901ba105d0056a040412f7fc8e0d09d994fda997ff55314",
+      "bytes": 65244
+    },
+    "dist/assets/audio/evangelion-rise.mp3": {
+      "sha256": "c6971a5a37daf61bab3e92521506b9c8d5e0bba658d92c872c7bbca3a5c1318e",
       "bytes": 81127
     },
     "dist/assets/audio/gravity-adrift.mp3": {

@@ -18,4 +18,5 @@ export const sceneConfigs = {
   'dantes-peak': {world:'landscape',renderer:'terrestrial',camera:[92,52,136],target:[-22,48,-95],environment:{...daylight,fog:'#5b5350',fogDensity:.0015,fogGrowth:.0024,sun:'#ffd0a4',sunIntensity:2.1,hemi:'#a9b1b3',hemiIntensity:.36,rimIntensity:1.6,environmentIntensity:.6,skyTint:'#b3aea6',skyExposure:.44,skyStorm:.7}},
   'gravity': {...space,renderer:'cosmic',camera:[88,58,112],target:[0,40,0],environment:{...starlight}},
   'wandering-earth': {...space,renderer:'cosmic',target:[0,42,0],environment:{...starlight}},
+  'evangelion': {...city,renderer:'terrestrial',camera:[112,50,148],target:[-6,52,-28],environment:{...daylight,fog:'#4a2329',fogDensity:.002,fogGrowth:.0016,sun:'#ff9d75',sunIntensity:2,hemi:'#a37a85',hemiIntensity:.34,rim:'#ffa070',rimIntensity:2.6,environmentIntensity:.5,skyTint:'#c96e5e',skyExposure:.4,skyStorm:.62}},
 };

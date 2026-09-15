@@ -56,6 +56,11 @@ export const audioFiles = {
   'wandering-earth-ignition': '/assets/audio/wandering-earth-ignition.mp3',
   'wandering-earth-detonation': '/assets/audio/wandering-earth-detonation.mp3',
   'wandering-earth-escape': '/assets/audio/wandering-earth-escape.mp3',
+  'bed-evangelion': '/assets/audio/bed-evangelion.mp3',
+  'evangelion-lance': '/assets/audio/evangelion-lance.mp3',
+  'evangelion-cross': '/assets/audio/evangelion-cross.mp3',
+  'evangelion-rise': '/assets/audio/evangelion-rise.mp3',
+  'evangelion-pulse': '/assets/audio/evangelion-pulse.mp3',
   intro: '/assets/audio/intro.mp3',
 };
 export const sceneSoundtracks = {
@@ -73,6 +78,7 @@ export const sceneSoundtracks = {
   'dantes-peak': { bed: 'bed-dantes-peak', cues: [cue(6, 'dantes-peak-eruption'), cue(9.4, 'dantes-peak-lightning', .6), cue(13.5, 'dantes-peak-surge', .6), cue(17.7, 'dantes-peak-lightning', .5), cue(24, 'dantes-peak-surge', .75)] },
   gravity: { bed: 'bed-gravity', cues: [cue(6, 'gravity-alert', .5), cue(11.3, 'gravity-impact'), cue(14.6, 'gravity-impact', .75), cue(17.9, 'gravity-impact', .55), cue(22, 'gravity-adrift', .6)] },
   'wandering-earth': { bed: 'bed-wandering-earth', cues: [cue(16, 'wandering-earth-ignition', .6), cue(22, 'wandering-earth-detonation'), cue(25.5, 'wandering-earth-escape', .65)] },
+  evangelion: { bed: 'bed-evangelion', cues: [cue(10, 'evangelion-lance', .6), cue(12, 'evangelion-cross'), cue(13.4, 'evangelion-cross', .55), cue(14.9, 'evangelion-cross', .45), cue(16.3, 'evangelion-cross', .4), cue(19, 'evangelion-rise', .75), cue(24, 'evangelion-pulse')] },
 };
 
 export function crossedAudioCues(previous, next, discontinuity = false) {

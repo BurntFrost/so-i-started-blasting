@@ -38,7 +38,7 @@ asset checksums, the exact production build, and the committed WebGL browser sui
 The GitHub Actions job is named **quality** for the required merge check; it runs on
 pull requests and pushes to main with read-only repository permissions. The browser
 revision is tied to the Playwright lockfile and uses software WebGL on CI. Browser
-tests cover all fourteen scenes, reverse scrubbing, paused orbit, fullscreen controls,
+tests cover all fifteen scenes, reverse scrubbing, paused orbit, fullscreen controls,
 phone layout, a failed optional asset, module/WebGL startup errors, genuine context
 loss, and DNT/GPC telemetry suppression. Failure traces are retained for seven days.
 These checks establish functional correctness, not physical-phone frame rates.
@@ -127,6 +127,9 @@ cwebp -q 88 -m 6 work/4k/nebula-4k.png -o dist/assets/nebula-4k.webp
 blender -b -t 8 --python tools/bake-explosion.py -- --frames 32 --size 512
 ffmpeg -y -framerate 1 -i work/explosion-bake/frames-512/%03d.png -vf tile=8x4 -frames:v 1 \
   -c:v libwebp -quality 85 -compression_level 6 dist/assets/explosion-puff-4k.webp
+
+# 4K A.T. field lattice for The End of Evangelion: seamless hexagon mask at 4096 px plus its 1024 px Lanczos downscale
+python3 tools/author-at-field.py
 ```
 
 `node tools/capture-media.mjs` accepts `CAPTURE_SCALE=2` to capture native Retina
@@ -136,8 +139,8 @@ frames into `work/media-review-2x` for reviewing the ULTRA tier.
 
 The synthesis source is `author-audio.py`; run `python3 tools/author-audio.py` with the
 installed SoX and FFmpeg commands (about fifteen seconds). Pass scene function names (for
-example `twister gravity`) to render only those files. It composes fourteen 30-second beds, one
-per scene, against each scene's visual timeline, plus thirty-eight short transient cues
+example `twister gravity`) to render only those files. It composes fifteen 30-second beds, one
+per scene, against each scene's visual timeline, plus forty-four short transient cues
 (`<scene>-<event>.mp3`). Layers are SoX oscillators and seeded noise with filters, bends,
 tremolo and reverb, and FFmpeg `aevalsrc` expressions for organ clusters, ticking clocks,
 sirens, countdown beeps and impulse trains. Beds are peak-normalized to -12 dBFS and cues

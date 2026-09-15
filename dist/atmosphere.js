@@ -73,7 +73,7 @@ export function createAtmosphere({ scene, camera, canvas }) {
     dummy.updateMatrix(); mist.setMatrixAt(i, dummy.matrix);
   }
   mist.instanceMatrix.needsUpdate = true; scene.add(mist);
-  const whiteout = new THREE.Color('#c4d4dd');
+  const whiteout = new THREE.Color('#c4d4dd'), dawn = new THREE.Color('#ffb48f');
   for (const dome of [celestial, cloudDome]) dome.onBeforeRender = () => {
     dome.position.copy(camera.position); dome.updateMatrixWorld();
   };
@@ -100,7 +100,7 @@ export function createAtmosphere({ scene, camera, canvas }) {
   return {
     update(t, config) {
       const space = Boolean(config.space), storm = config.id === 'day-after-tomorrow';
-      const supercell = config.id === 'twister', ashfall = config.id === 'dantes-peak';
+      const supercell = config.id === 'twister', ashfall = config.id === 'dantes-peak', instrumentality = config.id === 'evangelion';
       const quality = canvas.dataset.quality || 'high';
       clock.value = t; celestial.visible = space; cloudDome.visible = !space;
       mist.visible = !space && quality !== 'lite'; mist.count = quality === 'high' || quality === 'ultra' ? 12 : 6;
@@ -108,14 +108,16 @@ export function createAtmosphere({ scene, camera, canvas }) {
       celestialMaterial.uniforms.strength.value = config.id === 'interstellar' ? .22 : .35;
       celestial.rotation.y = .7;
       // The supercell ceiling is dense from the start; the ash ceiling thickens as the column spreads;
-      // the superstorm ceiling races overhead and whitens as the blizzard closes in.
-      cloudMaterial.uniforms.density.value = storm ? .7 + clamp((t - 4) / 16) * .28 : supercell ? .74 : ashfall ? .26 + clamp((t - 8) / 14) * .52 : .24;
-      cloudMaterial.uniforms.wind.value = storm ? 5 + clamp(t / 20) * 7 : supercell ? 2.5 : 1;
-      cloudMaterial.uniforms.tint.value.set(storm ? '#597487' : supercell ? '#3d4b45' : ashfall ? '#4c4541' : config.id === 'war-of-the-worlds' ? '#655e79' : '#82909a');
+      // the superstorm ceiling races overhead and whitens as the blizzard closes in; the Third Impact
+      // ceiling is a dusk-red haze that thickens as the giant rises and warms to dawn after the pulse.
+      cloudMaterial.uniforms.density.value = storm ? .7 + clamp((t - 4) / 16) * .28 : supercell ? .74 : ashfall ? .26 + clamp((t - 8) / 14) * .52 : instrumentality ? .3 + clamp((t - 19) / 9) * .38 : .24;
+      cloudMaterial.uniforms.wind.value = storm ? 5 + clamp(t / 20) * 7 : supercell ? 2.5 : instrumentality ? 1.8 : 1;
+      cloudMaterial.uniforms.tint.value.set(storm ? '#597487' : supercell ? '#3d4b45' : ashfall ? '#4c4541' : instrumentality ? '#7d3b3d' : config.id === 'war-of-the-worlds' ? '#655e79' : '#82909a');
       if (storm) cloudMaterial.uniforms.tint.value.lerp(whiteout, clamp((t - 8) / 18) * .6);
+      if (instrumentality) cloudMaterial.uniforms.tint.value.lerp(dawn, clamp((t - 22) / 8) * .75);
       mistMaterial.uniforms.tint.value.set(config.environment.fog);
-      mistMaterial.uniforms.density.value = storm ? .23 + clamp((t - 6) / 20) * .22 : supercell ? .23 : ashfall ? .18 : .11;
-      canvas.dataset.atmosphere = space ? 'interstellar-dust' : storm ? 'superstorm' : supercell ? 'supercell' : ashfall ? 'ashfall' : 'layered-haze';
+      mistMaterial.uniforms.density.value = storm ? .23 + clamp((t - 6) / 20) * .22 : supercell ? .23 : ashfall ? .18 : instrumentality ? .16 : .11;
+      canvas.dataset.atmosphere = space ? 'interstellar-dust' : storm ? 'superstorm' : supercell ? 'supercell' : ashfall ? 'ashfall' : instrumentality ? 'instrumentality' : 'layered-haze';
       canvas.dataset.atmosphereLayers = String(space || quality === 'lite' ? 1 : 2);
     }
   };

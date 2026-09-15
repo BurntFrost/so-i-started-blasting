@@ -84,6 +84,7 @@ const freeze=new THREE.Color('#c0d6e2');
 controls.addEventListener('change',()=>{needsRender=true;});
 canvas.addEventListener('atmosphere-ready',()=>{needsRender=true;});
 canvas.addEventListener('explosion-ready',()=>{updateWorld();});
+canvas.addEventListener('at-field-ready',()=>{updateWorld();});
 function resetCamera(){
  const s=scenes[selected];camera.position.set(...s.camera);controls.target.set(...s.target);controls.update();needsRender=true;
 }

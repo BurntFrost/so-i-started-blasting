@@ -51,6 +51,8 @@ async function select(page, index) {
   await page.locator(`.scene-card[data-scene="${index}"]`).click();
   await expect(page.locator('#world')).toHaveAttribute('data-scene', scenes[index].id);
   if (index === 4) await expect(page.locator('#world')).toHaveAttribute('data-explosion-bake', /ready|fallback/);
+  // The A.T. field mask arrives asynchronously; screenshots must not straddle its arrival.
+  if (scenes[index].id === 'evangelion') await expect(page.locator('#world')).toHaveAttribute('data-at-field-texture', /ready|fallback/);
   await expect(page.locator('.scene-card[aria-pressed="true"]')).toHaveCount(1);
 }
 async function expectFailure(page, stage) {
@@ -98,8 +100,8 @@ test('every built scene renders offline from CDNs, scrubs reversibly, and keeps 
   await page.locator('#fullscreen').click();
   await expect.poll(() => page.evaluate(() => document.fullscreenElement === null)).toBe(true);
   await page.setViewportSize({ width: 390, height: 844 });
-  // City scenes (including the superstorm's drifts and icicles) and the three landscape scenes carry the most geometry; the space scenes confirm the budget everywhere.
-  for (const index of [0, 2, 3, 4, 5, 6, 10, 11, 12, 13]) {
+  // City scenes (including the superstorm's drifts and icicles, and the Third Impact's giant) and the three landscape scenes carry the most geometry; the space scenes confirm the budget everywhere.
+  for (const index of [0, 2, 3, 4, 5, 6, 10, 11, 12, 13, 14]) {
     await select(page, index);
     await seek(page, 18);
     await expect(page.locator('#world')).toHaveAttribute('data-quality', /balanced|lite/);
@@ -268,7 +270,7 @@ test.describe('desktop ULTRA rendering', () => {
   test('dense desktop displays render native pixels with the 4K assets and stay reversible', async ({ page }) => {
     const errors = await observe(page);
     const assets = [];
-    page.on('request', request => { if (/dusk-2k|nebula-4k|explosion-puff-4k/.test(request.url())) assets.push(request.url().replace(/.*\//, '').replace(/\.[a-f0-9]{16}\./, '.')); });
+    page.on('request', request => { if (/dusk-2k|nebula-4k|explosion-puff-4k|at-field-4k/.test(request.url())) assets.push(request.url().replace(/.*\//, '').replace(/\.[a-f0-9]{16}\./, '.')); });
     await load(page);
     const canvas = page.locator('#world');
     await expect(canvas).toHaveAttribute('data-quality-ceiling', 'ultra');
@@ -290,13 +292,16 @@ test.describe('desktop ULTRA rendering', () => {
     await select(page, 9);
     await expect(canvas).toHaveAttribute('data-nebula-texture', 'ready');
     await expect(canvas).toHaveAttribute('data-nebula-resolution', '4096');
-    expect([...new Set(assets)].sort()).toEqual(['dusk-2k.hdr', 'explosion-puff-4k.webp', 'nebula-4k.webp']);
+    await select(page, 14);
+    await expect(canvas).toHaveAttribute('data-at-field-texture', 'ready');
+    await expect(canvas).toHaveAttribute('data-at-field-resolution', '4096');
+    expect([...new Set(assets)].sort()).toEqual(['at-field-4k.webp', 'dusk-2k.hdr', 'explosion-puff-4k.webp', 'nebula-4k.webp']);
     // The asset ceiling is fixed at startup; shrinking only lowers the runtime tier, and the retained
     // ULTRA tessellation must still fit the phone geometry budget.
     await page.setViewportSize({ width: 390, height: 844 });
     await expect(canvas).toHaveAttribute('data-quality', /balanced|lite/);
     await expect(canvas).toHaveAttribute('data-quality-ceiling', 'ultra');
-    for (const index of [0, 4, 7]) {
+    for (const index of [0, 4, 7, 14]) {
       await select(page, index);
       await seek(page, 18);
       expect(Number(await canvas.getAttribute('data-triangles')), `${scenes[index].id}: phone budget with ULTRA tessellation`).toBeLessThan(150000);
