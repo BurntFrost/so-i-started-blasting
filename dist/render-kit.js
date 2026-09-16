@@ -1,5 +1,46 @@
 import * as THREE from 'three';
 
+// Effects render in colour but never in the shared opaque normal/depth buffer.
+export const EFFECTS_LAYER = 1;
+export function markEffect(object) {
+  object.traverse(child => {
+    if (child.isMesh || child.isPoints || child.isLine || child.isSprite) {
+      child.layers.set(EFFECTS_LAYER); child.castShadow = false;
+    }
+  });
+  return object;
+}
+// Transparent or additive renderables are effects unless flagged opaqueDepth: water and other physical surfaces that
+// must still occlude and stop volume marches despite their alpha.
+export function markEffects(root) {
+  root.traverse(object => {
+    if (object.userData.opaqueDepth) return;
+    const materials = [].concat(object.material || []);
+    if (object.isPoints || object.isLine || object.isSprite || materials.some(m => m.transparent || m.blending === THREE.AdditiveBlending)) markEffect(object);
+  });
+  return root;
+}
+const depthContexts = new WeakMap();
+export function opaqueDepthUniforms(canvas) {
+  if (!depthContexts.has(canvas)) depthContexts.set(canvas, {
+    opaqueDepth: {value: null}, opaqueDepthAvailable: {value: 0},
+    opaqueInverseSize: {value: new THREE.Vector2(1, 1)},
+    opaqueProjectionInverse: {value: new THREE.Matrix4()}, opaqueCameraWorld: {value: new THREE.Matrix4()},
+    opaqueNear: {value: 1}, opaqueFar: {value: 1000}
+  });
+  return depthContexts.get(canvas);
+}
+export const opaqueDepthGLSL = `
+uniform sampler2D opaqueDepth;
+uniform float opaqueDepthAvailable,opaqueNear,opaqueFar;
+uniform vec2 opaqueInverseSize;
+uniform mat4 opaqueProjectionInverse,opaqueCameraWorld;
+vec3 opaqueWorldPoint(vec2 uv,float depth){
+  vec4 view=opaqueProjectionInverse*vec4(uv*2.-1.,depth*2.-1.,1.);
+  return (opaqueCameraWorld*vec4(view.xyz/view.w,1.)).xyz;
+}`;
+
+
 const ease = value => { const t = Math.max(0, Math.min(1, value)); return t * t * (3 - 2 * t); };
 const noise = `
 float hash(vec3 p){return fract(sin(dot(p,vec3(127.1,311.7,74.7)))*43758.5453);}
@@ -15,7 +56,7 @@ float fbm(vec3 p){return noise(p)*.57+noise(p*2.03)*.28+noise(p*4.11)*.15;}`;
 // the camera. `field` returns (density, share, grain). `terrain` mirrors the landscape height for `terrainCut`.
 export const volumeGLSL = `${noise}
 float terrain(vec2 xz){return -.5+(sin(xz.x*.022)*cos(xz.y*.027)*5.-sin(xz.y*.06)*1.5)*clamp((length(xz)-25.)/80.,0.,1.);}`;
-export const volumeUniforms = extra => ({ time: { value: 0 }, steps: { value: 32 }, inside: { value: 0 }, flash: { value: 0 }, flashPoint: { value: new THREE.Vector3() },
+export const volumeUniforms = (extra, canvas) => ({ ...opaqueDepthUniforms(canvas), time: { value: 0 }, steps: { value: 32 }, inside: { value: 0 }, flash: { value: 0 }, flashPoint: { value: new THREE.Vector3() },
   origin: { value: new THREE.Vector3() }, sunDirection: { value: new THREE.Vector3(-90, 85, -110).normalize() },
   sunColor: { value: new THREE.Color('#b7c4b4').multiplyScalar(1.05) }, skyColor: { value: new THREE.Color('#8da39c') },
   fogColor: { value: new THREE.Color('#46524d') }, fogDensity: { value: .0027 }, ...extra });
@@ -26,12 +67,19 @@ export function marchedVolume({ name, geometry, uniforms, vertexShader = hullVer
   const material = new THREE.ShaderMaterial({ uniforms, vertexShader, transparent: true, depthWrite: false,
     fragmentShader: `uniform float time,steps,inside,flash,fogDensity;uniform vec3 origin,sunDirection,sunColor,skyColor,fogColor,flashPoint;varying vec3 hullPoint;
       ${volumeGLSL}
+      ${opaqueDepthGLSL}
       ${declare}
       ${field}
       void main(){
         vec3 rayDir=normalize(hullPoint-cameraPosition);
         vec3 start=inside>.5?cameraPosition:hullPoint;
         float span=inside>.5?length(hullPoint-cameraPosition):(${span});
+        if(opaqueDepthAvailable>.5){
+          vec2 uv=gl_FragCoord.xy*opaqueInverseSize;
+          float depth=texture2D(opaqueDepth,uv).x;
+          if(depth<1.)span=min(span,dot(opaqueWorldPoint(uv,depth)-start,rayDir));
+        }
+        if(span<=0.)discard;
         // A per-pixel offset turns step slices into fine noise; it depends only on the pixel, so scrubbing stays exact.
         float dt=clamp(span/steps,${dt}),s=fract(sin(dot(gl_FragCoord.xy,vec2(12.9898,78.233)))*43758.5453)*dt;
         float alpha=0.,firstHit=-1.;vec3 col=vec3(0.);
@@ -57,7 +105,7 @@ export function marchedVolume({ name, geometry, uniforms, vertexShader = hullVer
       }` });
   const mesh = new THREE.Mesh(geometry, material);
   mesh.name = name; mesh.frustumCulled = false; mesh.renderOrder = renderOrder; mesh.visible = false;
-  return mesh;
+  return markEffect(mesh);
 }
 export function setInside(volume, inside) {
   volume.material.uniforms.inside.value = inside ? 1 : 0; volume.material.side = inside ? THREE.BackSide : THREE.FrontSide;

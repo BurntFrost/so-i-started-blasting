@@ -1,4 +1,5 @@
 import * as THREE from 'three';
+import { markEffect } from './render-kit.js';
 
 // 32 Blender volume renders, packed left-to-right in eight columns.
 // Sampling absolute scene time keeps pause, replay, and reverse scrubbing exact.
@@ -44,6 +45,7 @@ export function createBakedExplosion({ canvas, cloud, core }) {
     smoke.name = 'Baked volumetric mushroom cloud lobes';
     smoke.frustumCulled = false;
     smoke.renderOrder = 1;
+    markEffect(smoke); markEffect(cloud);
     cloud.parent.add(smoke);
     cloud.material.transparent = true;
     cloud.material.depthWrite = false;

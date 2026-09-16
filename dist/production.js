@@ -1,4 +1,5 @@
 import * as THREE from 'three';
+import { markEffect, markEffects } from './render-kit.js';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import { RGBELoader } from 'three/addons/loaders/RGBELoader.js';
 import { MeshoptDecoder } from 'three/addons/libs/meshopt_decoder.module.js';
@@ -56,7 +57,7 @@ export async function createProduction(world) {
     #include <colorspace_fragment>
     gl_FragColor.rgb=mix(gl_FragColor.rgb,air,horizon);
     }`});
-  sky=new THREE.Mesh(new THREE.SphereGeometry(750,32,16),skyMaterial);sky.rotation.y=2.8;sky.renderOrder=-10;sky.frustumCulled=false;scene.add(sky);
+  sky=new THREE.Mesh(new THREE.SphereGeometry(750,32,16),skyMaterial);sky.rotation.y=2.8;sky.renderOrder=-10;sky.frustumCulled=false;markEffect(sky);scene.add(sky);
   sky.onBeforeRender=()=>{sky.position.copy(camera.position);sky.updateMatrixWorld();scene.fog.color.getRGB(skyMaterial.uniforms.air.value,renderer.getRenderTarget()?THREE.LinearSRGBColorSpace:renderer.outputColorSpace);};
 
   }
@@ -162,7 +163,7 @@ export async function createProduction(world) {
     #include <tonemapping_fragment>
     #include <colorspace_fragment>
     }`});
-  const fire=new THREE.Mesh(new THREE.SphereGeometry(1,80,48),fireMaterial);scene.add(fire);
+  const fire=new THREE.Mesh(new THREE.SphereGeometry(1,80,48),fireMaterial);markEffect(fire);scene.add(fire);
   const cloudRoot=kit?.scene.getObjectByName('Tree_A');
   const terrainHeight=(x,z)=>-.5+(Math.sin(x*.022)*Math.cos(z*.027)*5-Math.sin(z*.06)*1.5)*clamp((Math.hypot(x,z)-25)/80);
   // The authored tree is HIGH-tier geometry (about 5,200 triangles each); lower tiers keep the procedural crowns.
@@ -232,5 +233,6 @@ export async function createProduction(world) {
     }
     canvas.dataset.authoredAssets=Object.values(assetStatus).includes('failed')?'degraded':'ready';
   }
+  markEffects(cityDetails); markEffects(ship);
   return {update,environment:environment?.texture || null,assetStatus};
 }
