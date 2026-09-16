@@ -172,6 +172,13 @@ export function validateSceneSets(before, after) {
   return beforeScenes;
 }
 
+export function parseAbsoluteError(output) {
+  const match = output.trim().match(/^([0-9]+(?:\.[0-9]+)?)/);
+  const pixels = match ? Number(match[1]) : NaN;
+  if (!Number.isFinite(pixels)) throw new Error('ImageMagick returned no pixel count');
+  return pixels;
+}
+
 async function compare(options) {
   const [before, after] = await Promise.all([loadCaptureSet(options.before), loadCaptureSet(options.after)]);
   const beforeScenes = validateSceneSets(before, after);
@@ -181,8 +188,9 @@ async function compare(options) {
     const diff = join(options.output, `${scene}.png`);
     const result = spawnSync('magick', ['compare', '-metric', 'AE', before.get(scene), after.get(scene), diff], { encoding: 'utf8' });
     if (result.error || ![0, 1].includes(result.status)) throw new Error(`ImageMagick compare failed for ${scene}: ${result.error?.message || result.stderr.trim()}`);
-    const pixels = Number((result.stderr || result.stdout).trim().split(/\s+/).at(-1));
-    if (!Number.isFinite(pixels)) throw new Error(`ImageMagick returned no pixel count for ${scene}`);
+    let pixels;
+    try { pixels = parseAbsoluteError(result.stderr || result.stdout); }
+    catch { throw new Error(`ImageMagick returned no pixel count for ${scene}`); }
     differences.push({ scene, pixels, file: `${scene}.png` });
     console.log(`${scene}\t${pixels}`);
   }

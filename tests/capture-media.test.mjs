@@ -3,7 +3,7 @@ import { mkdtemp, writeFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import { tmpdir } from 'node:os';
 import test from 'node:test';
-import { loadCaptureSet, parseArgs, QUALITY, SCENES, validateSceneSets } from '../tools/capture-media.mjs';
+import { loadCaptureSet, parseAbsoluteError, parseArgs, QUALITY, SCENES, validateSceneSets } from '../tools/capture-media.mjs';
 
 test('capture catalogue contains all fifteen unique scene ids and browser tier profiles', () => {
   assert.equal(SCENES.length, 15);
@@ -37,4 +37,10 @@ test('comparison requires matching scene sets', () => {
   const before = new Map([['twister', 'before.png']]);
   assert.deepEqual(validateSceneSets(before, new Map([['twister', 'after.png']])), ['twister']);
   assert.throws(() => validateSceneSets(before, new Map([['knowing', 'after.png']])), /scene sets differ/);
+});
+
+test('ImageMagick absolute-error output uses the leading pixel count', () => {
+  assert.equal(parseAbsoluteError('0 (0)'), 0);
+  assert.equal(parseAbsoluteError('123 (0.001)'), 123);
+  assert.throws(() => parseAbsoluteError('(0)'), /no pixel count/);
 });

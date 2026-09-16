@@ -11,6 +11,7 @@ Validation:
 
 - `npm test`: 104/104 passing, including 3 new tooling tests at that point.
 - Final focused tooling suite: 4/4 passing after adding mismatched-set coverage.
+- Follow-up compare parser suite: 5/5 passing; ImageMagick's `0 (0)` output now reads the leading absolute-error pixel count.
 - `node tools/check-syntax.mjs`: all 16 distribution modules pass.
 - `git diff --check`: clean.
 
