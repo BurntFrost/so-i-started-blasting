@@ -1,4 +1,5 @@
 work/
+.superpowers/
 outputs/
 .DS_Store
 build/
