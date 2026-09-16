@@ -1,4 +1,5 @@
 import * as THREE from 'three';
+import { marchedVolume, setInside, volumeUniforms } from './volumes.js';
 
 const TAU = Math.PI * 2;
 const clamp = x => Math.max(0, Math.min(1, x));
@@ -162,13 +163,13 @@ export function createCosmic({ scene, canvas, camera }) {
     void main(){vec3 p=normalize(point);float grain=fbm(p*39.+vec3(0.,time*.12,0.));float churn=fbm(p*17.-vec3(time*.05,0.,time*.03));
     float cells=noise(p*83.+grain*2.);float spots=smoothstep(.63,.76,fbm(p*8.));
     float limb=.48+.52*pow(abs(dot(normalize(viewNormal),normalize(viewDirection))),.35);
-    vec3 color=mix(vec3(1.6,.12,.008),vec3(3.7,1.25,.18),smoothstep(.22,.74,grain*.75+churn*.25));
+    vec3 color=mix(vec3(1.05,.16,.02),vec3(2.2,.95,.2),smoothstep(.22,.74,grain*.75+churn*.25));
     float region=pow(max(dot(p,site),0.),14.);float faculae=smoothstep(.42,.72,fbm(p*15.+vec3(time*.25)))*region;
-    color*=mix(.74,1.22,cells)*(1.-spots*.72)*limb;
-    color+=vec3(2.8,1.5,.4)*activity*(region*.8+faculae*2.2)+vec3(1.,.55,.2)*phase*.35;
+    color*=mix(.6,1.3,cells)*(1.-spots*.75)*limb;
+    color+=vec3(2.2,1.2,.35)*activity*(region*.6+faculae*1.6)+vec3(.8,.45,.18)*phase*.3;
     gl_FragColor=vec4(color,1.);${output}}`
   }));
-  sun.add(sunSurface, atmosphere(32.8, '#ff9a24', 1.1), atmosphere(36.5, '#e84b0c', .34));
+  sun.add(sunSurface, atmosphere(32.8, '#ff9a24', .9), atmosphere(36.5, '#e84b0c', .2));
   // The corona is a camera-facing plane through the sun's centre; the photosphere occludes its inner disk.
   const spriteVertex = 'varying vec2 spriteUv;void main(){spriteUv=uv*2.-1.;gl_Position=projectionMatrix*modelViewMatrix*vec4(position,1.);}';
   const corona = new THREE.Mesh(new THREE.PlaneGeometry(1, 1), new THREE.ShaderMaterial({
@@ -188,7 +189,7 @@ export function createCosmic({ scene, canvas, camera }) {
     uniforms: { flash }, vertexShader: spriteVertex,
     fragmentShader: `uniform float flash;varying vec2 spriteUv;void main(){float r=length(spriteUv);float ang=atan(spriteUv.y,spriteUv.x);
     float core=pow(max(0.,1.-r*1.6),2.5);float halo=exp(-r*3.2)*.7;
-    float rays=(pow(abs(sin(ang*5.+.7)),28.)*.7+pow(abs(sin(ang*13.-.4)),60.)*.45)*(1.-smoothstep(.15,1.,r));
+    float rays=(pow(abs(sin(ang*5.+.7)),28.)*.3+pow(abs(sin(ang*13.-.4)),60.)*.18)*(1.-smoothstep(.15,1.,r));
     gl_FragColor=vec4(vec3(3.6,2.4,1.3)*(core*1.4+halo+rays)*flash,flash*min(1.,core*2.+halo+rays));${output}}`,
     transparent: true, depthWrite: false, depthTest: false, blending: THREE.AdditiveBlending
   }));
@@ -226,7 +227,7 @@ export function createCosmic({ scene, canvas, camera }) {
   bubble.name = 'Coronal mass ejection'; bubble.visible = false; solar.add(bubble);
   const light = new THREE.Vector3().subVectors(sunCenter, earthCenter).normalize().multiplyScalar(.55).add(new THREE.Vector3(-.65, .5, .8).multiplyScalar(.45));
   const solarEarth = earth(9, earthCenter, 1, light); solar.add(solarEarth.group);
-  const stream = particles(solar, 16000, 'flare', '#ffac44');
+  const stream = particles(solar, 16000, 'flare', '#ffac44'); stream.userData.volumetricShare = .2;
   const ejecta = particles(solar, 3000, 'ejecta', '#ffd9a0');
   for (const cloud of [stream, ejecta]) { cloud.material.uniforms.origin.value.copy(site); cloud.material.uniforms.target.value.copy(axis); }
   const solarShock = new THREE.Mesh(new THREE.TorusGeometry(1, .003, 6, 96), new THREE.MeshBasicMaterial({ color: '#ffc46d', transparent: true, opacity: .25, depthWrite: false, blending: THREE.AdditiveBlending }));
@@ -242,9 +243,69 @@ export function createCosmic({ scene, canvas, camera }) {
     transparent: true, depthWrite: false, blending: THREE.AdditiveBlending
   }));
   engulf.name = 'Engulfed Earth'; engulf.position.copy(earthCenter); engulf.visible = false; solar.add(engulf);
+  // HIGH and ULTRA march the corona, the ejection and the engulfment as volumes (see volumes.js); the sprites and
+  // shells above stay for the lower tiers. Space has no fog, so the volumes carry none.
+  const uAxis = new THREE.Vector3().crossVectors(axis, up).normalize(), vAxis = new THREE.Vector3().crossVectors(axis, uAxis);
+  const coronaVolume = marchedVolume({ name: 'Corona volume', geometry: new THREE.SphereGeometry(1, 48 * fine, 32 * fine),
+    uniforms: volumeUniforms({ time, phase, activity, fogDensity: { value: 0 }, site: { value: axis.clone() } }),
+    declare: 'uniform float phase,activity;uniform vec3 site;',
+    // Streamers fan out from the limb, a helmet streamer stands over the active region and fine wisps drift outward.
+    field: `vec3 field(vec3 p,bool detail){
+      vec3 q=p-origin;float r=length(q);if(r<31.6||r>62.)return vec3(0.);
+      vec3 n=q/r;float fall=exp(-(r-31.6)*.18)*(1.-smoothstep(45.,62.,r));if(fall<.02)return vec3(0.);
+      float streamer=smoothstep(.55,.85,fbm(n*4.2+vec3(time*.03,0.,0.)));
+      float helmet=pow(max(dot(n,site),0.),6.)*(.6+activity*.8);
+      float d=fall*(.08+.92*streamer+helmet*.8);if(d<.01)return vec3(0.);
+      float wisp=detail?noise(n*11.+vec3(0.,0.,r*.14-time*.5)):.5;
+      return vec3(d*(.55+.45*wisp),helmet,wisp);
+    }`,
+    span: '70.', dt: '1.5,5.', loop: 32, absorb: '.08', stop: 'length(p-origin)<31.6',
+    shade: `sampleColor=mix(vec3(.9,.32,.08),vec3(1.25,.8,.35),f.z)*(.8+activity*.3+phase*.3+f.y*.5);` });
+  coronaVolume.position.copy(sunCenter); coronaVolume.scale.setScalar(62); coronaVolume.material.uniforms.origin.value.copy(sunCenter); solar.add(coronaVolume);
+  const ejection = marchedVolume({ name: 'Ejection volume', geometry: new THREE.SphereGeometry(1, 40 * fine, 28 * fine),
+    uniforms: volumeUniforms({ time, front, fogDensity: { value: 0 }, radius: { value: 1 }, axis: { value: axis.clone() }, uAxis: { value: uAxis }, vAxis: { value: vAxis }, sun: { value: sunCenter.clone() } }),
+    declare: 'uniform float front,radius;uniform vec3 axis,uAxis,vAxis,sun;',
+    // A bright leading front on the Earth-facing side, filaments streaming along the axis and a boiling interior.
+    field: `vec3 field(vec3 p,bool detail){
+      vec3 q=(p-origin)/radius;float rr=length(q);if(rr>1.1)return vec3(0.);
+      float ahead=dot(q,axis);
+      // A bright thin front on the Earth-facing side, a nearly empty cavity and a dense core of ejected prominence.
+      float shell=exp(-pow((rr-.9)/.09,2.))*smoothstep(-.3,.5,ahead/max(rr,1e-3)),edge=smoothstep(.5,.9,rr);
+      float core=exp(-length(q+axis*.35)*3.5);
+      if(shell<.02&&core<.02&&edge<.02)return vec3(0.);
+      vec3 flow=p-origin-axis*time*9.;
+      float strands=edge>.02?smoothstep(.35,.75,fbm(vec3(dot(q,uAxis)*6.,dot(q,vAxis)*6.,time*.4))):.5;
+      float filaments=edge>.02?smoothstep(.5,.85,fbm(vec3(dot(q,uAxis)*5.,dot(q,vAxis)*5.,ahead*1.2-time*.6)))*edge:0.;
+      float d=(shell*(.3+.7*strands)+filaments*.35+core*.9*(.5+.5*fbm(flow*.15))+(1.-edge)*.012)*front;if(d<.01)return vec3(0.);
+      float grain=detail?fbm(flow*.2+3.):.5;
+      return vec3(d*(.6+.4*grain),shell,grain);
+    }`,
+    span: 'radius*2.3', dt: '1.,5.', loop: 48, absorb: '.06', stop: 'length(p-sun)<31.6',
+    shade: `sampleColor=mix(vec3(1.1,.3,.05),vec3(1.8,.9,.32),f.z)*(.5+.7*f.y)+vec3(2.2,1.4,.7)*f.y*.8;` });
+  solar.add(ejection);
+  const engulfVolume = marchedVolume({ name: 'Engulf volume', geometry: new THREE.SphereGeometry(1, 32 * fine, 24 * fine),
+    uniforms: volumeUniforms({ time, fogDensity: { value: 0 }, swallow: { value: 0 }, axis: { value: axis.clone() } }),
+    declare: 'uniform float swallow;uniform vec3 axis;',
+    // A bow shock on the sun-facing side, a fire sheath over the atmosphere and a plasma wake behind the planet.
+    field: `vec3 field(vec3 p,bool detail){
+      vec3 q=p-origin;float r=length(q);if(r<9.2)return vec3(0.);
+      float along=dot(q,axis);vec3 perp=q-axis*along;float rp=length(perp);
+      float shock=exp(-pow((r-11.2)/1.5,2.))*(1.-smoothstep(-.5,.1,along/r));
+      float sheath=1.-smoothstep(9.4,13.,r);
+      float wake=(1.-smoothstep(8.,15.,rp))*smoothstep(0.,6.,along)*(1.-smoothstep(12.,26.,along));
+      float turb=fbm(q*.25-axis*time*4.);
+      float d=(shock*2.+sheath*.08+wake*.3)*(.4+.8*turb)*swallow;if(d<.01)return vec3(0.);
+      float grain=detail?fbm(q*.6-axis*time*6.+2.):.5;
+      return vec3(d*(.6+.4*grain),shock,grain);
+    }`,
+    span: '40.', dt: '.6,2.', loop: 48, absorb: '.7', stop: 'length(p-origin)<9.2',
+    shade: `sampleColor=mix(vec3(1.,.22,.04),vec3(2.2,1.1,.4),f.z)*(1.+f.y*2.2);` });
+  engulfVolume.position.copy(earthCenter).addScaledVector(axis, 6); engulfVolume.quaternion.setFromUnitVectors(up, axis); engulfVolume.scale.set(17, 30, 17);
+  engulfVolume.material.uniforms.origin.value.copy(earthCenter); solar.add(engulfVolume);
   const calmAir = new THREE.Color('#49a9ff'), searedAir = new THREE.Color('#ff8b39');
 
-    function update(t) {
+    function update(t, quality) {
+      const volumetric = quality === 'high' || quality === 'ultra', ultra = quality === 'ultra';
       const burst = Math.sin(clamp((t - 5) / 2.6) * Math.PI), afterglow = ease((t - 5) / .6) * (1 - ease((t - 7.6) / 8)) * .3;
       activity.value = ease(t / 5) * (1 - ease((t - 5) / 3) * .55);
       flash.value = burst + afterglow; phase.value = ease((t - 5) / 8);
@@ -254,7 +315,7 @@ export function createCosmic({ scene, canvas, camera }) {
       arch.scale.setScalar(.25 + rise * 3.4); arch.rotation.y = t * .12;
       archMaterial.opacity = ease((t - 4.4) / 1.2) * (1 - ease((t - 12) / 6));
       const progress = ease((t - 7) / 14), radius = 3 + progress * 48;
-      bubble.visible = t > 7; bubble.position.copy(site).addScaledVector(axis, radius * .5); bubble.scale.setScalar(radius);
+      bubble.visible = t > 7 && !volumetric; bubble.position.copy(site).addScaledVector(axis, radius * .5); bubble.scale.setScalar(radius);
       front.value = ease((t - 7) / 2) * (1 - progress * .6) * (1 - ease((t - 25) / 5));
       stream.visible = t > 5; ejecta.visible = t > 5 && t < 12;
       solarShock.visible = t > 7 && t < 26; solarShock.position.copy(site).addScaledVector(axis, radius * 1.5);
@@ -266,11 +327,22 @@ export function createCosmic({ scene, canvas, camera }) {
       solarEarth.air.material.uniforms.tint.value.copy(calmAir).lerp(searedAir, seared);
       solarEarth.air.material.uniforms.strength.value = .42 + seared * .5;
       const swallow = ease((t - 21.5) / 6);
-      engulf.visible = t > 21.5; engulf.scale.setScalar(9 * (1.15 + swallow * .75));
+      engulf.visible = t > 21.5 && !volumetric; engulf.scale.setScalar(9 * (1.15 + swallow * .75));
       engulf.material.uniforms.fade.value = swallow * (.85 + .15 * Math.sin(t * 9));
+      corona.visible = !volumetric; coronaVolume.visible = volumetric;
+      ejection.visible = volumetric && t > 7; ejection.position.copy(bubble.position); ejection.scale.setScalar(radius * 1.15);
+      ejection.material.uniforms.radius.value = radius; ejection.material.uniforms.origin.value.copy(bubble.position);
+      engulfVolume.visible = volumetric && t > 21.5; engulfVolume.material.uniforms.swallow.value = swallow;
+      for (const [volume, steps] of [[coronaVolume, ultra ? 28 : 20], [ejection, ultra ? 40 : 32], [engulfVolume, ultra ? 32 : 24]]) volume.material.uniforms.steps.value = steps;
     }
     // The corona and the flash are camera-facing sprites, so they follow the viewer like the lensed halo.
-    function updateView() { corona.lookAt(camera.position); flareFlash.lookAt(camera.position); }
+    function updateView() {
+      corona.lookAt(camera.position); flareFlash.lookAt(camera.position);
+      const c = camera.position;
+      setInside(coronaVolume, c.distanceTo(sunCenter) < 62);
+      setInside(ejection, c.distanceTo(ejection.position) < ejection.scale.x);
+      setInside(engulfVolume, c.distanceTo(engulfVolume.position) < 17);
+    }
     return { group: solar, update, updateView };
   }
   function createAsteroid() {
@@ -583,7 +655,9 @@ export function createCosmic({ scene, canvas, camera }) {
     const fraction = quality === 'lite' ? .28 : quality === 'balanced' ? .58 : 1;
     active.group.traverse(object => {
       if (object.userData.particleCount) {
-        object.geometry.setDrawRange(0, Math.floor(object.userData.particleCount * fraction));
+        // Sprites thin out where a marched volume carries the same plasma.
+        const share = object.userData.volumetricShare && fraction === 1 ? object.userData.volumetricShare : 1;
+        object.geometry.setDrawRange(0, Math.floor(object.userData.particleCount * fraction * share));
         object.material.uniforms.pixelRatio.value = ratio;
       }
       if (object.userData.fineDetail) object.visible = quality !== 'lite';
@@ -602,7 +676,7 @@ export function createCosmic({ scene, canvas, camera }) {
     active = next; active.group.visible = true; stars.visible = true;
     setQuality();
     const t = Math.max(0, Math.min(30, seconds)); time.value = t;
-    active.update(t);
+    active.update(t, active.quality);
   }
   // The lensed image follows the viewer, including orbiting a paused timeline.
   function updateView() { active?.updateView?.(); }

@@ -1,5 +1,6 @@
 import * as THREE from 'three';
 import { createBakedExplosion } from './baked-explosion.js';
+import { marchedVolume, setInside, volumeFrame, volumeUniforms } from './volumes.js';
 
 const clamp = value => Math.max(0, Math.min(1, value));
 const ease = value => { const t = clamp(value); return t * t * (3 - 2 * t); };
@@ -140,65 +141,6 @@ export function createTerrestrial({ scene, canvas, camera, buildings = [], lands
       gl_FragColor=vec4(tint,a);}` });
     const mesh = new THREE.Points(geometry, material); mesh.frustumCulled = false; parent.add(mesh);
     return { mesh, count, uniforms };
-  }
-
-  // Marched volumes. A hull mesh's fragment shader marches a closed-form density field keyed to world position and
-  // absolute time, so the march is exactly reversible and needs no history buffer. Front faces start the ray at
-  // the hull surface and the depth test lets the opaque scene occlude it; when the camera is inside a hull the
-  // material shows its back faces and the march starts at the camera. `field` returns (density, share, grain).
-  const volumeGLSL = `${noise}
-  float terrain(vec2 xz){return -.5+(sin(xz.x*.022)*cos(xz.y*.027)*5.-sin(xz.y*.06)*1.5)*clamp((length(xz)-25.)/80.,0.,1.);}`;
-  const volumeUniforms = extra => ({ time: { value: 0 }, steps: { value: 32 }, inside: { value: 0 }, flash: { value: 0 }, flashPoint: { value: new THREE.Vector3() },
-    origin: { value: new THREE.Vector3() }, sunDirection: { value: new THREE.Vector3(-90, 85, -110).normalize() },
-    sunColor: { value: new THREE.Color('#b7c4b4').multiplyScalar(1.05) }, skyColor: { value: new THREE.Color('#8da39c') },
-    fogColor: { value: new THREE.Color('#46524d') }, fogDensity: { value: .0027 }, ...extra });
-  const hullVertex = 'varying vec3 hullPoint;void main(){vec4 world=modelMatrix*vec4(position,1.);hullPoint=world.xyz;gl_Position=projectionMatrix*viewMatrix*world;}';
-  // `declare` adds uniforms and helpers, `span` is the march length from the hull surface, `shade` sets sampleColor.
-  function marchedVolume({ name, geometry, uniforms, vertexShader = hullVertex, declare = '', field, span, dt, loop, shade, absorb, terrainCut = false, renderOrder = 3 }) {
-    const material = new THREE.ShaderMaterial({ uniforms, vertexShader, transparent: true, depthWrite: false,
-      fragmentShader: `uniform float time,steps,inside,flash,fogDensity;uniform vec3 origin,sunDirection,sunColor,skyColor,fogColor,flashPoint;varying vec3 hullPoint;
-      ${volumeGLSL}
-      ${declare}
-      ${field}
-      void main(){
-        vec3 rayDir=normalize(hullPoint-cameraPosition);
-        vec3 start=inside>.5?cameraPosition:hullPoint;
-        float span=inside>.5?length(hullPoint-cameraPosition):(${span});
-        // A per-pixel offset turns step slices into fine noise; it depends only on the pixel, so scrubbing stays exact.
-        float dt=clamp(span/steps,${dt}),s=fract(sin(dot(gl_FragCoord.xy,vec2(12.9898,78.233)))*43758.5453)*dt;
-        float alpha=0.,firstHit=-1.;vec3 col=vec3(0.);
-        for(int i=0;i<${loop};i++){
-          if(float(i)>=steps||alpha>.97||s>span)break;
-          vec3 p=start+rayDir*s;
-          ${terrainCut ? 'if(p.y<terrain(p.xz))break;' : ''}
-          vec3 f=field(p,true);
-          if(f.x>.002){
-            vec3 sampleColor;
-            ${shade}
-            float a=1.-exp(-f.x*dt*${absorb});
-            col+=(1.-alpha)*a*sampleColor;alpha+=(1.-alpha)*a;
-            if(firstHit<0.)firstHit=s;
-            s+=dt;
-          } else s+=dt*1.7;
-        }
-        if(alpha<.003)discard;
-        float dist=length(start+rayDir*max(firstHit,0.)-cameraPosition);
-        gl_FragColor=vec4(mix(col/alpha,fogColor,1.-exp(-fogDensity*fogDensity*dist*dist)),alpha);
-        #include <tonemapping_fragment>
-        #include <colorspace_fragment>
-      }` });
-    const mesh = new THREE.Mesh(geometry, material);
-    mesh.name = name; mesh.frustumCulled = false; mesh.renderOrder = renderOrder; mesh.visible = false;
-    return mesh;
-  }
-  function setInside(volume, inside) {
-    volume.material.uniforms.inside.value = inside ? 1 : 0; volume.material.side = inside ? THREE.BackSide : THREE.FrontSide;
-  }
-  // Per-frame step budget and fog for one volume; the scene configuration wins over the factory's defaults.
-  function volumeFrame(volume, t, steps, env, defaults) {
-    const u = volume.material.uniforms;
-    u.time.value = t; u.steps.value = steps;
-    u.fogColor.value.set(env.fog ?? defaults.fog); u.fogDensity.value = (env.fogDensity ?? defaults.fogDensity) + ease(t / 30) * (env.fogGrowth ?? defaults.fogGrowth);
   }
 
   function createNuclear() {
