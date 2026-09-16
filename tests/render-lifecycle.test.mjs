@@ -30,9 +30,9 @@ function snapshot(group) {
 
 test('procedural factories construct only visited IDs and scrub reversibly in any visit order', () => {
   for (const [create, ids, names, world, extra] of [
-    [createTerrestrial, ['war-of-the-worlds', 'terminator-2', '2012', 'twister', 'dantes-peak', 'day-after-tomorrow', 'day-the-earth-stood-still', 'evangelion'],
+    [createTerrestrial, ['war-of-the-worlds', 'terminator-2', '2012', 'twister', 'dantes-peak', 'day-after-tomorrow', 'day-the-earth-stood-still', 'evangelion', 'deep-impact'],
       ['War of the Worlds — tripod invasion', 'Terminator 2 — nuclear firestorm', '2012 — continental rupture', 'Twister — F5 outbreak', "Dante's Peak — Plinian eruption",
-        'The Day After Tomorrow — superstorm', 'The Day the Earth Stood Still — visitation', 'The End of Evangelion — Third Impact'], 'city', 0],
+        'The Day After Tomorrow — superstorm', 'The Day the Earth Stood Still — visitation', 'The End of Evangelion — Third Impact', 'Deep Impact — ocean strike'], 'city', 0],
     [createCosmic, ['interstellar', 'knowing', 'armageddon', 'gravity', 'wandering-earth'],
       ['interstellar-black-hole', 'knowing-solar-flare', 'armageddon-asteroid', 'gravity-debris-cascade', 'wandering-earth-jupiter-flyby'], 'space', 1]
   ]) {
@@ -351,4 +351,27 @@ test('Twister leans the landscape trees into the inflow as a function of time an
   assert.deepEqual(trees.map(tree => [tree.rotation.x, tree.rotation.z]), leaning, 'the lean is a function of time only');
   renderer.update(12, config('day-the-earth-stood-still', 'landscape'));
   assert.ok(upright(), 'leaving the scene stands the trees back up for the other landscape scenes');
+});
+
+test('Deep Impact marches its entry trail, water column and crest spray only at HIGH and above', () => {
+  const scene = new THREE.Scene(), canvas = { dataset: { quality: 'balanced', pixelRatio: '1.25' } }, camera = new THREE.PerspectiveCamera();
+  const renderer = createTerrestrial({ scene, canvas, camera, buildings: cityBuildings(), landscape: parkLandscape() });
+  const at = t => renderer.update(t, config('deep-impact'));
+  const named = name => scene.getObjectByName('Deep Impact — ocean strike').getObjectByName(name);
+  const volumes = ['Entry trail', 'Impact column', 'Crest spray'];
+  at(8);
+  for (const name of volumes) assert.equal(named(name).visible, false, `${name} stays hidden at BALANCED`);
+  canvas.dataset.quality = 'high';
+  at(8); assert.deepEqual(volumes.map(name => named(name).visible), [true, false, false], 'only the comet trail during the approach');
+  at(15); assert.deepEqual(volumes.map(name => named(name).visible), [false, true, true], 'column and spray after the strike');
+  at(27); assert.deepEqual(volumes.map(name => named(name).visible), [false, false, true], 'the column has fallen back by the inundation');
+  assert.deepEqual(volumes.map(name => named(name).material.uniforms.steps.value), [24, 28, 18]);
+  canvas.dataset.quality = 'ultra'; at(27);
+  assert.deepEqual(volumes.map(name => named(name).material.uniforms.steps.value), [32, 40, 24]);
+  const lip = named('Crest spray').material.uniforms.origin.value;
+  assert.ok(lip.y > 60 && lip.z > 80, 'the lip rides high over the city by 27 s');
+  camera.position.copy(lip); renderer.updateView();
+  assert.equal(named('Crest spray').material.side, THREE.BackSide, 'a camera at the lip marches from inside the crest hull');
+  camera.position.set(400, 300, 400); renderer.updateView();
+  assert.equal(named('Crest spray').material.side, THREE.FrontSide);
 });
