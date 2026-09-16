@@ -400,3 +400,17 @@ test('Knowing marches its corona, ejection and engulfment only at HIGH and above
   camera.position.set(300, 300, 300); renderer.updateView();
   assert.equal(named('Corona volume').material.side, THREE.FrontSide);
 });
+
+test('Knowing restores native photosphere radiance when dropping to LITE', () => {
+  const scene = new THREE.Scene(), canvas = { dataset: { quality: 'balanced', pixelRatio: '1.25' } }, camera = new THREE.PerspectiveCamera();
+  const renderer = createCosmic({ scene, canvas, camera });
+  renderer.update(5, config('knowing', 'space'));
+  let photosphere;
+  scene.traverse(object => { if (object.material?.uniforms?.radiance) photosphere = object.material.uniforms.radiance; });
+  assert.equal(photosphere.value, 1.35);
+  for (const [quality, value] of [['lite',1],['high',1.35],['ultra',1.35],['lite',1]]) {
+    canvas.dataset.quality = quality;
+    renderer.update(5, config('knowing', 'space'));
+    assert.equal(photosphere.value, value, quality);
+  }
+});

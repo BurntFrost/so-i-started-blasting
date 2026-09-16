@@ -141,7 +141,7 @@ function applyEnvironment(s,t){
  hemi.color.set(env.hemi);hemi.groundColor.set('#17191f');hemi.intensity=env.hemiIntensity;
  if(cinema.rim){cinema.rim.color.set(env.rim);cinema.rim.intensity=env.rimIntensity;}
  scene.environmentIntensity=env.environmentIntensity;
- renderer.toneMappingExposure=1.3;
+ // Cinema owns tone mapping and exposure, including the native LITE fallback.
 }
 function updateWorld(){
  if(failed)return;
