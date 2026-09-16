@@ -375,3 +375,28 @@ test('Deep Impact marches its entry trail, water column and crest spray only at 
   camera.position.set(400, 300, 400); renderer.updateView();
   assert.equal(named('Crest spray').material.side, THREE.FrontSide);
 });
+
+test('Knowing marches its corona, ejection and engulfment only at HIGH and above', () => {
+  const scene = new THREE.Scene(), canvas = { dataset: { quality: 'balanced', pixelRatio: '1.25' } }, camera = new THREE.PerspectiveCamera();
+  const renderer = createCosmic({ scene, canvas, camera });
+  const at = t => { renderer.update(t, config('knowing', 'space')); renderer.updateView(); };
+  const named = name => scene.getObjectByName('knowing-solar-flare').getObjectByName(name);
+  const volumes = ['Corona volume', 'Ejection volume', 'Engulf volume'];
+  at(14);
+  assert.deepEqual(volumes.map(name => named(name).visible), [false, false, false], 'BALANCED keeps the sprites');
+  assert.equal(named('Solar corona').visible, true); assert.equal(named('Coronal mass ejection').visible, true);
+  canvas.dataset.quality = 'high';
+  at(3); assert.deepEqual(volumes.map(name => named(name).visible), [true, false, false], 'only the corona before the eruption');
+  assert.equal(named('Solar corona').visible, false, 'the sprite corona yields to the volume');
+  at(14); assert.deepEqual(volumes.map(name => named(name).visible), [true, true, false], 'the ejection is in flight');
+  assert.equal(named('Coronal mass ejection').visible, false);
+  at(25); assert.deepEqual(volumes.map(name => named(name).visible), [true, true, true], 'Earth is engulfed');
+  assert.equal(named('Engulfed Earth').visible, false);
+  assert.deepEqual(volumes.map(name => named(name).material.uniforms.steps.value), [20, 32, 24]);
+  canvas.dataset.quality = 'ultra'; at(25);
+  assert.deepEqual(volumes.map(name => named(name).material.uniforms.steps.value), [28, 40, 32]);
+  camera.position.set(-35, 99, -8); renderer.updateView();
+  assert.equal(named('Corona volume').material.side, THREE.BackSide, 'a camera inside the corona shell marches from itself');
+  camera.position.set(300, 300, 300); renderer.updateView();
+  assert.equal(named('Corona volume').material.side, THREE.FrontSide);
+});
