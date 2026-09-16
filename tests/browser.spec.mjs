@@ -125,6 +125,7 @@ test.describe('desktop HIGH rendering', () => {
     await expect(canvas).toHaveAttribute('data-authored-assets', 'ready');
     await expect(canvas).toHaveAttribute('data-quality', 'high');
     await expect(canvas).toHaveAttribute('data-antialias', 'fxaa');
+    await expect(canvas).toHaveAttribute('data-ambient-occlusion', 'gtao');
     await seek(page, 18);
     const first = digest(await canvas.screenshot());
     expect(Number(await canvas.getAttribute('data-triangles'))).toBeGreaterThan(150000);
@@ -134,6 +135,7 @@ test.describe('desktop HIGH rendering', () => {
     expect(digest(await canvas.screenshot())).toBe(first);
     await page.setViewportSize({ width: 390, height: 844 });
     await expect(canvas).toHaveAttribute('data-quality', /balanced|lite/);
+    await expect(canvas).toHaveAttribute('data-ambient-occlusion', 'none');
     await expect.poll(async () => Number(await canvas.getAttribute('data-triangles'))).toBeLessThan(150000);
     const events = await page.evaluate(() => window.__graphicsEvents);
     expect(events.some(event => event.name === 'Graphics Quality')).toBe(true);
@@ -275,6 +277,7 @@ test.describe('desktop ULTRA rendering', () => {
     await expect(canvas).toHaveAttribute('data-quality', 'ultra');
     await expect(canvas).toHaveAttribute('data-pixel-ratio', '2');
     await expect(canvas).toHaveAttribute('data-antialias', 'fxaa');
+    await expect(canvas).toHaveAttribute('data-ambient-occlusion', 'gtao');
     await expect(canvas).toHaveAttribute('data-authored-assets', 'ready');
     await seek(page, 18);
     expect(Number(await canvas.getAttribute('data-triangles')), 'ULTRA keeps the detailed HIGH city').toBeGreaterThan(150000);
