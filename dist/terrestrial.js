@@ -142,6 +142,65 @@ export function createTerrestrial({ scene, canvas, camera, buildings = [], lands
     return { mesh, count, uniforms };
   }
 
+  // Marched volumes. A hull mesh's fragment shader marches a closed-form density field keyed to world position and
+  // absolute time, so the march is exactly reversible and needs no history buffer. Front faces start the ray at
+  // the hull surface and the depth test lets the opaque scene occlude it; when the camera is inside a hull the
+  // material shows its back faces and the march starts at the camera. `field` returns (density, share, grain).
+  const volumeGLSL = `${noise}
+  float terrain(vec2 xz){return -.5+(sin(xz.x*.022)*cos(xz.y*.027)*5.-sin(xz.y*.06)*1.5)*clamp((length(xz)-25.)/80.,0.,1.);}`;
+  const volumeUniforms = extra => ({ time: { value: 0 }, steps: { value: 32 }, inside: { value: 0 }, flash: { value: 0 }, flashPoint: { value: new THREE.Vector3() },
+    origin: { value: new THREE.Vector3() }, sunDirection: { value: new THREE.Vector3(-90, 85, -110).normalize() },
+    sunColor: { value: new THREE.Color('#b7c4b4').multiplyScalar(1.05) }, skyColor: { value: new THREE.Color('#8da39c') },
+    fogColor: { value: new THREE.Color('#46524d') }, fogDensity: { value: .0027 }, ...extra });
+  const hullVertex = 'varying vec3 hullPoint;void main(){vec4 world=modelMatrix*vec4(position,1.);hullPoint=world.xyz;gl_Position=projectionMatrix*viewMatrix*world;}';
+  // `declare` adds uniforms and helpers, `span` is the march length from the hull surface, `shade` sets sampleColor.
+  function marchedVolume({ name, geometry, uniforms, vertexShader = hullVertex, declare = '', field, span, dt, loop, shade, absorb, terrainCut = false, renderOrder = 3 }) {
+    const material = new THREE.ShaderMaterial({ uniforms, vertexShader, transparent: true, depthWrite: false,
+      fragmentShader: `uniform float time,steps,inside,flash,fogDensity;uniform vec3 origin,sunDirection,sunColor,skyColor,fogColor,flashPoint;varying vec3 hullPoint;
+      ${volumeGLSL}
+      ${declare}
+      ${field}
+      void main(){
+        vec3 rayDir=normalize(hullPoint-cameraPosition);
+        vec3 start=inside>.5?cameraPosition:hullPoint;
+        float span=inside>.5?length(hullPoint-cameraPosition):(${span});
+        // A per-pixel offset turns step slices into fine noise; it depends only on the pixel, so scrubbing stays exact.
+        float dt=clamp(span/steps,${dt}),s=fract(sin(dot(gl_FragCoord.xy,vec2(12.9898,78.233)))*43758.5453)*dt;
+        float alpha=0.,firstHit=-1.;vec3 col=vec3(0.);
+        for(int i=0;i<${loop};i++){
+          if(float(i)>=steps||alpha>.97||s>span)break;
+          vec3 p=start+rayDir*s;
+          ${terrainCut ? 'if(p.y<terrain(p.xz))break;' : ''}
+          vec3 f=field(p,true);
+          if(f.x>.002){
+            vec3 sampleColor;
+            ${shade}
+            float a=1.-exp(-f.x*dt*${absorb});
+            col+=(1.-alpha)*a*sampleColor;alpha+=(1.-alpha)*a;
+            if(firstHit<0.)firstHit=s;
+            s+=dt;
+          } else s+=dt*1.7;
+        }
+        if(alpha<.003)discard;
+        float dist=length(start+rayDir*max(firstHit,0.)-cameraPosition);
+        gl_FragColor=vec4(mix(col/alpha,fogColor,1.-exp(-fogDensity*fogDensity*dist*dist)),alpha);
+        #include <tonemapping_fragment>
+        #include <colorspace_fragment>
+      }` });
+    const mesh = new THREE.Mesh(geometry, material);
+    mesh.name = name; mesh.frustumCulled = false; mesh.renderOrder = renderOrder; mesh.visible = false;
+    return mesh;
+  }
+  function setInside(volume, inside) {
+    volume.material.uniforms.inside.value = inside ? 1 : 0; volume.material.side = inside ? THREE.BackSide : THREE.FrontSide;
+  }
+  // Per-frame step budget and fog for one volume; the scene configuration wins over the factory's defaults.
+  function volumeFrame(volume, t, steps, env, defaults) {
+    const u = volume.material.uniforms;
+    u.time.value = t; u.steps.value = steps;
+    u.fogColor.value.set(env.fog ?? defaults.fog); u.fogDensity.value = (env.fogDensity ?? defaults.fogDensity) + ease(t / 30) * (env.fogGrowth ?? defaults.fogGrowth);
+  }
+
   function createNuclear() {
     seed = 20121991;
   // TERMINATOR 2: an incandescent ground burst becomes a rolling mushroom cap.
@@ -489,30 +548,20 @@ export function createTerrestrial({ scene, canvas, camera, buildings = [], lands
   const funnel = new THREE.Mesh(funnelGeometry, funnelSurface.material); funnel.name = 'Condensation funnel'; funnel.frustumCulled = false; outbreak.add(funnel);
   const core = new THREE.Mesh(funnelGeometry, funnelSurface.material); core.name = 'Funnel core'; core.frustumCulled = false; core.scale.set(.5, 1, .5); outbreak.add(core);
 
-  // HIGH and ULTRA march the funnel and the wall cloud as volumes. Every sample is a closed-form function of
-  // world position and absolute time, so the march is exactly reversible and needs no history buffer. Each hull
-  // is drawn tight around its volume: front faces start the ray at the hull surface and the depth test lets the
-  // farm and the trees occlude it, while a camera inside a hull marches from the near plane to the back faces.
-  const volumeGLSL = `${noise}
-  float terrain(vec2 xz){return -.5+(sin(xz.x*.022)*cos(xz.y*.027)*5.-sin(xz.y*.06)*1.5)*clamp((length(xz)-25.)/80.,0.,1.);}`;
-  const stormUniforms = () => ({ time: { value: 0 }, steps: { value: 32 }, inside: { value: 0 }, flash: { value: 0 }, flashPoint: { value: new THREE.Vector3() },
-    origin: { value: new THREE.Vector3() }, sunDirection: { value: new THREE.Vector3(-90, 85, -110).normalize() },
-    sunColor: { value: new THREE.Color('#b7c4b4').multiplyScalar(1.05) }, skyColor: { value: new THREE.Color('#8da39c') },
-    fogColor: { value: new THREE.Color('#46524d') }, fogDensity: { value: .0027 } });
-  const volumeMaterial = (uniforms, vertexShader, fragmentShader) => new THREE.ShaderMaterial({ uniforms, vertexShader, fragmentShader, transparent: true, depthWrite: false });
-  const funnelVolume = new THREE.Mesh(new THREE.CylinderGeometry(1, 1, 1, 48 * fine, 24, false), volumeMaterial(
-    { ...stormUniforms(), shape: { value: new THREE.Vector4(4, 60, 100, 1.7) }, lean: { value: new THREE.Vector2() }, skirt: { value: 0 }, spread: { value: 0 } },
-    `uniform vec4 shape;uniform vec2 lean;uniform float skirt;varying vec3 hullPoint;
+  // HIGH and ULTRA march the funnel and the wall cloud as volumes (see marchedVolume).
+  const funnelVolume = marchedVolume({ name: 'Funnel volume', geometry: new THREE.CylinderGeometry(1, 1, 1, 48 * fine, 24, false),
+    uniforms: volumeUniforms({ shape: { value: new THREE.Vector4(4, 60, 100, 1.7) }, lean: { value: new THREE.Vector2() }, skirt: { value: 0 }, spread: { value: 0 } }),
+    vertexShader: `uniform vec4 shape;uniform vec2 lean;uniform float skirt;varying vec3 hullPoint;
     float profile(float h){return mix(shape.x,shape.y,pow(clamp(h,0.,1.),shape.w));}
     void main(){float h=position.y+.5;float r=profile(h)*1.3+skirt*(1.-smoothstep(0.,.2,h));
     vec4 world=modelMatrix*vec4(vec3(position.x*r,h*shape.z,position.z*r)+vec3(lean.x,0.,lean.y)*h*h,1.);
     hullPoint=world.xyz;gl_Position=projectionMatrix*viewMatrix*world;}`,
-    `uniform float time,steps,inside,flash,skirt,spread,fogDensity;uniform vec3 origin,sunDirection,sunColor,skyColor,fogColor,flashPoint;uniform vec4 shape;uniform vec2 lean;varying vec3 hullPoint;
-    ${volumeGLSL}
+    declare: `uniform vec4 shape;uniform vec2 lean;uniform float skirt,spread;
     float profile(float h){return mix(shape.x,shape.y,pow(clamp(h,0.,1.),shape.w));}
+    float chord(){float hEntry=clamp((hullPoint.y-origin.y)/shape.z,0.,1.);return (profile(hEntry)*1.3+skirt*(1.-smoothstep(0.,.2,hEntry)))*2.3;}`,
     // Density and dust share at a world point: the condensation funnel, three suction vortices orbiting the
     // base, and the debris bowl kicked up once the funnel is on the ground.
-    vec3 field(vec3 p,bool detail){
+    field: `vec3 field(vec3 p,bool detail){
       float h=(p.y-origin.y)/shape.z;if(h<0.||h>1.)return vec3(0.);
       vec2 q=p.xz-origin.xz-lean*h*h;float radius=length(q),angle=atan(q.y,q.x),R=profile(h);
       float twist=angle-time*(2.4-h*1.5)-h*7.;
@@ -532,82 +581,32 @@ export function createTerrestrial({ scene, canvas, camera, buildings = [], lands
         float reach=R+skirt*low*(.8+.5*lobes);
         bowl=(1.-smoothstep(.3,1.,radius/reach))*low*(.5+.5*lobes)*1.1;}
       d+=bowl;return vec3(d,bowl/max(d,1e-3),grain);
-    }
-    void main(){
-      vec3 rayDir=normalize(hullPoint-cameraPosition);
-      float hEntry=clamp((hullPoint.y-origin.y)/shape.z,0.,1.);
-      float chord=(profile(hEntry)*1.3+skirt*(1.-smoothstep(0.,.2,hEntry)))*2.3;
-      vec3 start=inside>.5?cameraPosition:hullPoint;
-      float span=inside>.5?length(hullPoint-cameraPosition):chord;
-      // A per-pixel offset turns step slices into fine noise; it depends only on the pixel, so scrubbing stays exact.
-      float dt=clamp(span/steps,.6,2.5),jitter=fract(sin(dot(gl_FragCoord.xy,vec2(12.9898,78.233)))*43758.5453);
-      float alpha=0.,firstHit=-1.;vec3 col=vec3(0.);
-      for(int i=0;i<64;i++){
-        if(float(i)>=steps||alpha>.97)break;
-        float s=(float(i)+jitter)*dt;vec3 p=start+rayDir*s;
-        if(p.y<terrain(p.xz))break;
-        vec3 f=field(p,true);
-        if(f.x>.002){
-          float h=clamp((p.y-origin.y)/shape.z,0.,1.);
-          float shade=exp(-field(p+sunDirection*(profile(h)*.45+2.),false).x*2.6);
-          // Condensation is near-black grey; the debris bowl is warm dust; the grain paints the rotating bands.
-          vec3 albedo=mix(vec3(.11,.115,.11),vec3(.3,.25,.19),f.y)*(.55+.9*f.z);
-          vec3 light=(sunColor*(.08+.92*shade)*1.1+skyColor*mix(.12,.55,h))*mix(1.,.55,f.y)+vec3(.75,.85,1.15)*flash*3.*exp(-(1.-h)*2.5);
-          float a=1.-exp(-f.x*dt*1.3);
-          col+=(1.-alpha)*a*albedo*light;alpha+=(1.-alpha)*a;
-          if(firstHit<0.)firstHit=s;
-        }
-      }
-      if(alpha<.003)discard;
-      float dist=length(start+rayDir*max(firstHit,0.)-cameraPosition);
-      gl_FragColor=vec4(mix(col/alpha,fogColor,1.-exp(-fogDensity*fogDensity*dist*dist)),alpha);
-      #include <tonemapping_fragment>
-      #include <colorspace_fragment>
-    }`));
-  funnelVolume.name = 'Funnel volume'; funnelVolume.frustumCulled = false; funnelVolume.renderOrder = 3; funnelVolume.visible = false; outbreak.add(funnelVolume);
-  const wallVolume = new THREE.Mesh(new THREE.CylinderGeometry(1, 1, 1, 48 * fine, 1, false).translate(0, .5, 0), volumeMaterial(
-    { ...stormUniforms(), radius: { value: 120 }, thickness: { value: 30 } },
-    'varying vec3 hullPoint;void main(){vec4 world=modelMatrix*vec4(position,1.);hullPoint=world.xyz;gl_Position=projectionMatrix*viewMatrix*world;}',
-    `uniform float time,steps,inside,flash,fogDensity,radius,thickness;uniform vec3 origin,sunDirection,sunColor,skyColor,fogColor,flashPoint;varying vec3 hullPoint;
-    ${volumeGLSL}
+    }`,
+    span: 'chord()', dt: '.6,2.5', loop: 64, absorb: '1.3', terrainCut: true,
+    // Condensation is near-black grey; the debris bowl is warm dust in the funnel's shadow; the grain paints the bands.
+    shade: `float h=clamp((p.y-origin.y)/shape.z,0.,1.);
+            float shade=exp(-field(p+sunDirection*(profile(h)*.45+2.),false).x*2.6);
+            vec3 albedo=mix(vec3(.11,.115,.11),vec3(.3,.25,.19),f.y)*(.55+.9*f.z);
+            sampleColor=albedo*((sunColor*(.08+.92*shade)*1.1+skyColor*mix(.12,.55,h))*mix(1.,.55,f.y)+vec3(.75,.85,1.15)*flash*3.*exp(-(1.-h)*2.5));` });
+  outbreak.add(funnelVolume);
+  const wallVolume = marchedVolume({ name: 'Wall cloud volume', geometry: new THREE.CylinderGeometry(1, 1, 1, 48 * fine, 1, false).translate(0, .5, 0),
+    uniforms: volumeUniforms({ radius: { value: 120 }, thickness: { value: 30 } }), renderOrder: 2,
+    declare: 'uniform float radius,thickness;',
     // The rotating wall cloud: a lumpy slab whose underside sags toward the funnel top.
-    float field(vec3 p,bool detail){
-      vec2 q=p.xz-origin.xz;float radial=length(q)/radius;if(radial>1.)return 0.;
+    field: `vec3 field(vec3 p,bool detail){
+      vec2 q=p.xz-origin.xz;float radial=length(q)/radius;if(radial>1.)return vec3(0.);
       float h=(p.y-origin.y)/thickness,angle=atan(q.y,q.x),rot=angle-time*.12-radial*1.6;
       vec3 n=vec3(cos(rot)*radial*3.2,h*2.2+time*.04,sin(rot)*radial*3.2);
-      float lumps=fbm(n*1.3);
-      // The underside hangs in lumps and sags toward the funnel top.
-      float under=.3-(1.-radial)*.22+(lumps-.5)*.3;
+      float lumps=fbm(n*1.3),under=.3-(1.-radial)*.22+(lumps-.5)*.3;
       float body=(1.-smoothstep(.5,1.,radial/(.55+lumps*.4)))*smoothstep(under,under+.15,h)*(1.-smoothstep(.75,1.05,h));
       if(detail&&body>.001)body*=.6+.4*fbm(n*3.1+5.);
-      return body;
-    }
-    void main(){
-      vec3 rayDir=normalize(hullPoint-cameraPosition);
-      vec3 start=inside>.5?cameraPosition:hullPoint;
-      float span=inside>.5?length(hullPoint-cameraPosition):min(thickness*1.4/max(abs(rayDir.y),.15),radius*2.2);
-      float dt=clamp(span/steps,1.,6.),jitter=fract(sin(dot(gl_FragCoord.xy,vec2(12.9898,78.233)))*43758.5453);
-      float alpha=0.,firstHit=-1.;vec3 col=vec3(0.);
-      for(int i=0;i<32;i++){
-        if(float(i)>=steps||alpha>.97)break;
-        float s=(float(i)+jitter)*dt;vec3 p=start+rayDir*s;
-        float d=field(p,true);
-        if(d>.002){
-          float h=clamp((p.y-origin.y)/thickness,0.,1.),grain=fbm(p*.045+vec3(0.,time*.03,0.));
-          vec3 albedo=mix(vec3(.12,.135,.13),vec3(.17,.15,.125),grain)*(.7+.6*grain);
-          vec3 light=skyColor*mix(.6,1.2,h)*1.1+sunColor*.08+vec3(.8,.9,1.25)*flash*4.*exp(-length(p-flashPoint)/45.);
-          float a=1.-exp(-d*dt*.9);
-          col+=(1.-alpha)*a*albedo*light;alpha+=(1.-alpha)*a;
-          if(firstHit<0.)firstHit=s;
-        }
-      }
-      if(alpha<.003)discard;
-      float dist=length(start+rayDir*max(firstHit,0.)-cameraPosition);
-      gl_FragColor=vec4(mix(col/alpha,fogColor,1.-exp(-fogDensity*fogDensity*dist*dist)),alpha);
-      #include <tonemapping_fragment>
-      #include <colorspace_fragment>
-    }`));
-  wallVolume.name = 'Wall cloud volume'; wallVolume.frustumCulled = false; wallVolume.renderOrder = 2; wallVolume.visible = false; wallVolume.scale.set(120, 30, 120); outbreak.add(wallVolume);
+      return vec3(body,0.,0.);
+    }`,
+    span: 'min(thickness*1.4/max(abs(rayDir.y),.15),radius*2.2)', dt: '1.,6.', loop: 32, absorb: '.9',
+    shade: `float h=clamp((p.y-origin.y)/thickness,0.,1.),grain=fbm(p*.045+vec3(0.,time*.03,0.));
+            vec3 albedo=mix(vec3(.12,.135,.13),vec3(.17,.15,.125),grain)*(.7+.6*grain);
+            sampleColor=albedo*(skyColor*mix(.6,1.2,h)*1.1+sunColor*.08+vec3(.8,.9,1.25)*flash*4.*exp(-length(p-flashPoint)/45.));` });
+  wallVolume.scale.set(120, 30, 120); outbreak.add(wallVolume);
 
   const cloudSurface = texturedMaterial('#3a4441', '#000000', 0, true);
   const wall = instances(outbreak, sphere, cloudSurface.material, 40, 'Rotating wall cloud');
@@ -780,10 +779,9 @@ export function createTerrestrial({ scene, canvas, camera, buildings = [], lands
       const qx = c.x - funnelVolume.position.x - funnelUniforms.lean.value.x * h * h, qz = c.z - funnelVolume.position.z - funnelUniforms.lean.value.y * h * h;
       insideFunnel = Math.hypot(qx, qz) < (shape.x + (shape.y - shape.x) * Math.pow(h, shape.w)) * 1.3 + funnelUniforms.skirt.value * (1 - ease(h / .2));
     }
-    funnelUniforms.inside.value = insideFunnel ? 1 : 0; funnelVolume.material.side = insideFunnel ? THREE.BackSide : THREE.FrontSide;
+    setInside(funnelVolume, insideFunnel);
     const dy = c.y - wallVolume.position.y;
-    const insideWall = dy >= 0 && dy <= wallUniforms.thickness.value && Math.hypot(c.x - wallVolume.position.x, c.z - wallVolume.position.z) < wallUniforms.radius.value;
-    wallUniforms.inside.value = insideWall ? 1 : 0; wallVolume.material.side = insideWall ? THREE.BackSide : THREE.FrontSide;
+    setInside(wallVolume, dy >= 0 && dy <= wallUniforms.thickness.value && Math.hypot(c.x - wallVolume.position.x, c.z - wallVolume.position.z) < wallUniforms.radius.value);
   }
   function leaveTornado() { for (const tree of trees) tree.rotation.set(0, 0, 0); }
     return { group: outbreak, update: updateTornado, updateView: updateTornadoView, leave: leaveTornado, particles: [funnelDust, inflow] };
@@ -1198,6 +1196,105 @@ export function createTerrestrial({ scene, canvas, camera, buildings = [], lands
   }
     return { group: impact, update: updateInstrumentality, particles: ascension };
   }
+  function createTsunami() {
+    seed = 19981998;
+  // DEEP IMPACT: the comet's plasma trail, the water column thrown by the ocean strike and the spray torn off the
+  // wave's crest. The wave body, the ocean and the comet stay in the simulation; these volumes ride the same
+  // timeline: entry until 14 s, the strike at 13 s, the wave travelling from 14 s to 30 s.
+  const surge = group('Deep Impact — ocean strike');
+  const impactPoint = new THREE.Vector3(-50, -1, -100);
+  const trailAxis = new THREE.Vector3(10, 10, -3).normalize();
+  const comet = new THREE.Vector3(), lip = new THREE.Vector3();
+  const defaults = { fog: '#5a6364', fogDensity: .0024, fogGrowth: 0 };
+  const daylight = extra => volumeUniforms({ sunColor: { value: new THREE.Color('#ffc596').multiplyScalar(2.7) }, skyColor: { value: new THREE.Color('#9eafbe') },
+    fogColor: { value: new THREE.Color(defaults.fog) }, fogDensity: { value: defaults.fogDensity }, ...extra });
+  const trail = marchedVolume({ name: 'Entry trail', geometry: new THREE.CylinderGeometry(1, 1, 1, 16 * fine, 1, false),
+    uniforms: daylight({ axis: { value: trailAxis.clone() }, trailLength: { value: 90 } }),
+    declare: 'uniform vec3 axis;uniform float trailLength;',
+    // A white-hot sheath at the comet streams back into a thin dark smoke tail; the noise flows down the axis at entry speed.
+    field: `vec3 field(vec3 p,bool detail){
+      vec3 q=p-origin;float s=dot(q,axis);if(s<0.||s>trailLength)return vec3(0.);
+      vec3 perp=q-axis*s;float r=length(perp),f=s/trailLength,hot=1.-smoothstep(0.,.35,f);
+      if(r>(1.5+f*5.5)*1.3)return vec3(0.);
+      float wisp=fbm(q*.35-axis*time*9.);
+      float body=(1.-smoothstep(.4,1.,r/((1.5+f*5.5)*(.7+wisp*.6))))*(1.-smoothstep(.5,1.,f))*(.45+.55*hot);
+      float grain=detail&&body>.001?fbm(q*.9-axis*time*14.+3.):.5;
+      return vec3(body*(.6+.4*grain),hot,grain);
+    }`,
+    span: '24.', dt: '.4,1.5', loop: 48, absorb: '1.6',
+    shade: `vec3 plasma=vec3(3.,1.5,.5)*(.7+.6*f.z),smoke=vec3(.12,.11,.1)*(skyColor*.7+sunColor*.1);
+            sampleColor=mix(smoke,plasma,f.y);` });
+  surge.add(trail);
+  const column = marchedVolume({ name: 'Impact column', geometry: new THREE.CylinderGeometry(1, 1, 1, 32 * fine, 1, false).translate(0, .5, 0),
+    uniforms: daylight({ height: { value: 1 }, flare: { value: 0 }, heat: { value: 0 }, fade: { value: 1 }, radius: { value: 80 }, base: { value: 0 } }),
+    declare: 'uniform float height,flare,heat,fade,radius,base;',
+    // A boiling column with a mushroom cap and a base surge that rolls outward; the vaporised comet lights its foot at first.
+    field: `vec3 field(vec3 p,bool detail){
+      float h=(p.y-origin.y)/height;if(h<0.||h>1.)return vec3(0.);
+      vec2 q=p.xz-origin.xz;float r=length(q),angle=atan(q.y,q.x);
+      float cap=smoothstep(.62,.9,h)*(1.-smoothstep(.9,1.,h)),foot=1.-smoothstep(0.,.14,h),reach=10.+h*h*flare*.6+cap*flare+foot*base;
+      if(r>reach*1.3)return vec3(0.);
+      float boil=fbm(vec3(cos(angle)*2.2,h*7.-time*2.8,sin(angle)*2.2));
+      float R=reach*(.7+boil*.6);
+      float body=(1.-smoothstep(.5,1.,r/R))*smoothstep(0.,.03,h)*(1.-smoothstep(.85,1.,h));
+      float grain=detail&&body>.001?fbm(vec3(q*.05,h*8.-time*2.2)+7.):.5;
+      return vec3(body*(.55+.45*grain)*fade,heat*(1.-smoothstep(.1,.6,h)),grain);
+    }`,
+    span: 'radius*1.5', dt: '1.,4.', loop: 64, absorb: '1.1',
+    shade: `float h=clamp((p.y-origin.y)/height,0.,1.);
+            float shade=exp(-field(p+sunDirection*12.,false).x*1.8);
+            vec3 vapour=vec3(.8,.83,.85)*(.65+.55*f.z)*(sunColor*.35*(.2+.8*shade)+skyColor*mix(.45,1.1,h));
+            sampleColor=vapour+vec3(2.4,.9,.25)*f.y*(1.+f.z);` });
+  column.position.copy(impactPoint); surge.add(column);
+  const spray = marchedVolume({ name: 'Crest spray', geometry: new THREE.BoxGeometry(1, 1, 1),
+    uniforms: daylight({ crest: { value: 0 } }), declare: 'uniform float crest;',
+    // A thin, patchy veil of spindrift torn off the lip and blown up and back; the lip wobble matches the wave profile.
+    field: `vec3 field(vec3 p,bool detail){
+      vec3 q=p-origin;float up=q.y-sin(p.x*.13+time)*1.2;if(up<-4.)return vec3(0.);
+      vec2 back=vec2(max(up,0.),max(-q.z,0.));float along=dot(back,vec2(.75,.66)),off=abs(dot(back,vec2(-.66,.75)));
+      float veil=(1.-smoothstep(.3,1.,off/(2.5+along*.4)))*(1.-smoothstep(8.,30.,along))*(1.-smoothstep(150.,190.,abs(p.x)));if(veil<.01)return vec3(0.);
+      // Cheapest first: the low-frequency patches decide whether the wisps are worth sampling at all.
+      float patches=smoothstep(.3,.7,noise(vec3(p.x*.045+time*.25,along*.05,1.)));if(veil*patches<.01)return vec3(0.);
+      float wisps=smoothstep(.4,.72,noise(vec3(p.x*.12,along*.14-time*3.,q.z*.12+time*.8))*.65+noise(vec3(p.x*.3,along*.35-time*5.,q.z*.3))*.35);
+      float d=veil*patches*wisps;if(d<.005)return vec3(0.);
+      float grain=detail?noise(vec3(p.x*.25,up*.3-time*4.,q.z*.25)+5.):.5;
+      return vec3(d*(.6+.4*grain),0.,grain);
+    }`,
+    span: '46.', dt: '1.2,2.5', loop: 32, absorb: '.7',
+    // A thin veil barely shadows itself, so the grain stands in for the shadow sample.
+    shade: `sampleColor=vec3(.92,.95,.97)*(.75+.4*f.z)*(sunColor*.32*(.65+.35*f.z)+skyColor*.85);` });
+  surge.add(spray);
+
+  function updateTsunami(t, detail, config) {
+    const volumetric = detail === 2, ultra = canvas.dataset.quality === 'ultra', env = config?.environment || {};
+    // The wave's lip: the simulation's profile at v = 1, on the wave that travels from z = -115 to 115.
+    const travel = ease((t - 14) / 16), height = 22 + travel * 60;
+    lip.set(0, -1.2 + Math.sin(Math.PI * .53) * height, -115 + travel * 230 + 17);
+    comet.set(85 - t * 10, 145 - t * 10, -145 + t * 3);
+    trail.visible = volumetric && t < 14;
+    trail.position.copy(comet).addScaledVector(trailAxis, 45); trail.quaternion.setFromUnitVectors(up, trailAxis); trail.scale.set(9, 90, 9);
+    trail.material.uniforms.origin.value.copy(comet);
+    const columnHeight = Math.max(1, 190 * ease((t - 13) / 2.5)), columnUniforms = column.material.uniforms;
+    column.visible = volumetric && t > 13 && t < 24; column.scale.set(80, columnHeight, 80);
+    columnUniforms.height.value = columnHeight; columnUniforms.flare.value = 34 * ease((t - 14.5) / 5);
+    columnUniforms.base.value = 48 * ease((t - 15.5) / 5); columnUniforms.heat.value = 1 - ease((t - 13.3) / 2.2);
+    columnUniforms.fade.value = 1 - ease((t - 19) / 5); columnUniforms.origin.value.copy(impactPoint);
+    spray.visible = volumetric && t > 14;
+    spray.position.set(0, lip.y + 10, lip.z - 8); spray.scale.set(380, 32, 40);
+    spray.material.uniforms.origin.value.copy(lip); spray.material.uniforms.crest.value = height;
+    for (const [volume, steps] of [[trail, ultra ? 32 : 24], [column, ultra ? 40 : 28], [spray, ultra ? 24 : 18]]) volumeFrame(volume, t, steps, env, defaults);
+  }
+  function updateTsunamiView(camera) {
+    if (!camera) return;
+    const c = camera.position;
+    delta.copy(c).sub(trail.position); const along = delta.dot(trailAxis);
+    setInside(trail, Math.abs(along) < 45 && delta.addScaledVector(trailAxis, -along).length() < 9);
+    const dy = c.y - column.position.y;
+    setInside(column, dy >= 0 && dy <= column.scale.y && Math.hypot(c.x - column.position.x, c.z - column.position.z) < 80);
+    setInside(spray, Math.abs(c.x - spray.position.x) < 190 && Math.abs(c.y - spray.position.y) < 16 && Math.abs(c.z - spray.position.z) < 20);
+  }
+    return { group: surge, update: updateTsunami, updateView: updateTsunamiView, particles: [] };
+  }
   const factories = {
     'terminator-2': createNuclear,
     '2012': createRupture,
@@ -1206,7 +1303,8 @@ export function createTerrestrial({ scene, canvas, camera, buildings = [], lands
     'dantes-peak': createEruption,
     'day-after-tomorrow': createSuperstorm,
     'day-the-earth-stood-still': createVisitation,
-    'evangelion': createInstrumentality
+    'evangelion': createInstrumentality,
+    'deep-impact': createTsunami
   };
   const loaded = new Map();
   let active;

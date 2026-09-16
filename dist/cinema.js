@@ -151,21 +151,30 @@ export function createCinema(world) {
   for(const object of [snow,foam,debris])object.frustumCulled=false;
 
   const waterTime={value:0};
+  // Water is dielectric: no metalness, a glossy surface that reflects the sky, two octaves of flowing normals, a
+  // deep-to-shallow gradient up the wave face, turquoise backlight through the thin curl and rough foam lace.
+  const waveColor=`diffuseColor.rgb=mix(vec3(.04,.15,.19),vec3(.1,.38,.4),smoothstep(.15,.95,waterUv.y));
+        float lip=smoothstep(.8,.99,waterUv.y);
+        float lace=smoothstep(.52,.74,fbm(waterPoint*vec3(.9,.32,.6)+vec3(0.,-waterTime*2.5,0.)))*smoothstep(.35,.85,waterUv.y);
+        float streak=pow(.5+.5*sin(waterUv.x*210.+waterCrest*11.),8.)*smoothstep(.55,.9,waterUv.y)*.32;
+        waterFoam=clamp(lip*(.6+.4*smoothstep(.3,.7,waterCrest))+lace*.55+streak,0.,1.);`;
+  const oceanColor=`diffuseColor.rgb=mix(diffuseColor.rgb,vec3(.15,.36,.4),smoothstep(.55,.8,waterCrest)*.3);
+        waterFoam=smoothstep(.7,.85,fbm(waterPoint*.12+vec3(waterTime*.1,waterTime*.05,0.)))*.14;`;
+  const waterNormals=`#include <normal_fragment_maps>
+        normal=normalize(normal+vec3(noise(waterPoint*.3+vec3(waterTime*.2,0.,0.))-.5,noise(waterPoint*.4-vec3(0.,waterTime*.15,0.))-.5,0.)*.2+vec3(noise(waterPoint*1.3+vec3(0.,-waterTime*1.2,0.))-.5,noise(waterPoint*1.1+vec3(waterTime*.9,0.,0.))-.5,0.)*.09);`;
   for(const mesh of [ocean,wave]){
-    mesh.material.color.set('#174c60');mesh.material.metalness=.4;mesh.material.roughness=.36;mesh.material.envMapIntensity=.3;
+    mesh.material.color.set('#0e3441');mesh.material.metalness=0;mesh.material.roughness=mesh===wave?.2:.19;mesh.material.envMapIntensity=mesh===wave?.9:1.1;
     mesh.material.onBeforeCompile=shader=>{
       shader.uniforms.waterTime=waterTime;
       shader.vertexShader=shader.vertexShader.replace('#include <common>','#include <common>\nvarying vec3 waterPoint;varying vec2 waterUv;').replace('#include <begin_vertex>','#include <begin_vertex>\nwaterPoint=position;waterUv=uv;');
-      shader.fragmentShader=shader.fragmentShader.replace('#include <common>','#include <common>\nuniform float waterTime;varying vec3 waterPoint;varying vec2 waterUv;'+noiseGLSL)
-        .replace('#include <normal_fragment_maps>','#include <normal_fragment_maps>\nnormal=normalize(normal+vec3(noise(waterPoint*.3+waterTime*.2)-.5,noise(waterPoint*.4-waterTime*.15)-.5,0.)*.16);')
-        .replace('#include <color_fragment>',`#include <color_fragment>
-        float crest=fbm(waterPoint*.16+vec3(waterTime*.15,0.,0.));
-        diffuseColor.rgb=mix(diffuseColor.rgb,vec3(.2,.42,.48),smoothstep(.55,.8,crest)*.35);
-        ${mesh===wave?`float lip=smoothstep(.79,.99,waterUv.y);float foam=lip*smoothstep(.34,.64,crest);
-        float streak=pow(.5+.5*sin(waterUv.x*210.+crest*11.),8.)*smoothstep(.55,.9,waterUv.y)*.32;
-        diffuseColor.rgb=mix(diffuseColor.rgb,vec3(.68,.85,.87),clamp(foam+streak,0.,.9));`:''}`);
+      let fragment=shader.fragmentShader.replace('#include <common>','#include <common>\nuniform float waterTime;varying vec3 waterPoint;varying vec2 waterUv;float waterFoam=0.;float waterCrest=0.;'+noiseGLSL)
+        .replace('#include <normal_fragment_maps>',waterNormals)
+        .replace('#include <roughnessmap_fragment>','#include <roughnessmap_fragment>\nroughnessFactor=mix(roughnessFactor,.92,waterFoam);')
+        .replace('#include <color_fragment>','#include <color_fragment>\nwaterCrest=fbm(waterPoint*.16+vec3(waterTime*.15,0.,0.));\n'+(mesh===wave?waveColor:oceanColor)+'\ndiffuseColor.rgb=mix(diffuseColor.rgb,vec3(.86,.93,.95),waterFoam);');
+      if(mesh===wave)fragment=fragment.replace('#include <emissivemap_fragment>','#include <emissivemap_fragment>\ntotalEmissiveRadiance+=vec3(.05,.28,.26)*smoothstep(.55,.97,waterUv.y)*(1.-waterFoam*.8)*(.6+.4*waterCrest);');
+      shader.fragmentShader=fragment;
     };
-    mesh.material.customProgramCacheKey=()=>mesh===wave?'cinema-wave-foam-v2':'cinema-ocean-v2';
+    mesh.material.customProgramCacheKey=()=>mesh===wave?'cinema-wave-foam-v3':'cinema-ocean-v3';
     mesh.material.needsUpdate=true;
   }
 
@@ -182,7 +191,8 @@ export function createCinema(world) {
     gl_FragColor.rgb=mix(vec3(filmLuma),gl_FragColor.rgb,filmSaturation)*filmTint;
     vec2 filmPosition=vUv-.5;gl_FragColor.rgb*=1.-smoothstep(.12,.65,dot(filmPosition,filmPosition))*.12;
   }`);
-  const tiers=[{name:'LITE',dpr:1,particles:.3,shadows:false,bloom:false,shadowMap:2048},{name:'BALANCED',dpr:1.25,particles:.6,shadows:false,bloom:true,shadowMap:2048},{name:'HIGH',dpr:1.7,particles:1,shadows:true,bloom:true,shadowMap:2048},{name:'ULTRA',dpr:2,particles:1,shadows:true,bloom:true,shadowMap:4096}];
+  // Spray sprites thin out where the crest volume takes over at HIGH and ULTRA.
+  const tiers=[{name:'LITE',dpr:1,particles:.3,spray:.3,shadows:false,bloom:false,shadowMap:2048},{name:'BALANCED',dpr:1.25,particles:.6,spray:.6,shadows:false,bloom:true,shadowMap:2048},{name:'HIGH',dpr:1.7,particles:1,spray:.45,shadows:true,bloom:true,shadowMap:2048},{name:'ULTRA',dpr:2,particles:1,spray:.45,shadows:true,bloom:true,shadowMap:4096}];
   const phone=()=>matchMedia('(pointer: coarse)').matches||canvas.clientWidth<600;
   // ULTRA renders native Retina/4K pixels, so it unlocks only on dense desktop displays; FPS still governs it.
   const ceilingFor=()=>phone()?1:devicePixelRatio>=1.5?3:2;
@@ -196,7 +206,7 @@ export function createCinema(world) {
     quality=next;const tier=tiers[next];renderer.setPixelRatio(Math.min(devicePixelRatio,tier.dpr));renderer.shadowMap.enabled=tier.shadows;
     if(sun.shadow.mapSize.x!==tier.shadowMap){sun.shadow.mapSize.set(tier.shadowMap,tier.shadowMap);sun.shadow.map?.dispose();sun.shadow.map=null;}
     bloom.enabled=tier.bloom;canvas.dataset.antialias=tier.bloom?'fxaa':'native';roofs.forEach((roof,i)=>roof.visible=next>0||i%3===0);armor.visible=next>0;
-    for(const p of [sparks,smoke,spray]){p.geometry.setDrawRange(0,Math.floor(p.geometry.attributes.position.count*tier.particles));p.material.uniforms.pixelRatio.value=renderer.getPixelRatio();}
+    for(const p of [sparks,smoke,spray]){p.geometry.setDrawRange(0,Math.floor(p.geometry.attributes.position.count*(p===spray?tier.spray:tier.particles)));p.material.uniforms.pixelRatio.value=renderer.getPixelRatio();}
     snow.geometry.setDrawRange(0,Math.floor(snow.geometry.attributes.position.count*tier.particles));debris.count=Math.floor(300*tier.particles);
     canvas.dataset.quality=tier.name.toLowerCase();canvas.dataset.pixelRatio=String(renderer.getPixelRatio());
     telemetry.setQuality(canvas.dataset.quality,reason);
@@ -227,7 +237,7 @@ export function createCinema(world) {
     atmosphere.update(t,config);
     waterTime.value=t;
     const age=t-13;
-    sparks.visible=impact&&age>0&&age<12;smoke.visible=impact&&age>0;
+    sparks.visible=impact&&age>0&&age<(id==='deep-impact'?4:12);smoke.visible=impact&&age>0;
     for(const p of [sparks,smoke]){p.material.uniforms.time.value=age;p.material.uniforms.origin.value.set(id==='independence-day'?-8:-50,3,id==='independence-day'?-20:-100);}
     const travel=clamp((t-14)/16),smoothTravel=travel*travel*(3-2*travel);
     spray.visible=id==='deep-impact'&&t>14;spray.material.uniforms.time.value=t;spray.material.uniforms.origin.value.set(0,Math.sin(Math.PI*.53)*(22+smoothTravel*60),wave.position.z+17);

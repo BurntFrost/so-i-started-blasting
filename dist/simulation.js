@@ -57,7 +57,7 @@ const blast=new THREE.Mesh(new THREE.SphereGeometry(1,48,32),new THREE.MeshBasic
 const shockwave=new THREE.Mesh(new THREE.TorusGeometry(1,.045,8,128),new THREE.MeshBasicMaterial({color:'#ffd19a',transparent:true,opacity:1}));shockwave.rotation.x=Math.PI/2;shockwave.position.set(-8,1,-20);effects.add(shockwave);
 const glow=new THREE.PointLight('#b4ffca',0,220,1.3);glow.position.set(-8,30,-20);effects.add(glow);
 // One time value drives every effect, making reverse scrubbing deterministic.
-const ocean=new THREE.Mesh(new THREE.PlaneGeometry(650,650,80,80),mat('#264451',{metalness:.6,roughness:.28,transparent:true,opacity:.88}));ocean.rotation.x=-Math.PI/2;ocean.position.y=-1.6;effects.add(ocean);
+const ocean=new THREE.Mesh(new THREE.PlaneGeometry(650,650,80,80),mat('#264451',{metalness:.6,roughness:.28,transparent:true,opacity:.95}));ocean.rotation.x=-Math.PI/2;ocean.position.y=-1.08;effects.add(ocean);
 const wave=new THREE.Mesh(new THREE.PlaneGeometry(220,75,90,35),mat('#447783',{metalness:.3,roughness:.3,side:THREE.DoubleSide,transparent:true,opacity:.92}));effects.add(wave);
 const waveBase=wave.geometry.attributes.position.array.slice();
 const foam=new THREE.Points(new THREE.BufferGeometry(),new THREE.PointsMaterial({color:'#d8f6f5',size:1.3,transparent:true,opacity:.8}));const foamPositions=new Float32Array(650*3);foam.geometry.setAttribute('position',new THREE.BufferAttribute(foamPositions,3));effects.add(foam);
@@ -158,7 +158,7 @@ function updateWorld(){
  if(impact){
   meteor.position.set(85-t*10,145-t*10,-145+t*3);meteor.rotation.set(t*.3,t*.2,0);tail.position.copy(meteor.position).add(new THREE.Vector3(21,21,-6));
   tail.quaternion.setFromUnitVectors(new THREE.Vector3(0,-1,0),new THREE.Vector3(-1,-1,.3).normalize());
-  wave.position.set(0,0,-115+ease((t-14)/16)*230);ocean.position.y=-1.6+ease((t-25)/5)*13;
+  wave.position.set(0,-1.2,-115+ease((t-14)/16)*230);ocean.position.y=-1.08+ease((t-25)/5)*13;
  }
  snow.visible=storm;
  if(storm){
