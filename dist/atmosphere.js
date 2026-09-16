@@ -1,4 +1,5 @@
 import * as THREE from 'three';
+import { markEffect } from './render-kit.js';
 
 const clamp = value => Math.max(0, Math.min(1, value));
 const output = '\n#include <tonemapping_fragment>\n#include <colorspace_fragment>\n';
@@ -31,7 +32,7 @@ export function createAtmosphere({ scene, camera, canvas }) {
   });
   const celestial = new THREE.Mesh(domeGeometry, celestialMaterial);
   celestial.name = 'Locally generated interstellar dust'; celestial.scale.setScalar(690);
-  celestial.visible = false; celestial.renderOrder = -20; celestial.frustumCulled = false; scene.add(celestial);
+  celestial.visible = false; celestial.renderOrder = -20; celestial.frustumCulled = false; markEffect(celestial); scene.add(celestial);
 
   const cloudMaterial = new THREE.ShaderMaterial({
     uniforms: { weatherMap, weatherReady, time: clock, density: { value: .3 }, wind: { value: 1 }, tint: { value: new THREE.Color('#627783') } },
@@ -49,7 +50,7 @@ export function createAtmosphere({ scene, camera, canvas }) {
   });
   const cloudDome = new THREE.Mesh(domeGeometry, cloudMaterial);
   cloudDome.name = 'Layered storm ceiling'; cloudDome.scale.setScalar(610);
-  cloudDome.visible = false; cloudDome.renderOrder = -8; cloudDome.frustumCulled = false; scene.add(cloudDome);
+  cloudDome.visible = false; cloudDome.renderOrder = -8; cloudDome.frustumCulled = false; markEffect(cloudDome); scene.add(cloudDome);
 
   const mistMaterial = new THREE.ShaderMaterial({
     uniforms: { weatherMap, weatherReady, time: clock, density: { value: .1 }, tint: { value: new THREE.Color() } },
@@ -72,7 +73,7 @@ export function createAtmosphere({ scene, camera, canvas }) {
     dummy.scale.set(115 + Math.sin(i * 1.7) * 25, 32 + Math.cos(i * 2.1) * 10, 1);
     dummy.updateMatrix(); mist.setMatrixAt(i, dummy.matrix);
   }
-  mist.instanceMatrix.needsUpdate = true; scene.add(mist);
+  mist.instanceMatrix.needsUpdate = true; markEffect(mist); scene.add(mist);
   const whiteout = new THREE.Color('#c4d4dd'), dawn = new THREE.Color('#ffb48f');
   for (const dome of [celestial, cloudDome]) dome.onBeforeRender = () => {
     dome.position.copy(camera.position); dome.updateMatrixWorld();

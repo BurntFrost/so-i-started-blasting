@@ -1,5 +1,5 @@
 import * as THREE from 'three';
-import { marchedVolume, setInside, volumeUniforms } from './volumes.js';
+import { marchedVolume, setInside, volumeUniforms as sharedVolumeUniforms, markEffects, markEffect } from './render-kit.js';
 
 const TAU = Math.PI * 2;
 const clamp = x => Math.max(0, Math.min(1, x));
@@ -19,6 +19,7 @@ const output = `
 
 // Every transform and shader uniform is a function of time, not accumulated frames.
 export function createCosmic({ scene, canvas, camera }) {
+  const volumeUniforms = extra => sharedVolumeUniforms(extra, canvas);
   // ULTRA-capable displays get twice the silhouette tessellation; geometry is built once per module.
   const fine = canvas.dataset.qualityCeiling === 'ultra' ? 2 : 1;
   let seed = 77493;
@@ -143,7 +144,7 @@ export function createCosmic({ scene, canvas, camera }) {
   stars.material.onBeforeCompile = shader => {
     shader.fragmentShader = shader.fragmentShader.replace('#include <color_fragment>', '#include <color_fragment>\ndiffuseColor.a*=1.-smoothstep(.05,.5,length(gl_PointCoord-.5));');
   };
-  stars.visible = false; scene.add(stars);
+  stars.visible = false; markEffect(stars); scene.add(stars);
 
     return stars;
   }
@@ -243,7 +244,7 @@ export function createCosmic({ scene, canvas, camera }) {
     transparent: true, depthWrite: false, blending: THREE.AdditiveBlending
   }));
   engulf.name = 'Engulfed Earth'; engulf.position.copy(earthCenter); engulf.visible = false; solar.add(engulf);
-  // HIGH and ULTRA march the corona, the ejection and the engulfment as volumes (see volumes.js); the sprites and
+  // HIGH and ULTRA march the corona, the ejection and the engulfment as volumes (see render-kit.js); the sprites and
   // shells above stay for the lower tiers. Space has no fog, so the volumes carry none.
   const uAxis = new THREE.Vector3().crossVectors(axis, up).normalize(), vAxis = new THREE.Vector3().crossVectors(axis, uAxis);
   const coronaVolume = marchedVolume({ name: 'Corona volume', geometry: new THREE.SphereGeometry(1, 48 * fine, 32 * fine),
@@ -671,7 +672,7 @@ export function createCosmic({ scene, canvas, camera }) {
     if (active && active !== loaded.get(config.id)) active.group.visible = false;
     if (!factory) { if (stars) stars.visible = false; active = undefined; return; }
     if (!stars) stars = createStars();
-    if (!loaded.has(config.id)) loaded.set(config.id, factory());
+    if (!loaded.has(config.id)) { const result = factory(); markEffects(result.group); loaded.set(config.id, result); }
     const next = loaded.get(config.id);
     if (next !== active) next.quality = undefined;
     active = next; active.group.visible = true; stars.visible = true;

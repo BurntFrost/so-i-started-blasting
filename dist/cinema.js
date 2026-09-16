@@ -6,8 +6,12 @@ import { UnrealBloomPass } from 'three/addons/postprocessing/UnrealBloomPass.js'
 import { OutputPass } from 'three/addons/postprocessing/OutputPass.js';
 import { ShaderPass } from 'three/addons/postprocessing/ShaderPass.js';
 import { FXAAShader } from 'three/addons/shaders/FXAAShader.js';
+import { OpaqueGTAOPass } from './ao-pass.js';
+import { EFFECTS_LAYER, markEffects, opaqueDepthUniforms } from './render-kit.js';
 import { createAtmosphere } from './atmosphere.js';
 import { defaultGrade, sceneConfigs } from './scene-config.js';
+
+export const qualityTiers=[{name:'LITE',ao:false,aoScale:1,dpr:1,particles:.3,spray:.3,shadows:false,bloom:false,film:false,shadowMap:2048},{name:'BALANCED',ao:false,aoScale:1,dpr:1.25,particles:.6,spray:.6,shadows:false,bloom:true,film:true,shadowMap:2048},{name:'HIGH',ao:true,aoScale:1,dpr:1.7,particles:1,spray:.45,shadows:true,bloom:true,film:true,shadowMap:2048},{name:'ULTRA',ao:true,aoScale:.7,dpr:2,particles:1,spray:.45,shadows:true,bloom:true,film:true,shadowMap:4096}];
 
 // This pass receives display-referred colour after OutputPass and unmodified FXAA.
 export const filmShader = {
@@ -202,14 +206,23 @@ export function createCinema(world) {
     mesh.material.needsUpdate=true;
   }
 
+  camera.layers.enable(EFFECTS_LAYER);
+  markEffects(scene);
+  const depth=opaqueDepthUniforms(canvas);
+  const ao=new OpaqueGTAOPass(scene,camera,depth);
+  const worldBounds={
+    city:new THREE.Box3(new THREE.Vector3(-85,-20,-100),new THREE.Vector3(85,160,55)),
+    landscape:new THREE.Box3(new THREE.Vector3(-130,-20,-150),new THREE.Vector3(130,200,50)),
+    space:new THREE.Box3(new THREE.Vector3(-400,-300,-400),new THREE.Vector3(400,400,400))
+  };
   const composer=new EffectComposer(renderer);
-  composer.addPass(new RenderPass(scene,camera));
+  composer.addPass(new RenderPass(scene,camera));composer.addPass(ao);
   const bloom=new UnrealBloomPass(new THREE.Vector2(1,1),.65,.65,1.1);composer.addPass(bloom);composer.addPass(new OutputPass());
   // FXAA smooths the offscreen geometry after output conversion without MSAA renderbuffers.
   const antialias=new ShaderPass(FXAAShader);composer.addPass(antialias);
   const film=new ShaderPass(filmShader);composer.addPass(film);
   // Spray sprites thin out where the crest volume takes over at HIGH and ULTRA.
-  const tiers=[{name:'LITE',dpr:1,particles:.3,spray:.3,shadows:false,bloom:false,film:false,shadowMap:2048},{name:'BALANCED',dpr:1.25,particles:.6,spray:.6,shadows:false,bloom:true,film:true,shadowMap:2048},{name:'HIGH',dpr:1.7,particles:1,spray:.45,shadows:true,bloom:true,film:true,shadowMap:2048},{name:'ULTRA',dpr:2,particles:1,spray:.45,shadows:true,bloom:true,film:true,shadowMap:4096}];
+  const tiers=qualityTiers;
   const phone=()=>matchMedia('(pointer: coarse)').matches||canvas.clientWidth<600;
   // ULTRA renders native Retina/4K pixels, so it unlocks only on dense desktop displays; FPS still governs it.
   const ceilingFor=()=>phone()?1:devicePixelRatio>=1.5?3:2;
@@ -222,6 +235,7 @@ export function createCinema(world) {
   let grade=defaultGrade;
   function setQuality(next,reason='initial'){
     quality=next;const tier=tiers[next];renderer.setPixelRatio(Math.min(devicePixelRatio,tier.dpr));renderer.shadowMap.enabled=tier.shadows;
+    ao.enabled=tier.ao;ao.resolutionScale=tier.aoScale;depth.opaqueDepthAvailable.value=0;canvas.dataset.ambientOcclusion=tier.ao?'gtao':'none';
     film.enabled=tier.film;
     renderer.toneMapping=tier.film?THREE.AgXToneMapping:THREE.ACESFilmicToneMapping;
     renderer.toneMappingExposure=tier.film?grade.exposure:1.3;
@@ -253,6 +267,7 @@ export function createCinema(world) {
     else fastWindows=0;
   }
   function update(t,config){
+    ao.setSceneClipBox(worldBounds[config.world]||worldBounds.city);
     const id=config.id, impact=id==='independence-day'||id==='deep-impact';
     windows.visible=false;clouds.visible=false;
     atmosphere.update(t,config);
@@ -276,5 +291,5 @@ export function createCinema(world) {
     ground.material.envMapIntensity=id==='day-after-tomorrow'?.2:.6;
   }
   setQuality(quality);
-  return {update,resize,measure,environment:environment.texture,rim,render:()=>{if(tiers[quality].bloom)composer.render();else renderer.render(scene,camera);}};
+  return {update,resize,measure,environment:environment.texture,rim,render:()=>{if(tiers[quality].bloom){if(ao.enabled)ao.prepass(renderer);composer.render();}else renderer.render(scene,camera);}};
 }

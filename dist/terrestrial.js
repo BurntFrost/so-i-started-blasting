@@ -1,6 +1,6 @@
 import * as THREE from 'three';
 import { createBakedExplosion } from './baked-explosion.js';
-import { marchedVolume, setInside, volumeFrame, volumeUniforms } from './volumes.js';
+import { marchedVolume, setInside, volumeFrame, volumeUniforms as sharedVolumeUniforms, markEffects, markEffect } from './render-kit.js';
 
 const clamp = value => Math.max(0, Math.min(1, value));
 const ease = value => { const t = clamp(value); return t * t * (3 - 2 * t); };
@@ -16,6 +16,7 @@ float fbm(vec3 p){return noise(p)*.57+noise(p*2.03)*.28+noise(p*4.11)*.15;}`;
 // The baseline city buildings and the landscape group are shared with the simulation: the superstorm
 // hangs icicles from the roof edges and the visitor's swarm consumes the park trees.
 export function createTerrestrial({ scene, canvas, camera, buildings = [], landscape }) {
+  const volumeUniforms = extra => sharedVolumeUniforms(extra, canvas);
   // ULTRA-capable displays get twice the silhouette tessellation; geometry is built once per module.
   const fine = canvas.dataset.qualityCeiling === 'ultra' ? 2 : 1;
   let seed = 20121991;
@@ -1255,7 +1256,7 @@ export function createTerrestrial({ scene, canvas, camera, buildings = [], lands
       const factory = factories[config.id];
       if (active && active !== loaded.get(config.id)) { active.group.visible = false; active.leave?.(); }
       if (!factory) { active = undefined; return; }
-      if (!loaded.has(config.id)) loaded.set(config.id, factory());
+      if (!loaded.has(config.id)) { const result = factory(); markEffects(result.group); loaded.set(config.id, result); }
       active = loaded.get(config.id); active.group.visible = true;
       const t = Math.max(0, Math.min(30, time));
       const quality = canvas.dataset.quality;
