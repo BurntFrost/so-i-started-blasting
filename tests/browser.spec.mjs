@@ -1,6 +1,7 @@
 import { test, expect } from '@playwright/test';
 import { createHash } from 'node:crypto';
 import { scenes } from '../dist/scenes.js';
+import { QUALITY, seekTimeline, settleFrames } from '../tools/capture-media.mjs';
 
 const digest = bytes => createHash('sha256').update(bytes).digest('hex');
 async function changedPixels(page, before, after) {
@@ -39,13 +40,9 @@ async function load(page) {
   await expect(page.locator('#loading')).toBeHidden();
 }
 async function seek(page, seconds) {
-  await page.locator('#progress').evaluate((element, value) => {
-    element.value = String(value);
-    element.dispatchEvent(new Event('input', { bubbles: true }));
-  }, seconds);
+  await seekTimeline(page, seconds);
   await expect(page.locator('#time')).toHaveText(`00:${String(Math.floor(seconds)).padStart(2, '0')}`);
-  // Two rendered frames settle transforms after an input; no wall-clock motion is running.
-  await page.evaluate(() => new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve))));
+  await settleFrames(page);
 }
 async function select(page, index) {
   await page.locator(`.scene-card[data-scene="${index}"]`).click();
@@ -266,7 +263,7 @@ for (const privacy of ['doNotTrack', 'globalPrivacyControl']) {
 }
 
 test.describe('desktop ULTRA rendering', () => {
-  test.use({ hasTouch: false, deviceScaleFactor: 2, viewport: { width: 1280, height: 800 } });
+  test.use(QUALITY.ultra);
   test('dense desktop displays render native pixels with the 4K assets and stay reversible', async ({ page }) => {
     const errors = await observe(page);
     const assets = [];

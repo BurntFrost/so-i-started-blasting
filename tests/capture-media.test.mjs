@@ -3,11 +3,13 @@ import { mkdtemp, writeFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import { tmpdir } from 'node:os';
 import test from 'node:test';
-import { loadCaptureSet, parseAbsoluteError, parseArgs, QUALITY, SCENES, validateSceneSets } from '../tools/capture-media.mjs';
+import { loadCaptureSet, parseAbsoluteError, parseArgs, parseNormalizedError, QUALITY, SCENES, validateSceneSets } from '../tools/capture-media.mjs';
+import { scenes } from '../dist/scenes.js';
 
 test('capture catalogue contains all fifteen unique scene ids and browser tier profiles', () => {
   assert.equal(SCENES.length, 15);
   assert.equal(new Set(SCENES.map(scene => scene.id)).size, 15);
+  assert.deepEqual(SCENES.map(scene => scene.id), scenes.map(scene => scene.id));
   assert.deepEqual(Object.keys(QUALITY), ['balanced', 'high', 'ultra']);
   assert.equal(QUALITY.high.deviceScaleFactor, 1);
   assert.equal(QUALITY.ultra.deviceScaleFactor, 2);
@@ -21,7 +23,7 @@ test('arguments validate scenes, tiers, and probe timing', () => {
   assert.throws(() => parseArgs(['capture', '--quality', 'lite']), /--quality/);
   assert.throws(() => parseArgs(['capture', '--quality', 'high', '--scene', 'missing']), /Unknown scene/);
   assert.throws(() => parseArgs(['probe', '--quality', 'balanced', '--scene', 'twister', '--second', '17']), /high or ultra/);
-  assert.throws(() => parseArgs(['probe', '--quality', 'high', '--scene', 'twister', '--second', '24']), /between 0 and 23/);
+  assert.throws(() => parseArgs(['probe', '--quality', 'high', '--scene', 'twister', '--second', '-1']), /non-negative/);
 });
 
 test('capture-set loader fails missing manifests and missing images', async () => {
@@ -42,5 +44,10 @@ test('comparison requires matching scene sets', () => {
 test('ImageMagick absolute-error output uses the leading pixel count', () => {
   assert.equal(parseAbsoluteError('0 (0)'), 0);
   assert.equal(parseAbsoluteError('123 (0.001)'), 123);
+  assert.equal(parseAbsoluteError('4.096e+06 (1)'), 4096000);
   assert.throws(() => parseAbsoluteError('(0)'), /no pixel count/);
+  assert.throws(() => parseAbsoluteError(''), /no pixel count/);
+  assert.equal(parseNormalizedError('771 (0.0117647)'), 0.0117647);
+  assert.equal(parseNormalizedError('0 (0)'), 0);
+  assert.throws(() => parseNormalizedError('771'), /no normalized error/);
 });

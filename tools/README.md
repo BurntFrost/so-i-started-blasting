@@ -132,8 +132,8 @@ ffmpeg -y -framerate 1 -i work/explosion-bake/frames-512/%03d.png -vf tile=8x4 -
 python3 tools/author-at-field.py
 ```
 
-`node tools/capture-media.mjs` accepts `CAPTURE_SCALE=2` to capture native Retina
-frames into `work/media-review-2x` for reviewing the ULTRA tier.
+`node tools/capture-media.mjs capture --quality ultra` captures native Retina frames of
+all fifteen scenes; `docs/graphics-a0-tooling.md` covers the capture, probe and compare modes.
 
 ## Original sound and atmospheric textures
 
@@ -162,6 +162,7 @@ The nebula is a generated bitmap; its prompt and creation route are recorded in
 dist/assets/nebula.webp` produces the deployed size. Only final WebP/MP3 assets are
 needed at runtime, with literal URLs and transitive content hashes in the build.
 
-After building and starting the server, `node tools/capture-media.mjs` captures
-eight scene frames and a phone layout into ignored `work/media-review`. This
-uses installed Chrome and reports shader/page errors in `capture.json`.
+After building and starting the server, `node tools/capture-media.mjs capture --quality high`
+captures the fifteen scene frames into ignored `work/media-review-high`; `balanced` is the
+phone tier and `ultra` renders native Retina pixels. This uses installed Chrome and reports
+shader/page errors in `capture.json`.
