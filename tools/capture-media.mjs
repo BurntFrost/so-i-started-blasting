@@ -1,36 +1,202 @@
-// Capture the actual built renderer for visual and local-vision review.
-// Run against npm run serve: node tools/capture-media.mjs
+// Capture, probe, and compare the built renderer. Run against `npm run serve`.
 import { chromium } from '@playwright/test';
-import { mkdir, writeFile } from 'node:fs/promises';
+import { existsSync } from 'node:fs';
+import { mkdir, readFile, writeFile } from 'node:fs/promises';
+import { basename, join, resolve } from 'node:path';
+import { fileURLToPath } from 'node:url';
+import { spawnSync } from 'node:child_process';
 
-// CAPTURE_SCALE=2 renders native Retina pixels and writes to work/media-review-2x for 4K review.
-const scale = Number(process.env.CAPTURE_SCALE || 1);
-const output = new URL(`../work/media-review${scale > 1 ? `-${scale}x` : ''}/`, import.meta.url);
-await mkdir(output, { recursive: true });
-const browser = await chromium.launch({ channel: 'chrome', args: ['--enable-webgl', '--ignore-gpu-blocklist'] });
-const page = await browser.newPage({ viewport: { width: 1440, height: 960 }, deviceScaleFactor: scale, hasTouch: false, reducedMotion: 'reduce' });
-const errors = [], frames = [];
-page.on('pageerror', error => errors.push(error.message));
-page.on('console', entry => { if (entry.type() === 'error' && /THREE|WebGL|shader/i.test(entry.text())) errors.push(entry.text()); });
-try {
-  await page.goto(process.env.TEST_BASE_URL || 'http://127.0.0.1:4174');
-  await page.locator('#world[data-authored-assets="ready"]').waitFor();
-  for (const [index, seconds, name] of [[0, 16, 'alien-impact'], [1, 22, 'tsunami'], [2, 24, 'superstorm'], [3, 22, 'visitation'], [4, 12, 'nuclear'], [7, 18, 'solar'], [8, 18, 'asteroid'], [9, 12, 'black-hole'],
-    [10, 17, 'tornado'], [11, 20, 'eruption'], [12, 15, 'debris-cascade'], [13, 23, 'jupiter'], [14, 25, 'third-impact']]) {
-    await page.locator(`.scene-card[data-scene="${index}"]`).click();
-    await page.locator('#progress').evaluate((input, time) => {
-      input.value = String(time); input.dispatchEvent(new Event('input', { bubbles: true }));
-    }, seconds);
-    await page.waitForFunction(() => !['loading'].includes(document.querySelector('#world').dataset.nebulaTexture));
-    await page.evaluate(() => new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve))));
-    const file = new URL(`${name}.png`, output).pathname;
-    await page.locator('#player').screenshot({ path: file });
-    frames.push({ name, seconds, file, metrics: await page.locator('#world').evaluate(canvas => ({ ...canvas.dataset })) });
+export const SCENES = [
+  ['independence-day', 16], ['deep-impact', 22], ['day-after-tomorrow', 24],
+  ['day-the-earth-stood-still', 22], ['terminator-2', 12], ['2012', 22],
+  ['war-of-the-worlds', 20], ['knowing', 18], ['armageddon', 18],
+  ['interstellar', 12], ['twister', 17], ['dantes-peak', 20], ['gravity', 15],
+  ['wandering-earth', 23], ['evangelion', 25],
+].map(([id, second], index) => ({ id, index, second }));
+
+export const QUALITY = {
+  balanced: { viewport: { width: 590, height: 800 }, deviceScaleFactor: 1, hasTouch: false },
+  high: { viewport: { width: 1280, height: 800 }, deviceScaleFactor: 1, hasTouch: false },
+  ultra: { viewport: { width: 1280, height: 800 }, deviceScaleFactor: 2, hasTouch: false },
+};
+
+const usage = `Usage:
+  node tools/capture-media.mjs capture --quality balanced|high|ultra [--scene ID] [--output DIR]
+  node tools/capture-media.mjs probe --quality high|ultra --scene ID --second N [--output DIR]
+  node tools/capture-media.mjs compare BEFORE_DIR AFTER_DIR [--output DIR]`;
+
+export function parseArgs(argv) {
+  const args = [...argv];
+  const command = args.shift() || 'capture';
+  if (!['capture', 'probe', 'compare'].includes(command)) throw new Error(`Unknown command: ${command}\n${usage}`);
+  if (command === 'compare') {
+    const directories = [];
+    let output;
+    while (args.length) {
+      const value = args.shift();
+      if (value === '--output') output = args.shift();
+      else if (value?.startsWith('--')) throw new Error(`Unknown option: ${value}`);
+      else directories.push(value);
+    }
+    if (directories.length !== 2) throw new Error(`compare requires BEFORE_DIR and AFTER_DIR\n${usage}`);
+    if (!output) output = join(directories[1], 'diff');
+    return { command, before: resolve(directories[0]), after: resolve(directories[1]), output: resolve(output) };
   }
-  await page.setViewportSize({ width: 390, height: 844 });
-  await page.locator('.scene-card[data-scene="0"]').click();
-  await page.screenshot({ path: new URL('phone.png', output).pathname, fullPage: true });
-  await writeFile(new URL('capture.json', output), JSON.stringify({ frames, errors }, null, 2));
-  console.log(JSON.stringify({ screenshots: frames.length + 1, errors, output: output.pathname }));
-  if (errors.length) process.exitCode = 1;
-} finally { await browser.close(); }
+  const options = { command, scenes: [] };
+  while (args.length) {
+    const key = args.shift();
+    const value = args.shift();
+    if (!['--quality', '--scene', '--second', '--output', '--url'].includes(key) || value === undefined) throw new Error(`Invalid option: ${key ?? ''}\n${usage}`);
+    if (key === '--scene') options.scenes.push(...value.split(',').filter(Boolean));
+    else options[key.slice(2)] = value;
+  }
+  if (!QUALITY[options.quality]) throw new Error(`--quality must be balanced, high, or ultra\n${usage}`);
+  const unknown = options.scenes.filter(id => !SCENES.some(scene => scene.id === id));
+  if (unknown.length) throw new Error(`Unknown scene: ${unknown.join(', ')}. Choose from ${SCENES.map(scene => scene.id).join(', ')}`);
+  if (command === 'probe') {
+    if (!['high', 'ultra'].includes(options.quality)) throw new Error('probe --quality must be high or ultra');
+    if (options.scenes.length !== 1) throw new Error('probe requires exactly one --scene');
+    options.second = Number(options.second);
+    if (!Number.isFinite(options.second) || options.second < 0 || options.second > 23) throw new Error('probe --second must be between 0 and 23');
+  } else if (options.second !== undefined) throw new Error('--second is valid only for probe');
+  options.output = resolve(options.output || `work/media-review-${options.quality}`);
+  options.url ||= process.env.TEST_BASE_URL || 'http://127.0.0.1:4174';
+  return options;
+}
+
+function selectedScenes(ids) { return ids.length ? SCENES.filter(scene => ids.includes(scene.id)) : SCENES; }
+
+async function openPage(quality, url) {
+  const browser = await chromium.launch({ channel: 'chrome', args: ['--enable-webgl', '--ignore-gpu-blocklist'] });
+  try {
+    const page = await browser.newPage({ ...QUALITY[quality], reducedMotion: 'reduce' });
+    const errors = [];
+    page.on('pageerror', error => errors.push(error.message));
+    page.on('console', entry => { if (entry.type() === 'error' && /THREE|WebGL|shader/i.test(entry.text())) errors.push(entry.text()); });
+    await page.goto(url);
+    await page.locator('#world[data-authored-assets="ready"]').waitFor();
+    const observed = await page.locator('#world').getAttribute('data-quality');
+    if (observed !== quality) throw new Error(`Requested ${quality}, browser selected ${observed}`);
+    return { browser, page, errors };
+  } catch (error) {
+    await browser.close();
+    throw error;
+  }
+}
+
+async function selectAndSeek(page, scene, second) {
+  await page.locator(`.scene-card[data-scene-id="${scene.id}"]`).click();
+  await page.locator('#progress').evaluate((input, time) => {
+    input.value = String(time); input.dispatchEvent(new Event('input', { bubbles: true }));
+  }, second);
+  await page.waitForFunction(id => {
+    const data = document.querySelector('#world').dataset;
+    const pending = [data.weatherTexture, data.nebulaTexture, data.particleAtlas].includes('loading') ||
+      (id === 'terminator-2' && data.explosionBake === 'loading') ||
+      (id === 'evangelion' && data.atFieldTexture === 'loading');
+    return data.scene === id && !pending;
+  }, scene.id);
+  await page.evaluate(() => new Promise(resolveFrame => requestAnimationFrame(() => requestAnimationFrame(resolveFrame))));
+}
+
+async function makeContactSheet(output, files) {
+  const font = process.env.CAPTURE_FONT || '/System/Library/Fonts/Supplemental/Arial.ttf';
+  if (!existsSync(font)) throw new Error(`Missing contact-sheet font: ${font}`);
+  const result = spawnSync('magick', ['montage', ...files, '-font', font, '-set', 'label', '%t', '-thumbnail', '480x320', '-tile', '3x', '-geometry', '+12+24', join(output, 'contact-sheet.jpg')], { encoding: 'utf8' });
+  if (result.error || result.status !== 0) throw new Error(`ImageMagick montage failed: ${result.error?.message || result.stderr.trim()}`);
+  return 'contact-sheet.jpg';
+}
+
+async function capture(options) {
+  await mkdir(options.output, { recursive: true });
+  const { browser, page, errors } = await openPage(options.quality, options.url);
+  const frames = [];
+  try {
+    for (const scene of selectedScenes(options.scenes)) {
+      await selectAndSeek(page, scene, scene.second);
+      const file = `${scene.id}.png`;
+      await page.locator('#player').screenshot({ path: join(options.output, file) });
+      frames.push({ scene: scene.id, second: scene.second, file, metrics: await page.locator('#world').evaluate(canvas => ({ ...canvas.dataset })) });
+    }
+    const contactSheet = await makeContactSheet(options.output, frames.map(frame => join(options.output, frame.file)));
+    const report = { mode: 'capture', quality: options.quality, frames, contactSheet, errors };
+    await writeFile(join(options.output, 'capture.json'), `${JSON.stringify(report, null, 2)}\n`);
+    if (errors.length) throw new Error(errors.join('\n'));
+    console.log(JSON.stringify({ screenshots: frames.length, quality: options.quality, output: options.output, contactSheet }));
+  } finally { await browser.close(); }
+}
+
+async function probe(options) {
+  await mkdir(options.output, { recursive: true });
+  const scene = selectedScenes(options.scenes)[0];
+  const { browser, page, errors } = await openPage(options.quality, options.url);
+  try {
+    await selectAndSeek(page, scene, options.second);
+    await page.locator('#world').evaluate(canvas => {
+      window.__captureFpsSamples = [];
+      new MutationObserver(() => window.__captureFpsSamples.push(Number(canvas.dataset.fps)))
+        .observe(canvas, { attributes: true, attributeFilter: ['data-fps'] });
+    });
+    await page.locator('#play').click();
+    await page.waitForTimeout(7000);
+    if (await page.locator('#play').getAttribute('aria-label') === 'Pause simulation') await page.locator('#play').click();
+    const result = await page.locator('#world').evaluate(canvas => ({ requestedTier: canvas.dataset.qualityCeiling, finalTier: canvas.dataset.quality,
+      fps: Number(canvas.dataset.fps), samples: window.__captureFpsSamples, metrics: { ...canvas.dataset } }));
+    if (!result.samples.length || result.samples.some(value => !Number.isFinite(value))) throw new Error('Probe completed without a valid timed data-fps sample');
+    const report = { mode: 'probe', scene: scene.id, second: options.second, duration: 7, quality: options.quality, ...result, errors };
+    await writeFile(join(options.output, `probe-${scene.id}-${options.quality}.json`), `${JSON.stringify(report, null, 2)}\n`);
+    if (errors.length) throw new Error(errors.join('\n'));
+    console.log(JSON.stringify(report));
+  } finally { await browser.close(); }
+}
+
+export async function loadCaptureSet(directory) {
+  const manifestPath = join(directory, 'capture.json');
+  if (!existsSync(manifestPath)) throw new Error(`Missing capture: ${manifestPath}`);
+  const manifest = JSON.parse(await readFile(manifestPath, 'utf8'));
+  if (!Array.isArray(manifest.frames) || !manifest.frames.length) throw new Error(`Capture has no frames: ${manifestPath}`);
+  const frames = new Map();
+  for (const frame of manifest.frames) {
+    if (!frame.scene || !frame.file) throw new Error(`Invalid frame in ${manifestPath}`);
+    const file = join(directory, basename(frame.file));
+    if (!existsSync(file)) throw new Error(`Missing capture image: ${file}`);
+    if (frames.has(frame.scene)) throw new Error(`Duplicate scene ${frame.scene} in ${manifestPath}`);
+    frames.set(frame.scene, file);
+  }
+  return frames;
+}
+
+export function validateSceneSets(before, after) {
+  const beforeScenes = [...before.keys()].sort(), afterScenes = [...after.keys()].sort();
+  if (JSON.stringify(beforeScenes) !== JSON.stringify(afterScenes)) throw new Error(`Capture scene sets differ: before=${beforeScenes.join(',')} after=${afterScenes.join(',')}`);
+  return beforeScenes;
+}
+
+async function compare(options) {
+  const [before, after] = await Promise.all([loadCaptureSet(options.before), loadCaptureSet(options.after)]);
+  const beforeScenes = validateSceneSets(before, after);
+  await mkdir(options.output, { recursive: true });
+  const differences = [];
+  for (const scene of beforeScenes) {
+    const diff = join(options.output, `${scene}.png`);
+    const result = spawnSync('magick', ['compare', '-metric', 'AE', before.get(scene), after.get(scene), diff], { encoding: 'utf8' });
+    if (result.error || ![0, 1].includes(result.status)) throw new Error(`ImageMagick compare failed for ${scene}: ${result.error?.message || result.stderr.trim()}`);
+    const pixels = Number((result.stderr || result.stdout).trim().split(/\s+/).at(-1));
+    if (!Number.isFinite(pixels)) throw new Error(`ImageMagick returned no pixel count for ${scene}`);
+    differences.push({ scene, pixels, file: `${scene}.png` });
+    console.log(`${scene}\t${pixels}`);
+  }
+  await makeContactSheet(options.output, differences.map(item => join(options.output, item.file)));
+  await writeFile(join(options.output, 'compare.json'), `${JSON.stringify({ before: options.before, after: options.after, differences }, null, 2)}\n`);
+}
+
+export async function main(argv = process.argv.slice(2)) {
+  const options = parseArgs(argv);
+  if (options.command === 'capture') return capture(options);
+  if (options.command === 'probe') return probe(options);
+  return compare(options);
+}
+
+if (process.argv[1] && fileURLToPath(import.meta.url) === resolve(process.argv[1])) {
+  main().catch(error => { console.error(error.message); process.exitCode = 1; });
+}
