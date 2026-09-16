@@ -72,6 +72,7 @@ test('every built scene renders offline from CDNs, scrubs reversibly, and keeps 
   for (const [index, scene] of scenes.entries()) {
     await select(page, index);
     await seek(page, 18);
+    await expect(page.locator('#world')).toHaveAttribute('data-cinematic-look', 'graded');
     const firstTier = await page.locator('#world').getAttribute('data-quality');
     const first = digest(await page.locator('#world').screenshot());
     await seek(page, 27);

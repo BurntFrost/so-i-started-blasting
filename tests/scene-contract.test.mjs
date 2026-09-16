@@ -16,3 +16,16 @@ test('every catalogue ID has exactly one rendering configuration, independent of
     assert.ok(Number.isFinite(scene.environment.fogDensity));
   }
 });
+
+test('every catalogue scene supplies a complete finite grade', () => {
+  for (const { id, grade } of scenes) {
+    assert.equal(grade, sceneConfigs[id].grade, id);
+    for (const key of ['exposure','bloomStrength','bloomRadius','bloomThreshold','saturation','grain','aberration']) {
+      assert.ok(Number.isFinite(grade[key]) && grade[key] >= 0, `${id}: ${key}`);
+    }
+    assert.ok(grade.exposure > 0, id);
+    assert.equal(grade.tint.length, 3, id);
+    assert.ok(grade.tint.every(value => Number.isFinite(value) && value >= 0), id);
+    assert.ok(grade.grain <= .05 && grade.aberration <= .01, `${id}: subtle film effects`);
+  }
+});

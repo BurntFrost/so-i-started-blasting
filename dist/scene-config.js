@@ -1,4 +1,5 @@
 // Rendering identity and environment ownership are independent of picker order.
+export const defaultGrade = {exposure:1.6,bloomStrength:.48,bloomRadius:.65,bloomThreshold:1.1,tint:[1,1,1],saturation:.94,grain:.012,aberration:.0012};
 const city = {world:'city',camera:[122,58,155],target:[-8,35,-15]};
 const space = {world:'space',space:true,camera:[122,58,155],target:[0,35,0]};
 const daylight = {fog:'#5a6364',fogDensity:.0024,fogGrowth:0,sun:'#ffc596',sunIntensity:2.7,hemi:'#9eafbe',hemiIntensity:.38,rim:'#8cb7ef',rimIntensity:2.2,environmentIntensity:.72,skyTint:'#b4c7c4',skyExposure:.65,skyStorm:.3};
@@ -20,3 +21,23 @@ export const sceneConfigs = {
   'wandering-earth': {...space,renderer:'cosmic',target:[0,42,0],environment:{...starlight}},
   'evangelion': {...city,renderer:'terrestrial',camera:[112,50,148],target:[-6,52,-28],environment:{...daylight,fog:'#4a2329',fogDensity:.002,fogGrowth:.0016,sun:'#ff9d75',sunIntensity:2,hemi:'#a37a85',hemiIntensity:.34,rim:'#ffa070',rimIntensity:2.6,environmentIntensity:.5,skyTint:'#c96e5e',skyExposure:.4,skyStorm:.62}},
 };
+
+// Explicit scene entries keep the look independent of renderer and catalogue order.
+const grades = {
+  'independence-day': {...defaultGrade},
+  'deep-impact': {...defaultGrade},
+  'day-after-tomorrow': {...defaultGrade,bloomStrength:.22,tint:[.96,1,1],saturation:.88},
+  'day-the-earth-stood-still': {...defaultGrade,bloomStrength:.38},
+  'terminator-2': {...defaultGrade,tint:[1,1,.96]},
+  '2012': {...defaultGrade,tint:[1,1,.96]},
+  'war-of-the-worlds': {...defaultGrade},
+  'knowing': {...defaultGrade,bloomStrength:.25,bloomRadius:.35,saturation:.97},
+  'armageddon': {...defaultGrade,bloomStrength:.25,bloomRadius:.35,saturation:.97},
+  'interstellar': {...defaultGrade,bloomStrength:.12,bloomRadius:.35,saturation:.97},
+  'twister': {...defaultGrade},
+  'dantes-peak': {...defaultGrade},
+  'gravity': {...defaultGrade,bloomStrength:.18,bloomRadius:.35,saturation:.97},
+  'wandering-earth': {...defaultGrade,bloomStrength:.25,bloomRadius:.35,saturation:.97},
+  'evangelion': {...defaultGrade},
+};
+for (const [id, grade] of Object.entries(grades)) sceneConfigs[id].grade = grade;
