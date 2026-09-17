@@ -59,6 +59,8 @@ const glow=new THREE.PointLight('#b4ffca',0,220,1.3);glow.position.set(-8,30,-20
 // One time value drives every effect, making reverse scrubbing deterministic.
 const ocean=new THREE.Mesh(new THREE.PlaneGeometry(650,650,80,80),mat('#264451',{metalness:.6,roughness:.28,transparent:true,opacity:.95}));ocean.rotation.x=-Math.PI/2;ocean.position.y=-1.08;effects.add(ocean);
 const wave=new THREE.Mesh(new THREE.PlaneGeometry(220,75,90,35),mat('#447783',{metalness:.3,roughness:.3,side:THREE.DoubleSide,transparent:true,opacity:.92}));effects.add(wave);
+// Water is a physical surface: it stays in the opaque depth so occlusion and volume marches stop at it; the AO clip box keeps the 650-unit plane cheap.
+for(const surface of [ocean,wave])surface.userData.opaqueDepth=true;
 const waveBase=wave.geometry.attributes.position.array.slice();
 const foam=new THREE.Points(new THREE.BufferGeometry(),new THREE.PointsMaterial({color:'#d8f6f5',size:1.3,transparent:true,opacity:.8}));const foamPositions=new Float32Array(650*3);foam.geometry.setAttribute('position',new THREE.BufferAttribute(foamPositions,3));effects.add(foam);
 const meteor=new THREE.Mesh(new THREE.IcosahedronGeometry(5,2),mat('#492e20',{emissive:'#ff5b12',emissiveIntensity:2}));effects.add(meteor);
@@ -141,7 +143,7 @@ function applyEnvironment(s,t){
  hemi.color.set(env.hemi);hemi.groundColor.set('#17191f');hemi.intensity=env.hemiIntensity;
  if(cinema.rim){cinema.rim.color.set(env.rim);cinema.rim.intensity=env.rimIntensity;}
  scene.environmentIntensity=env.environmentIntensity;
- renderer.toneMappingExposure=1.3;
+ // Cinema owns tone mapping and exposure, including the native LITE fallback.
 }
 function updateWorld(){
  if(failed)return;

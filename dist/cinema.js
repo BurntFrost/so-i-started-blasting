@@ -6,7 +6,35 @@ import { UnrealBloomPass } from 'three/addons/postprocessing/UnrealBloomPass.js'
 import { OutputPass } from 'three/addons/postprocessing/OutputPass.js';
 import { ShaderPass } from 'three/addons/postprocessing/ShaderPass.js';
 import { FXAAShader } from 'three/addons/shaders/FXAAShader.js';
+import { OpaqueGTAOPass } from './ao-pass.js';
+import { EFFECTS_LAYER, markEffects, opaqueDepthUniforms } from './render-kit.js';
 import { createAtmosphere } from './atmosphere.js';
+import { defaultGrade, sceneConfigs } from './scene-config.js';
+
+export const qualityTiers=[{name:'LITE',ao:false,aoScale:1,dpr:1,particles:.3,spray:.3,shadows:false,bloom:false,film:false,shadowMap:2048},{name:'BALANCED',ao:false,aoScale:1,dpr:1.25,particles:.6,spray:.6,shadows:false,bloom:true,film:true,shadowMap:2048},{name:'HIGH',ao:true,aoScale:1,dpr:1.7,particles:1,spray:.45,shadows:true,bloom:true,film:true,shadowMap:2048},{name:'ULTRA',ao:true,aoScale:.7,dpr:2,particles:1,spray:.45,shadows:true,bloom:true,film:true,shadowMap:4096}];
+
+// This pass receives display-referred colour after OutputPass and unmodified FXAA.
+export const filmShader = {
+  uniforms: {tDiffuse:{value:null},frame:{value:0},tint:{value:new THREE.Vector3(1,1,1)},saturation:{value:1},grain:{value:0},aberration:{value:0}},
+  vertexShader: 'varying vec2 vUv;void main(){vUv=uv;gl_Position=projectionMatrix*modelViewMatrix*vec4(position,1.);}',
+  fragmentShader: `uniform sampler2D tDiffuse;uniform float frame,saturation,grain,aberration;uniform vec3 tint;varying vec2 vUv;
+  float hash(vec2 p){return fract(sin(dot(p,vec2(12.9898,78.233)))*43758.5453);}
+  void main(){vec2 offset=(vUv-.5)*aberration;vec4 source=texture2D(tDiffuse,vUv);
+    vec3 color=vec3(texture2D(tDiffuse,clamp(vUv+offset,0.,1.)).r,source.g,texture2D(tDiffuse,clamp(vUv-offset,0.,1.)).b);
+    float luma=dot(color,vec3(.2126,.7152,.0722));color=mix(vec3(luma),color,saturation)*tint;
+    vec2 position=vUv-.5;color*=1.-smoothstep(.12,.65,dot(position,position))*.12;
+    color+=(hash(gl_FragCoord.xy+frame*vec2(17.13,91.7))-.5)*grain;
+    gl_FragColor=vec4(clamp(color,0.,1.),source.a);
+  }`,
+};
+
+export function applyFilmGrade(uniforms, time, grade) {
+  uniforms.frame.value=Math.floor(time*24);
+  uniforms.tint.value.fromArray(grade.tint);
+  uniforms.saturation.value=grade.saturation;
+  uniforms.grain.value=grade.grain;
+  uniforms.aberration.value=grade.aberration;
+}
 
 const clamp = value => Math.max(0, Math.min(1, value));
 const noiseGLSL = `
@@ -178,21 +206,23 @@ export function createCinema(world) {
     mesh.material.needsUpdate=true;
   }
 
+  camera.layers.enable(EFFECTS_LAYER);
+  markEffects(scene);
+  const depth=opaqueDepthUniforms(canvas);
+  const ao=new OpaqueGTAOPass(scene,camera,depth);
+  const worldBounds={
+    city:new THREE.Box3(new THREE.Vector3(-85,-20,-100),new THREE.Vector3(85,160,55)),
+    landscape:new THREE.Box3(new THREE.Vector3(-130,-20,-150),new THREE.Vector3(130,200,50)),
+    space:new THREE.Box3(new THREE.Vector3(-400,-300,-400),new THREE.Vector3(400,400,400))
+  };
   const composer=new EffectComposer(renderer);
-  composer.addPass(new RenderPass(scene,camera));
+  composer.addPass(new RenderPass(scene,camera));composer.addPass(ao);
   const bloom=new UnrealBloomPass(new THREE.Vector2(1,1),.65,.65,1.1);composer.addPass(bloom);composer.addPass(new OutputPass());
   // FXAA smooths the offscreen geometry after output conversion without MSAA renderbuffers.
   const antialias=new ShaderPass(FXAAShader);composer.addPass(antialias);
-  // Reuse the existing finishing pass; LITE still renders directly with native AA.
-  antialias.material.uniforms.filmTint={value:new THREE.Vector3(1,1,1)};
-  antialias.material.uniforms.filmSaturation={value:.96};
-  antialias.material.fragmentShader='uniform vec3 filmTint;uniform float filmSaturation;\n'+antialias.material.fragmentShader.replace(/}\s*$/,`
-    float filmLuma=dot(gl_FragColor.rgb,vec3(.2126,.7152,.0722));
-    gl_FragColor.rgb=mix(vec3(filmLuma),gl_FragColor.rgb,filmSaturation)*filmTint;
-    vec2 filmPosition=vUv-.5;gl_FragColor.rgb*=1.-smoothstep(.12,.65,dot(filmPosition,filmPosition))*.12;
-  }`);
+  const film=new ShaderPass(filmShader);composer.addPass(film);
   // Spray sprites thin out where the crest volume takes over at HIGH and ULTRA.
-  const tiers=[{name:'LITE',dpr:1,particles:.3,spray:.3,shadows:false,bloom:false,shadowMap:2048},{name:'BALANCED',dpr:1.25,particles:.6,spray:.6,shadows:false,bloom:true,shadowMap:2048},{name:'HIGH',dpr:1.7,particles:1,spray:.45,shadows:true,bloom:true,shadowMap:2048},{name:'ULTRA',dpr:2,particles:1,spray:.45,shadows:true,bloom:true,shadowMap:4096}];
+  const tiers=qualityTiers;
   const phone=()=>matchMedia('(pointer: coarse)').matches||canvas.clientWidth<600;
   // ULTRA renders native Retina/4K pixels, so it unlocks only on dense desktop displays; FPS still governs it.
   const ceilingFor=()=>phone()?1:devicePixelRatio>=1.5?3:2;
@@ -202,8 +232,13 @@ export function createCinema(world) {
   canvas.dataset.qualityCeiling=tiers[assetCeiling].name.toLowerCase();
   let ceiling=assetCeiling,quality=ceiling,frameTotal=0,frameCount=0,fastWindows=0,cooldown=0;
   const badge=document.querySelector('.render-label');
+  let grade=defaultGrade;
   function setQuality(next,reason='initial'){
     quality=next;const tier=tiers[next];renderer.setPixelRatio(Math.min(devicePixelRatio,tier.dpr));renderer.shadowMap.enabled=tier.shadows;
+    ao.enabled=tier.ao;ao.resolutionScale=tier.aoScale;depth.opaqueDepthAvailable.value=0;canvas.dataset.ambientOcclusion=tier.ao?'gtao':'none';
+    film.enabled=tier.film;
+    renderer.toneMapping=tier.film?THREE.AgXToneMapping:THREE.ACESFilmicToneMapping;
+    renderer.toneMappingExposure=tier.film?grade.exposure:1.3;
     if(sun.shadow.mapSize.x!==tier.shadowMap){sun.shadow.mapSize.set(tier.shadowMap,tier.shadowMap);sun.shadow.map?.dispose();sun.shadow.map=null;}
     bloom.enabled=tier.bloom;canvas.dataset.antialias=tier.bloom?'fxaa':'native';roofs.forEach((roof,i)=>roof.visible=next>0||i%3===0);armor.visible=next>0;
     for(const p of [sparks,smoke,spray]){p.geometry.setDrawRange(0,Math.floor(p.geometry.attributes.position.count*(p===spray?tier.spray:tier.particles)));p.material.uniforms.pixelRatio.value=renderer.getPixelRatio();}
@@ -232,6 +267,7 @@ export function createCinema(world) {
     else fastWindows=0;
   }
   function update(t,config){
+    ao.setSceneClipBox(worldBounds[config.world]||worldBounds.city);
     const id=config.id, impact=id==='independence-day'||id==='deep-impact';
     windows.visible=false;clouds.visible=false;
     atmosphere.update(t,config);
@@ -245,16 +281,15 @@ export function createCinema(world) {
     impactLight.position.copy(sparks.material.uniforms.origin.value);impactLight.position.y=18;
     glow.intensity*=7;
     if(blast.visible){blast.material.opacity*=.45;blast.material.color.multiplyScalar(2.5);}
-    bloom.strength=id==='day-after-tomorrow'?.22:id==='day-the-earth-stood-still'?.38:id==='interstellar'?.12:id==='gravity'?.18:config.space?.25:.48;
-    bloom.radius=config.space?.35:.65;
-    const icy=id==='day-after-tomorrow',warm=id==='terminator-2'||id==='2012';
-    antialias.material.uniforms.filmTint.value.set(icy?.96:1,1,warm?.96:1);
-    antialias.material.uniforms.filmSaturation.value=icy?.88:config.space?.97:.94;
+    grade=config.grade||sceneConfigs[id]?.grade||defaultGrade;
+    renderer.toneMappingExposure=tiers[quality].film?grade.exposure:1.3;
+    bloom.strength=grade.bloomStrength;bloom.radius=grade.bloomRadius;bloom.threshold=grade.bloomThreshold;
+    applyFilmGrade(film.uniforms,t,grade);
     canvas.dataset.cinematicLook=tiers[quality].bloom?'graded':'native';
     // Keep the alien craft inside the narrow phone framing.
     if(phone()&&id==='independence-day')ship.position.y-=12;
     ground.material.envMapIntensity=id==='day-after-tomorrow'?.2:.6;
   }
   setQuality(quality);
-  return {update,resize,measure,environment:environment.texture,rim,render:()=>{if(tiers[quality].bloom)composer.render();else renderer.render(scene,camera);}};
+  return {update,resize,measure,environment:environment.texture,rim,render:()=>{if(tiers[quality].bloom){if(ao.enabled)ao.prepass(renderer);composer.render();}else renderer.render(scene,camera);}};
 }

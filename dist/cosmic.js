@@ -1,5 +1,5 @@
 import * as THREE from 'three';
-import { marchedVolume, setInside, volumeUniforms } from './volumes.js';
+import { marchedVolume, setInside, volumeUniforms as sharedVolumeUniforms, markEffects, markEffect } from './render-kit.js';
 
 const TAU = Math.PI * 2;
 const clamp = x => Math.max(0, Math.min(1, x));
@@ -19,6 +19,7 @@ const output = `
 
 // Every transform and shader uniform is a function of time, not accumulated frames.
 export function createCosmic({ scene, canvas, camera }) {
+  const volumeUniforms = extra => sharedVolumeUniforms(extra, canvas);
   // ULTRA-capable displays get twice the silhouette tessellation; geometry is built once per module.
   const fine = canvas.dataset.qualityCeiling === 'ultra' ? 2 : 1;
   let seed = 77493;
@@ -143,7 +144,7 @@ export function createCosmic({ scene, canvas, camera }) {
   stars.material.onBeforeCompile = shader => {
     shader.fragmentShader = shader.fragmentShader.replace('#include <color_fragment>', '#include <color_fragment>\ndiffuseColor.a*=1.-smoothstep(.05,.5,length(gl_PointCoord-.5));');
   };
-  stars.visible = false; scene.add(stars);
+  stars.visible = false; markEffect(stars); scene.add(stars);
 
     return stars;
   }
@@ -158,8 +159,8 @@ export function createCosmic({ scene, canvas, camera }) {
   const activity = { value: 0 }, flash = { value: 0 }, front = { value: 0 };
   const sun = new THREE.Group(); sun.position.copy(sunCenter); solar.add(sun);
   const sunSurface = new THREE.Mesh(new THREE.SphereGeometry(31, 80 * fine, 56 * fine), new THREE.ShaderMaterial({
-    uniforms: { time, phase, activity, site: { value: axis } }, vertexShader: vertex,
-    fragmentShader: `uniform float time,phase,activity;uniform vec3 site;varying vec3 point;varying vec3 viewNormal;varying vec3 viewDirection;${noise}
+    uniforms: { time, phase, activity, radiance: { value: 1 }, site: { value: axis } }, vertexShader: vertex,
+    fragmentShader: `uniform float time,phase,activity,radiance;uniform vec3 site;varying vec3 point;varying vec3 viewNormal;varying vec3 viewDirection;${noise}
     void main(){vec3 p=normalize(point);float grain=fbm(p*39.+vec3(0.,time*.12,0.));float churn=fbm(p*17.-vec3(time*.05,0.,time*.03));
     float cells=noise(p*83.+grain*2.);float spots=smoothstep(.63,.76,fbm(p*8.));
     float limb=.48+.52*pow(abs(dot(normalize(viewNormal),normalize(viewDirection))),.35);
@@ -167,7 +168,7 @@ export function createCosmic({ scene, canvas, camera }) {
     float region=pow(max(dot(p,site),0.),14.);float faculae=smoothstep(.42,.72,fbm(p*15.+vec3(time*.25)))*region;
     color*=mix(.6,1.3,cells)*(1.-spots*.75)*limb;
     color+=vec3(2.2,1.2,.35)*activity*(region*.6+faculae*1.6)+vec3(.8,.45,.18)*phase*.3;
-    gl_FragColor=vec4(color,1.);${output}}`
+    gl_FragColor=vec4(color*radiance,1.);${output}}`
   }));
   sun.add(sunSurface, atmosphere(32.8, '#ff9a24', .9), atmosphere(36.5, '#e84b0c', .2));
   // The corona is a camera-facing plane through the sun's centre; the photosphere occludes its inner disk.
@@ -243,7 +244,7 @@ export function createCosmic({ scene, canvas, camera }) {
     transparent: true, depthWrite: false, blending: THREE.AdditiveBlending
   }));
   engulf.name = 'Engulfed Earth'; engulf.position.copy(earthCenter); engulf.visible = false; solar.add(engulf);
-  // HIGH and ULTRA march the corona, the ejection and the engulfment as volumes (see volumes.js); the sprites and
+  // HIGH and ULTRA march the corona, the ejection and the engulfment as volumes (see render-kit.js); the sprites and
   // shells above stay for the lower tiers. Space has no fog, so the volumes carry none.
   const uAxis = new THREE.Vector3().crossVectors(axis, up).normalize(), vAxis = new THREE.Vector3().crossVectors(axis, uAxis);
   const coronaVolume = marchedVolume({ name: 'Corona volume', geometry: new THREE.SphereGeometry(1, 48 * fine, 32 * fine),
@@ -305,6 +306,7 @@ export function createCosmic({ scene, canvas, camera }) {
   const calmAir = new THREE.Color('#49a9ff'), searedAir = new THREE.Color('#ff8b39');
 
     function update(t, quality) {
+      sunSurface.material.uniforms.radiance.value = quality === 'lite' ? 1 : 1.35;
       const volumetric = quality === 'high' || quality === 'ultra', ultra = quality === 'ultra';
       const burst = Math.sin(clamp((t - 5) / 2.6) * Math.PI), afterglow = ease((t - 5) / .6) * (1 - ease((t - 7.6) / 8)) * .3;
       activity.value = ease(t / 5) * (1 - ease((t - 5) / 3) * .55);
@@ -670,7 +672,7 @@ export function createCosmic({ scene, canvas, camera }) {
     if (active && active !== loaded.get(config.id)) active.group.visible = false;
     if (!factory) { if (stars) stars.visible = false; active = undefined; return; }
     if (!stars) stars = createStars();
-    if (!loaded.has(config.id)) loaded.set(config.id, factory());
+    if (!loaded.has(config.id)) { const result = factory(); markEffects(result.group); loaded.set(config.id, result); }
     const next = loaded.get(config.id);
     if (next !== active) next.quality = undefined;
     active = next; active.group.visible = true; stars.visible = true;
