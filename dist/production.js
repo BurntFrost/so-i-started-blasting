@@ -191,7 +191,11 @@ export async function createProduction(world) {
   function update(t, config){
     const id=config.id, frozenScene=id==='day-after-tomorrow', cityActive=config.world==='city';
     // ULTRA shares HIGH's authored geometry; only pixel density and shadow resolution differ.
-    const quality=canvas.dataset.quality==='ultra'?'high':canvas.dataset.quality || 'high';
+    const requestedQuality=canvas.dataset.quality || 'high';
+    const quality=requestedQuality==='ultra'?'high':requestedQuality;
+    // ULTRA keeps the authored foreground and landmark, but the receding skyline uses stepped
+    // meshes so software WebGL does not multiply hundreds of background facades through every pass.
+    const skylineQuality=requestedQuality==='ultra'?'balanced':quality==='high'?'high':'balanced';
     fieldPlots.value=id==='twister'||id==='dantes-peak'?1:0;
     if(sky){
       sky.visible=!config.space;sky.position.copy(camera.position);sky.rotation.y=2.8+t*.0006;
@@ -201,7 +205,7 @@ export async function createProduction(world) {
     }
     if(quality!==lastQuality){
       for(const batch of batches){batch.mesh.visible=batch.tier===quality;batch.mesh.castShadow=quality==='high';}
-      for(const batch of skylineTiers)batch.mesh.visible=batch.tier===(quality==='high'?'high':'balanced');
+      for(const batch of skylineTiers)batch.mesh.visible=batch.tier===skylineQuality;
       landmark.children.forEach(mesh=>mesh.visible=mesh.userData.tier===(quality==='high'?'high':'balanced'));
       grass.count=quality==='high'?9000:quality==='balanced'?4500:1800;
       for(const tree of trees){tree.authored.visible=quality==='high';for(const part of tree.procedural)part.visible=quality!=='high';}
