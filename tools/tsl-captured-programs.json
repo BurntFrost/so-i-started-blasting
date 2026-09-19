@@ -1,0 +1,1009 @@
+[
+  {
+    "key": "0a485e0d",
+    "vertexShader": "attribute vec4 seed;uniform float time,size,ratio;uniform vec3 origin;uniform vec2 lean;varying float alpha;varying float variation;\n      varying float particleCell,particleAngle;\n\nvoid main(){float a=seed.x*6.283185;vec3 p=vec3(0.);variation=seed.w;\n      float spread=smoothstep(19.,30.,time);float hold=1.-spread;\n      float r=(1.2+seed.y*3.5)*hold+spread*(20.+seed.y*250.);float angle=a+time*(2.2+seed.z*5.)/(1.+r*.04);\n      float h=seed.w*(hold*24.+spread*(2.+r*.09))+sin(time*4.+seed.x*20.)*(.3+spread*1.5);\n      p=vec3(origin.x+cos(angle)*r,max(.2,origin.y+h),origin.z+sin(angle)*r);\n      alpha=smoothstep(17.5,19.5,time)*(.4+.5*seed.w)*(1.-smoothstep(150.,260.,r));\n      vec4 mv=modelViewMatrix*vec4(p,1.);gl_Position=projectionMatrix*mv;\n      gl_PointSize=clamp(size*ratio*240./max(1.,-mv.z),1.,5.);\n      particleCell=4.+floor(min(seed.w,.999999)*4.);\n      particleAngle=seed.x*6.283185;\n      \n    }",
+    "fragmentShader": "uniform vec3 tint;varying float alpha;varying float variation;\nfloat hash(vec3 p){return fract(sin(dot(p,vec3(127.1,311.7,74.7)))*43758.5453);}\nfloat noise(vec3 p){vec3 i=floor(p),f=fract(p);f=f*f*(3.-2.*f);\nreturn mix(mix(mix(hash(i),hash(i+vec3(1,0,0)),f.x),mix(hash(i+vec3(0,1,0)),hash(i+vec3(1,1,0)),f.x),f.y),\nmix(mix(hash(i+vec3(0,0,1)),hash(i+vec3(1,0,1)),f.x),mix(hash(i+vec3(0,1,1)),hash(i+vec3(1,1,1)),f.x),f.y),f.z);}\nfloat fbm(vec3 p){return noise(p)*.57+noise(p*2.03)*.28+noise(p*4.11)*.15;}\n      void particleFallback(){vec2 p=gl_PointCoord-.5;float r=length(p)*2.;if(r>1.)discard;\n      float a=(1.-smoothstep(.05,1.,r))*alpha;\n      \n      gl_FragColor=vec4(tint,a);}\n\n\nuniform sampler2D opaqueDepth;\nuniform float opaqueDepthAvailable,opaqueNear,opaqueFar;\nuniform vec2 opaqueInverseSize;\nuniform mat4 opaqueProjectionInverse,opaqueCameraWorld;\nvec3 opaqueWorldPoint(vec2 uv,float depth){\n  vec4 view=opaqueProjectionInverse*vec4(uv*2.-1.,depth*2.-1.,1.);\n  return (opaqueCameraWorld*vec4(view.xyz/view.w,1.)).xyz;\n}\nuniform sampler2D particleAtlas;\nuniform float particleAtlasReady,particleSoftness;\nvarying float particleCell,particleAngle;\nfloat particleMask(){\n  vec2 p=gl_PointCoord-.5;\n  float c=cos(particleAngle),s=sin(particleAngle);\n  p=mat2(c,-s,s,c)*p+.5;\n  // Half-texel inset and transparent cell gutters prevent neighboring shapes leaking at the edges.\n  vec2 cell=vec2(mod(particleCell,4.),3.-floor(particleCell/4.));\n  vec2 uv=(cell*256.+vec2(.5)+vec2(p.x,1.-p.y)*255.)/1024.;\n  // Implicit mip derivatives need uniform control flow, including masked quad corners.\n  float mask=texture2D(particleAtlas,uv).r;\n  if(any(lessThan(p,vec2(0.)))||any(greaterThan(p,vec2(1.))))return 0.;\n  return mask;\n}\nfloat particleViewDepth(float depth){return opaqueNear*opaqueFar/(opaqueFar-depth*(opaqueFar-opaqueNear));}\nfloat particleDepthFade(){\n  if(opaqueDepthAvailable<.5)return 1.;\n  float depth=texture2D(opaqueDepth,gl_FragCoord.xy*opaqueInverseSize).x;\n  if(depth>=1.)return 1.;\n  return smoothstep(0.,max(.001,particleSoftness),particleViewDepth(depth)-particleViewDepth(gl_FragCoord.z));\n}\nvoid main(){\n    if(particleAtlasReady>.5){gl_FragColor=vec4(tint,particleMask()*alpha);}\n    else{particleFallback();}\n    gl_FragColor.a*=particleDepthFade();\n  }",
+    "uniforms": [
+      "time",
+      "size",
+      "ratio",
+      "tint",
+      "origin",
+      "lean",
+      "opaqueDepth",
+      "opaqueDepthAvailable",
+      "opaqueInverseSize",
+      "opaqueProjectionInverse",
+      "opaqueCameraWorld",
+      "opaqueNear",
+      "opaqueFar",
+      "particleAtlas",
+      "particleAtlasReady",
+      "particleSoftness"
+    ],
+    "defines": {},
+    "glslVersion": null
+  },
+  {
+    "key": "10c96915",
+    "vertexShader": "varying vec3 hullPoint;void main(){vec4 world=modelMatrix*vec4(position,1.);hullPoint=world.xyz;gl_Position=projectionMatrix*viewMatrix*world;}",
+    "fragmentShader": "uniform float time,steps,inside,flash,fogDensity;uniform vec3 origin,sunDirection,sunColor,skyColor,fogColor,flashPoint;varying vec3 hullPoint;\n      \nfloat hash(vec3 p){return fract(sin(dot(p,vec3(127.1,311.7,74.7)))*43758.5453);}\nfloat noise(vec3 p){vec3 i=floor(p),f=fract(p);f=f*f*(3.-2.*f);\nreturn mix(mix(mix(hash(i),hash(i+vec3(1,0,0)),f.x),mix(hash(i+vec3(0,1,0)),hash(i+vec3(1,1,0)),f.x),f.y),\nmix(mix(hash(i+vec3(0,0,1)),hash(i+vec3(1,0,1)),f.x),mix(hash(i+vec3(0,1,1)),hash(i+vec3(1,1,1)),f.x),f.y),f.z);}\nfloat fbm(vec3 p){return noise(p)*.57+noise(p*2.03)*.28+noise(p*4.11)*.15;}\nfloat terrain(vec2 xz){return -.5+(sin(xz.x*.022)*cos(xz.y*.027)*5.-sin(xz.y*.06)*1.5)*clamp((length(xz)-25.)/80.,0.,1.);}\n      \nuniform sampler2D opaqueDepth;\nuniform float opaqueDepthAvailable,opaqueNear,opaqueFar;\nuniform vec2 opaqueInverseSize;\nuniform mat4 opaqueProjectionInverse,opaqueCameraWorld;\nvec3 opaqueWorldPoint(vec2 uv,float depth){\n  vec4 view=opaqueProjectionInverse*vec4(uv*2.-1.,depth*2.-1.,1.);\n  return (opaqueCameraWorld*vec4(view.xyz/view.w,1.)).xyz;\n}\n      uniform vec3 axis;uniform float trailLength;\n      vec3 field(vec3 p,bool detail){\n      vec3 q=p-origin;float s=dot(q,axis);if(s<0.||s>trailLength)return vec3(0.);\n      vec3 perp=q-axis*s;float r=length(perp),f=s/trailLength,hot=1.-smoothstep(0.,.35,f);\n      if(r>(1.5+f*5.5)*1.3)return vec3(0.);\n      float wisp=fbm(q*.35-axis*time*9.);\n      float body=(1.-smoothstep(.4,1.,r/((1.5+f*5.5)*(.7+wisp*.6))))*(1.-smoothstep(.5,1.,f))*(.45+.55*hot);\n      float grain=detail&&body>.001?fbm(q*.9-axis*time*14.+3.):.5;\n      return vec3(body*(.6+.4*grain),hot,grain);\n    }\n      void main(){\n        vec3 rayDir=normalize(hullPoint-cameraPosition);\n        vec3 start=inside>.5?cameraPosition:hullPoint;\n        float span=inside>.5?length(hullPoint-cameraPosition):(24.);\n        if(opaqueDepthAvailable>.5){\n          vec2 uv=gl_FragCoord.xy*opaqueInverseSize;\n          float depth=texture2D(opaqueDepth,uv).x;\n          if(depth<1.)span=min(span,dot(opaqueWorldPoint(uv,depth)-start,rayDir));\n        }\n        if(span<=0.)discard;\n        // A per-pixel offset turns step slices into fine noise; it depends only on the pixel, so scrubbing stays exact.\n        float dt=clamp(span/steps,.4,1.5),s=fract(sin(dot(gl_FragCoord.xy,vec2(12.9898,78.233)))*43758.5453)*dt;\n        float alpha=0.,firstHit=-1.;vec3 col=vec3(0.);\n        for(int i=0;i<48;i++){\n          if(float(i)>=steps||alpha>.97||s>span)break;\n          vec3 p=start+rayDir*s;\n          \n          vec3 f=field(p,true);\n          if(f.x>.002){\n            vec3 sampleColor;\n            vec3 plasma=vec3(3.,1.5,.5)*(.7+.6*f.z),smoke=vec3(.12,.11,.1)*(skyColor*.7+sunColor*.1);\n            sampleColor=mix(smoke,plasma,f.y);\n            float a=1.-exp(-f.x*dt*1.6);\n            col+=(1.-alpha)*a*sampleColor;alpha+=(1.-alpha)*a;\n            if(firstHit<0.)firstHit=s;\n            s+=dt;\n          } else s+=dt*1.7;\n        }\n        if(alpha<.003)discard;\n        float dist=length(start+rayDir*max(firstHit,0.)-cameraPosition);\n        gl_FragColor=vec4(mix(col/alpha,fogColor,1.-exp(-fogDensity*fogDensity*dist*dist)),alpha);\n        #include <tonemapping_fragment>\n        #include <colorspace_fragment>\n      }",
+    "uniforms": [
+      "opaqueDepth",
+      "opaqueDepthAvailable",
+      "opaqueInverseSize",
+      "opaqueProjectionInverse",
+      "opaqueCameraWorld",
+      "opaqueNear",
+      "opaqueFar",
+      "time",
+      "steps",
+      "inside",
+      "flash",
+      "flashPoint",
+      "origin",
+      "sunDirection",
+      "sunColor",
+      "skyColor",
+      "fogColor",
+      "fogDensity",
+      "axis",
+      "trailLength"
+    ],
+    "defines": {},
+    "glslVersion": null
+  },
+  {
+    "key": "119ab48c",
+    "vertexShader": "varying vec3 hullPoint;void main(){vec4 world=modelMatrix*vec4(position,1.);hullPoint=world.xyz;gl_Position=projectionMatrix*viewMatrix*world;}",
+    "fragmentShader": "uniform float time,steps,inside,flash,fogDensity;uniform vec3 origin,sunDirection,sunColor,skyColor,fogColor,flashPoint;varying vec3 hullPoint;\n      \nfloat hash(vec3 p){return fract(sin(dot(p,vec3(127.1,311.7,74.7)))*43758.5453);}\nfloat noise(vec3 p){vec3 i=floor(p),f=fract(p);f=f*f*(3.-2.*f);\nreturn mix(mix(mix(hash(i),hash(i+vec3(1,0,0)),f.x),mix(hash(i+vec3(0,1,0)),hash(i+vec3(1,1,0)),f.x),f.y),\nmix(mix(hash(i+vec3(0,0,1)),hash(i+vec3(1,0,1)),f.x),mix(hash(i+vec3(0,1,1)),hash(i+vec3(1,1,1)),f.x),f.y),f.z);}\nfloat fbm(vec3 p){return noise(p)*.57+noise(p*2.03)*.28+noise(p*4.11)*.15;}\nfloat terrain(vec2 xz){return -.5+(sin(xz.x*.022)*cos(xz.y*.027)*5.-sin(xz.y*.06)*1.5)*clamp((length(xz)-25.)/80.,0.,1.);}\n      \nuniform sampler2D opaqueDepth;\nuniform float opaqueDepthAvailable,opaqueNear,opaqueFar;\nuniform vec2 opaqueInverseSize;\nuniform mat4 opaqueProjectionInverse,opaqueCameraWorld;\nvec3 opaqueWorldPoint(vec2 uv,float depth){\n  vec4 view=opaqueProjectionInverse*vec4(uv*2.-1.,depth*2.-1.,1.);\n  return (opaqueCameraWorld*vec4(view.xyz/view.w,1.)).xyz;\n}\n      uniform float phase,activity;uniform vec3 site;\n      vec3 field(vec3 p,bool detail){\n      vec3 q=p-origin;float r=length(q);if(r<31.6||r>62.)return vec3(0.);\n      vec3 n=q/r;float fall=exp(-(r-31.6)*.18)*(1.-smoothstep(45.,62.,r));if(fall<.02)return vec3(0.);\n      float streamer=smoothstep(.55,.85,fbm(n*4.2+vec3(time*.03,0.,0.)));\n      float helmet=pow(max(dot(n,site),0.),6.)*(.6+activity*.8);\n      float d=fall*(.08+.92*streamer+helmet*.8);if(d<.01)return vec3(0.);\n      float wisp=detail?noise(n*11.+vec3(0.,0.,r*.14-time*.5)):.5;\n      return vec3(d*(.55+.45*wisp),helmet,wisp);\n    }\n      void main(){\n        vec3 rayDir=normalize(hullPoint-cameraPosition);\n        vec3 start=inside>.5?cameraPosition:hullPoint;\n        float span=inside>.5?length(hullPoint-cameraPosition):(70.);\n        if(opaqueDepthAvailable>.5){\n          vec2 uv=gl_FragCoord.xy*opaqueInverseSize;\n          float depth=texture2D(opaqueDepth,uv).x;\n          if(depth<1.)span=min(span,dot(opaqueWorldPoint(uv,depth)-start,rayDir));\n        }\n        if(span<=0.)discard;\n        // A per-pixel offset turns step slices into fine noise; it depends only on the pixel, so scrubbing stays exact.\n        float dt=clamp(span/steps,1.5,5.),s=fract(sin(dot(gl_FragCoord.xy,vec2(12.9898,78.233)))*43758.5453)*dt;\n        float alpha=0.,firstHit=-1.;vec3 col=vec3(0.);\n        for(int i=0;i<32;i++){\n          if(float(i)>=steps||alpha>.97||s>span)break;\n          vec3 p=start+rayDir*s;\n          if(length(p-origin)<31.6)break;\n          vec3 f=field(p,true);\n          if(f.x>.002){\n            vec3 sampleColor;\n            sampleColor=mix(vec3(.9,.32,.08),vec3(1.25,.8,.35),f.z)*(.8+activity*.3+phase*.3+f.y*.5);\n            float a=1.-exp(-f.x*dt*.08);\n            col+=(1.-alpha)*a*sampleColor;alpha+=(1.-alpha)*a;\n            if(firstHit<0.)firstHit=s;\n            s+=dt;\n          } else s+=dt*1.7;\n        }\n        if(alpha<.003)discard;\n        float dist=length(start+rayDir*max(firstHit,0.)-cameraPosition);\n        gl_FragColor=vec4(mix(col/alpha,fogColor,1.-exp(-fogDensity*fogDensity*dist*dist)),alpha);\n        #include <tonemapping_fragment>\n        #include <colorspace_fragment>\n      }",
+    "uniforms": [
+      "opaqueDepth",
+      "opaqueDepthAvailable",
+      "opaqueInverseSize",
+      "opaqueProjectionInverse",
+      "opaqueCameraWorld",
+      "opaqueNear",
+      "opaqueFar",
+      "time",
+      "steps",
+      "inside",
+      "flash",
+      "flashPoint",
+      "origin",
+      "sunDirection",
+      "sunColor",
+      "skyColor",
+      "fogColor",
+      "fogDensity",
+      "phase",
+      "activity",
+      "site"
+    ],
+    "defines": {},
+    "glslVersion": null
+  },
+  {
+    "key": "1663ca8d",
+    "vertexShader": "varying vec2 faultUv;void main(){faultUv=uv;gl_Position=projectionMatrix*modelViewMatrix*vec4(position,1.);}",
+    "fragmentShader": "uniform float time;varying vec2 faultUv;\nfloat hash(vec3 p){return fract(sin(dot(p,vec3(127.1,311.7,74.7)))*43758.5453);}\nfloat noise(vec3 p){vec3 i=floor(p),f=fract(p);f=f*f*(3.-2.*f);\nreturn mix(mix(mix(hash(i),hash(i+vec3(1,0,0)),f.x),mix(hash(i+vec3(0,1,0)),hash(i+vec3(1,1,0)),f.x),f.y),\nmix(mix(hash(i+vec3(0,0,1)),hash(i+vec3(1,0,1)),f.x),mix(hash(i+vec3(0,1,1)),hash(i+vec3(1,1,1)),f.x),f.y),f.z);}\nfloat fbm(vec3 p){return noise(p)*.57+noise(p*2.03)*.28+noise(p*4.11)*.15;}\n    void main(){float veins=fbm(vec3(faultUv*vec2(7.,45.),time*.15));float edge=pow(abs(faultUv.x-.5)*2.,2.);\n    float pulse=.7+.3*sin(faultUv.y*40.-time*1.8);\n    vec3 hot=mix(vec3(.4,.025,.001),vec3(3.,.75,.03),veins*edge*pulse);\n    gl_FragColor=vec4(hot,(.2+edge*.8)*smoothstep(0.,4.,time));}",
+    "uniforms": [
+      "time"
+    ],
+    "defines": {},
+    "glslVersion": null
+  },
+  {
+    "key": "1740e62d",
+    "vertexShader": "attribute vec4 seed;uniform float time,size,ratio;uniform vec3 origin;uniform vec2 lean;varying float alpha;varying float variation;\n      varying float particleCell,particleAngle;\n\nvoid main(){float a=seed.x*6.283185;vec3 p=vec3(0.);variation=seed.w;\n      float age=max(0.,time-5.-seed.w*5.);float speed=9.+seed.y*10.;\n      p=vec3(-18.+cos(a)*age*speed,12.+age*(14.+seed.z*15.)-age*age*1.3,-27.+sin(a)*age*speed);\n      alpha=step(5.+seed.w*5.,time)*(1.-smoothstep(4.,14.,age))*step(.5,p.y);\n      vec4 mv=modelViewMatrix*vec4(p,1.);gl_Position=projectionMatrix*mv;\n      gl_PointSize=clamp(size*ratio*240./max(1.,-mv.z),1.,12.);\n      particleCell=4.+floor(min(seed.w,.999999)*4.);\n      particleAngle=seed.x*6.283185;\n      \n    }",
+    "fragmentShader": "uniform vec3 tint;varying float alpha;varying float variation;\nfloat hash(vec3 p){return fract(sin(dot(p,vec3(127.1,311.7,74.7)))*43758.5453);}\nfloat noise(vec3 p){vec3 i=floor(p),f=fract(p);f=f*f*(3.-2.*f);\nreturn mix(mix(mix(hash(i),hash(i+vec3(1,0,0)),f.x),mix(hash(i+vec3(0,1,0)),hash(i+vec3(1,1,0)),f.x),f.y),\nmix(mix(hash(i+vec3(0,0,1)),hash(i+vec3(1,0,1)),f.x),mix(hash(i+vec3(0,1,1)),hash(i+vec3(1,1,1)),f.x),f.y),f.z);}\nfloat fbm(vec3 p){return noise(p)*.57+noise(p*2.03)*.28+noise(p*4.11)*.15;}\n      void particleFallback(){vec2 p=gl_PointCoord-.5;float r=length(p)*2.;if(r>1.)discard;\n      float a=(1.-smoothstep(.05,1.,r))*alpha;\n      \n      gl_FragColor=vec4(tint,a);}\n\n\nuniform sampler2D opaqueDepth;\nuniform float opaqueDepthAvailable,opaqueNear,opaqueFar;\nuniform vec2 opaqueInverseSize;\nuniform mat4 opaqueProjectionInverse,opaqueCameraWorld;\nvec3 opaqueWorldPoint(vec2 uv,float depth){\n  vec4 view=opaqueProjectionInverse*vec4(uv*2.-1.,depth*2.-1.,1.);\n  return (opaqueCameraWorld*vec4(view.xyz/view.w,1.)).xyz;\n}\nuniform sampler2D particleAtlas;\nuniform float particleAtlasReady,particleSoftness;\nvarying float particleCell,particleAngle;\nfloat particleMask(){\n  vec2 p=gl_PointCoord-.5;\n  float c=cos(particleAngle),s=sin(particleAngle);\n  p=mat2(c,-s,s,c)*p+.5;\n  // Half-texel inset and transparent cell gutters prevent neighboring shapes leaking at the edges.\n  vec2 cell=vec2(mod(particleCell,4.),3.-floor(particleCell/4.));\n  vec2 uv=(cell*256.+vec2(.5)+vec2(p.x,1.-p.y)*255.)/1024.;\n  // Implicit mip derivatives need uniform control flow, including masked quad corners.\n  float mask=texture2D(particleAtlas,uv).r;\n  if(any(lessThan(p,vec2(0.)))||any(greaterThan(p,vec2(1.))))return 0.;\n  return mask;\n}\nfloat particleViewDepth(float depth){return opaqueNear*opaqueFar/(opaqueFar-depth*(opaqueFar-opaqueNear));}\nfloat particleDepthFade(){\n  if(opaqueDepthAvailable<.5)return 1.;\n  float depth=texture2D(opaqueDepth,gl_FragCoord.xy*opaqueInverseSize).x;\n  if(depth>=1.)return 1.;\n  return smoothstep(0.,max(.001,particleSoftness),particleViewDepth(depth)-particleViewDepth(gl_FragCoord.z));\n}\nvoid main(){\n    if(particleAtlasReady>.5){gl_FragColor=vec4(tint,particleMask()*alpha);}\n    else{particleFallback();}\n    gl_FragColor.a*=particleDepthFade();\n  }",
+    "uniforms": [
+      "time",
+      "size",
+      "ratio",
+      "tint",
+      "origin",
+      "lean",
+      "opaqueDepth",
+      "opaqueDepthAvailable",
+      "opaqueInverseSize",
+      "opaqueProjectionInverse",
+      "opaqueCameraWorld",
+      "opaqueNear",
+      "opaqueFar",
+      "particleAtlas",
+      "particleAtlasReady",
+      "particleSoftness"
+    ],
+    "defines": {},
+    "glslVersion": null
+  },
+  {
+    "key": "17a8de5b",
+    "vertexShader": "uniform float time;varying vec3 spherePoint;float hash(vec3 p){return fract(sin(dot(p,vec3(127.1,311.7,74.7)))*43758.5453);}\nfloat noise(vec3 p){vec3 i=floor(p),f=fract(p);f=f*f*(3.-2.*f);return mix(mix(mix(hash(i),hash(i+vec3(1,0,0)),f.x),mix(hash(i+vec3(0,1,0)),hash(i+vec3(1,1,0)),f.x),f.y),mix(mix(hash(i+vec3(0,0,1)),hash(i+vec3(1,0,1)),f.x),mix(hash(i+vec3(0,1,1)),hash(i+vec3(1,1,1)),f.x),f.y),f.z);}\nfloat fbm(vec3 p){return noise(p)*.53+noise(p*2.03)*.27+noise(p*4.07)*.13+noise(p*8.11)*.07;}\n    void main(){spherePoint=position;float n=fbm(position*5.+vec3(0.,-time*.7,0.));vec3 p=position*(.84+n*.3);gl_Position=projectionMatrix*modelViewMatrix*vec4(p,1.);}",
+    "fragmentShader": "uniform float time,fade,heat;varying vec3 spherePoint;float hash(vec3 p){return fract(sin(dot(p,vec3(127.1,311.7,74.7)))*43758.5453);}\nfloat noise(vec3 p){vec3 i=floor(p),f=fract(p);f=f*f*(3.-2.*f);return mix(mix(mix(hash(i),hash(i+vec3(1,0,0)),f.x),mix(hash(i+vec3(0,1,0)),hash(i+vec3(1,1,0)),f.x),f.y),mix(mix(hash(i+vec3(0,0,1)),hash(i+vec3(1,0,1)),f.x),mix(hash(i+vec3(0,1,1)),hash(i+vec3(1,1,1)),f.x),f.y),f.z);}\nfloat fbm(vec3 p){return noise(p)*.53+noise(p*2.03)*.27+noise(p*4.07)*.13+noise(p*8.11)*.07;}\n    void main(){float n=fbm(spherePoint*7.+vec3(0.,-time*.6,0.));float hot=smoothstep(.27,.68,n)*heat;\n    vec3 c=mix(vec3(.025,.019,.017),vec3(1.7,.13,.005),hot);c=mix(c,vec3(7.,2.8,.3),pow(hot,4.));gl_FragColor=vec4(c,fade);\n    #include <tonemapping_fragment>\n    #include <colorspace_fragment>\n    }",
+    "uniforms": [
+      "time",
+      "fade",
+      "heat"
+    ],
+    "defines": {},
+    "glslVersion": null
+  },
+  {
+    "key": "18592e44",
+    "vertexShader": "varying vec2 puffUv;\n    void main(){\n      puffUv=uv;\n      vec4 mvPosition=modelViewMatrix*instanceMatrix*vec4(0.,0.,0.,1.);\n      mvPosition.xy+=position.xy*vec2(length(instanceMatrix[0].xyz),length(instanceMatrix[1].xyz));\n      gl_Position=projectionMatrix*mvPosition;\n    }",
+    "fragmentShader": "uniform sampler2D atlas;uniform float frame,opacity,cell;varying vec2 puffUv;\n    vec4 sampleFrame(float index){\n      vec2 tile=vec2(mod(index,8.),3.-floor(index/8.));\n      vec2 uv=(tile+(puffUv*(cell-1.)+.5)/cell)/vec2(8.,4.);\n      vec4 texel=texture2D(atlas,uv);\n      return vec4(texel.rgb*texel.a,texel.a);\n    }\n    void main(){\n      vec4 puff=mix(sampleFrame(floor(frame)),sampleFrame(min(31.,floor(frame)+1.)),fract(frame));\n      if(puff.a<.003)discard;\n      gl_FragColor=vec4(puff.rgb/max(puff.a,.001),puff.a*opacity);\n      #include <tonemapping_fragment>\n      #include <colorspace_fragment>\n    }",
+    "uniforms": [
+      "atlas",
+      "frame",
+      "opacity",
+      "cell"
+    ],
+    "defines": {},
+    "glslVersion": null
+  },
+  {
+    "key": "1a0bd5dd",
+    "vertexShader": "attribute vec4 seed;uniform float time,phase,pixelRatio;uniform vec3 origin,target;varying float opacity;varying float warmth;\n      varying float particleCell,particleAngle;\n\nvoid main(){float a=seed.x*6.283185;vec3 p;warmth=seed.z;\n      float s=fract(seed.y+time*.045*(1.+seed.z*.5));warmth=0.;\n      vec3 c=mix(origin,target,.45)+vec3(0.,70.,20.);vec3 path=mix(mix(origin,c,s),mix(c,target,s),s);\n      float spread=(2.+s*28.)*(1.-s*.3);p=path+vec3(sin(a)*spread,cos(a)*spread*.6,sin(a*1.7)*spread);\n      opacity=phase*smoothstep(0.,.05,s)*(1.-smoothstep(.85,1.,s))*.85;\n      vec4 mv=modelViewMatrix*vec4(p,1.);gl_Position=projectionMatrix*mv;gl_PointSize=clamp((1.5+seed.w*3.)*pixelRatio*230./max(1.,-mv.z),1.,12.);\n      particleCell=0.+floor(min(seed.w,.999999)*4.);\n      particleAngle=seed.x*6.283185+time*(seed.z-.5)*.35;\n      \n    }",
+    "fragmentShader": "uniform vec3 tint;varying float opacity;varying float warmth;void particleFallback(){float r=length(gl_PointCoord-.5)*2.;if(r>1.)discard;gl_FragColor=vec4(mix(tint,tint*vec3(1.2,.55,.25),warmth),pow(1.-r,2.)*opacity);\n#include <tonemapping_fragment>\n#include <colorspace_fragment>\n}\n\n\nuniform sampler2D opaqueDepth;\nuniform float opaqueDepthAvailable,opaqueNear,opaqueFar;\nuniform vec2 opaqueInverseSize;\nuniform mat4 opaqueProjectionInverse,opaqueCameraWorld;\nvec3 opaqueWorldPoint(vec2 uv,float depth){\n  vec4 view=opaqueProjectionInverse*vec4(uv*2.-1.,depth*2.-1.,1.);\n  return (opaqueCameraWorld*vec4(view.xyz/view.w,1.)).xyz;\n}\nuniform sampler2D particleAtlas;\nuniform float particleAtlasReady,particleSoftness;\nvarying float particleCell,particleAngle;\nfloat particleMask(){\n  vec2 p=gl_PointCoord-.5;\n  float c=cos(particleAngle),s=sin(particleAngle);\n  p=mat2(c,-s,s,c)*p+.5;\n  // Half-texel inset and transparent cell gutters prevent neighboring shapes leaking at the edges.\n  vec2 cell=vec2(mod(particleCell,4.),3.-floor(particleCell/4.));\n  vec2 uv=(cell*256.+vec2(.5)+vec2(p.x,1.-p.y)*255.)/1024.;\n  // Implicit mip derivatives need uniform control flow, including masked quad corners.\n  float mask=texture2D(particleAtlas,uv).r;\n  if(any(lessThan(p,vec2(0.)))||any(greaterThan(p,vec2(1.))))return 0.;\n  return mask;\n}\nfloat particleViewDepth(float depth){return opaqueNear*opaqueFar/(opaqueFar-depth*(opaqueFar-opaqueNear));}\nfloat particleDepthFade(){\n  if(opaqueDepthAvailable<.5)return 1.;\n  float depth=texture2D(opaqueDepth,gl_FragCoord.xy*opaqueInverseSize).x;\n  if(depth>=1.)return 1.;\n  return smoothstep(0.,max(.001,particleSoftness),particleViewDepth(depth)-particleViewDepth(gl_FragCoord.z));\n}\nvoid main(){\n    if(particleAtlasReady>.5){gl_FragColor=vec4(mix(tint,tint*vec3(1.2,.55,.25),warmth),particleMask()*opacity);\n#include <tonemapping_fragment>\n#include <colorspace_fragment>\n}\n    else{particleFallback();}\n    gl_FragColor.a*=particleDepthFade();\n  }",
+    "uniforms": [
+      "time",
+      "phase",
+      "tint",
+      "pixelRatio",
+      "origin",
+      "target",
+      "opaqueDepth",
+      "opaqueDepthAvailable",
+      "opaqueInverseSize",
+      "opaqueProjectionInverse",
+      "opaqueCameraWorld",
+      "opaqueNear",
+      "opaqueFar",
+      "particleAtlas",
+      "particleAtlasReady",
+      "particleSoftness"
+    ],
+    "defines": {},
+    "glslVersion": null
+  },
+  {
+    "key": "1ebdad28",
+    "vertexShader": "varying vec3 point;varying vec3 viewNormal;varying vec3 viewDirection;varying vec3 worldNormal;\nvoid main(){point=position;vec4 mv=modelViewMatrix*vec4(position,1.);viewNormal=normalize(normalMatrix*normal);worldNormal=normalize(mat3(modelMatrix)*normal);viewDirection=normalize(-mv.xyz);gl_Position=projectionMatrix*mv;}",
+    "fragmentShader": "uniform float time,fade;varying vec3 point;\nfloat hash(vec3 p){return fract(sin(dot(p,vec3(127.1,311.7,74.7)))*43758.5453);}\nfloat noise(vec3 p){vec3 i=floor(p),f=fract(p);f=f*f*(3.-2.*f);\nreturn mix(mix(mix(hash(i),hash(i+vec3(1,0,0)),f.x),mix(hash(i+vec3(0,1,0)),hash(i+vec3(1,1,0)),f.x),f.y),\nmix(mix(hash(i+vec3(0,0,1)),hash(i+vec3(1,0,1)),f.x),mix(hash(i+vec3(0,1,1)),hash(i+vec3(1,1,1)),f.x),f.y),f.z);}\nfloat fbm(vec3 p){return noise(p)*.57+noise(p*2.03)*.28+noise(p*4.11)*.15;}\n    void main(){float turbulence=fbm(point*7.+vec3(0.,-time*.4,0.));\n    vec3 fire=mix(vec3(.25,.028,.003),vec3(2.8,1.25,.27),smoothstep(.24,.74,turbulence));\n    gl_FragColor=vec4(fire,fade*(.7+turbulence*.3));\n#include <tonemapping_fragment>\n#include <colorspace_fragment>\n}",
+    "uniforms": [
+      "time",
+      "fade"
+    ],
+    "defines": {},
+    "glslVersion": null
+  },
+  {
+    "key": "2e5c36f7",
+    "vertexShader": "varying vec3 point;varying vec3 viewNormal;varying vec3 viewDirection;varying vec3 worldNormal;\nvoid main(){point=position;vec4 mv=modelViewMatrix*vec4(position,1.);viewNormal=normalize(normalMatrix*normal);worldNormal=normalize(mat3(modelMatrix)*normal);viewDirection=normalize(-mv.xyz);gl_Position=projectionMatrix*mv;}",
+    "fragmentShader": "uniform float time,phase,activity,radiance;uniform vec3 site;varying vec3 point;varying vec3 viewNormal;varying vec3 viewDirection;\nfloat hash(vec3 p){return fract(sin(dot(p,vec3(127.1,311.7,74.7)))*43758.5453);}\nfloat noise(vec3 p){vec3 i=floor(p),f=fract(p);f=f*f*(3.-2.*f);\nreturn mix(mix(mix(hash(i),hash(i+vec3(1,0,0)),f.x),mix(hash(i+vec3(0,1,0)),hash(i+vec3(1,1,0)),f.x),f.y),\nmix(mix(hash(i+vec3(0,0,1)),hash(i+vec3(1,0,1)),f.x),mix(hash(i+vec3(0,1,1)),hash(i+vec3(1,1,1)),f.x),f.y),f.z);}\nfloat fbm(vec3 p){return noise(p)*.57+noise(p*2.03)*.28+noise(p*4.11)*.15;}\n    void main(){vec3 p=normalize(point);float grain=fbm(p*39.+vec3(0.,time*.12,0.));float churn=fbm(p*17.-vec3(time*.05,0.,time*.03));\n    float cells=noise(p*83.+grain*2.);float spots=smoothstep(.63,.76,fbm(p*8.));\n    float limb=.48+.52*pow(abs(dot(normalize(viewNormal),normalize(viewDirection))),.35);\n    vec3 color=mix(vec3(1.05,.16,.02),vec3(2.2,.95,.2),smoothstep(.22,.74,grain*.75+churn*.25));\n    float region=pow(max(dot(p,site),0.),14.);float faculae=smoothstep(.42,.72,fbm(p*15.+vec3(time*.25)))*region;\n    color*=mix(.6,1.3,cells)*(1.-spots*.75)*limb;\n    color+=vec3(2.2,1.2,.35)*activity*(region*.6+faculae*1.6)+vec3(.8,.45,.18)*phase*.3;\n    gl_FragColor=vec4(color*radiance,1.);\n#include <tonemapping_fragment>\n#include <colorspace_fragment>\n}",
+    "uniforms": [
+      "time",
+      "phase",
+      "activity",
+      "radiance",
+      "site"
+    ],
+    "defines": {},
+    "glslVersion": null
+  },
+  {
+    "key": "35adba6a",
+    "vertexShader": "attribute vec4 seed;uniform float time,size,ratio;uniform vec3 origin;uniform vec2 lean;varying float alpha;varying float variation;\n      varying float particleCell,particleAngle;\n\nvoid main(){float a=seed.x*6.283185;vec3 p=vec3(0.);variation=seed.w;\n      float age=max(0.,time-4.-seed.w*11.);float z=(seed.x-.5)*165.;float fault=sin(z*.045)*10.+sin(z*.16)*2.;\n      p=vec3(fault+(seed.y-.5)*age*4.,age*(3.+seed.z*4.),z+sin(a)*age*.65);\n      alpha=step(4.+seed.w*11.,time)*smoothstep(0.,2.,age)*(1.-smoothstep(9.,23.,age))*.22;\n      vec4 mv=modelViewMatrix*vec4(p,1.);gl_Position=projectionMatrix*mv;\n      gl_PointSize=clamp(size*ratio*240./max(1.,-mv.z),1.,100.);\n      particleCell=0.+floor(min(seed.w,.999999)*4.);\n      particleAngle=seed.x*6.283185+time*(seed.z-.5)*.35;\n      \n    }",
+    "fragmentShader": "uniform vec3 tint;varying float alpha;varying float variation;\nfloat hash(vec3 p){return fract(sin(dot(p,vec3(127.1,311.7,74.7)))*43758.5453);}\nfloat noise(vec3 p){vec3 i=floor(p),f=fract(p);f=f*f*(3.-2.*f);\nreturn mix(mix(mix(hash(i),hash(i+vec3(1,0,0)),f.x),mix(hash(i+vec3(0,1,0)),hash(i+vec3(1,1,0)),f.x),f.y),\nmix(mix(hash(i+vec3(0,0,1)),hash(i+vec3(1,0,1)),f.x),mix(hash(i+vec3(0,1,1)),hash(i+vec3(1,1,1)),f.x),f.y),f.z);}\nfloat fbm(vec3 p){return noise(p)*.57+noise(p*2.03)*.28+noise(p*4.11)*.15;}\n      void particleFallback(){vec2 p=gl_PointCoord-.5;float r=length(p)*2.;if(r>1.)discard;\n      float a=(1.-smoothstep(.05,1.,r))*alpha;\n      a*=smoothstep(.18,.6,fbm(vec3(p*5.,variation*13.)));\n      gl_FragColor=vec4(tint,a);}\n\n\nuniform sampler2D opaqueDepth;\nuniform float opaqueDepthAvailable,opaqueNear,opaqueFar;\nuniform vec2 opaqueInverseSize;\nuniform mat4 opaqueProjectionInverse,opaqueCameraWorld;\nvec3 opaqueWorldPoint(vec2 uv,float depth){\n  vec4 view=opaqueProjectionInverse*vec4(uv*2.-1.,depth*2.-1.,1.);\n  return (opaqueCameraWorld*vec4(view.xyz/view.w,1.)).xyz;\n}\nuniform sampler2D particleAtlas;\nuniform float particleAtlasReady,particleSoftness;\nvarying float particleCell,particleAngle;\nfloat particleMask(){\n  vec2 p=gl_PointCoord-.5;\n  float c=cos(particleAngle),s=sin(particleAngle);\n  p=mat2(c,-s,s,c)*p+.5;\n  // Half-texel inset and transparent cell gutters prevent neighboring shapes leaking at the edges.\n  vec2 cell=vec2(mod(particleCell,4.),3.-floor(particleCell/4.));\n  vec2 uv=(cell*256.+vec2(.5)+vec2(p.x,1.-p.y)*255.)/1024.;\n  // Implicit mip derivatives need uniform control flow, including masked quad corners.\n  float mask=texture2D(particleAtlas,uv).r;\n  if(any(lessThan(p,vec2(0.)))||any(greaterThan(p,vec2(1.))))return 0.;\n  return mask;\n}\nfloat particleViewDepth(float depth){return opaqueNear*opaqueFar/(opaqueFar-depth*(opaqueFar-opaqueNear));}\nfloat particleDepthFade(){\n  if(opaqueDepthAvailable<.5)return 1.;\n  float depth=texture2D(opaqueDepth,gl_FragCoord.xy*opaqueInverseSize).x;\n  if(depth>=1.)return 1.;\n  return smoothstep(0.,max(.001,particleSoftness),particleViewDepth(depth)-particleViewDepth(gl_FragCoord.z));\n}\nvoid main(){\n    if(particleAtlasReady>.5){gl_FragColor=vec4(tint,particleMask()*alpha);}\n    else{particleFallback();}\n    gl_FragColor.a*=particleDepthFade();\n  }",
+    "uniforms": [
+      "time",
+      "size",
+      "ratio",
+      "tint",
+      "origin",
+      "lean",
+      "opaqueDepth",
+      "opaqueDepthAvailable",
+      "opaqueInverseSize",
+      "opaqueProjectionInverse",
+      "opaqueCameraWorld",
+      "opaqueNear",
+      "opaqueFar",
+      "particleAtlas",
+      "particleAtlasReady",
+      "particleSoftness"
+    ],
+    "defines": {},
+    "glslVersion": null
+  },
+  {
+    "key": "392bd3d9",
+    "vertexShader": "varying vec3 hullPoint;void main(){vec4 world=modelMatrix*vec4(position,1.);hullPoint=world.xyz;gl_Position=projectionMatrix*viewMatrix*world;}",
+    "fragmentShader": "uniform float time,steps,inside,flash,fogDensity;uniform vec3 origin,sunDirection,sunColor,skyColor,fogColor,flashPoint;varying vec3 hullPoint;\n      \nfloat hash(vec3 p){return fract(sin(dot(p,vec3(127.1,311.7,74.7)))*43758.5453);}\nfloat noise(vec3 p){vec3 i=floor(p),f=fract(p);f=f*f*(3.-2.*f);\nreturn mix(mix(mix(hash(i),hash(i+vec3(1,0,0)),f.x),mix(hash(i+vec3(0,1,0)),hash(i+vec3(1,1,0)),f.x),f.y),\nmix(mix(hash(i+vec3(0,0,1)),hash(i+vec3(1,0,1)),f.x),mix(hash(i+vec3(0,1,1)),hash(i+vec3(1,1,1)),f.x),f.y),f.z);}\nfloat fbm(vec3 p){return noise(p)*.57+noise(p*2.03)*.28+noise(p*4.11)*.15;}\nfloat terrain(vec2 xz){return -.5+(sin(xz.x*.022)*cos(xz.y*.027)*5.-sin(xz.y*.06)*1.5)*clamp((length(xz)-25.)/80.,0.,1.);}\n      \nuniform sampler2D opaqueDepth;\nuniform float opaqueDepthAvailable,opaqueNear,opaqueFar;\nuniform vec2 opaqueInverseSize;\nuniform mat4 opaqueProjectionInverse,opaqueCameraWorld;\nvec3 opaqueWorldPoint(vec2 uv,float depth){\n  vec4 view=opaqueProjectionInverse*vec4(uv*2.-1.,depth*2.-1.,1.);\n  return (opaqueCameraWorld*vec4(view.xyz/view.w,1.)).xyz;\n}\n      uniform float crest;\n      vec3 field(vec3 p,bool detail){\n      vec3 q=p-origin;float up=q.y-sin(p.x*.13+time)*1.2;if(up<-4.)return vec3(0.);\n      vec2 back=vec2(max(up,0.),max(-q.z,0.));float along=dot(back,vec2(.75,.66)),off=abs(dot(back,vec2(-.66,.75)));\n      float veil=(1.-smoothstep(.3,1.,off/(2.5+along*.4)))*(1.-smoothstep(8.,30.,along))*(1.-smoothstep(150.,190.,abs(p.x)));if(veil<.01)return vec3(0.);\n      // Cheapest first: the low-frequency patches decide whether the wisps are worth sampling at all.\n      float patches=smoothstep(.3,.7,noise(vec3(p.x*.045+time*.25,along*.05,1.)));if(veil*patches<.01)return vec3(0.);\n      float wisps=smoothstep(.4,.72,noise(vec3(p.x*.12,along*.14-time*3.,q.z*.12+time*.8))*.65+noise(vec3(p.x*.3,along*.35-time*5.,q.z*.3))*.35);\n      float d=veil*patches*wisps;if(d<.005)return vec3(0.);\n      float grain=detail?noise(vec3(p.x*.25,up*.3-time*4.,q.z*.25)+5.):.5;\n      return vec3(d*(.6+.4*grain),0.,grain);\n    }\n      void main(){\n        vec3 rayDir=normalize(hullPoint-cameraPosition);\n        vec3 start=inside>.5?cameraPosition:hullPoint;\n        float span=inside>.5?length(hullPoint-cameraPosition):(46.);\n        if(opaqueDepthAvailable>.5){\n          vec2 uv=gl_FragCoord.xy*opaqueInverseSize;\n          float depth=texture2D(opaqueDepth,uv).x;\n          if(depth<1.)span=min(span,dot(opaqueWorldPoint(uv,depth)-start,rayDir));\n        }\n        if(span<=0.)discard;\n        // A per-pixel offset turns step slices into fine noise; it depends only on the pixel, so scrubbing stays exact.\n        float dt=clamp(span/steps,1.2,2.5),s=fract(sin(dot(gl_FragCoord.xy,vec2(12.9898,78.233)))*43758.5453)*dt;\n        float alpha=0.,firstHit=-1.;vec3 col=vec3(0.);\n        for(int i=0;i<32;i++){\n          if(float(i)>=steps||alpha>.97||s>span)break;\n          vec3 p=start+rayDir*s;\n          \n          vec3 f=field(p,true);\n          if(f.x>.002){\n            vec3 sampleColor;\n            sampleColor=vec3(.92,.95,.97)*(.75+.4*f.z)*(sunColor*.32*(.65+.35*f.z)+skyColor*.85);\n            float a=1.-exp(-f.x*dt*.7);\n            col+=(1.-alpha)*a*sampleColor;alpha+=(1.-alpha)*a;\n            if(firstHit<0.)firstHit=s;\n            s+=dt;\n          } else s+=dt*1.7;\n        }\n        if(alpha<.003)discard;\n        float dist=length(start+rayDir*max(firstHit,0.)-cameraPosition);\n        gl_FragColor=vec4(mix(col/alpha,fogColor,1.-exp(-fogDensity*fogDensity*dist*dist)),alpha);\n        #include <tonemapping_fragment>\n        #include <colorspace_fragment>\n      }",
+    "uniforms": [
+      "opaqueDepth",
+      "opaqueDepthAvailable",
+      "opaqueInverseSize",
+      "opaqueProjectionInverse",
+      "opaqueCameraWorld",
+      "opaqueNear",
+      "opaqueFar",
+      "time",
+      "steps",
+      "inside",
+      "flash",
+      "flashPoint",
+      "origin",
+      "sunDirection",
+      "sunColor",
+      "skyColor",
+      "fogColor",
+      "fogDensity",
+      "crest"
+    ],
+    "defines": {},
+    "glslVersion": null
+  },
+  {
+    "key": "4d88d82f",
+    "vertexShader": "varying vec3 direction;void main(){direction=position;gl_Position=projectionMatrix*modelViewMatrix*vec4(position,1.);}",
+    "fragmentShader": "uniform sampler2D panorama;uniform float ready,strength;varying vec3 direction;\n    void main(){vec3 d=normalize(direction);vec2 uv=vec2(atan(d.z,d.x)/6.283185+.5,asin(clamp(d.y,-1.,1.))/3.141593+.5);\n    vec3 color=vec3(.003,.006,.013);\n    if(ready>.5){vec3 dust=texture2D(panorama,uv).rgb;float luma=dot(dust,vec3(.2126,.7152,.0722));\n    color+=mix(vec3(luma),dust,.65)*strength;}\n    gl_FragColor=vec4(color,1.);\n#include <tonemapping_fragment>\n#include <colorspace_fragment>\n}",
+    "uniforms": [
+      "panorama",
+      "ready",
+      "strength"
+    ],
+    "defines": {},
+    "glslVersion": null
+  },
+  {
+    "key": "54d9e4af",
+    "vertexShader": "attribute vec4 seed;uniform float time,phase,pixelRatio;uniform vec3 origin,target;varying float opacity;varying float warmth;\n      varying float particleCell,particleAngle;\nvec3 particleNext(float time){float a=seed.x*6.283185;vec3 p=vec3(0.);float alpha=0.,opacity=0.,warmth=seed.z;float age=max(0.,time-5.-seed.w*.6);float speed=14.+seed.z*34.;\n      vec3 dir=normalize(vec3(seed.x-.5,seed.y-.5,seed.z-.5)+target*.9);\n      p=origin+dir*age*speed*(1.-age*.03);warmth=seed.y*.5;\n      opacity=step(.001,age)*(1.-smoothstep(1.,4.5,age))*.9;return p;}\nvoid main(){float a=seed.x*6.283185;vec3 p;warmth=seed.z;\n      float age=max(0.,time-5.-seed.w*.6);float speed=14.+seed.z*34.;\n      vec3 dir=normalize(vec3(seed.x-.5,seed.y-.5,seed.z-.5)+target*.9);\n      p=origin+dir*age*speed*(1.-age*.03);warmth=seed.y*.5;\n      opacity=step(.001,age)*(1.-smoothstep(1.,4.5,age))*.9;\n      vec4 mv=modelViewMatrix*vec4(p,1.);gl_Position=projectionMatrix*mv;gl_PointSize=clamp((1.5+seed.w*3.)*pixelRatio*230./max(1.,-mv.z),1.,12.);\n      particleCell=8.+floor(min(seed.w,.999999)*4.);\n      particleAngle=seed.x*6.283185;\n      vec4 particleFuture=modelViewMatrix*vec4(particleNext(time+.04),1.);\n      vec2 particleDirection=particleFuture.xy/max(.001,-particleFuture.z)-mv.xy/max(.001,-mv.z);\n      if(dot(particleDirection,particleDirection)>.00000001)particleAngle=atan(-particleDirection.y,particleDirection.x);\n    }",
+    "fragmentShader": "uniform vec3 tint;varying float opacity;varying float warmth;void particleFallback(){float r=length(gl_PointCoord-.5)*2.;if(r>1.)discard;gl_FragColor=vec4(mix(tint,tint*vec3(1.2,.55,.25),warmth),pow(1.-r,2.)*opacity);\n#include <tonemapping_fragment>\n#include <colorspace_fragment>\n}\n\n\nuniform sampler2D opaqueDepth;\nuniform float opaqueDepthAvailable,opaqueNear,opaqueFar;\nuniform vec2 opaqueInverseSize;\nuniform mat4 opaqueProjectionInverse,opaqueCameraWorld;\nvec3 opaqueWorldPoint(vec2 uv,float depth){\n  vec4 view=opaqueProjectionInverse*vec4(uv*2.-1.,depth*2.-1.,1.);\n  return (opaqueCameraWorld*vec4(view.xyz/view.w,1.)).xyz;\n}\nuniform sampler2D particleAtlas;\nuniform float particleAtlasReady,particleSoftness;\nvarying float particleCell,particleAngle;\nfloat particleMask(){\n  vec2 p=gl_PointCoord-.5;\n  float c=cos(particleAngle),s=sin(particleAngle);\n  p=mat2(c,-s,s,c)*p+.5;\n  // Half-texel inset and transparent cell gutters prevent neighboring shapes leaking at the edges.\n  vec2 cell=vec2(mod(particleCell,4.),3.-floor(particleCell/4.));\n  vec2 uv=(cell*256.+vec2(.5)+vec2(p.x,1.-p.y)*255.)/1024.;\n  // Implicit mip derivatives need uniform control flow, including masked quad corners.\n  float mask=texture2D(particleAtlas,uv).r;\n  if(any(lessThan(p,vec2(0.)))||any(greaterThan(p,vec2(1.))))return 0.;\n  return mask;\n}\nfloat particleViewDepth(float depth){return opaqueNear*opaqueFar/(opaqueFar-depth*(opaqueFar-opaqueNear));}\nfloat particleDepthFade(){\n  if(opaqueDepthAvailable<.5)return 1.;\n  float depth=texture2D(opaqueDepth,gl_FragCoord.xy*opaqueInverseSize).x;\n  if(depth>=1.)return 1.;\n  return smoothstep(0.,max(.001,particleSoftness),particleViewDepth(depth)-particleViewDepth(gl_FragCoord.z));\n}\nvoid main(){\n    if(particleAtlasReady>.5){gl_FragColor=vec4(mix(tint,tint*vec3(1.2,.55,.25),warmth),particleMask()*opacity);\n#include <tonemapping_fragment>\n#include <colorspace_fragment>\n}\n    else{particleFallback();}\n    gl_FragColor.a*=particleDepthFade();\n  }",
+    "uniforms": [
+      "time",
+      "phase",
+      "tint",
+      "pixelRatio",
+      "origin",
+      "target",
+      "opaqueDepth",
+      "opaqueDepthAvailable",
+      "opaqueInverseSize",
+      "opaqueProjectionInverse",
+      "opaqueCameraWorld",
+      "opaqueNear",
+      "opaqueFar",
+      "particleAtlas",
+      "particleAtlasReady",
+      "particleSoftness"
+    ],
+    "defines": {},
+    "glslVersion": null
+  },
+  {
+    "key": "5512886d",
+    "vertexShader": "varying vec3 point;varying vec3 viewNormal;varying vec3 viewDirection;varying vec3 worldNormal;\nvoid main(){point=position;vec4 mv=modelViewMatrix*vec4(position,1.);viewNormal=normalize(normalMatrix*normal);worldNormal=normalize(mat3(modelMatrix)*normal);viewDirection=normalize(-mv.xyz);gl_Position=projectionMatrix*mv;}",
+    "fragmentShader": "uniform float time;varying vec3 point;\nfloat hash(vec3 p){return fract(sin(dot(p,vec3(127.1,311.7,74.7)))*43758.5453);}\nfloat noise(vec3 p){vec3 i=floor(p),f=fract(p);f=f*f*(3.-2.*f);\nreturn mix(mix(mix(hash(i),hash(i+vec3(1,0,0)),f.x),mix(hash(i+vec3(0,1,0)),hash(i+vec3(1,1,0)),f.x),f.y),\nmix(mix(hash(i+vec3(0,0,1)),hash(i+vec3(1,0,1)),f.x),mix(hash(i+vec3(0,1,1)),hash(i+vec3(1,1,1)),f.x),f.y),f.z);}\nfloat fbm(vec3 p){return noise(p)*.57+noise(p*2.03)*.28+noise(p*4.11)*.15;}void main(){float n=fbm(point*.9+time*.09);gl_FragColor=vec4(vec3(2.5,1.05,.35)*(.55+n),.48);\n#include <tonemapping_fragment>\n#include <colorspace_fragment>\n}",
+    "uniforms": [
+      "time"
+    ],
+    "defines": {},
+    "glslVersion": null
+  },
+  {
+    "key": "572fddfc",
+    "vertexShader": "attribute vec4 seed;uniform float time,size,ratio;uniform vec3 origin;uniform vec2 lean;varying float alpha;varying float variation;\n      varying float particleCell,particleAngle;\n\nvoid main(){float a=seed.x*6.283185;vec3 p=vec3(0.);variation=seed.w;\n      float fall=mod(seed.z*150.+time*(9.+seed.w*7.),150.);p=vec3((seed.x-.5)*330.,150.-fall,(seed.y-.5)*330.-40.);\n      alpha=smoothstep(10.,18.,time)*smoothstep(0.,8.,fall)*smoothstep(0.,8.,150.-fall)*(.5+.5*seed.y)*.26;\n      vec4 mv=modelViewMatrix*vec4(p,1.);gl_Position=projectionMatrix*mv;\n      gl_PointSize=clamp(size*ratio*240./max(1.,-mv.z),1.,100.);\n      particleCell=0.+floor(min(seed.w,.999999)*4.);\n      particleAngle=seed.x*6.283185+time*(seed.z-.5)*.35;\n      \n    }",
+    "fragmentShader": "uniform vec3 tint;varying float alpha;varying float variation;\nfloat hash(vec3 p){return fract(sin(dot(p,vec3(127.1,311.7,74.7)))*43758.5453);}\nfloat noise(vec3 p){vec3 i=floor(p),f=fract(p);f=f*f*(3.-2.*f);\nreturn mix(mix(mix(hash(i),hash(i+vec3(1,0,0)),f.x),mix(hash(i+vec3(0,1,0)),hash(i+vec3(1,1,0)),f.x),f.y),\nmix(mix(hash(i+vec3(0,0,1)),hash(i+vec3(1,0,1)),f.x),mix(hash(i+vec3(0,1,1)),hash(i+vec3(1,1,1)),f.x),f.y),f.z);}\nfloat fbm(vec3 p){return noise(p)*.57+noise(p*2.03)*.28+noise(p*4.11)*.15;}\n      void particleFallback(){vec2 p=gl_PointCoord-.5;float r=length(p)*2.;if(r>1.)discard;\n      float a=(1.-smoothstep(.05,1.,r))*alpha;\n      a*=smoothstep(.18,.6,fbm(vec3(p*5.,variation*13.)));\n      gl_FragColor=vec4(tint,a);}\n\n\nuniform sampler2D opaqueDepth;\nuniform float opaqueDepthAvailable,opaqueNear,opaqueFar;\nuniform vec2 opaqueInverseSize;\nuniform mat4 opaqueProjectionInverse,opaqueCameraWorld;\nvec3 opaqueWorldPoint(vec2 uv,float depth){\n  vec4 view=opaqueProjectionInverse*vec4(uv*2.-1.,depth*2.-1.,1.);\n  return (opaqueCameraWorld*vec4(view.xyz/view.w,1.)).xyz;\n}\nuniform sampler2D particleAtlas;\nuniform float particleAtlasReady,particleSoftness;\nvarying float particleCell,particleAngle;\nfloat particleMask(){\n  vec2 p=gl_PointCoord-.5;\n  float c=cos(particleAngle),s=sin(particleAngle);\n  p=mat2(c,-s,s,c)*p+.5;\n  // Half-texel inset and transparent cell gutters prevent neighboring shapes leaking at the edges.\n  vec2 cell=vec2(mod(particleCell,4.),3.-floor(particleCell/4.));\n  vec2 uv=(cell*256.+vec2(.5)+vec2(p.x,1.-p.y)*255.)/1024.;\n  // Implicit mip derivatives need uniform control flow, including masked quad corners.\n  float mask=texture2D(particleAtlas,uv).r;\n  if(any(lessThan(p,vec2(0.)))||any(greaterThan(p,vec2(1.))))return 0.;\n  return mask;\n}\nfloat particleViewDepth(float depth){return opaqueNear*opaqueFar/(opaqueFar-depth*(opaqueFar-opaqueNear));}\nfloat particleDepthFade(){\n  if(opaqueDepthAvailable<.5)return 1.;\n  float depth=texture2D(opaqueDepth,gl_FragCoord.xy*opaqueInverseSize).x;\n  if(depth>=1.)return 1.;\n  return smoothstep(0.,max(.001,particleSoftness),particleViewDepth(depth)-particleViewDepth(gl_FragCoord.z));\n}\nvoid main(){\n    if(particleAtlasReady>.5){gl_FragColor=vec4(tint,particleMask()*alpha);}\n    else{particleFallback();}\n    gl_FragColor.a*=particleDepthFade();\n  }",
+    "uniforms": [
+      "time",
+      "size",
+      "ratio",
+      "tint",
+      "origin",
+      "lean",
+      "opaqueDepth",
+      "opaqueDepthAvailable",
+      "opaqueInverseSize",
+      "opaqueProjectionInverse",
+      "opaqueCameraWorld",
+      "opaqueNear",
+      "opaqueFar",
+      "particleAtlas",
+      "particleAtlasReady",
+      "particleSoftness"
+    ],
+    "defines": {},
+    "glslVersion": null
+  },
+  {
+    "key": "575ade1f",
+    "vertexShader": "varying vec3 point;varying vec3 viewNormal;varying vec3 viewDirection;varying vec3 worldNormal;\nvoid main(){point=position;vec4 mv=modelViewMatrix*vec4(position,1.);viewNormal=normalize(normalMatrix*normal);worldNormal=normalize(mat3(modelMatrix)*normal);viewDirection=normalize(-mv.xyz);gl_Position=projectionMatrix*mv;}",
+    "fragmentShader": "uniform float time;varying vec3 point;\nfloat hash(vec3 p){return fract(sin(dot(p,vec3(127.1,311.7,74.7)))*43758.5453);}\nfloat noise(vec3 p){vec3 i=floor(p),f=fract(p);f=f*f*(3.-2.*f);\nreturn mix(mix(mix(hash(i),hash(i+vec3(1,0,0)),f.x),mix(hash(i+vec3(0,1,0)),hash(i+vec3(1,1,0)),f.x),f.y),\nmix(mix(hash(i+vec3(0,0,1)),hash(i+vec3(1,0,1)),f.x),mix(hash(i+vec3(0,1,1)),hash(i+vec3(1,1,1)),f.x),f.y),f.z);}\nfloat fbm(vec3 p){return noise(p)*.57+noise(p*2.03)*.28+noise(p*4.11)*.15;}\n    void main(){float radius=length(point.xy);float a=atan(point.y,point.x);float radial=(radius-16.9)/17.1;\n    float lens=exp(-radial*5.5)*(.65+.35*sin(radial*90.));float plume=fbm(vec3(cos(a)*8.,sin(a)*8.,radial*8.+time*.15));\n    float sides=.3+.7*abs(sin(a));gl_FragColor=vec4(vec3(3.4,1.85,.76)*(.62+plume),lens*sides*.78);\n#include <tonemapping_fragment>\n#include <colorspace_fragment>\n}",
+    "uniforms": [
+      "time"
+    ],
+    "defines": {},
+    "glslVersion": null
+  },
+  {
+    "key": "5e93a65c",
+    "vertexShader": "varying vec3 point;varying vec3 viewNormal;varying vec3 viewDirection;varying vec3 worldNormal;\nvoid main(){point=position;vec4 mv=modelViewMatrix*vec4(position,1.);viewNormal=normalize(normalMatrix*normal);worldNormal=normalize(mat3(modelMatrix)*normal);viewDirection=normalize(-mv.xyz);gl_Position=projectionMatrix*mv;}",
+    "fragmentShader": "uniform float time,front;varying vec3 point;varying vec3 viewNormal;varying vec3 viewDirection;\nfloat hash(vec3 p){return fract(sin(dot(p,vec3(127.1,311.7,74.7)))*43758.5453);}\nfloat noise(vec3 p){vec3 i=floor(p),f=fract(p);f=f*f*(3.-2.*f);\nreturn mix(mix(mix(hash(i),hash(i+vec3(1,0,0)),f.x),mix(hash(i+vec3(0,1,0)),hash(i+vec3(1,1,0)),f.x),f.y),\nmix(mix(hash(i+vec3(0,0,1)),hash(i+vec3(1,0,1)),f.x),mix(hash(i+vec3(0,1,1)),hash(i+vec3(1,1,1)),f.x),f.y),f.z);}\nfloat fbm(vec3 p){return noise(p)*.57+noise(p*2.03)*.28+noise(p*4.11)*.15;}\n    void main(){vec3 p=normalize(point);float turbulence=fbm(p*3.5+vec3(time*.09,-time*.05,0.))*.6+fbm(p*9.-vec3(0.,time*.2,0.))*.4;\n    float rim=pow(1.-abs(dot(normalize(viewNormal),normalize(viewDirection))),1.6);\n    vec3 color=mix(vec3(1.4,.35,.06),vec3(2.6,1.3,.45),turbulence);\n    gl_FragColor=vec4(color,(rim*.55+turbulence*.14)*front);\n#include <tonemapping_fragment>\n#include <colorspace_fragment>\n}",
+    "uniforms": [
+      "time",
+      "front"
+    ],
+    "defines": {},
+    "glslVersion": null
+  },
+  {
+    "key": "60d1134d",
+    "vertexShader": "varying vec3 direction;void main(){direction=position;gl_Position=projectionMatrix*modelViewMatrix*vec4(position,1.);}",
+    "fragmentShader": "uniform float time,density,wind;uniform vec3 tint;varying vec3 direction;\nuniform sampler2D weatherMap;uniform float weatherReady;\nfloat cloudHash(vec2 p){return fract(sin(dot(p,vec2(127.1,311.7)))*43758.5453);}\nfloat cloudNoise(vec2 p){vec2 i=floor(p),f=fract(p);f=f*f*(3.-2.*f);\nreturn mix(mix(cloudHash(i),cloudHash(i+vec2(1,0)),f.x),mix(cloudHash(i+vec2(0,1)),cloudHash(i+vec2(1,1)),f.x),f.y);}\nfloat weather(vec2 p){if(weatherReady>.5)return texture2D(weatherMap,p).r;\nreturn cloudNoise(p*8.)*.65+cloudNoise(p*17.)*.35;}\n    void main(){vec3 d=normalize(direction);if(d.y<-.06)discard;\n    vec2 p=d.xz/max(.2,d.y+.4)*.42+vec2(time*.002,-time*.0008)*wind;\n    float broad=weather(p),detail=weather(p*2.3+vec2(.17,time*.001*wind));\n    float thickness=smoothstep(.32,.73,broad*.7+detail*.3);\n    float horizon=smoothstep(-.04,.17,d.y)*(1.-smoothstep(.8,1.,d.y));\n    float silver=pow(clamp(detail-broad+.35,0.,1.),3.);\n    vec3 color=tint*(.54+broad*.52)+vec3(.15,.19,.21)*silver;\n    gl_FragColor=vec4(color,thickness*horizon*density);\n#include <tonemapping_fragment>\n#include <colorspace_fragment>\n}",
+    "uniforms": [
+      "weatherMap",
+      "weatherReady",
+      "time",
+      "density",
+      "wind",
+      "tint"
+    ],
+    "defines": {},
+    "glslVersion": null
+  },
+  {
+    "key": "697bca14",
+    "vertexShader": "attribute vec4 seed;uniform float time,size,ratio;uniform vec3 origin;uniform vec2 lean;varying float alpha;varying float variation;\n      varying float particleCell,particleAngle;\n\nvoid main(){float a=seed.x*6.283185;vec3 p=vec3(0.);variation=seed.w;\n      float gust=10.+smoothstep(6.,20.,time)*46.;\n      p=vec3(mod(seed.x*340.+time*gust*(.8+seed.z*.4),340.)-170.,-.4+seed.y*seed.y*7.5+sin(time*2.3+seed.w*8.)*.6,mod(seed.z*300.+time*gust*.3,300.)-150.);\n      alpha=smoothstep(8.,20.,time)*(1.-seed.y*seed.y)*.3;\n      vec4 mv=modelViewMatrix*vec4(p,1.);gl_Position=projectionMatrix*mv;\n      gl_PointSize=clamp(size*ratio*240./max(1.,-mv.z),1.,100.);\n      particleCell=0.+floor(min(seed.w,.999999)*4.);\n      particleAngle=seed.x*6.283185+time*(seed.z-.5)*.35;\n      \n    }",
+    "fragmentShader": "uniform vec3 tint;varying float alpha;varying float variation;\nfloat hash(vec3 p){return fract(sin(dot(p,vec3(127.1,311.7,74.7)))*43758.5453);}\nfloat noise(vec3 p){vec3 i=floor(p),f=fract(p);f=f*f*(3.-2.*f);\nreturn mix(mix(mix(hash(i),hash(i+vec3(1,0,0)),f.x),mix(hash(i+vec3(0,1,0)),hash(i+vec3(1,1,0)),f.x),f.y),\nmix(mix(hash(i+vec3(0,0,1)),hash(i+vec3(1,0,1)),f.x),mix(hash(i+vec3(0,1,1)),hash(i+vec3(1,1,1)),f.x),f.y),f.z);}\nfloat fbm(vec3 p){return noise(p)*.57+noise(p*2.03)*.28+noise(p*4.11)*.15;}\n      void particleFallback(){vec2 p=gl_PointCoord-.5;float r=length(p)*2.;if(r>1.)discard;\n      float a=(1.-smoothstep(.05,1.,r))*alpha;\n      a*=smoothstep(.18,.6,fbm(vec3(p*5.,variation*13.)));\n      gl_FragColor=vec4(tint,a);}\n\n\nuniform sampler2D opaqueDepth;\nuniform float opaqueDepthAvailable,opaqueNear,opaqueFar;\nuniform vec2 opaqueInverseSize;\nuniform mat4 opaqueProjectionInverse,opaqueCameraWorld;\nvec3 opaqueWorldPoint(vec2 uv,float depth){\n  vec4 view=opaqueProjectionInverse*vec4(uv*2.-1.,depth*2.-1.,1.);\n  return (opaqueCameraWorld*vec4(view.xyz/view.w,1.)).xyz;\n}\nuniform sampler2D particleAtlas;\nuniform float particleAtlasReady,particleSoftness;\nvarying float particleCell,particleAngle;\nfloat particleMask(){\n  vec2 p=gl_PointCoord-.5;\n  float c=cos(particleAngle),s=sin(particleAngle);\n  p=mat2(c,-s,s,c)*p+.5;\n  // Half-texel inset and transparent cell gutters prevent neighboring shapes leaking at the edges.\n  vec2 cell=vec2(mod(particleCell,4.),3.-floor(particleCell/4.));\n  vec2 uv=(cell*256.+vec2(.5)+vec2(p.x,1.-p.y)*255.)/1024.;\n  // Implicit mip derivatives need uniform control flow, including masked quad corners.\n  float mask=texture2D(particleAtlas,uv).r;\n  if(any(lessThan(p,vec2(0.)))||any(greaterThan(p,vec2(1.))))return 0.;\n  return mask;\n}\nfloat particleViewDepth(float depth){return opaqueNear*opaqueFar/(opaqueFar-depth*(opaqueFar-opaqueNear));}\nfloat particleDepthFade(){\n  if(opaqueDepthAvailable<.5)return 1.;\n  float depth=texture2D(opaqueDepth,gl_FragCoord.xy*opaqueInverseSize).x;\n  if(depth>=1.)return 1.;\n  return smoothstep(0.,max(.001,particleSoftness),particleViewDepth(depth)-particleViewDepth(gl_FragCoord.z));\n}\nvoid main(){\n    if(particleAtlasReady>.5){gl_FragColor=vec4(tint,particleMask()*alpha);}\n    else{particleFallback();}\n    gl_FragColor.a*=particleDepthFade();\n  }",
+    "uniforms": [
+      "time",
+      "size",
+      "ratio",
+      "tint",
+      "origin",
+      "lean",
+      "opaqueDepth",
+      "opaqueDepthAvailable",
+      "opaqueInverseSize",
+      "opaqueProjectionInverse",
+      "opaqueCameraWorld",
+      "opaqueNear",
+      "opaqueFar",
+      "particleAtlas",
+      "particleAtlasReady",
+      "particleSoftness"
+    ],
+    "defines": {},
+    "glslVersion": null
+  },
+  {
+    "key": "78aa6d28",
+    "vertexShader": "varying vec3 hullPoint;void main(){vec4 world=modelMatrix*vec4(position,1.);hullPoint=world.xyz;gl_Position=projectionMatrix*viewMatrix*world;}",
+    "fragmentShader": "uniform float time,steps,inside,flash,fogDensity;uniform vec3 origin,sunDirection,sunColor,skyColor,fogColor,flashPoint;varying vec3 hullPoint;\n      \nfloat hash(vec3 p){return fract(sin(dot(p,vec3(127.1,311.7,74.7)))*43758.5453);}\nfloat noise(vec3 p){vec3 i=floor(p),f=fract(p);f=f*f*(3.-2.*f);\nreturn mix(mix(mix(hash(i),hash(i+vec3(1,0,0)),f.x),mix(hash(i+vec3(0,1,0)),hash(i+vec3(1,1,0)),f.x),f.y),\nmix(mix(hash(i+vec3(0,0,1)),hash(i+vec3(1,0,1)),f.x),mix(hash(i+vec3(0,1,1)),hash(i+vec3(1,1,1)),f.x),f.y),f.z);}\nfloat fbm(vec3 p){return noise(p)*.57+noise(p*2.03)*.28+noise(p*4.11)*.15;}\nfloat terrain(vec2 xz){return -.5+(sin(xz.x*.022)*cos(xz.y*.027)*5.-sin(xz.y*.06)*1.5)*clamp((length(xz)-25.)/80.,0.,1.);}\n      \nuniform sampler2D opaqueDepth;\nuniform float opaqueDepthAvailable,opaqueNear,opaqueFar;\nuniform vec2 opaqueInverseSize;\nuniform mat4 opaqueProjectionInverse,opaqueCameraWorld;\nvec3 opaqueWorldPoint(vec2 uv,float depth){\n  vec4 view=opaqueProjectionInverse*vec4(uv*2.-1.,depth*2.-1.,1.);\n  return (opaqueCameraWorld*vec4(view.xyz/view.w,1.)).xyz;\n}\n      uniform float front,radius;uniform vec3 axis,uAxis,vAxis,sun;\n      vec3 field(vec3 p,bool detail){\n      vec3 q=(p-origin)/radius;float rr=length(q);if(rr>1.1)return vec3(0.);\n      float ahead=dot(q,axis);\n      // A bright thin front on the Earth-facing side, a nearly empty cavity and a dense core of ejected prominence.\n      float shell=exp(-pow((rr-.9)/.09,2.))*smoothstep(-.3,.5,ahead/max(rr,1e-3)),edge=smoothstep(.5,.9,rr);\n      float core=exp(-length(q+axis*.35)*3.5);\n      if(shell<.02&&core<.02&&edge<.02)return vec3(0.);\n      vec3 flow=p-origin-axis*time*9.;\n      float strands=edge>.02?smoothstep(.35,.75,fbm(vec3(dot(q,uAxis)*6.,dot(q,vAxis)*6.,time*.4))):.5;\n      float filaments=edge>.02?smoothstep(.5,.85,fbm(vec3(dot(q,uAxis)*5.,dot(q,vAxis)*5.,ahead*1.2-time*.6)))*edge:0.;\n      float d=(shell*(.3+.7*strands)+filaments*.35+core*.9*(.5+.5*fbm(flow*.15))+(1.-edge)*.012)*front;if(d<.01)return vec3(0.);\n      float grain=detail?fbm(flow*.2+3.):.5;\n      return vec3(d*(.6+.4*grain),shell,grain);\n    }\n      void main(){\n        vec3 rayDir=normalize(hullPoint-cameraPosition);\n        vec3 start=inside>.5?cameraPosition:hullPoint;\n        float span=inside>.5?length(hullPoint-cameraPosition):(radius*2.3);\n        if(opaqueDepthAvailable>.5){\n          vec2 uv=gl_FragCoord.xy*opaqueInverseSize;\n          float depth=texture2D(opaqueDepth,uv).x;\n          if(depth<1.)span=min(span,dot(opaqueWorldPoint(uv,depth)-start,rayDir));\n        }\n        if(span<=0.)discard;\n        // A per-pixel offset turns step slices into fine noise; it depends only on the pixel, so scrubbing stays exact.\n        float dt=clamp(span/steps,1.,5.),s=fract(sin(dot(gl_FragCoord.xy,vec2(12.9898,78.233)))*43758.5453)*dt;\n        float alpha=0.,firstHit=-1.;vec3 col=vec3(0.);\n        for(int i=0;i<48;i++){\n          if(float(i)>=steps||alpha>.97||s>span)break;\n          vec3 p=start+rayDir*s;\n          if(length(p-sun)<31.6)break;\n          vec3 f=field(p,true);\n          if(f.x>.002){\n            vec3 sampleColor;\n            sampleColor=mix(vec3(1.1,.3,.05),vec3(1.8,.9,.32),f.z)*(.5+.7*f.y)+vec3(2.2,1.4,.7)*f.y*.8;\n            float a=1.-exp(-f.x*dt*.06);\n            col+=(1.-alpha)*a*sampleColor;alpha+=(1.-alpha)*a;\n            if(firstHit<0.)firstHit=s;\n            s+=dt;\n          } else s+=dt*1.7;\n        }\n        if(alpha<.003)discard;\n        float dist=length(start+rayDir*max(firstHit,0.)-cameraPosition);\n        gl_FragColor=vec4(mix(col/alpha,fogColor,1.-exp(-fogDensity*fogDensity*dist*dist)),alpha);\n        #include <tonemapping_fragment>\n        #include <colorspace_fragment>\n      }",
+    "uniforms": [
+      "opaqueDepth",
+      "opaqueDepthAvailable",
+      "opaqueInverseSize",
+      "opaqueProjectionInverse",
+      "opaqueCameraWorld",
+      "opaqueNear",
+      "opaqueFar",
+      "time",
+      "steps",
+      "inside",
+      "flash",
+      "flashPoint",
+      "origin",
+      "sunDirection",
+      "sunColor",
+      "skyColor",
+      "fogColor",
+      "fogDensity",
+      "front",
+      "radius",
+      "axis",
+      "uAxis",
+      "vAxis",
+      "sun"
+    ],
+    "defines": {},
+    "glslVersion": null
+  },
+  {
+    "key": "7a3ef61f",
+    "vertexShader": "attribute vec4 seed;uniform float time,phase,pixelRatio;uniform vec3 origin,target;varying float opacity;varying float warmth;\n      varying float particleCell,particleAngle;\nvec3 particleNext(float time){float a=seed.x*6.283185;vec3 p=vec3(0.);float alpha=0.,opacity=0.,warmth=seed.z;float run=fract(seed.y+time*.07*(1.+seed.z*.8));warmth=seed.z*.3;\n      p=vec3(0.,40.,0.)+vec3(-.482,0.,-.876)*(seed.x-.5)*220.+vec3(.137,.988,-.075)*(seed.w-.5)*150.+vec3(.8655,-.1558,-.476)*(run*640.-320.);\n      opacity=phase*(.08+.35*(1.-abs(run-.5)*2.));return p;}\nvoid main(){float a=seed.x*6.283185;vec3 p;warmth=seed.z;\n      float run=fract(seed.y+time*.07*(1.+seed.z*.8));warmth=seed.z*.3;\n      p=vec3(0.,40.,0.)+vec3(-.482,0.,-.876)*(seed.x-.5)*220.+vec3(.137,.988,-.075)*(seed.w-.5)*150.+vec3(.8655,-.1558,-.476)*(run*640.-320.);\n      opacity=phase*(.08+.35*(1.-abs(run-.5)*2.));\n      vec4 mv=modelViewMatrix*vec4(p,1.);gl_Position=projectionMatrix*mv;gl_PointSize=clamp((1.5+seed.w*3.)*pixelRatio*230./max(1.,-mv.z),1.,12.);\n      particleCell=8.+floor(min(seed.w,.999999)*4.);\n      particleAngle=seed.x*6.283185;\n      vec4 particleFuture=modelViewMatrix*vec4(particleNext(time+.04),1.);\n      vec2 particleDirection=particleFuture.xy/max(.001,-particleFuture.z)-mv.xy/max(.001,-mv.z);\n      if(dot(particleDirection,particleDirection)>.00000001)particleAngle=atan(-particleDirection.y,particleDirection.x);\n    }",
+    "fragmentShader": "uniform vec3 tint;varying float opacity;varying float warmth;void particleFallback(){float r=length(gl_PointCoord-.5)*2.;if(r>1.)discard;gl_FragColor=vec4(mix(tint,tint*vec3(1.2,.55,.25),warmth),pow(1.-r,2.)*opacity);\n#include <tonemapping_fragment>\n#include <colorspace_fragment>\n}\n\n\nuniform sampler2D opaqueDepth;\nuniform float opaqueDepthAvailable,opaqueNear,opaqueFar;\nuniform vec2 opaqueInverseSize;\nuniform mat4 opaqueProjectionInverse,opaqueCameraWorld;\nvec3 opaqueWorldPoint(vec2 uv,float depth){\n  vec4 view=opaqueProjectionInverse*vec4(uv*2.-1.,depth*2.-1.,1.);\n  return (opaqueCameraWorld*vec4(view.xyz/view.w,1.)).xyz;\n}\nuniform sampler2D particleAtlas;\nuniform float particleAtlasReady,particleSoftness;\nvarying float particleCell,particleAngle;\nfloat particleMask(){\n  vec2 p=gl_PointCoord-.5;\n  float c=cos(particleAngle),s=sin(particleAngle);\n  p=mat2(c,-s,s,c)*p+.5;\n  // Half-texel inset and transparent cell gutters prevent neighboring shapes leaking at the edges.\n  vec2 cell=vec2(mod(particleCell,4.),3.-floor(particleCell/4.));\n  vec2 uv=(cell*256.+vec2(.5)+vec2(p.x,1.-p.y)*255.)/1024.;\n  // Implicit mip derivatives need uniform control flow, including masked quad corners.\n  float mask=texture2D(particleAtlas,uv).r;\n  if(any(lessThan(p,vec2(0.)))||any(greaterThan(p,vec2(1.))))return 0.;\n  return mask;\n}\nfloat particleViewDepth(float depth){return opaqueNear*opaqueFar/(opaqueFar-depth*(opaqueFar-opaqueNear));}\nfloat particleDepthFade(){\n  if(opaqueDepthAvailable<.5)return 1.;\n  float depth=texture2D(opaqueDepth,gl_FragCoord.xy*opaqueInverseSize).x;\n  if(depth>=1.)return 1.;\n  return smoothstep(0.,max(.001,particleSoftness),particleViewDepth(depth)-particleViewDepth(gl_FragCoord.z));\n}\nvoid main(){\n    if(particleAtlasReady>.5){gl_FragColor=vec4(mix(tint,tint*vec3(1.2,.55,.25),warmth),particleMask()*opacity);\n#include <tonemapping_fragment>\n#include <colorspace_fragment>\n}\n    else{particleFallback();}\n    gl_FragColor.a*=particleDepthFade();\n  }",
+    "uniforms": [
+      "time",
+      "phase",
+      "tint",
+      "pixelRatio",
+      "origin",
+      "target",
+      "opaqueDepth",
+      "opaqueDepthAvailable",
+      "opaqueInverseSize",
+      "opaqueProjectionInverse",
+      "opaqueCameraWorld",
+      "opaqueNear",
+      "opaqueFar",
+      "particleAtlas",
+      "particleAtlasReady",
+      "particleSoftness"
+    ],
+    "defines": {},
+    "glslVersion": null
+  },
+  {
+    "key": "7a4bf8f0",
+    "vertexShader": "varying vec3 point;varying vec3 viewNormal;varying vec3 viewDirection;varying vec3 worldNormal;\nvoid main(){point=position;vec4 mv=modelViewMatrix*vec4(position,1.);viewNormal=normalize(normalMatrix*normal);worldNormal=normalize(mat3(modelMatrix)*normal);viewDirection=normalize(-mv.xyz);gl_Position=projectionMatrix*mv;}",
+    "fragmentShader": "uniform float time;uniform vec3 light;varying vec3 point;varying vec3 worldNormal;\nfloat hash(vec3 p){return fract(sin(dot(p,vec3(127.1,311.7,74.7)))*43758.5453);}\nfloat noise(vec3 p){vec3 i=floor(p),f=fract(p);f=f*f*(3.-2.*f);\nreturn mix(mix(mix(hash(i),hash(i+vec3(1,0,0)),f.x),mix(hash(i+vec3(0,1,0)),hash(i+vec3(1,1,0)),f.x),f.y),\nmix(mix(hash(i+vec3(0,0,1)),hash(i+vec3(1,0,1)),f.x),mix(hash(i+vec3(0,1,1)),hash(i+vec3(1,1,1)),f.x),f.y),f.z);}\nfloat fbm(vec3 p){return noise(p)*.57+noise(p*2.03)*.28+noise(p*4.11)*.15;}\n      void main(){vec3 p=normalize(point);float broad=fbm(p*6.+vec3(time*.002,0.,0.));\n      float wisps=fbm(p*18.+broad*2.);float cloud=smoothstep(.49,.73,wisps);\n      float lit=.09+max(dot(normalize(worldNormal),light),0.);\n      gl_FragColor=vec4(vec3(.81,.87,.9)*lit,cloud*.65);\n#include <tonemapping_fragment>\n#include <colorspace_fragment>\n}",
+    "uniforms": [
+      "time",
+      "light"
+    ],
+    "defines": {},
+    "glslVersion": null
+  },
+  {
+    "key": "7fccd930",
+    "vertexShader": "varying vec2 spriteUv;void main(){spriteUv=uv*2.-1.;gl_Position=projectionMatrix*modelViewMatrix*vec4(position,1.);}",
+    "fragmentShader": "uniform float time,phase,activity;varying vec2 spriteUv;\nfloat hash(vec3 p){return fract(sin(dot(p,vec3(127.1,311.7,74.7)))*43758.5453);}\nfloat noise(vec3 p){vec3 i=floor(p),f=fract(p);f=f*f*(3.-2.*f);\nreturn mix(mix(mix(hash(i),hash(i+vec3(1,0,0)),f.x),mix(hash(i+vec3(0,1,0)),hash(i+vec3(1,1,0)),f.x),f.y),\nmix(mix(hash(i+vec3(0,0,1)),hash(i+vec3(1,0,1)),f.x),mix(hash(i+vec3(0,1,1)),hash(i+vec3(1,1,1)),f.x),f.y),f.z);}\nfloat fbm(vec3 p){return noise(p)*.57+noise(p*2.03)*.28+noise(p*4.11)*.15;}\n    void main(){float r=length(spriteUv);float ang=atan(spriteUv.y,spriteUv.x);vec2 d=vec2(cos(ang),sin(ang));\n    float broad=fbm(vec3(d*3.5,time*.05));float fine=fbm(vec3(d*11.,r*4.-time*.09));\n    float disk=.36;float reach=disk+.08+broad*.3+fine*.14+phase*.16;\n    float glow=exp(-(r-disk)*9.)*.42;float streamers=(1.-smoothstep(reach-.28,reach,r))*smoothstep(.42,.88,fine)*.5;\n    float outside=smoothstep(disk-.02,disk+.03,r);\n    vec3 color=mix(vec3(1.1,.36,.07),vec3(1.9,1.1,.45),fine)*(1.+activity*.35+phase*.6);\n    gl_FragColor=vec4(color,(glow+streamers)*outside*(1.-smoothstep(.85,1.,r)));\n#include <tonemapping_fragment>\n#include <colorspace_fragment>\n}",
+    "uniforms": [
+      "time",
+      "phase",
+      "activity"
+    ],
+    "defines": {},
+    "glslVersion": null
+  },
+  {
+    "key": "823710e6",
+    "vertexShader": "attribute vec4 seed;uniform float time,size,pixelRatio;uniform vec3 origin;varying float opacity;varying float variation;\n      varying float particleCell,particleAngle;\n\nvoid main(){float age=max(0.,time-seed.w*3.);float a=seed.x*6.283185;vec3 p=origin;variation=seed.z;\n      p+=vec3(sin(a),0.,cos(a))*age*(5.+seed.y*12.);p.y+=age*(10.+seed.z*20.)-age*age*1.9;opacity=step(0.,time-seed.w*3.)*(1.-smoothstep(2.,8.,age))*step(0.,p.y);\n      vec4 mv=modelViewMatrix*vec4(p,1.);gl_Position=projectionMatrix*mv;\n      gl_PointSize=clamp(size*pixelRatio*(300./max(1.,-mv.z)),1.,32.);\n      particleCell=4.+floor(min(seed.w,.999999)*4.);\n      particleAngle=seed.x*6.283185;\n      \n    }",
+    "fragmentShader": "uniform vec3 tint;varying float opacity;varying float variation;\nfloat hash(vec3 p){return fract(sin(dot(p,vec3(127.1,311.7,74.7)))*43758.5453);}\nfloat noise(vec3 p){vec3 i=floor(p),f=fract(p);f=f*f*(3.-2.*f);\nreturn mix(mix(mix(hash(i),hash(i+vec3(1,0,0)),f.x),mix(hash(i+vec3(0,1,0)),hash(i+vec3(1,1,0)),f.x),f.y),\nmix(mix(hash(i+vec3(0,0,1)),hash(i+vec3(1,0,1)),f.x),mix(hash(i+vec3(0,1,1)),hash(i+vec3(1,1,1)),f.x),f.y),f.z);}\nfloat fbm(vec3 p){return noise(p)*.57+noise(p*2.03)*.28+noise(p*4.11)*.15;}\n      void particleFallback(){vec2 p=gl_PointCoord-.5;float r=length(p)*2.;if(r>1.)discard;float a=(1.-smoothstep(.15,1.,r))*opacity;\n      \n      gl_FragColor=vec4(tint,a);}\n\n\nuniform sampler2D opaqueDepth;\nuniform float opaqueDepthAvailable,opaqueNear,opaqueFar;\nuniform vec2 opaqueInverseSize;\nuniform mat4 opaqueProjectionInverse,opaqueCameraWorld;\nvec3 opaqueWorldPoint(vec2 uv,float depth){\n  vec4 view=opaqueProjectionInverse*vec4(uv*2.-1.,depth*2.-1.,1.);\n  return (opaqueCameraWorld*vec4(view.xyz/view.w,1.)).xyz;\n}\nuniform sampler2D particleAtlas;\nuniform float particleAtlasReady,particleSoftness;\nvarying float particleCell,particleAngle;\nfloat particleMask(){\n  vec2 p=gl_PointCoord-.5;\n  float c=cos(particleAngle),s=sin(particleAngle);\n  p=mat2(c,-s,s,c)*p+.5;\n  // Half-texel inset and transparent cell gutters prevent neighboring shapes leaking at the edges.\n  vec2 cell=vec2(mod(particleCell,4.),3.-floor(particleCell/4.));\n  vec2 uv=(cell*256.+vec2(.5)+vec2(p.x,1.-p.y)*255.)/1024.;\n  // Implicit mip derivatives need uniform control flow, including masked quad corners.\n  float mask=texture2D(particleAtlas,uv).r;\n  if(any(lessThan(p,vec2(0.)))||any(greaterThan(p,vec2(1.))))return 0.;\n  return mask;\n}\nfloat particleViewDepth(float depth){return opaqueNear*opaqueFar/(opaqueFar-depth*(opaqueFar-opaqueNear));}\nfloat particleDepthFade(){\n  if(opaqueDepthAvailable<.5)return 1.;\n  float depth=texture2D(opaqueDepth,gl_FragCoord.xy*opaqueInverseSize).x;\n  if(depth>=1.)return 1.;\n  return smoothstep(0.,max(.001,particleSoftness),particleViewDepth(depth)-particleViewDepth(gl_FragCoord.z));\n}\nvoid main(){\n    if(particleAtlasReady>.5){gl_FragColor=vec4(tint,particleMask()*opacity);}\n    else{particleFallback();}\n    gl_FragColor.a*=particleDepthFade();\n  }",
+    "uniforms": [
+      "time",
+      "origin",
+      "size",
+      "pixelRatio",
+      "tint",
+      "opaqueDepth",
+      "opaqueDepthAvailable",
+      "opaqueInverseSize",
+      "opaqueProjectionInverse",
+      "opaqueCameraWorld",
+      "opaqueNear",
+      "opaqueFar",
+      "particleAtlas",
+      "particleAtlasReady",
+      "particleSoftness"
+    ],
+    "defines": {},
+    "glslVersion": null
+  },
+  {
+    "key": "8736f7e3",
+    "vertexShader": "attribute vec4 seed;uniform float time,size,pixelRatio;uniform vec3 origin;varying float opacity;varying float variation;\n      varying float particleCell,particleAngle;\n\nvoid main(){float age=max(0.,time-seed.w*3.);float a=seed.x*6.283185;vec3 p=origin;variation=seed.z;\n      p+=vec3(sin(a)*age*3.,age*(2.+seed.z*2.),cos(a)*age*3.);opacity=step(0.,time-seed.w*3.)*smoothstep(0.,2.,age)*(1.-smoothstep(10.,20.,age))*.18;\n      vec4 mv=modelViewMatrix*vec4(p,1.);gl_Position=projectionMatrix*mv;\n      gl_PointSize=clamp(size*pixelRatio*(300./max(1.,-mv.z))*(1.+age*.7),1.,190.);\n      particleCell=0.+floor(min(seed.w,.999999)*4.);\n      particleAngle=seed.x*6.283185+time*(seed.z-.5)*.35;\n      \n    }",
+    "fragmentShader": "uniform vec3 tint;varying float opacity;varying float variation;\nfloat hash(vec3 p){return fract(sin(dot(p,vec3(127.1,311.7,74.7)))*43758.5453);}\nfloat noise(vec3 p){vec3 i=floor(p),f=fract(p);f=f*f*(3.-2.*f);\nreturn mix(mix(mix(hash(i),hash(i+vec3(1,0,0)),f.x),mix(hash(i+vec3(0,1,0)),hash(i+vec3(1,1,0)),f.x),f.y),\nmix(mix(hash(i+vec3(0,0,1)),hash(i+vec3(1,0,1)),f.x),mix(hash(i+vec3(0,1,1)),hash(i+vec3(1,1,1)),f.x),f.y),f.z);}\nfloat fbm(vec3 p){return noise(p)*.57+noise(p*2.03)*.28+noise(p*4.11)*.15;}\n      void particleFallback(){vec2 p=gl_PointCoord-.5;float r=length(p)*2.;if(r>1.)discard;float a=(1.-smoothstep(.15,1.,r))*opacity;\n      a*=smoothstep(.15,.65,fbm(vec3(p*5.,variation*10.)));\n      gl_FragColor=vec4(tint,a);}\n\n\nuniform sampler2D opaqueDepth;\nuniform float opaqueDepthAvailable,opaqueNear,opaqueFar;\nuniform vec2 opaqueInverseSize;\nuniform mat4 opaqueProjectionInverse,opaqueCameraWorld;\nvec3 opaqueWorldPoint(vec2 uv,float depth){\n  vec4 view=opaqueProjectionInverse*vec4(uv*2.-1.,depth*2.-1.,1.);\n  return (opaqueCameraWorld*vec4(view.xyz/view.w,1.)).xyz;\n}\nuniform sampler2D particleAtlas;\nuniform float particleAtlasReady,particleSoftness;\nvarying float particleCell,particleAngle;\nfloat particleMask(){\n  vec2 p=gl_PointCoord-.5;\n  float c=cos(particleAngle),s=sin(particleAngle);\n  p=mat2(c,-s,s,c)*p+.5;\n  // Half-texel inset and transparent cell gutters prevent neighboring shapes leaking at the edges.\n  vec2 cell=vec2(mod(particleCell,4.),3.-floor(particleCell/4.));\n  vec2 uv=(cell*256.+vec2(.5)+vec2(p.x,1.-p.y)*255.)/1024.;\n  // Implicit mip derivatives need uniform control flow, including masked quad corners.\n  float mask=texture2D(particleAtlas,uv).r;\n  if(any(lessThan(p,vec2(0.)))||any(greaterThan(p,vec2(1.))))return 0.;\n  return mask;\n}\nfloat particleViewDepth(float depth){return opaqueNear*opaqueFar/(opaqueFar-depth*(opaqueFar-opaqueNear));}\nfloat particleDepthFade(){\n  if(opaqueDepthAvailable<.5)return 1.;\n  float depth=texture2D(opaqueDepth,gl_FragCoord.xy*opaqueInverseSize).x;\n  if(depth>=1.)return 1.;\n  return smoothstep(0.,max(.001,particleSoftness),particleViewDepth(depth)-particleViewDepth(gl_FragCoord.z));\n}\nvoid main(){\n    if(particleAtlasReady>.5){gl_FragColor=vec4(tint,particleMask()*opacity);}\n    else{particleFallback();}\n    gl_FragColor.a*=particleDepthFade();\n  }",
+    "uniforms": [
+      "time",
+      "origin",
+      "size",
+      "pixelRatio",
+      "tint",
+      "opaqueDepth",
+      "opaqueDepthAvailable",
+      "opaqueInverseSize",
+      "opaqueProjectionInverse",
+      "opaqueCameraWorld",
+      "opaqueNear",
+      "opaqueFar",
+      "particleAtlas",
+      "particleAtlasReady",
+      "particleSoftness"
+    ],
+    "defines": {},
+    "glslVersion": null
+  },
+  {
+    "key": "8835da3a",
+    "vertexShader": "varying vec3 direction;void main(){direction=position;gl_Position=projectionMatrix*modelViewMatrix*vec4(position,1.);}",
+    "fragmentShader": "uniform sampler2D panorama;uniform vec3 tint,air;uniform float exposure,storm;varying vec3 direction;\n    void main(){vec3 d=normalize(direction);vec2 uv=vec2(atan(d.z,d.x)/6.283185+.5,asin(clamp(d.y,-1.,1.))/3.141593+.5);\n    vec3 c=texture2D(panorama,uv).rgb;float gray=dot(c,vec3(.2126,.7152,.0722));c=mix(c,vec3(gray),storm);\n    c=c*tint*exposure;float horizon=1.-smoothstep(.02,.32,d.y);gl_FragColor=vec4(c,1.);\n    #include <tonemapping_fragment>\n    #include <colorspace_fragment>\n    gl_FragColor.rgb=mix(gl_FragColor.rgb,air,horizon);\n    }",
+    "uniforms": [
+      "panorama",
+      "tint",
+      "air",
+      "exposure",
+      "storm"
+    ],
+    "defines": {},
+    "glslVersion": null
+  },
+  {
+    "key": "98f769e8",
+    "vertexShader": "attribute vec4 seed;uniform float time,size,ratio;uniform vec3 origin;uniform vec2 lean;varying float alpha;varying float variation;\n      varying float particleCell,particleAngle;\n\nvoid main(){float a=seed.x*6.283185;vec3 p=vec3(0.);variation=seed.w;\n      float age=time-12.5-seed.w*3.;float lift=smoothstep(0.,4.,age);float settle=smoothstep(26.,30.,time);\n      float h=(1.+seed.z*seed.z*72.*lift)*(1.-settle*.85);float r=(4.+seed.y*26.)*(.35+.65*lift)*(1.+h*.02);\n      float angle=a+time*(2.6+seed.y*1.4)+h*.05;vec2 bend=lean*(h/95.)*(h/95.);\n      p=vec3(origin.x+bend.x+cos(angle)*r,origin.y+h,origin.z+bend.y+sin(angle)*r);\n      alpha=step(0.,age)*(1.-smoothstep(58.,78.,h))*(1.-settle*.8)*.24;\n      vec4 mv=modelViewMatrix*vec4(p,1.);gl_Position=projectionMatrix*mv;\n      gl_PointSize=clamp(size*ratio*240./max(1.,-mv.z),1.,55.);\n      particleCell=0.+floor(min(seed.w,.999999)*4.);\n      particleAngle=seed.x*6.283185+time*(seed.z-.5)*.35;\n      \n    }",
+    "fragmentShader": "uniform vec3 tint;varying float alpha;varying float variation;\nfloat hash(vec3 p){return fract(sin(dot(p,vec3(127.1,311.7,74.7)))*43758.5453);}\nfloat noise(vec3 p){vec3 i=floor(p),f=fract(p);f=f*f*(3.-2.*f);\nreturn mix(mix(mix(hash(i),hash(i+vec3(1,0,0)),f.x),mix(hash(i+vec3(0,1,0)),hash(i+vec3(1,1,0)),f.x),f.y),\nmix(mix(hash(i+vec3(0,0,1)),hash(i+vec3(1,0,1)),f.x),mix(hash(i+vec3(0,1,1)),hash(i+vec3(1,1,1)),f.x),f.y),f.z);}\nfloat fbm(vec3 p){return noise(p)*.57+noise(p*2.03)*.28+noise(p*4.11)*.15;}\n      void particleFallback(){vec2 p=gl_PointCoord-.5;float r=length(p)*2.;if(r>1.)discard;\n      float a=(1.-smoothstep(.05,1.,r))*alpha;\n      a*=smoothstep(.18,.6,fbm(vec3(p*5.,variation*13.)));\n      gl_FragColor=vec4(tint,a);}\n\n\nuniform sampler2D opaqueDepth;\nuniform float opaqueDepthAvailable,opaqueNear,opaqueFar;\nuniform vec2 opaqueInverseSize;\nuniform mat4 opaqueProjectionInverse,opaqueCameraWorld;\nvec3 opaqueWorldPoint(vec2 uv,float depth){\n  vec4 view=opaqueProjectionInverse*vec4(uv*2.-1.,depth*2.-1.,1.);\n  return (opaqueCameraWorld*vec4(view.xyz/view.w,1.)).xyz;\n}\nuniform sampler2D particleAtlas;\nuniform float particleAtlasReady,particleSoftness;\nvarying float particleCell,particleAngle;\nfloat particleMask(){\n  vec2 p=gl_PointCoord-.5;\n  float c=cos(particleAngle),s=sin(particleAngle);\n  p=mat2(c,-s,s,c)*p+.5;\n  // Half-texel inset and transparent cell gutters prevent neighboring shapes leaking at the edges.\n  vec2 cell=vec2(mod(particleCell,4.),3.-floor(particleCell/4.));\n  vec2 uv=(cell*256.+vec2(.5)+vec2(p.x,1.-p.y)*255.)/1024.;\n  // Implicit mip derivatives need uniform control flow, including masked quad corners.\n  float mask=texture2D(particleAtlas,uv).r;\n  if(any(lessThan(p,vec2(0.)))||any(greaterThan(p,vec2(1.))))return 0.;\n  return mask;\n}\nfloat particleViewDepth(float depth){return opaqueNear*opaqueFar/(opaqueFar-depth*(opaqueFar-opaqueNear));}\nfloat particleDepthFade(){\n  if(opaqueDepthAvailable<.5)return 1.;\n  float depth=texture2D(opaqueDepth,gl_FragCoord.xy*opaqueInverseSize).x;\n  if(depth>=1.)return 1.;\n  return smoothstep(0.,max(.001,particleSoftness),particleViewDepth(depth)-particleViewDepth(gl_FragCoord.z));\n}\nvoid main(){\n    if(particleAtlasReady>.5){gl_FragColor=vec4(tint,particleMask()*alpha);}\n    else{particleFallback();}\n    gl_FragColor.a*=particleDepthFade();\n  }",
+    "uniforms": [
+      "time",
+      "size",
+      "ratio",
+      "tint",
+      "origin",
+      "lean",
+      "opaqueDepth",
+      "opaqueDepthAvailable",
+      "opaqueInverseSize",
+      "opaqueProjectionInverse",
+      "opaqueCameraWorld",
+      "opaqueNear",
+      "opaqueFar",
+      "particleAtlas",
+      "particleAtlasReady",
+      "particleSoftness"
+    ],
+    "defines": {},
+    "glslVersion": null
+  },
+  {
+    "key": "99dda189",
+    "vertexShader": "varying vec3 hullPoint;void main(){vec4 world=modelMatrix*vec4(position,1.);hullPoint=world.xyz;gl_Position=projectionMatrix*viewMatrix*world;}",
+    "fragmentShader": "uniform float time,steps,inside,flash,fogDensity;uniform vec3 origin,sunDirection,sunColor,skyColor,fogColor,flashPoint;varying vec3 hullPoint;\n      \nfloat hash(vec3 p){return fract(sin(dot(p,vec3(127.1,311.7,74.7)))*43758.5453);}\nfloat noise(vec3 p){vec3 i=floor(p),f=fract(p);f=f*f*(3.-2.*f);\nreturn mix(mix(mix(hash(i),hash(i+vec3(1,0,0)),f.x),mix(hash(i+vec3(0,1,0)),hash(i+vec3(1,1,0)),f.x),f.y),\nmix(mix(hash(i+vec3(0,0,1)),hash(i+vec3(1,0,1)),f.x),mix(hash(i+vec3(0,1,1)),hash(i+vec3(1,1,1)),f.x),f.y),f.z);}\nfloat fbm(vec3 p){return noise(p)*.57+noise(p*2.03)*.28+noise(p*4.11)*.15;}\nfloat terrain(vec2 xz){return -.5+(sin(xz.x*.022)*cos(xz.y*.027)*5.-sin(xz.y*.06)*1.5)*clamp((length(xz)-25.)/80.,0.,1.);}\n      \nuniform sampler2D opaqueDepth;\nuniform float opaqueDepthAvailable,opaqueNear,opaqueFar;\nuniform vec2 opaqueInverseSize;\nuniform mat4 opaqueProjectionInverse,opaqueCameraWorld;\nvec3 opaqueWorldPoint(vec2 uv,float depth){\n  vec4 view=opaqueProjectionInverse*vec4(uv*2.-1.,depth*2.-1.,1.);\n  return (opaqueCameraWorld*vec4(view.xyz/view.w,1.)).xyz;\n}\n      uniform float height,flare,heat,fade,radius,base;\n      vec3 field(vec3 p,bool detail){\n      float h=(p.y-origin.y)/height;if(h<0.||h>1.)return vec3(0.);\n      vec2 q=p.xz-origin.xz;float r=length(q),angle=atan(q.y,q.x);\n      float cap=smoothstep(.62,.9,h)*(1.-smoothstep(.9,1.,h)),foot=1.-smoothstep(0.,.14,h),reach=10.+h*h*flare*.6+cap*flare+foot*base;\n      if(r>reach*1.3)return vec3(0.);\n      float boil=fbm(vec3(cos(angle)*2.2,h*7.-time*2.8,sin(angle)*2.2));\n      float R=reach*(.7+boil*.6);\n      float body=(1.-smoothstep(.5,1.,r/R))*smoothstep(0.,.03,h)*(1.-smoothstep(.85,1.,h));\n      float grain=detail&&body>.001?fbm(vec3(q*.05,h*8.-time*2.2)+7.):.5;\n      return vec3(body*(.55+.45*grain)*fade,heat*(1.-smoothstep(.1,.6,h)),grain);\n    }\n      void main(){\n        vec3 rayDir=normalize(hullPoint-cameraPosition);\n        vec3 start=inside>.5?cameraPosition:hullPoint;\n        float span=inside>.5?length(hullPoint-cameraPosition):(radius*1.5);\n        if(opaqueDepthAvailable>.5){\n          vec2 uv=gl_FragCoord.xy*opaqueInverseSize;\n          float depth=texture2D(opaqueDepth,uv).x;\n          if(depth<1.)span=min(span,dot(opaqueWorldPoint(uv,depth)-start,rayDir));\n        }\n        if(span<=0.)discard;\n        // A per-pixel offset turns step slices into fine noise; it depends only on the pixel, so scrubbing stays exact.\n        float dt=clamp(span/steps,1.,4.),s=fract(sin(dot(gl_FragCoord.xy,vec2(12.9898,78.233)))*43758.5453)*dt;\n        float alpha=0.,firstHit=-1.;vec3 col=vec3(0.);\n        for(int i=0;i<64;i++){\n          if(float(i)>=steps||alpha>.97||s>span)break;\n          vec3 p=start+rayDir*s;\n          \n          vec3 f=field(p,true);\n          if(f.x>.002){\n            vec3 sampleColor;\n            float h=clamp((p.y-origin.y)/height,0.,1.);\n            float shade=exp(-field(p+sunDirection*12.,false).x*1.8);\n            vec3 vapour=vec3(.8,.83,.85)*(.65+.55*f.z)*(sunColor*.35*(.2+.8*shade)+skyColor*mix(.45,1.1,h));\n            sampleColor=vapour+vec3(2.4,.9,.25)*f.y*(1.+f.z);\n            float a=1.-exp(-f.x*dt*1.1);\n            col+=(1.-alpha)*a*sampleColor;alpha+=(1.-alpha)*a;\n            if(firstHit<0.)firstHit=s;\n            s+=dt;\n          } else s+=dt*1.7;\n        }\n        if(alpha<.003)discard;\n        float dist=length(start+rayDir*max(firstHit,0.)-cameraPosition);\n        gl_FragColor=vec4(mix(col/alpha,fogColor,1.-exp(-fogDensity*fogDensity*dist*dist)),alpha);\n        #include <tonemapping_fragment>\n        #include <colorspace_fragment>\n      }",
+    "uniforms": [
+      "opaqueDepth",
+      "opaqueDepthAvailable",
+      "opaqueInverseSize",
+      "opaqueProjectionInverse",
+      "opaqueCameraWorld",
+      "opaqueNear",
+      "opaqueFar",
+      "time",
+      "steps",
+      "inside",
+      "flash",
+      "flashPoint",
+      "origin",
+      "sunDirection",
+      "sunColor",
+      "skyColor",
+      "fogColor",
+      "fogDensity",
+      "height",
+      "flare",
+      "heat",
+      "fade",
+      "radius",
+      "base"
+    ],
+    "defines": {},
+    "glslVersion": null
+  },
+  {
+    "key": "9acbe5af",
+    "vertexShader": "attribute vec4 seed;uniform float time,phase,pixelRatio;uniform vec3 origin,target;varying float opacity;varying float warmth;\n      varying float particleCell,particleAngle;\nvec3 particleNext(float time){float a=seed.x*6.283185;vec3 p=vec3(0.);float alpha=0.,opacity=0.,warmth=seed.z;float age=fract(seed.y+time*.055);float spread=8.+age*45.;\n      p=vec3(-34.-age*96.,52.+age*25.,-12.-age*40.)+vec3(sin(a)*spread,cos(a)*spread*.5,cos(a*2.)*spread*.6);\n      opacity=(1.-age)*(.2+phase*.8);return p;}\nvoid main(){float a=seed.x*6.283185;vec3 p;warmth=seed.z;\n      float age=fract(seed.y+time*.055);float spread=8.+age*45.;\n      p=vec3(-34.-age*96.,52.+age*25.,-12.-age*40.)+vec3(sin(a)*spread,cos(a)*spread*.5,cos(a*2.)*spread*.6);\n      opacity=(1.-age)*(.2+phase*.8);\n      vec4 mv=modelViewMatrix*vec4(p,1.);gl_Position=projectionMatrix*mv;gl_PointSize=clamp((1.5+seed.w*3.)*pixelRatio*230./max(1.,-mv.z),1.,12.);\n      particleCell=8.+floor(min(seed.w,.999999)*4.);\n      particleAngle=seed.x*6.283185;\n      vec4 particleFuture=modelViewMatrix*vec4(particleNext(time+.04),1.);\n      vec2 particleDirection=particleFuture.xy/max(.001,-particleFuture.z)-mv.xy/max(.001,-mv.z);\n      if(dot(particleDirection,particleDirection)>.00000001)particleAngle=atan(-particleDirection.y,particleDirection.x);\n    }",
+    "fragmentShader": "uniform vec3 tint;varying float opacity;varying float warmth;void particleFallback(){float r=length(gl_PointCoord-.5)*2.;if(r>1.)discard;gl_FragColor=vec4(mix(tint,tint*vec3(1.2,.55,.25),warmth),pow(1.-r,2.)*opacity);\n#include <tonemapping_fragment>\n#include <colorspace_fragment>\n}\n\n\nuniform sampler2D opaqueDepth;\nuniform float opaqueDepthAvailable,opaqueNear,opaqueFar;\nuniform vec2 opaqueInverseSize;\nuniform mat4 opaqueProjectionInverse,opaqueCameraWorld;\nvec3 opaqueWorldPoint(vec2 uv,float depth){\n  vec4 view=opaqueProjectionInverse*vec4(uv*2.-1.,depth*2.-1.,1.);\n  return (opaqueCameraWorld*vec4(view.xyz/view.w,1.)).xyz;\n}\nuniform sampler2D particleAtlas;\nuniform float particleAtlasReady,particleSoftness;\nvarying float particleCell,particleAngle;\nfloat particleMask(){\n  vec2 p=gl_PointCoord-.5;\n  float c=cos(particleAngle),s=sin(particleAngle);\n  p=mat2(c,-s,s,c)*p+.5;\n  // Half-texel inset and transparent cell gutters prevent neighboring shapes leaking at the edges.\n  vec2 cell=vec2(mod(particleCell,4.),3.-floor(particleCell/4.));\n  vec2 uv=(cell*256.+vec2(.5)+vec2(p.x,1.-p.y)*255.)/1024.;\n  // Implicit mip derivatives need uniform control flow, including masked quad corners.\n  float mask=texture2D(particleAtlas,uv).r;\n  if(any(lessThan(p,vec2(0.)))||any(greaterThan(p,vec2(1.))))return 0.;\n  return mask;\n}\nfloat particleViewDepth(float depth){return opaqueNear*opaqueFar/(opaqueFar-depth*(opaqueFar-opaqueNear));}\nfloat particleDepthFade(){\n  if(opaqueDepthAvailable<.5)return 1.;\n  float depth=texture2D(opaqueDepth,gl_FragCoord.xy*opaqueInverseSize).x;\n  if(depth>=1.)return 1.;\n  return smoothstep(0.,max(.001,particleSoftness),particleViewDepth(depth)-particleViewDepth(gl_FragCoord.z));\n}\nvoid main(){\n    if(particleAtlasReady>.5){gl_FragColor=vec4(mix(tint,tint*vec3(1.2,.55,.25),warmth),particleMask()*opacity);\n#include <tonemapping_fragment>\n#include <colorspace_fragment>\n}\n    else{particleFallback();}\n    gl_FragColor.a*=particleDepthFade();\n  }",
+    "uniforms": [
+      "time",
+      "phase",
+      "tint",
+      "pixelRatio",
+      "origin",
+      "target",
+      "opaqueDepth",
+      "opaqueDepthAvailable",
+      "opaqueInverseSize",
+      "opaqueProjectionInverse",
+      "opaqueCameraWorld",
+      "opaqueNear",
+      "opaqueFar",
+      "particleAtlas",
+      "particleAtlasReady",
+      "particleSoftness"
+    ],
+    "defines": {},
+    "glslVersion": null
+  },
+  {
+    "key": "9db50bcc",
+    "vertexShader": "varying vec3 rimNormal;varying vec3 rimView;void main(){vec4 mv=modelViewMatrix*vec4(position,1.);rimNormal=normalize(normalMatrix*normal);rimView=normalize(-mv.xyz);gl_Position=projectionMatrix*mv;}",
+    "fragmentShader": "uniform vec3 tint;uniform float strength;varying vec3 rimNormal;varying vec3 rimView;void main(){float rim=pow(1.-abs(dot(rimNormal,rimView)),3.);gl_FragColor=vec4(tint,rim*strength);}",
+    "uniforms": [
+      "tint",
+      "strength"
+    ],
+    "defines": {},
+    "glslVersion": null
+  },
+  {
+    "key": "a6036544",
+    "vertexShader": "varying vec3 point;varying vec3 viewNormal;varying vec3 viewDirection;varying vec3 worldNormal;\nvoid main(){point=position;vec4 mv=modelViewMatrix*vec4(position,1.);viewNormal=normalize(normalMatrix*normal);worldNormal=normalize(mat3(modelMatrix)*normal);viewDirection=normalize(-mv.xyz);gl_Position=projectionMatrix*mv;}",
+    "fragmentShader": "uniform float time;varying vec3 point;\nfloat hash(vec3 p){return fract(sin(dot(p,vec3(127.1,311.7,74.7)))*43758.5453);}\nfloat noise(vec3 p){vec3 i=floor(p),f=fract(p);f=f*f*(3.-2.*f);\nreturn mix(mix(mix(hash(i),hash(i+vec3(1,0,0)),f.x),mix(hash(i+vec3(0,1,0)),hash(i+vec3(1,1,0)),f.x),f.y),\nmix(mix(hash(i+vec3(0,0,1)),hash(i+vec3(1,0,1)),f.x),mix(hash(i+vec3(0,1,1)),hash(i+vec3(1,1,1)),f.x),f.y),f.z);}\nfloat fbm(vec3 p){return noise(p)*.57+noise(p*2.03)*.28+noise(p*4.11)*.15;}\n    void main(){float radius=length(point.xy);float r=(radius-19.)/55.;float a=atan(point.y,point.x);\n    vec3 p=vec3(cos(a+time*.13)*9.,sin(a+time*.13)*9.,radius*.65);\n    float turbulence=fbm(p+vec3(0.,0.,time*.28));float bands=.6+.4*sin(radius*3.2+turbulence*4.);\n    float edge=smoothstep(0.,.035,r)*(1.-smoothstep(.7,1.,r));float hot=pow(1.-r,.72);\n    vec3 color=mix(vec3(.5,.085,.018),vec3(2.8,1.8,.95),hot);\n    float doppler=.55+.85*pow(.5+.5*cos(a-.7),2.);\n    gl_FragColor=vec4(color*(.45+turbulence*.85)*bands*doppler,edge*(.62+hot*.3));\n#include <tonemapping_fragment>\n#include <colorspace_fragment>\n}",
+    "uniforms": [
+      "time"
+    ],
+    "defines": {},
+    "glslVersion": null
+  },
+  {
+    "key": "a9472eeb",
+    "vertexShader": "varying vec3 point;varying vec3 viewNormal;varying vec3 viewDirection;varying vec3 worldNormal;\nvoid main(){point=position;vec4 mv=modelViewMatrix*vec4(position,1.);viewNormal=normalize(normalMatrix*normal);worldNormal=normalize(mat3(modelMatrix)*normal);viewDirection=normalize(-mv.xyz);gl_Position=projectionMatrix*mv;}",
+    "fragmentShader": "uniform vec3 tint;uniform float strength;varying vec3 viewNormal;varying vec3 viewDirection;\n      void main(){float rim=pow(1.-abs(dot(normalize(viewNormal),normalize(viewDirection))),3.);gl_FragColor=vec4(tint,rim*strength);\n#include <tonemapping_fragment>\n#include <colorspace_fragment>\n}",
+    "uniforms": [
+      "tint",
+      "strength"
+    ],
+    "defines": {},
+    "glslVersion": null
+  },
+  {
+    "key": "af17c924",
+    "vertexShader": "varying vec3 hullPoint;void main(){vec4 world=modelMatrix*vec4(position,1.);hullPoint=world.xyz;gl_Position=projectionMatrix*viewMatrix*world;}",
+    "fragmentShader": "uniform float time,steps,inside,flash,fogDensity;uniform vec3 origin,sunDirection,sunColor,skyColor,fogColor,flashPoint;varying vec3 hullPoint;\n      \nfloat hash(vec3 p){return fract(sin(dot(p,vec3(127.1,311.7,74.7)))*43758.5453);}\nfloat noise(vec3 p){vec3 i=floor(p),f=fract(p);f=f*f*(3.-2.*f);\nreturn mix(mix(mix(hash(i),hash(i+vec3(1,0,0)),f.x),mix(hash(i+vec3(0,1,0)),hash(i+vec3(1,1,0)),f.x),f.y),\nmix(mix(hash(i+vec3(0,0,1)),hash(i+vec3(1,0,1)),f.x),mix(hash(i+vec3(0,1,1)),hash(i+vec3(1,1,1)),f.x),f.y),f.z);}\nfloat fbm(vec3 p){return noise(p)*.57+noise(p*2.03)*.28+noise(p*4.11)*.15;}\nfloat terrain(vec2 xz){return -.5+(sin(xz.x*.022)*cos(xz.y*.027)*5.-sin(xz.y*.06)*1.5)*clamp((length(xz)-25.)/80.,0.,1.);}\n      \nuniform sampler2D opaqueDepth;\nuniform float opaqueDepthAvailable,opaqueNear,opaqueFar;\nuniform vec2 opaqueInverseSize;\nuniform mat4 opaqueProjectionInverse,opaqueCameraWorld;\nvec3 opaqueWorldPoint(vec2 uv,float depth){\n  vec4 view=opaqueProjectionInverse*vec4(uv*2.-1.,depth*2.-1.,1.);\n  return (opaqueCameraWorld*vec4(view.xyz/view.w,1.)).xyz;\n}\n      uniform float radius,thickness;\n      vec3 field(vec3 p,bool detail){\n      vec2 q=p.xz-origin.xz;float radial=length(q)/radius;if(radial>1.)return vec3(0.);\n      float h=(p.y-origin.y)/thickness,angle=atan(q.y,q.x),rot=angle-time*.12-radial*1.6;\n      vec3 n=vec3(cos(rot)*radial*3.2,h*2.2+time*.04,sin(rot)*radial*3.2);\n      float lumps=fbm(n*1.3),under=.3-(1.-radial)*.22+(lumps-.5)*.3;\n      float body=(1.-smoothstep(.5,1.,radial/(.55+lumps*.4)))*smoothstep(under,under+.15,h)*(1.-smoothstep(.75,1.05,h));\n      if(detail&&body>.001)body*=.6+.4*fbm(n*3.1+5.);\n      return vec3(body,0.,0.);\n    }\n      void main(){\n        vec3 rayDir=normalize(hullPoint-cameraPosition);\n        vec3 start=inside>.5?cameraPosition:hullPoint;\n        float span=inside>.5?length(hullPoint-cameraPosition):(min(thickness*1.4/max(abs(rayDir.y),.15),radius*2.2));\n        if(opaqueDepthAvailable>.5){\n          vec2 uv=gl_FragCoord.xy*opaqueInverseSize;\n          float depth=texture2D(opaqueDepth,uv).x;\n          if(depth<1.)span=min(span,dot(opaqueWorldPoint(uv,depth)-start,rayDir));\n        }\n        if(span<=0.)discard;\n        // A per-pixel offset turns step slices into fine noise; it depends only on the pixel, so scrubbing stays exact.\n        float dt=clamp(span/steps,1.,6.),s=fract(sin(dot(gl_FragCoord.xy,vec2(12.9898,78.233)))*43758.5453)*dt;\n        float alpha=0.,firstHit=-1.;vec3 col=vec3(0.);\n        for(int i=0;i<32;i++){\n          if(float(i)>=steps||alpha>.97||s>span)break;\n          vec3 p=start+rayDir*s;\n          \n          vec3 f=field(p,true);\n          if(f.x>.002){\n            vec3 sampleColor;\n            float h=clamp((p.y-origin.y)/thickness,0.,1.),grain=fbm(p*.045+vec3(0.,time*.03,0.));\n            vec3 albedo=mix(vec3(.12,.135,.13),vec3(.17,.15,.125),grain)*(.7+.6*grain);\n            sampleColor=albedo*(skyColor*mix(.6,1.2,h)*1.1+sunColor*.08+vec3(.8,.9,1.25)*flash*4.*exp(-length(p-flashPoint)/45.));\n            float a=1.-exp(-f.x*dt*.9);\n            col+=(1.-alpha)*a*sampleColor;alpha+=(1.-alpha)*a;\n            if(firstHit<0.)firstHit=s;\n            s+=dt;\n          } else s+=dt*1.7;\n        }\n        if(alpha<.003)discard;\n        float dist=length(start+rayDir*max(firstHit,0.)-cameraPosition);\n        gl_FragColor=vec4(mix(col/alpha,fogColor,1.-exp(-fogDensity*fogDensity*dist*dist)),alpha);\n        #include <tonemapping_fragment>\n        #include <colorspace_fragment>\n      }",
+    "uniforms": [
+      "opaqueDepth",
+      "opaqueDepthAvailable",
+      "opaqueInverseSize",
+      "opaqueProjectionInverse",
+      "opaqueCameraWorld",
+      "opaqueNear",
+      "opaqueFar",
+      "time",
+      "steps",
+      "inside",
+      "flash",
+      "flashPoint",
+      "origin",
+      "sunDirection",
+      "sunColor",
+      "skyColor",
+      "fogColor",
+      "fogDensity",
+      "radius",
+      "thickness"
+    ],
+    "defines": {},
+    "glslVersion": null
+  },
+  {
+    "key": "b6351bc5",
+    "vertexShader": "attribute vec4 seed;uniform float time,size,ratio;uniform vec3 origin;uniform vec2 lean;varying float alpha;varying float variation;\n      varying float particleCell,particleAngle;\n\nvoid main(){float a=seed.x*6.283185;vec3 p=vec3(0.);variation=seed.w;\n      float cycle=9.;float age=mod(time*(.6+seed.w*.4)+seed.z*cycle,cycle);float r=4.+(30.+seed.y*150.)*(1.-age/cycle);\n      float angle=a+time*.9+(180.-r)*.02;\n      p=vec3(origin.x+cos(angle)*r,origin.y+.6+seed.z*3.+(1.-smoothstep(4.,40.,r))*seed.x*30.,origin.z+sin(angle)*r);\n      alpha=smoothstep(8.,14.,time)*(1.-smoothstep(26.,30.,time)*.8)*smoothstep(0.,1.5,age)*(1.-smoothstep(7.5,9.,age))*.22;\n      vec4 mv=modelViewMatrix*vec4(p,1.);gl_Position=projectionMatrix*mv;\n      gl_PointSize=clamp(size*ratio*240./max(1.,-mv.z),1.,40.);\n      particleCell=0.+floor(min(seed.w,.999999)*4.);\n      particleAngle=seed.x*6.283185+time*(seed.z-.5)*.35;\n      \n    }",
+    "fragmentShader": "uniform vec3 tint;varying float alpha;varying float variation;\nfloat hash(vec3 p){return fract(sin(dot(p,vec3(127.1,311.7,74.7)))*43758.5453);}\nfloat noise(vec3 p){vec3 i=floor(p),f=fract(p);f=f*f*(3.-2.*f);\nreturn mix(mix(mix(hash(i),hash(i+vec3(1,0,0)),f.x),mix(hash(i+vec3(0,1,0)),hash(i+vec3(1,1,0)),f.x),f.y),\nmix(mix(hash(i+vec3(0,0,1)),hash(i+vec3(1,0,1)),f.x),mix(hash(i+vec3(0,1,1)),hash(i+vec3(1,1,1)),f.x),f.y),f.z);}\nfloat fbm(vec3 p){return noise(p)*.57+noise(p*2.03)*.28+noise(p*4.11)*.15;}\n      void particleFallback(){vec2 p=gl_PointCoord-.5;float r=length(p)*2.;if(r>1.)discard;\n      float a=(1.-smoothstep(.05,1.,r))*alpha;\n      a*=smoothstep(.18,.6,fbm(vec3(p*5.,variation*13.)));\n      gl_FragColor=vec4(tint,a);}\n\n\nuniform sampler2D opaqueDepth;\nuniform float opaqueDepthAvailable,opaqueNear,opaqueFar;\nuniform vec2 opaqueInverseSize;\nuniform mat4 opaqueProjectionInverse,opaqueCameraWorld;\nvec3 opaqueWorldPoint(vec2 uv,float depth){\n  vec4 view=opaqueProjectionInverse*vec4(uv*2.-1.,depth*2.-1.,1.);\n  return (opaqueCameraWorld*vec4(view.xyz/view.w,1.)).xyz;\n}\nuniform sampler2D particleAtlas;\nuniform float particleAtlasReady,particleSoftness;\nvarying float particleCell,particleAngle;\nfloat particleMask(){\n  vec2 p=gl_PointCoord-.5;\n  float c=cos(particleAngle),s=sin(particleAngle);\n  p=mat2(c,-s,s,c)*p+.5;\n  // Half-texel inset and transparent cell gutters prevent neighboring shapes leaking at the edges.\n  vec2 cell=vec2(mod(particleCell,4.),3.-floor(particleCell/4.));\n  vec2 uv=(cell*256.+vec2(.5)+vec2(p.x,1.-p.y)*255.)/1024.;\n  // Implicit mip derivatives need uniform control flow, including masked quad corners.\n  float mask=texture2D(particleAtlas,uv).r;\n  if(any(lessThan(p,vec2(0.)))||any(greaterThan(p,vec2(1.))))return 0.;\n  return mask;\n}\nfloat particleViewDepth(float depth){return opaqueNear*opaqueFar/(opaqueFar-depth*(opaqueFar-opaqueNear));}\nfloat particleDepthFade(){\n  if(opaqueDepthAvailable<.5)return 1.;\n  float depth=texture2D(opaqueDepth,gl_FragCoord.xy*opaqueInverseSize).x;\n  if(depth>=1.)return 1.;\n  return smoothstep(0.,max(.001,particleSoftness),particleViewDepth(depth)-particleViewDepth(gl_FragCoord.z));\n}\nvoid main(){\n    if(particleAtlasReady>.5){gl_FragColor=vec4(tint,particleMask()*alpha);}\n    else{particleFallback();}\n    gl_FragColor.a*=particleDepthFade();\n  }",
+    "uniforms": [
+      "time",
+      "size",
+      "ratio",
+      "tint",
+      "origin",
+      "lean",
+      "opaqueDepth",
+      "opaqueDepthAvailable",
+      "opaqueInverseSize",
+      "opaqueProjectionInverse",
+      "opaqueCameraWorld",
+      "opaqueNear",
+      "opaqueFar",
+      "particleAtlas",
+      "particleAtlasReady",
+      "particleSoftness"
+    ],
+    "defines": {},
+    "glslVersion": null
+  },
+  {
+    "key": "be3a39c1",
+    "vertexShader": "varying vec2 spriteUv;void main(){spriteUv=uv*2.-1.;gl_Position=projectionMatrix*modelViewMatrix*vec4(position,1.);}",
+    "fragmentShader": "uniform float flash;varying vec2 spriteUv;void main(){float r=length(spriteUv);float ang=atan(spriteUv.y,spriteUv.x);\n    float core=pow(max(0.,1.-r*1.6),2.5);float halo=exp(-r*3.2)*.7;\n    float rays=(pow(abs(sin(ang*5.+.7)),28.)*.3+pow(abs(sin(ang*13.-.4)),60.)*.18)*(1.-smoothstep(.15,1.,r));\n    gl_FragColor=vec4(vec3(3.6,2.4,1.3)*(core*1.4+halo+rays)*flash,flash*min(1.,core*2.+halo+rays));\n#include <tonemapping_fragment>\n#include <colorspace_fragment>\n}",
+    "uniforms": [
+      "flash"
+    ],
+    "defines": {},
+    "glslVersion": null
+  },
+  {
+    "key": "c190cfe0",
+    "vertexShader": "uniform vec4 shape;uniform vec2 lean;uniform float skirt;varying vec3 hullPoint;\n    float profile(float h){return mix(shape.x,shape.y,pow(clamp(h,0.,1.),shape.w));}\n    void main(){float h=position.y+.5;float r=profile(h)*1.3+skirt*(1.-smoothstep(0.,.2,h));\n    vec4 world=modelMatrix*vec4(vec3(position.x*r,h*shape.z,position.z*r)+vec3(lean.x,0.,lean.y)*h*h,1.);\n    hullPoint=world.xyz;gl_Position=projectionMatrix*viewMatrix*world;}",
+    "fragmentShader": "uniform float time,steps,inside,flash,fogDensity;uniform vec3 origin,sunDirection,sunColor,skyColor,fogColor,flashPoint;varying vec3 hullPoint;\n      \nfloat hash(vec3 p){return fract(sin(dot(p,vec3(127.1,311.7,74.7)))*43758.5453);}\nfloat noise(vec3 p){vec3 i=floor(p),f=fract(p);f=f*f*(3.-2.*f);\nreturn mix(mix(mix(hash(i),hash(i+vec3(1,0,0)),f.x),mix(hash(i+vec3(0,1,0)),hash(i+vec3(1,1,0)),f.x),f.y),\nmix(mix(hash(i+vec3(0,0,1)),hash(i+vec3(1,0,1)),f.x),mix(hash(i+vec3(0,1,1)),hash(i+vec3(1,1,1)),f.x),f.y),f.z);}\nfloat fbm(vec3 p){return noise(p)*.57+noise(p*2.03)*.28+noise(p*4.11)*.15;}\nfloat terrain(vec2 xz){return -.5+(sin(xz.x*.022)*cos(xz.y*.027)*5.-sin(xz.y*.06)*1.5)*clamp((length(xz)-25.)/80.,0.,1.);}\n      \nuniform sampler2D opaqueDepth;\nuniform float opaqueDepthAvailable,opaqueNear,opaqueFar;\nuniform vec2 opaqueInverseSize;\nuniform mat4 opaqueProjectionInverse,opaqueCameraWorld;\nvec3 opaqueWorldPoint(vec2 uv,float depth){\n  vec4 view=opaqueProjectionInverse*vec4(uv*2.-1.,depth*2.-1.,1.);\n  return (opaqueCameraWorld*vec4(view.xyz/view.w,1.)).xyz;\n}\n      uniform vec4 shape;uniform vec2 lean;uniform float skirt,spread;\n    float profile(float h){return mix(shape.x,shape.y,pow(clamp(h,0.,1.),shape.w));}\n    float chord(){float hEntry=clamp((hullPoint.y-origin.y)/shape.z,0.,1.);return (profile(hEntry)*1.3+skirt*(1.-smoothstep(0.,.2,hEntry)))*2.3;}\n      vec3 field(vec3 p,bool detail){\n      float h=(p.y-origin.y)/shape.z;if(h<0.||h>1.)return vec3(0.);\n      vec2 q=p.xz-origin.xz-lean*h*h;float radius=length(q),angle=atan(q.y,q.x),R=profile(h);\n      float twist=angle-time*(2.4-h*1.5)-h*7.;\n      vec3 n=vec3(cos(twist)*(1.+radius/R)*1.6,h*9.-time*.9,sin(twist)*(1.+radius/R)*1.6);\n      float ragged=fbm(n*1.25);\n      float body=(1.-smoothstep(.72,1.,radius/(R*(.7+ragged*.55))))*smoothstep(0.,.015,h);\n      float sub=0.;\n      for(int k=0;k<3;k++){float ph=float(k)*2.0944+time*3.3;sub+=1.-smoothstep(0.,R*.22,length(q-vec2(cos(ph),sin(ph))*R*.95));}\n      float d=body+sub*(1.-smoothstep(0.,.3,h))*spread*.8;\n      float grain=detail&&d>.001?fbm(n*3.3+11.):.5;\n      d*=.6+.4*grain;\n      float bowl=0.;\n      if(h<.36&&skirt>0.){\n        float spin=angle-time*1.5;vec2 qr=vec2(cos(spin),sin(spin))*radius;\n        float lobes=detail?fbm(vec3(qr*.11,h*20.)):.5;\n        float low=1.-smoothstep(0.,.25*(.55+.9*lobes),h);\n        float reach=R+skirt*low*(.8+.5*lobes);\n        bowl=(1.-smoothstep(.3,1.,radius/reach))*low*(.5+.5*lobes)*1.1;}\n      d+=bowl;return vec3(d,bowl/max(d,1e-3),grain);\n    }\n      void main(){\n        vec3 rayDir=normalize(hullPoint-cameraPosition);\n        vec3 start=inside>.5?cameraPosition:hullPoint;\n        float span=inside>.5?length(hullPoint-cameraPosition):(chord());\n        if(opaqueDepthAvailable>.5){\n          vec2 uv=gl_FragCoord.xy*opaqueInverseSize;\n          float depth=texture2D(opaqueDepth,uv).x;\n          if(depth<1.)span=min(span,dot(opaqueWorldPoint(uv,depth)-start,rayDir));\n        }\n        if(span<=0.)discard;\n        // A per-pixel offset turns step slices into fine noise; it depends only on the pixel, so scrubbing stays exact.\n        float dt=clamp(span/steps,.6,2.5),s=fract(sin(dot(gl_FragCoord.xy,vec2(12.9898,78.233)))*43758.5453)*dt;\n        float alpha=0.,firstHit=-1.;vec3 col=vec3(0.);\n        for(int i=0;i<64;i++){\n          if(float(i)>=steps||alpha>.97||s>span)break;\n          vec3 p=start+rayDir*s;\n          if(p.y<terrain(p.xz))break;\n          vec3 f=field(p,true);\n          if(f.x>.002){\n            vec3 sampleColor;\n            float h=clamp((p.y-origin.y)/shape.z,0.,1.);\n            float shade=exp(-field(p+sunDirection*(profile(h)*.45+2.),false).x*2.6);\n            vec3 albedo=mix(vec3(.11,.115,.11),vec3(.3,.25,.19),f.y)*(.55+.9*f.z);\n            sampleColor=albedo*((sunColor*(.08+.92*shade)*1.1+skyColor*mix(.12,.55,h))*mix(1.,.55,f.y)+vec3(.75,.85,1.15)*flash*3.*exp(-(1.-h)*2.5));\n            float a=1.-exp(-f.x*dt*1.3);\n            col+=(1.-alpha)*a*sampleColor;alpha+=(1.-alpha)*a;\n            if(firstHit<0.)firstHit=s;\n            s+=dt;\n          } else s+=dt*1.7;\n        }\n        if(alpha<.003)discard;\n        float dist=length(start+rayDir*max(firstHit,0.)-cameraPosition);\n        gl_FragColor=vec4(mix(col/alpha,fogColor,1.-exp(-fogDensity*fogDensity*dist*dist)),alpha);\n        #include <tonemapping_fragment>\n        #include <colorspace_fragment>\n      }",
+    "uniforms": [
+      "opaqueDepth",
+      "opaqueDepthAvailable",
+      "opaqueInverseSize",
+      "opaqueProjectionInverse",
+      "opaqueCameraWorld",
+      "opaqueNear",
+      "opaqueFar",
+      "time",
+      "steps",
+      "inside",
+      "flash",
+      "flashPoint",
+      "origin",
+      "sunDirection",
+      "sunColor",
+      "skyColor",
+      "fogColor",
+      "fogDensity",
+      "shape",
+      "lean",
+      "skirt",
+      "spread"
+    ],
+    "defines": {},
+    "glslVersion": null
+  },
+  {
+    "key": "c3bd211e",
+    "vertexShader": "attribute vec4 seed;uniform float time,size,ratio;uniform vec3 origin;uniform vec2 lean;varying float alpha;varying float variation;\n      varying float particleCell,particleAngle;\n\nvoid main(){float a=seed.x*6.283185;vec3 p=vec3(0.);variation=seed.w;\n      float gust=8.+smoothstep(4.,18.,time)*40.;float fall=6.+seed.w*10.;\n      p=vec3(mod(seed.x*320.+time*gust*(.75+seed.z*.5),320.)-160.,mod(seed.y*140.-time*fall,140.)-1.,mod(seed.z*300.+time*gust*.28+sin(time*1.9+seed.w*11.)*3.,300.)-150.);\n      alpha=(.18+.82*smoothstep(3.,16.,time))*(.45+.55*seed.w);\n      vec4 mv=modelViewMatrix*vec4(p,1.);gl_Position=projectionMatrix*mv;\n      gl_PointSize=clamp(size*ratio*240./max(1.,-mv.z),1.,7.);\n      particleCell=14.+floor(min(seed.w,.999999)*2.);\n      particleAngle=seed.x*6.283185;\n      \n    }",
+    "fragmentShader": "uniform vec3 tint;varying float alpha;varying float variation;\nfloat hash(vec3 p){return fract(sin(dot(p,vec3(127.1,311.7,74.7)))*43758.5453);}\nfloat noise(vec3 p){vec3 i=floor(p),f=fract(p);f=f*f*(3.-2.*f);\nreturn mix(mix(mix(hash(i),hash(i+vec3(1,0,0)),f.x),mix(hash(i+vec3(0,1,0)),hash(i+vec3(1,1,0)),f.x),f.y),\nmix(mix(hash(i+vec3(0,0,1)),hash(i+vec3(1,0,1)),f.x),mix(hash(i+vec3(0,1,1)),hash(i+vec3(1,1,1)),f.x),f.y),f.z);}\nfloat fbm(vec3 p){return noise(p)*.57+noise(p*2.03)*.28+noise(p*4.11)*.15;}\n      void particleFallback(){vec2 p=gl_PointCoord-.5;float r=length(p)*2.;if(r>1.)discard;\n      float a=(1.-smoothstep(.05,1.,r))*alpha;\n      \n      gl_FragColor=vec4(tint,a);}\n\n\nuniform sampler2D opaqueDepth;\nuniform float opaqueDepthAvailable,opaqueNear,opaqueFar;\nuniform vec2 opaqueInverseSize;\nuniform mat4 opaqueProjectionInverse,opaqueCameraWorld;\nvec3 opaqueWorldPoint(vec2 uv,float depth){\n  vec4 view=opaqueProjectionInverse*vec4(uv*2.-1.,depth*2.-1.,1.);\n  return (opaqueCameraWorld*vec4(view.xyz/view.w,1.)).xyz;\n}\nuniform sampler2D particleAtlas;\nuniform float particleAtlasReady,particleSoftness;\nvarying float particleCell,particleAngle;\nfloat particleMask(){\n  vec2 p=gl_PointCoord-.5;\n  float c=cos(particleAngle),s=sin(particleAngle);\n  p=mat2(c,-s,s,c)*p+.5;\n  // Half-texel inset and transparent cell gutters prevent neighboring shapes leaking at the edges.\n  vec2 cell=vec2(mod(particleCell,4.),3.-floor(particleCell/4.));\n  vec2 uv=(cell*256.+vec2(.5)+vec2(p.x,1.-p.y)*255.)/1024.;\n  // Implicit mip derivatives need uniform control flow, including masked quad corners.\n  float mask=texture2D(particleAtlas,uv).r;\n  if(any(lessThan(p,vec2(0.)))||any(greaterThan(p,vec2(1.))))return 0.;\n  return mask;\n}\nfloat particleViewDepth(float depth){return opaqueNear*opaqueFar/(opaqueFar-depth*(opaqueFar-opaqueNear));}\nfloat particleDepthFade(){\n  if(opaqueDepthAvailable<.5)return 1.;\n  float depth=texture2D(opaqueDepth,gl_FragCoord.xy*opaqueInverseSize).x;\n  if(depth>=1.)return 1.;\n  return smoothstep(0.,max(.001,particleSoftness),particleViewDepth(depth)-particleViewDepth(gl_FragCoord.z));\n}\nvoid main(){\n    if(particleAtlasReady>.5){gl_FragColor=vec4(tint,particleMask()*alpha);}\n    else{particleFallback();}\n    gl_FragColor.a*=particleDepthFade();\n  }",
+    "uniforms": [
+      "time",
+      "size",
+      "ratio",
+      "tint",
+      "origin",
+      "lean",
+      "opaqueDepth",
+      "opaqueDepthAvailable",
+      "opaqueInverseSize",
+      "opaqueProjectionInverse",
+      "opaqueCameraWorld",
+      "opaqueNear",
+      "opaqueFar",
+      "particleAtlas",
+      "particleAtlasReady",
+      "particleSoftness"
+    ],
+    "defines": {},
+    "glslVersion": null
+  },
+  {
+    "key": "c5b45729",
+    "vertexShader": "attribute vec4 seed;uniform float time,size,pixelRatio;uniform vec3 origin;varying float opacity;varying float variation;\n      varying float particleCell,particleAngle;\n\nvoid main(){float age=max(0.,time-seed.w*3.);float a=seed.x*6.283185;vec3 p=origin;variation=seed.z;\n      p+=vec3((seed.x-.5)*363.,sin(seed.y*13.+time)*3.+seed.z*12.,(seed.y-.5)*10.);opacity=.55;\n      vec4 mv=modelViewMatrix*vec4(p,1.);gl_Position=projectionMatrix*mv;\n      gl_PointSize=clamp(size*pixelRatio*(300./max(1.,-mv.z)),1.,32.);\n      particleCell=12.+floor(min(seed.w,.999999)*2.);\n      particleAngle=seed.x*6.283185;\n      \n    }",
+    "fragmentShader": "uniform vec3 tint;varying float opacity;varying float variation;\nfloat hash(vec3 p){return fract(sin(dot(p,vec3(127.1,311.7,74.7)))*43758.5453);}\nfloat noise(vec3 p){vec3 i=floor(p),f=fract(p);f=f*f*(3.-2.*f);\nreturn mix(mix(mix(hash(i),hash(i+vec3(1,0,0)),f.x),mix(hash(i+vec3(0,1,0)),hash(i+vec3(1,1,0)),f.x),f.y),\nmix(mix(hash(i+vec3(0,0,1)),hash(i+vec3(1,0,1)),f.x),mix(hash(i+vec3(0,1,1)),hash(i+vec3(1,1,1)),f.x),f.y),f.z);}\nfloat fbm(vec3 p){return noise(p)*.57+noise(p*2.03)*.28+noise(p*4.11)*.15;}\n      void particleFallback(){vec2 p=gl_PointCoord-.5;float r=length(p)*2.;if(r>1.)discard;float a=(1.-smoothstep(.15,1.,r))*opacity;\n      \n      gl_FragColor=vec4(tint,a);}\n\n\nuniform sampler2D opaqueDepth;\nuniform float opaqueDepthAvailable,opaqueNear,opaqueFar;\nuniform vec2 opaqueInverseSize;\nuniform mat4 opaqueProjectionInverse,opaqueCameraWorld;\nvec3 opaqueWorldPoint(vec2 uv,float depth){\n  vec4 view=opaqueProjectionInverse*vec4(uv*2.-1.,depth*2.-1.,1.);\n  return (opaqueCameraWorld*vec4(view.xyz/view.w,1.)).xyz;\n}\nuniform sampler2D particleAtlas;\nuniform float particleAtlasReady,particleSoftness;\nvarying float particleCell,particleAngle;\nfloat particleMask(){\n  vec2 p=gl_PointCoord-.5;\n  float c=cos(particleAngle),s=sin(particleAngle);\n  p=mat2(c,-s,s,c)*p+.5;\n  // Half-texel inset and transparent cell gutters prevent neighboring shapes leaking at the edges.\n  vec2 cell=vec2(mod(particleCell,4.),3.-floor(particleCell/4.));\n  vec2 uv=(cell*256.+vec2(.5)+vec2(p.x,1.-p.y)*255.)/1024.;\n  // Implicit mip derivatives need uniform control flow, including masked quad corners.\n  float mask=texture2D(particleAtlas,uv).r;\n  if(any(lessThan(p,vec2(0.)))||any(greaterThan(p,vec2(1.))))return 0.;\n  return mask;\n}\nfloat particleViewDepth(float depth){return opaqueNear*opaqueFar/(opaqueFar-depth*(opaqueFar-opaqueNear));}\nfloat particleDepthFade(){\n  if(opaqueDepthAvailable<.5)return 1.;\n  float depth=texture2D(opaqueDepth,gl_FragCoord.xy*opaqueInverseSize).x;\n  if(depth>=1.)return 1.;\n  return smoothstep(0.,max(.001,particleSoftness),particleViewDepth(depth)-particleViewDepth(gl_FragCoord.z));\n}\nvoid main(){\n    if(particleAtlasReady>.5){gl_FragColor=vec4(tint,particleMask()*opacity);}\n    else{particleFallback();}\n    gl_FragColor.a*=particleDepthFade();\n  }",
+    "uniforms": [
+      "time",
+      "origin",
+      "size",
+      "pixelRatio",
+      "tint",
+      "opaqueDepth",
+      "opaqueDepthAvailable",
+      "opaqueInverseSize",
+      "opaqueProjectionInverse",
+      "opaqueCameraWorld",
+      "opaqueNear",
+      "opaqueFar",
+      "particleAtlas",
+      "particleAtlasReady",
+      "particleSoftness"
+    ],
+    "defines": {},
+    "glslVersion": null
+  },
+  {
+    "key": "cca53d16",
+    "vertexShader": "varying vec3 point;varying vec3 viewNormal;varying vec3 viewDirection;varying vec3 worldNormal;\nvoid main(){point=position;vec4 mv=modelViewMatrix*vec4(position,1.);viewNormal=normalize(normalMatrix*normal);worldNormal=normalize(mat3(modelMatrix)*normal);viewDirection=normalize(-mv.xyz);gl_Position=projectionMatrix*mv;}",
+    "fragmentShader": "uniform float time,flash;varying vec3 point;varying vec3 worldNormal;varying vec3 viewNormal;varying vec3 viewDirection;\nfloat hash(vec3 p){return fract(sin(dot(p,vec3(127.1,311.7,74.7)))*43758.5453);}\nfloat noise(vec3 p){vec3 i=floor(p),f=fract(p);f=f*f*(3.-2.*f);\nreturn mix(mix(mix(hash(i),hash(i+vec3(1,0,0)),f.x),mix(hash(i+vec3(0,1,0)),hash(i+vec3(1,1,0)),f.x),f.y),\nmix(mix(hash(i+vec3(0,0,1)),hash(i+vec3(1,0,1)),f.x),mix(hash(i+vec3(0,1,1)),hash(i+vec3(1,1,1)),f.x),f.y),f.z);}\nfloat fbm(vec3 p){return noise(p)*.57+noise(p*2.03)*.28+noise(p*4.11)*.15;}\n    void main(){vec3 p=normalize(point);float lon=atan(p.z,p.x);\n    float turbulence=fbm(p*3.+vec3(time*.01,0.,0.))*.35;float band=sin(p.y*24.+turbulence*6.);\n    vec3 color=mix(vec3(.5,.28,.14),vec3(.85,.74,.55),smoothstep(-.2,.6,band));\n    color=mix(color,vec3(.93,.9,.84),smoothstep(.6,.9,fbm(p*12.+turbulence))*.4);\n    vec2 spot=vec2(lon-1.2,p.y+.22)*vec2(1.,2.4);float storm=1.-smoothstep(.03,.14,length(spot)+fbm(vec3(spot*20.,time*.05))*.03);\n    color=mix(color,vec3(.66,.26,.13),storm);\n    float daylight=dot(normalize(worldNormal),normalize(vec3(-.65,.5,.8)));float light=.05+max(daylight,0.)*.85;\n    float limb=pow(abs(dot(normalize(viewNormal),normalize(viewDirection))),.45);\n    color=color*light*(.55+.45*limb);\n    color+=vec3(3.,1.7,.7)*flash*pow(max(dot(normalize(worldNormal),normalize(vec3(.37,-.16,.92))),0.),4.);\n    gl_FragColor=vec4(color,1.);\n#include <tonemapping_fragment>\n#include <colorspace_fragment>\n}",
+    "uniforms": [
+      "time",
+      "flash"
+    ],
+    "defines": {},
+    "glslVersion": null
+  },
+  {
+    "key": "ce6f5f43",
+    "vertexShader": "varying vec3 point;varying vec3 viewNormal;varying vec3 viewDirection;varying vec3 worldNormal;\nvoid main(){point=position;vec4 mv=modelViewMatrix*vec4(position,1.);viewNormal=normalize(normalMatrix*normal);worldNormal=normalize(mat3(modelMatrix)*normal);viewDirection=normalize(-mv.xyz);gl_Position=projectionMatrix*mv;}",
+    "fragmentShader": "uniform float time,heat,frost;uniform vec3 light;varying vec3 point;varying vec3 worldNormal;\nfloat hash(vec3 p){return fract(sin(dot(p,vec3(127.1,311.7,74.7)))*43758.5453);}\nfloat noise(vec3 p){vec3 i=floor(p),f=fract(p);f=f*f*(3.-2.*f);\nreturn mix(mix(mix(hash(i),hash(i+vec3(1,0,0)),f.x),mix(hash(i+vec3(0,1,0)),hash(i+vec3(1,1,0)),f.x),f.y),\nmix(mix(hash(i+vec3(0,0,1)),hash(i+vec3(1,0,1)),f.x),mix(hash(i+vec3(0,1,1)),hash(i+vec3(1,1,1)),f.x),f.y),f.z);}\nfloat fbm(vec3 p){return noise(p)*.57+noise(p*2.03)*.28+noise(p*4.11)*.15;}\n      void main(){vec3 p=normalize(point);float land=fbm(p*4.7+vec3(.4,2.8,.2));\n      float cloud=fbm(p*16.+vec3(time*.018,0.,0.));float terrain=fbm(p*38.);\n      vec3 ocean=vec3(.012,.105,.24);vec3 continents=mix(vec3(.035,.13,.067),vec3(.24,.23,.12),terrain);\n      vec3 color=mix(ocean,continents,smoothstep(.50,.56,land));\n      color=mix(color,mix(vec3(.5,.62,.78),vec3(.9,.93,.96),terrain)*(.8+.2*smoothstep(.5,.56,land)),frost);\n      color=mix(color,vec3(.82,.90,.94),smoothstep(.58,.74,cloud)*.55);\n      color=mix(color,vec3(.76,.85,.89),smoothstep(.87,.97,abs(p.y))*.88);\n      float daylight=dot(normalize(worldNormal),light);\n      float lit=.035+max(daylight,0.);float night=1.-smoothstep(-.25,.07,daylight);\n      float cities=pow(noise(p*175.),14.)*smoothstep(.51,.58,land)*night;\n      color=color*lit+vec3(.95,.45,.15)*cities*.7+vec3(1.6,.19,.016)*heat*(.35+.65*noise(p*22.));\n      gl_FragColor=vec4(color,1.);\n#include <tonemapping_fragment>\n#include <colorspace_fragment>\n}",
+    "uniforms": [
+      "time",
+      "heat",
+      "frost",
+      "light"
+    ],
+    "defines": {},
+    "glslVersion": null
+  },
+  {
+    "key": "d241e958",
+    "vertexShader": "varying vec3 point;varying vec3 viewNormal;varying vec3 viewDirection;varying vec3 worldNormal;\nvoid main(){point=position;vec4 mv=modelViewMatrix*vec4(position,1.);viewNormal=normalize(normalMatrix*normal);worldNormal=normalize(mat3(modelMatrix)*normal);viewDirection=normalize(-mv.xyz);gl_Position=projectionMatrix*mv;}",
+    "fragmentShader": "uniform float time,fade;varying vec3 point;varying vec3 viewNormal;varying vec3 viewDirection;\nfloat hash(vec3 p){return fract(sin(dot(p,vec3(127.1,311.7,74.7)))*43758.5453);}\nfloat noise(vec3 p){vec3 i=floor(p),f=fract(p);f=f*f*(3.-2.*f);\nreturn mix(mix(mix(hash(i),hash(i+vec3(1,0,0)),f.x),mix(hash(i+vec3(0,1,0)),hash(i+vec3(1,1,0)),f.x),f.y),\nmix(mix(hash(i+vec3(0,0,1)),hash(i+vec3(1,0,1)),f.x),mix(hash(i+vec3(0,1,1)),hash(i+vec3(1,1,1)),f.x),f.y),f.z);}\nfloat fbm(vec3 p){return noise(p)*.57+noise(p*2.03)*.28+noise(p*4.11)*.15;}\n    void main(){vec3 p=normalize(point);float turbulence=fbm(p*6.+vec3(time*.35,-time*.5,0.));\n    float rim=pow(1.-abs(dot(normalize(viewNormal),normalize(viewDirection))),1.3);\n    vec3 fire=mix(vec3(.9,.12,.01),vec3(3.,1.5,.4),smoothstep(.28,.72,turbulence));\n    gl_FragColor=vec4(fire,fade*(rim*.7+turbulence*.35));\n#include <tonemapping_fragment>\n#include <colorspace_fragment>\n}",
+    "uniforms": [
+      "time",
+      "fade"
+    ],
+    "defines": {},
+    "glslVersion": null
+  },
+  {
+    "key": "d3c70cd1",
+    "vertexShader": "attribute vec4 seed;uniform float time,phase,pixelRatio;uniform vec3 origin,target;varying float opacity;varying float warmth;\n      varying float particleCell,particleAngle;\nvec3 particleNext(float time){float a=seed.x*6.283185;vec3 p=vec3(0.);float alpha=0.,opacity=0.,warmth=seed.z;float f=fract(seed.y-time*.035);float radius=17.+pow(f,.6)*65.;float angle=a+time*(.2+(1.-f)*1.25);\n      p=vec3(cos(angle)*radius,50.+sin(seed.z*6.283185)*(.5+f*6.),sin(angle)*radius);\n      opacity=smoothstep(0.,.08,f)*(.3+.7*(1.-f));return p;}\nvoid main(){float a=seed.x*6.283185;vec3 p;warmth=seed.z;\n      float f=fract(seed.y-time*.035);float radius=17.+pow(f,.6)*65.;float angle=a+time*(.2+(1.-f)*1.25);\n      p=vec3(cos(angle)*radius,50.+sin(seed.z*6.283185)*(.5+f*6.),sin(angle)*radius);\n      opacity=smoothstep(0.,.08,f)*(.3+.7*(1.-f));\n      vec4 mv=modelViewMatrix*vec4(p,1.);gl_Position=projectionMatrix*mv;gl_PointSize=clamp((1.5+seed.w*3.)*pixelRatio*230./max(1.,-mv.z),1.,12.);\n      particleCell=8.+floor(min(seed.w,.999999)*4.);\n      particleAngle=seed.x*6.283185;\n      vec4 particleFuture=modelViewMatrix*vec4(particleNext(time+.04),1.);\n      vec2 particleDirection=particleFuture.xy/max(.001,-particleFuture.z)-mv.xy/max(.001,-mv.z);\n      if(dot(particleDirection,particleDirection)>.00000001)particleAngle=atan(-particleDirection.y,particleDirection.x);\n    }",
+    "fragmentShader": "uniform vec3 tint;varying float opacity;varying float warmth;void particleFallback(){float r=length(gl_PointCoord-.5)*2.;if(r>1.)discard;gl_FragColor=vec4(mix(tint,tint*vec3(1.2,.55,.25),warmth),pow(1.-r,2.)*opacity);\n#include <tonemapping_fragment>\n#include <colorspace_fragment>\n}\n\n\nuniform sampler2D opaqueDepth;\nuniform float opaqueDepthAvailable,opaqueNear,opaqueFar;\nuniform vec2 opaqueInverseSize;\nuniform mat4 opaqueProjectionInverse,opaqueCameraWorld;\nvec3 opaqueWorldPoint(vec2 uv,float depth){\n  vec4 view=opaqueProjectionInverse*vec4(uv*2.-1.,depth*2.-1.,1.);\n  return (opaqueCameraWorld*vec4(view.xyz/view.w,1.)).xyz;\n}\nuniform sampler2D particleAtlas;\nuniform float particleAtlasReady,particleSoftness;\nvarying float particleCell,particleAngle;\nfloat particleMask(){\n  vec2 p=gl_PointCoord-.5;\n  float c=cos(particleAngle),s=sin(particleAngle);\n  p=mat2(c,-s,s,c)*p+.5;\n  // Half-texel inset and transparent cell gutters prevent neighboring shapes leaking at the edges.\n  vec2 cell=vec2(mod(particleCell,4.),3.-floor(particleCell/4.));\n  vec2 uv=(cell*256.+vec2(.5)+vec2(p.x,1.-p.y)*255.)/1024.;\n  // Implicit mip derivatives need uniform control flow, including masked quad corners.\n  float mask=texture2D(particleAtlas,uv).r;\n  if(any(lessThan(p,vec2(0.)))||any(greaterThan(p,vec2(1.))))return 0.;\n  return mask;\n}\nfloat particleViewDepth(float depth){return opaqueNear*opaqueFar/(opaqueFar-depth*(opaqueFar-opaqueNear));}\nfloat particleDepthFade(){\n  if(opaqueDepthAvailable<.5)return 1.;\n  float depth=texture2D(opaqueDepth,gl_FragCoord.xy*opaqueInverseSize).x;\n  if(depth>=1.)return 1.;\n  return smoothstep(0.,max(.001,particleSoftness),particleViewDepth(depth)-particleViewDepth(gl_FragCoord.z));\n}\nvoid main(){\n    if(particleAtlasReady>.5){gl_FragColor=vec4(mix(tint,tint*vec3(1.2,.55,.25),warmth),particleMask()*opacity);\n#include <tonemapping_fragment>\n#include <colorspace_fragment>\n}\n    else{particleFallback();}\n    gl_FragColor.a*=particleDepthFade();\n  }",
+    "uniforms": [
+      "time",
+      "phase",
+      "tint",
+      "pixelRatio",
+      "origin",
+      "target",
+      "opaqueDepth",
+      "opaqueDepthAvailable",
+      "opaqueInverseSize",
+      "opaqueProjectionInverse",
+      "opaqueCameraWorld",
+      "opaqueNear",
+      "opaqueFar",
+      "particleAtlas",
+      "particleAtlasReady",
+      "particleSoftness"
+    ],
+    "defines": {},
+    "glslVersion": null
+  },
+  {
+    "key": "d49609c1",
+    "vertexShader": "attribute vec4 seed;uniform float time,size,ratio;uniform vec3 origin;uniform vec2 lean;varying float alpha;varying float variation;\n      varying float particleCell,particleAngle;\n\nvoid main(){float a=seed.x*6.283185;vec3 p=vec3(0.);variation=seed.w;\n      float age=mod(time*.7+seed.w*17.,17.);p=vec3((seed.x-.5)*170.+sin(age*.3+seed.y)*4.,seed.z*19.+age*.6,(seed.y-.5)*170.);\n      alpha=smoothstep(0.,4.,time)*sin(age/17.*3.14159)*.23;\n      vec4 mv=modelViewMatrix*vec4(p,1.);gl_Position=projectionMatrix*mv;\n      gl_PointSize=clamp(size*ratio*240./max(1.,-mv.z),1.,100.);\n      particleCell=0.+floor(min(seed.w,.999999)*4.);\n      particleAngle=seed.x*6.283185+time*(seed.z-.5)*.35;\n      \n    }",
+    "fragmentShader": "uniform vec3 tint;varying float alpha;varying float variation;\nfloat hash(vec3 p){return fract(sin(dot(p,vec3(127.1,311.7,74.7)))*43758.5453);}\nfloat noise(vec3 p){vec3 i=floor(p),f=fract(p);f=f*f*(3.-2.*f);\nreturn mix(mix(mix(hash(i),hash(i+vec3(1,0,0)),f.x),mix(hash(i+vec3(0,1,0)),hash(i+vec3(1,1,0)),f.x),f.y),\nmix(mix(hash(i+vec3(0,0,1)),hash(i+vec3(1,0,1)),f.x),mix(hash(i+vec3(0,1,1)),hash(i+vec3(1,1,1)),f.x),f.y),f.z);}\nfloat fbm(vec3 p){return noise(p)*.57+noise(p*2.03)*.28+noise(p*4.11)*.15;}\n      void particleFallback(){vec2 p=gl_PointCoord-.5;float r=length(p)*2.;if(r>1.)discard;\n      float a=(1.-smoothstep(.05,1.,r))*alpha;\n      a*=smoothstep(.18,.6,fbm(vec3(p*5.,variation*13.)));\n      gl_FragColor=vec4(tint,a);}\n\n\nuniform sampler2D opaqueDepth;\nuniform float opaqueDepthAvailable,opaqueNear,opaqueFar;\nuniform vec2 opaqueInverseSize;\nuniform mat4 opaqueProjectionInverse,opaqueCameraWorld;\nvec3 opaqueWorldPoint(vec2 uv,float depth){\n  vec4 view=opaqueProjectionInverse*vec4(uv*2.-1.,depth*2.-1.,1.);\n  return (opaqueCameraWorld*vec4(view.xyz/view.w,1.)).xyz;\n}\nuniform sampler2D particleAtlas;\nuniform float particleAtlasReady,particleSoftness;\nvarying float particleCell,particleAngle;\nfloat particleMask(){\n  vec2 p=gl_PointCoord-.5;\n  float c=cos(particleAngle),s=sin(particleAngle);\n  p=mat2(c,-s,s,c)*p+.5;\n  // Half-texel inset and transparent cell gutters prevent neighboring shapes leaking at the edges.\n  vec2 cell=vec2(mod(particleCell,4.),3.-floor(particleCell/4.));\n  vec2 uv=(cell*256.+vec2(.5)+vec2(p.x,1.-p.y)*255.)/1024.;\n  // Implicit mip derivatives need uniform control flow, including masked quad corners.\n  float mask=texture2D(particleAtlas,uv).r;\n  if(any(lessThan(p,vec2(0.)))||any(greaterThan(p,vec2(1.))))return 0.;\n  return mask;\n}\nfloat particleViewDepth(float depth){return opaqueNear*opaqueFar/(opaqueFar-depth*(opaqueFar-opaqueNear));}\nfloat particleDepthFade(){\n  if(opaqueDepthAvailable<.5)return 1.;\n  float depth=texture2D(opaqueDepth,gl_FragCoord.xy*opaqueInverseSize).x;\n  if(depth>=1.)return 1.;\n  return smoothstep(0.,max(.001,particleSoftness),particleViewDepth(depth)-particleViewDepth(gl_FragCoord.z));\n}\nvoid main(){\n    if(particleAtlasReady>.5){gl_FragColor=vec4(tint,particleMask()*alpha);}\n    else{particleFallback();}\n    gl_FragColor.a*=particleDepthFade();\n  }",
+    "uniforms": [
+      "time",
+      "size",
+      "ratio",
+      "tint",
+      "origin",
+      "lean",
+      "opaqueDepth",
+      "opaqueDepthAvailable",
+      "opaqueInverseSize",
+      "opaqueProjectionInverse",
+      "opaqueCameraWorld",
+      "opaqueNear",
+      "opaqueFar",
+      "particleAtlas",
+      "particleAtlasReady",
+      "particleSoftness"
+    ],
+    "defines": {},
+    "glslVersion": null
+  },
+  {
+    "key": "e18ac94c",
+    "vertexShader": "varying vec3 sphereNormal;varying vec3 spherePoint;varying vec3 sphereView;void main(){spherePoint=position;vec4 mv=modelViewMatrix*vec4(position,1.);sphereNormal=normalize(normalMatrix*normal);sphereView=normalize(-mv.xyz);gl_Position=projectionMatrix*mv;}",
+    "fragmentShader": "uniform float time,glow;varying vec3 sphereNormal;varying vec3 spherePoint;varying vec3 sphereView;\nfloat hash(vec3 p){return fract(sin(dot(p,vec3(127.1,311.7,74.7)))*43758.5453);}\nfloat noise(vec3 p){vec3 i=floor(p),f=fract(p);f=f*f*(3.-2.*f);\nreturn mix(mix(mix(hash(i),hash(i+vec3(1,0,0)),f.x),mix(hash(i+vec3(0,1,0)),hash(i+vec3(1,1,0)),f.x),f.y),\nmix(mix(hash(i+vec3(0,0,1)),hash(i+vec3(1,0,1)),f.x),mix(hash(i+vec3(0,1,1)),hash(i+vec3(1,1,1)),f.x),f.y),f.z);}\nfloat fbm(vec3 p){return noise(p)*.57+noise(p*2.03)*.28+noise(p*4.11)*.15;}\n    void main(){vec3 p=normalize(spherePoint);float drift=fbm(p*2.2+vec3(time*.07,time*.04,0.));\n    float cloud=fbm(p*5.5+drift*2.5-vec3(0.,time*.11,time*.05));float veil=smoothstep(.3,.8,cloud);\n    float rim=pow(1.-abs(dot(sphereNormal,sphereView)),2.2);\n    vec3 color=mix(vec3(.01,.12,.14),vec3(.25,.95,.85),veil);color=mix(color,vec3(1.6,2.4,2.2),pow(veil,3.)*.6)*glow;color+=vec3(.25,.95,.85)*rim*.9*glow;\n    gl_FragColor=vec4(color,.94);\n    #include <tonemapping_fragment>\n    #include <colorspace_fragment>\n    }",
+    "uniforms": [
+      "time",
+      "glow"
+    ],
+    "defines": {},
+    "glslVersion": null
+  },
+  {
+    "key": "e771d25e",
+    "vertexShader": "attribute vec4 seed;uniform float time,size,ratio;uniform vec3 origin;uniform vec2 lean;varying float alpha;varying float variation;\n      varying float particleCell,particleAngle;\n\nvoid main(){float a=seed.x*6.283185;vec3 p=vec3(0.);variation=seed.w;\n      float start=24.+seed.w*4.;float age=max(0.,time-start);\n      p=vec3((seed.x-.5)*340.,-.5+age*(7.+seed.z*9.)+sin(time*1.7+seed.y*30.)*.8,(seed.y-.5)*300.-20.);\n      alpha=step(start,time)*smoothstep(0.,1.,age)*(1.-smoothstep(45.,130.,p.y))*.9;\n      vec4 mv=modelViewMatrix*vec4(p,1.);gl_Position=projectionMatrix*mv;\n      gl_PointSize=clamp(size*ratio*240./max(1.,-mv.z),1.,7.);\n      particleCell=4.+floor(min(seed.w,.999999)*4.);\n      particleAngle=seed.x*6.283185;\n      \n    }",
+    "fragmentShader": "uniform vec3 tint;varying float alpha;varying float variation;\nfloat hash(vec3 p){return fract(sin(dot(p,vec3(127.1,311.7,74.7)))*43758.5453);}\nfloat noise(vec3 p){vec3 i=floor(p),f=fract(p);f=f*f*(3.-2.*f);\nreturn mix(mix(mix(hash(i),hash(i+vec3(1,0,0)),f.x),mix(hash(i+vec3(0,1,0)),hash(i+vec3(1,1,0)),f.x),f.y),\nmix(mix(hash(i+vec3(0,0,1)),hash(i+vec3(1,0,1)),f.x),mix(hash(i+vec3(0,1,1)),hash(i+vec3(1,1,1)),f.x),f.y),f.z);}\nfloat fbm(vec3 p){return noise(p)*.57+noise(p*2.03)*.28+noise(p*4.11)*.15;}\n      void particleFallback(){vec2 p=gl_PointCoord-.5;float r=length(p)*2.;if(r>1.)discard;\n      float a=(1.-smoothstep(.05,1.,r))*alpha;\n      \n      gl_FragColor=vec4(tint,a);}\n\n\nuniform sampler2D opaqueDepth;\nuniform float opaqueDepthAvailable,opaqueNear,opaqueFar;\nuniform vec2 opaqueInverseSize;\nuniform mat4 opaqueProjectionInverse,opaqueCameraWorld;\nvec3 opaqueWorldPoint(vec2 uv,float depth){\n  vec4 view=opaqueProjectionInverse*vec4(uv*2.-1.,depth*2.-1.,1.);\n  return (opaqueCameraWorld*vec4(view.xyz/view.w,1.)).xyz;\n}\nuniform sampler2D particleAtlas;\nuniform float particleAtlasReady,particleSoftness;\nvarying float particleCell,particleAngle;\nfloat particleMask(){\n  vec2 p=gl_PointCoord-.5;\n  float c=cos(particleAngle),s=sin(particleAngle);\n  p=mat2(c,-s,s,c)*p+.5;\n  // Half-texel inset and transparent cell gutters prevent neighboring shapes leaking at the edges.\n  vec2 cell=vec2(mod(particleCell,4.),3.-floor(particleCell/4.));\n  vec2 uv=(cell*256.+vec2(.5)+vec2(p.x,1.-p.y)*255.)/1024.;\n  // Implicit mip derivatives need uniform control flow, including masked quad corners.\n  float mask=texture2D(particleAtlas,uv).r;\n  if(any(lessThan(p,vec2(0.)))||any(greaterThan(p,vec2(1.))))return 0.;\n  return mask;\n}\nfloat particleViewDepth(float depth){return opaqueNear*opaqueFar/(opaqueFar-depth*(opaqueFar-opaqueNear));}\nfloat particleDepthFade(){\n  if(opaqueDepthAvailable<.5)return 1.;\n  float depth=texture2D(opaqueDepth,gl_FragCoord.xy*opaqueInverseSize).x;\n  if(depth>=1.)return 1.;\n  return smoothstep(0.,max(.001,particleSoftness),particleViewDepth(depth)-particleViewDepth(gl_FragCoord.z));\n}\nvoid main(){\n    if(particleAtlasReady>.5){gl_FragColor=vec4(tint,particleMask()*alpha);}\n    else{particleFallback();}\n    gl_FragColor.a*=particleDepthFade();\n  }",
+    "uniforms": [
+      "time",
+      "size",
+      "ratio",
+      "tint",
+      "origin",
+      "lean",
+      "opaqueDepth",
+      "opaqueDepthAvailable",
+      "opaqueInverseSize",
+      "opaqueProjectionInverse",
+      "opaqueCameraWorld",
+      "opaqueNear",
+      "opaqueFar",
+      "particleAtlas",
+      "particleAtlasReady",
+      "particleSoftness"
+    ],
+    "defines": {},
+    "glslVersion": null
+  },
+  {
+    "key": "eefb02e0",
+    "vertexShader": "varying vec3 bodyNormal;varying vec3 bodyPoint;varying vec3 bodyView;void main(){bodyPoint=position;vec4 mv=modelViewMatrix*vec4(position,1.);bodyNormal=normalize(normalMatrix*normal);bodyView=normalize(-mv.xyz);gl_Position=projectionMatrix*mv;}",
+    "fragmentShader": "uniform float time,glow;varying vec3 bodyNormal;varying vec3 bodyPoint;varying vec3 bodyView;\nfloat hash(vec3 p){return fract(sin(dot(p,vec3(127.1,311.7,74.7)))*43758.5453);}\nfloat noise(vec3 p){vec3 i=floor(p),f=fract(p);f=f*f*(3.-2.*f);\nreturn mix(mix(mix(hash(i),hash(i+vec3(1,0,0)),f.x),mix(hash(i+vec3(0,1,0)),hash(i+vec3(1,1,0)),f.x),f.y),\nmix(mix(hash(i+vec3(0,0,1)),hash(i+vec3(1,0,1)),f.x),mix(hash(i+vec3(0,1,1)),hash(i+vec3(1,1,1)),f.x),f.y),f.z);}\nfloat fbm(vec3 p){return noise(p)*.57+noise(p*2.03)*.28+noise(p*4.11)*.15;}\n    void main(){vec3 p=normalize(bodyPoint);float drift=fbm(p*1.7+vec3(0.,-time*.05,time*.03));\n    float veil=smoothstep(.2,.85,fbm(p*4.+drift*2.+vec3(0.,-time*.08,0.)));\n    float rim=pow(1.-abs(dot(bodyNormal,bodyView)),2.4);\n    vec3 color=mix(vec3(.7,.64,.6),vec3(.95,.76,.58),veil*.55)*glow+vec3(1.2,.8,.55)*rim*.5*glow;\n    gl_FragColor=vec4(color,.94);\n    #include <tonemapping_fragment>\n    #include <colorspace_fragment>\n    }",
+    "uniforms": [
+      "time",
+      "glow"
+    ],
+    "defines": {},
+    "glslVersion": null
+  },
+  {
+    "key": "f03f891e",
+    "vertexShader": "attribute vec4 seed;uniform float time,size,ratio;uniform vec3 origin;uniform vec2 lean;varying float alpha;varying float variation;\n      varying float particleCell,particleAngle;\n\nvoid main(){float a=seed.x*6.283185;vec3 p=vec3(0.);variation=seed.w;\n      float spread=smoothstep(19.,30.,time);float r=spread*(6.+seed.y*250.);float angle=a+time*(.6+seed.z*1.5);\n      p=vec3(origin.x+cos(angle)*r,1.5+seed.w*(4.+spread*14.),origin.z+sin(angle)*r);\n      alpha=smoothstep(19.,21.,time)*(1.-smoothstep(.6,1.,seed.y))*.45;\n      vec4 mv=modelViewMatrix*vec4(p,1.);gl_Position=projectionMatrix*mv;\n      gl_PointSize=clamp(size*ratio*240./max(1.,-mv.z),1.,100.);\n      particleCell=0.+floor(min(seed.w,.999999)*4.);\n      particleAngle=seed.x*6.283185+time*(seed.z-.5)*.35;\n      \n    }",
+    "fragmentShader": "uniform vec3 tint;varying float alpha;varying float variation;\nfloat hash(vec3 p){return fract(sin(dot(p,vec3(127.1,311.7,74.7)))*43758.5453);}\nfloat noise(vec3 p){vec3 i=floor(p),f=fract(p);f=f*f*(3.-2.*f);\nreturn mix(mix(mix(hash(i),hash(i+vec3(1,0,0)),f.x),mix(hash(i+vec3(0,1,0)),hash(i+vec3(1,1,0)),f.x),f.y),\nmix(mix(hash(i+vec3(0,0,1)),hash(i+vec3(1,0,1)),f.x),mix(hash(i+vec3(0,1,1)),hash(i+vec3(1,1,1)),f.x),f.y),f.z);}\nfloat fbm(vec3 p){return noise(p)*.57+noise(p*2.03)*.28+noise(p*4.11)*.15;}\n      void particleFallback(){vec2 p=gl_PointCoord-.5;float r=length(p)*2.;if(r>1.)discard;\n      float a=(1.-smoothstep(.05,1.,r))*alpha;\n      a*=smoothstep(.18,.6,fbm(vec3(p*5.,variation*13.)));\n      gl_FragColor=vec4(tint,a);}\n\n\nuniform sampler2D opaqueDepth;\nuniform float opaqueDepthAvailable,opaqueNear,opaqueFar;\nuniform vec2 opaqueInverseSize;\nuniform mat4 opaqueProjectionInverse,opaqueCameraWorld;\nvec3 opaqueWorldPoint(vec2 uv,float depth){\n  vec4 view=opaqueProjectionInverse*vec4(uv*2.-1.,depth*2.-1.,1.);\n  return (opaqueCameraWorld*vec4(view.xyz/view.w,1.)).xyz;\n}\nuniform sampler2D particleAtlas;\nuniform float particleAtlasReady,particleSoftness;\nvarying float particleCell,particleAngle;\nfloat particleMask(){\n  vec2 p=gl_PointCoord-.5;\n  float c=cos(particleAngle),s=sin(particleAngle);\n  p=mat2(c,-s,s,c)*p+.5;\n  // Half-texel inset and transparent cell gutters prevent neighboring shapes leaking at the edges.\n  vec2 cell=vec2(mod(particleCell,4.),3.-floor(particleCell/4.));\n  vec2 uv=(cell*256.+vec2(.5)+vec2(p.x,1.-p.y)*255.)/1024.;\n  // Implicit mip derivatives need uniform control flow, including masked quad corners.\n  float mask=texture2D(particleAtlas,uv).r;\n  if(any(lessThan(p,vec2(0.)))||any(greaterThan(p,vec2(1.))))return 0.;\n  return mask;\n}\nfloat particleViewDepth(float depth){return opaqueNear*opaqueFar/(opaqueFar-depth*(opaqueFar-opaqueNear));}\nfloat particleDepthFade(){\n  if(opaqueDepthAvailable<.5)return 1.;\n  float depth=texture2D(opaqueDepth,gl_FragCoord.xy*opaqueInverseSize).x;\n  if(depth>=1.)return 1.;\n  return smoothstep(0.,max(.001,particleSoftness),particleViewDepth(depth)-particleViewDepth(gl_FragCoord.z));\n}\nvoid main(){\n    if(particleAtlasReady>.5){gl_FragColor=vec4(tint,particleMask()*alpha);}\n    else{particleFallback();}\n    gl_FragColor.a*=particleDepthFade();\n  }",
+    "uniforms": [
+      "time",
+      "size",
+      "ratio",
+      "tint",
+      "origin",
+      "lean",
+      "opaqueDepth",
+      "opaqueDepthAvailable",
+      "opaqueInverseSize",
+      "opaqueProjectionInverse",
+      "opaqueCameraWorld",
+      "opaqueNear",
+      "opaqueFar",
+      "particleAtlas",
+      "particleAtlasReady",
+      "particleSoftness"
+    ],
+    "defines": {},
+    "glslVersion": null
+  },
+  {
+    "key": "f28dfab2",
+    "vertexShader": "attribute vec4 seed;uniform float time,phase,pixelRatio;uniform vec3 origin,target;varying float opacity;varying float warmth;\n      varying float particleCell,particleAngle;\n\nvoid main(){float a=seed.x*6.283185;vec3 p;warmth=seed.z;\n      float d=fract(seed.y+time*.09);float reach=pow(d,.85)*104.;float spread=pow(d,.7)*(4.+seed.z*26.)*(1.+phase*.3);\n      vec3 u=normalize(cross(target,vec3(0.,1.,0.)));vec3 v=cross(target,u);float swirl=a+d*7.+time*.6;\n      p=origin+target*reach+(u*cos(swirl)+v*sin(swirl))*spread;\n      float arrived=1.-smoothstep((time-5.)*7.-8.,(time-5.)*7.,reach);\n      warmth=d;opacity=smoothstep(.01,.12,d)*(1.-smoothstep(.72,1.,d))*phase*arrived*(.5+.5*seed.w);\n      vec4 mv=modelViewMatrix*vec4(p,1.);gl_Position=projectionMatrix*mv;gl_PointSize=clamp((1.5+seed.w*3.)*pixelRatio*230./max(1.,-mv.z),1.,12.);\n      particleCell=4.+floor(min(seed.w,.999999)*4.);\n      particleAngle=seed.x*6.283185;\n      \n    }",
+    "fragmentShader": "uniform vec3 tint;varying float opacity;varying float warmth;void particleFallback(){float r=length(gl_PointCoord-.5)*2.;if(r>1.)discard;gl_FragColor=vec4(mix(tint,tint*vec3(1.2,.55,.25),warmth),pow(1.-r,2.)*opacity);\n#include <tonemapping_fragment>\n#include <colorspace_fragment>\n}\n\n\nuniform sampler2D opaqueDepth;\nuniform float opaqueDepthAvailable,opaqueNear,opaqueFar;\nuniform vec2 opaqueInverseSize;\nuniform mat4 opaqueProjectionInverse,opaqueCameraWorld;\nvec3 opaqueWorldPoint(vec2 uv,float depth){\n  vec4 view=opaqueProjectionInverse*vec4(uv*2.-1.,depth*2.-1.,1.);\n  return (opaqueCameraWorld*vec4(view.xyz/view.w,1.)).xyz;\n}\nuniform sampler2D particleAtlas;\nuniform float particleAtlasReady,particleSoftness;\nvarying float particleCell,particleAngle;\nfloat particleMask(){\n  vec2 p=gl_PointCoord-.5;\n  float c=cos(particleAngle),s=sin(particleAngle);\n  p=mat2(c,-s,s,c)*p+.5;\n  // Half-texel inset and transparent cell gutters prevent neighboring shapes leaking at the edges.\n  vec2 cell=vec2(mod(particleCell,4.),3.-floor(particleCell/4.));\n  vec2 uv=(cell*256.+vec2(.5)+vec2(p.x,1.-p.y)*255.)/1024.;\n  // Implicit mip derivatives need uniform control flow, including masked quad corners.\n  float mask=texture2D(particleAtlas,uv).r;\n  if(any(lessThan(p,vec2(0.)))||any(greaterThan(p,vec2(1.))))return 0.;\n  return mask;\n}\nfloat particleViewDepth(float depth){return opaqueNear*opaqueFar/(opaqueFar-depth*(opaqueFar-opaqueNear));}\nfloat particleDepthFade(){\n  if(opaqueDepthAvailable<.5)return 1.;\n  float depth=texture2D(opaqueDepth,gl_FragCoord.xy*opaqueInverseSize).x;\n  if(depth>=1.)return 1.;\n  return smoothstep(0.,max(.001,particleSoftness),particleViewDepth(depth)-particleViewDepth(gl_FragCoord.z));\n}\nvoid main(){\n    if(particleAtlasReady>.5){gl_FragColor=vec4(mix(tint,tint*vec3(1.2,.55,.25),warmth),particleMask()*opacity);\n#include <tonemapping_fragment>\n#include <colorspace_fragment>\n}\n    else{particleFallback();}\n    gl_FragColor.a*=particleDepthFade();\n  }",
+    "uniforms": [
+      "time",
+      "phase",
+      "tint",
+      "pixelRatio",
+      "origin",
+      "target",
+      "opaqueDepth",
+      "opaqueDepthAvailable",
+      "opaqueInverseSize",
+      "opaqueProjectionInverse",
+      "opaqueCameraWorld",
+      "opaqueNear",
+      "opaqueFar",
+      "particleAtlas",
+      "particleAtlasReady",
+      "particleSoftness"
+    ],
+    "defines": {},
+    "glslVersion": null
+  },
+  {
+    "key": "f61fd20a",
+    "vertexShader": "varying vec2 mistUv;varying float variation;\n    void main(){mistUv=uv;vec4 center=modelViewMatrix*instanceMatrix*vec4(0.,0.,0.,1.);variation=instanceMatrix[3].x*.01;\n    center.xy+=position.xy*vec2(length(instanceMatrix[0].xyz),length(instanceMatrix[1].xyz));\n    gl_Position=projectionMatrix*center;}",
+    "fragmentShader": "uniform float time,density;uniform vec3 tint;varying vec2 mistUv;varying float variation;\nuniform sampler2D weatherMap;uniform float weatherReady;\nfloat cloudHash(vec2 p){return fract(sin(dot(p,vec2(127.1,311.7)))*43758.5453);}\nfloat cloudNoise(vec2 p){vec2 i=floor(p),f=fract(p);f=f*f*(3.-2.*f);\nreturn mix(mix(cloudHash(i),cloudHash(i+vec2(1,0)),f.x),mix(cloudHash(i+vec2(0,1)),cloudHash(i+vec2(1,1)),f.x),f.y);}\nfloat weather(vec2 p){if(weatherReady>.5)return texture2D(weatherMap,p).r;\nreturn cloudNoise(p*8.)*.65+cloudNoise(p*17.)*.35;}\n    void main(){vec2 p=mistUv-.5;float edge=1.-smoothstep(.16,.5,length(p));\n    float cloud=weather(mistUv*.6+vec2(variation+time*.003,variation));\n    gl_FragColor=vec4(tint,edge*smoothstep(.2,.7,cloud)*density);\n#include <tonemapping_fragment>\n#include <colorspace_fragment>\n}",
+    "uniforms": [
+      "weatherMap",
+      "weatherReady",
+      "time",
+      "density",
+      "tint"
+    ],
+    "defines": {},
+    "glslVersion": null
+  },
+  {
+    "key": "fecf0601",
+    "vertexShader": "varying vec3 hullPoint;void main(){vec4 world=modelMatrix*vec4(position,1.);hullPoint=world.xyz;gl_Position=projectionMatrix*viewMatrix*world;}",
+    "fragmentShader": "uniform float time,steps,inside,flash,fogDensity;uniform vec3 origin,sunDirection,sunColor,skyColor,fogColor,flashPoint;varying vec3 hullPoint;\n      \nfloat hash(vec3 p){return fract(sin(dot(p,vec3(127.1,311.7,74.7)))*43758.5453);}\nfloat noise(vec3 p){vec3 i=floor(p),f=fract(p);f=f*f*(3.-2.*f);\nreturn mix(mix(mix(hash(i),hash(i+vec3(1,0,0)),f.x),mix(hash(i+vec3(0,1,0)),hash(i+vec3(1,1,0)),f.x),f.y),\nmix(mix(hash(i+vec3(0,0,1)),hash(i+vec3(1,0,1)),f.x),mix(hash(i+vec3(0,1,1)),hash(i+vec3(1,1,1)),f.x),f.y),f.z);}\nfloat fbm(vec3 p){return noise(p)*.57+noise(p*2.03)*.28+noise(p*4.11)*.15;}\nfloat terrain(vec2 xz){return -.5+(sin(xz.x*.022)*cos(xz.y*.027)*5.-sin(xz.y*.06)*1.5)*clamp((length(xz)-25.)/80.,0.,1.);}\n      \nuniform sampler2D opaqueDepth;\nuniform float opaqueDepthAvailable,opaqueNear,opaqueFar;\nuniform vec2 opaqueInverseSize;\nuniform mat4 opaqueProjectionInverse,opaqueCameraWorld;\nvec3 opaqueWorldPoint(vec2 uv,float depth){\n  vec4 view=opaqueProjectionInverse*vec4(uv*2.-1.,depth*2.-1.,1.);\n  return (opaqueCameraWorld*vec4(view.xyz/view.w,1.)).xyz;\n}\n      uniform float swallow;uniform vec3 axis;\n      vec3 field(vec3 p,bool detail){\n      vec3 q=p-origin;float r=length(q);if(r<9.2)return vec3(0.);\n      float along=dot(q,axis);vec3 perp=q-axis*along;float rp=length(perp);\n      float shock=exp(-pow((r-11.2)/1.5,2.))*(1.-smoothstep(-.5,.1,along/r));\n      float sheath=1.-smoothstep(9.4,13.,r);\n      float wake=(1.-smoothstep(8.,15.,rp))*smoothstep(0.,6.,along)*(1.-smoothstep(12.,26.,along));\n      float turb=fbm(q*.25-axis*time*4.);\n      float d=(shock*2.+sheath*.08+wake*.3)*(.4+.8*turb)*swallow;if(d<.01)return vec3(0.);\n      float grain=detail?fbm(q*.6-axis*time*6.+2.):.5;\n      return vec3(d*(.6+.4*grain),shock,grain);\n    }\n      void main(){\n        vec3 rayDir=normalize(hullPoint-cameraPosition);\n        vec3 start=inside>.5?cameraPosition:hullPoint;\n        float span=inside>.5?length(hullPoint-cameraPosition):(40.);\n        if(opaqueDepthAvailable>.5){\n          vec2 uv=gl_FragCoord.xy*opaqueInverseSize;\n          float depth=texture2D(opaqueDepth,uv).x;\n          if(depth<1.)span=min(span,dot(opaqueWorldPoint(uv,depth)-start,rayDir));\n        }\n        if(span<=0.)discard;\n        // A per-pixel offset turns step slices into fine noise; it depends only on the pixel, so scrubbing stays exact.\n        float dt=clamp(span/steps,.6,2.),s=fract(sin(dot(gl_FragCoord.xy,vec2(12.9898,78.233)))*43758.5453)*dt;\n        float alpha=0.,firstHit=-1.;vec3 col=vec3(0.);\n        for(int i=0;i<48;i++){\n          if(float(i)>=steps||alpha>.97||s>span)break;\n          vec3 p=start+rayDir*s;\n          if(length(p-origin)<9.2)break;\n          vec3 f=field(p,true);\n          if(f.x>.002){\n            vec3 sampleColor;\n            sampleColor=mix(vec3(1.,.22,.04),vec3(2.2,1.1,.4),f.z)*(1.+f.y*2.2);\n            float a=1.-exp(-f.x*dt*.7);\n            col+=(1.-alpha)*a*sampleColor;alpha+=(1.-alpha)*a;\n            if(firstHit<0.)firstHit=s;\n            s+=dt;\n          } else s+=dt*1.7;\n        }\n        if(alpha<.003)discard;\n        float dist=length(start+rayDir*max(firstHit,0.)-cameraPosition);\n        gl_FragColor=vec4(mix(col/alpha,fogColor,1.-exp(-fogDensity*fogDensity*dist*dist)),alpha);\n        #include <tonemapping_fragment>\n        #include <colorspace_fragment>\n      }",
+    "uniforms": [
+      "opaqueDepth",
+      "opaqueDepthAvailable",
+      "opaqueInverseSize",
+      "opaqueProjectionInverse",
+      "opaqueCameraWorld",
+      "opaqueNear",
+      "opaqueFar",
+      "time",
+      "steps",
+      "inside",
+      "flash",
+      "flashPoint",
+      "origin",
+      "sunDirection",
+      "sunColor",
+      "skyColor",
+      "fogColor",
+      "fogDensity",
+      "swallow",
+      "axis"
+    ],
+    "defines": {},
+    "glslVersion": null
+  }
+]

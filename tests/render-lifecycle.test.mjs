@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import { createHash } from 'node:crypto';
 import * as THREE from 'three';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
-import { RGBELoader } from 'three/addons/loaders/RGBELoader.js';
+import { HDRLoader } from 'three/addons/loaders/HDRLoader.js';
 import { createTerrestrial } from '../dist/terrestrial.js';
 import { createCosmic } from '../dist/cosmic.js';
 import { createProduction } from '../dist/production.js';
@@ -88,7 +88,7 @@ test('the visitor swarm consumes the landscape trees as a function of time and r
 test('the A.T. field mask follows the ULTRA asset ceiling, wakes the paused simulation and never changes geometry', async () => {
   const original = THREE.TextureLoader.prototype.loadAsync, requested = [];
   THREE.TextureLoader.prototype.loadAsync = async function (url) {
-    requested.push(url);
+    if (/\/at-field(?:-4k)?\.webp$/.test(url)) requested.push(url);
     if (url.includes('fail')) throw new Error('Injected texture failure');
     return new THREE.Texture();
   };
@@ -114,7 +114,10 @@ test('the A.T. field mask follows the ULTRA asset ceiling, wakes the paused simu
     const scene = new THREE.Scene(), canvas = Object.assign(new EventTarget(), { dataset: { quality: 'balanced', pixelRatio: '1.25', qualityCeiling: 'fail' } });
     let wakeups = 0;
     canvas.addEventListener('at-field-ready', () => wakeups++);
-    THREE.TextureLoader.prototype.loadAsync = async function () { throw new Error('Injected texture failure'); };
+    THREE.TextureLoader.prototype.loadAsync = async function (url) {
+      if (/\/at-field(?:-4k)?\.webp$/.test(url)) throw new Error('Injected texture failure');
+      return new THREE.Texture();
+    };
     const renderer = createTerrestrial({ scene, canvas, buildings: cityBuildings(), landscape: parkLandscape() });
     renderer.update(14, config('evangelion'));
     await new Promise(setImmediate);
@@ -154,18 +157,18 @@ function proceduralTree() {
   return tree;
 }
 async function withAssets(failures, run) {
-  const original = [GLTFLoader.prototype.loadAsync, RGBELoader.prototype.loadAsync, THREE.TextureLoader.prototype.loadAsync];
+  const original = [GLTFLoader.prototype.loadAsync, HDRLoader.prototype.loadAsync, THREE.TextureLoader.prototype.loadAsync];
   GLTFLoader.prototype.loadAsync = async function (url) {
     if (failures.some(value => url.includes(value))) throw new Error('Injected model failure');
     return url.includes('city-kit') ? kit() : { scene: new THREE.Group().add(new THREE.Mesh(new THREE.BoxGeometry(), new THREE.MeshStandardMaterial())) };
   };
-  RGBELoader.prototype.loadAsync = async () => { throw new Error('Injected HDR failure'); };
+  HDRLoader.prototype.loadAsync = async () => { throw new Error('Injected HDR failure'); };
   THREE.TextureLoader.prototype.loadAsync = async function (url) {
     if (failures.some(value => url.includes(value))) throw new Error('Injected texture failure');
     return new THREE.Texture();
   };
   try { await run(); } finally {
-    [GLTFLoader.prototype.loadAsync, RGBELoader.prototype.loadAsync, THREE.TextureLoader.prototype.loadAsync] = original;
+    [GLTFLoader.prototype.loadAsync, HDRLoader.prototype.loadAsync, THREE.TextureLoader.prototype.loadAsync] = original;
   }
 }
 

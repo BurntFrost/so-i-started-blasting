@@ -1,5 +1,5 @@
 // Keep this module independent of the renderer so failed engine imports remain observable.
-const stages = new Set(['module-load', 'webgl-init', 'authored-assets', 'context-lost']);
+const stages = new Set(['module-load', 'webgl-init', 'device-init', 'authored-assets', 'context-lost']);
 const sceneIds = new Set(['startup']);
 
 export function registerGraphicsScenes(ids) {
@@ -40,6 +40,7 @@ export function showGraphicsFailure(stage) {
   const messages = {
     'module-load': 'The graphics engine could not load. Check your connection and retry.',
     'webgl-init': '3D graphics could not start. Enable hardware acceleration or try another browser.',
+    'device-init': '3D graphics could not start. Enable hardware acceleration or try another browser.',
     'authored-assets': 'Some scene details could not load. Retry to restore the full scene.',
     'context-lost': 'The graphics connection was interrupted. Retry to restart the player.',
   };

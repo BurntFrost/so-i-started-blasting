@@ -1,7 +1,8 @@
 import * as THREE from 'three';
+import { createShaderMaterial, recordSurface } from './shader-program.js';
 import { markEffect, markEffects } from './render-kit.js';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
-import { RGBELoader } from 'three/addons/loaders/RGBELoader.js';
+import { HDRLoader } from 'three/addons/loaders/HDRLoader.js';
 import { MeshoptDecoder } from 'three/addons/libs/meshopt_decoder.module.js';
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
 import { disposeAsset, loadOptionalAssets } from './asset-loading.js';
@@ -23,7 +24,7 @@ export async function createProduction(world) {
     ['city-model', () => loader.loadAsync('/assets/city-kit.glb')],
     ['ship-model', () => loader.loadAsync('/assets/mothership.glb')],
     // The 2K panorama is the visible sky, so it downloads only where ULTRA can show it.
-    ['sky-hdr', () => new RGBELoader().loadAsync(canvas.dataset.qualityCeiling==='ultra'?'/assets/dusk-2k.hdr':'/assets/dusk.hdr')],
+    ['sky-hdr', () => new HDRLoader().loadAsync(canvas.dataset.qualityCeiling==='ultra'?'/assets/dusk-2k.hdr':'/assets/dusk.hdr')],
     ...[['concrete-albedo','/assets/concrete-albedo.webp'],['concrete-normal','/assets/concrete-normal.webp'],
       ['concrete-roughness','/assets/concrete-roughness.webp'],['asphalt-albedo','/assets/asphalt-albedo.webp'],
       ['asphalt-normal','/assets/asphalt-normal.webp'],['asphalt-roughness','/assets/asphalt-roughness.webp']]
@@ -39,14 +40,14 @@ export async function createProduction(world) {
   if (kit && templateNames.some(name => !kit.scene.getObjectByName(name))) {
     assetStatus['city-model'] = 'failed'; world.onAssetError?.('city-model'); disposeAsset(kit); kit = null;
   }
-  const anisotropy=Math.min(8,renderer.capabilities.getMaxAnisotropy());
+  const anisotropy=Math.min(8,renderer.getMaxAnisotropy?.() ?? renderer.capabilities.getMaxAnisotropy());
   maps.forEach((map,i)=>{if(!map)return;map.colorSpace=i%3===0?THREE.SRGBColorSpace:THREE.NoColorSpace;map.wrapS=map.wrapT=THREE.RepeatWrapping;map.anisotropy=anisotropy;});
   let environment = null, sky = null, skyMaterial = null;
   if (hdr) {
-  const pmrem=new THREE.PMREMGenerator(renderer);
+  const pmrem=new (world.nodeRuntime?.PMREMGenerator || THREE.PMREMGenerator)(renderer);
   environment=pmrem.fromEquirectangular(hdr);pmrem.dispose();
   hdr.mapping=THREE.EquirectangularReflectionMapping;
-  skyMaterial=new THREE.ShaderMaterial({side:THREE.BackSide,depthWrite:false,
+  skyMaterial=createShaderMaterial({side:THREE.BackSide,depthWrite:false,
     uniforms:{panorama:{value:hdr},tint:{value:new THREE.Color()},air:{value:new THREE.Color()},exposure:{value:1},storm:{value:0}},
     vertexShader:'varying vec3 direction;void main(){direction=position;gl_Position=projectionMatrix*modelViewMatrix*vec4(position,1.);}',
     fragmentShader:`uniform sampler2D panorama;uniform vec3 tint,air;uniform float exposure,storm;varying vec3 direction;
@@ -99,6 +100,9 @@ export async function createProduction(world) {
       geometry.applyMatrix4(part.matrixWorld);geometry.translate(-center.x,-bounds.min.y,-center.z);geometry.scale(1/size.x,1/size.y,1/size.z);
       const mat=part.material.clone();mat.envMapIntensity=1.1;
       if(/stone|concrete|brick/i.test(mat.name)){mat.map=maps[0];mat.normalMap=maps[1];mat.roughnessMap=maps[2];mat.normalScale.set(.35,.35);}
+      // Some kit surfaces have no UVs. Preserve WebGL's implicit zero coordinate
+      // explicitly so native node materials and the normal prepass agree.
+      if((mat.map||mat.normalMap||mat.roughnessMap)&&!geometry.getAttribute('uv'))geometry.setAttribute('uv',new THREE.BufferAttribute(new Float32Array(geometry.getAttribute('position').count*2),2));
       mat.userData.baseColor=mat.color.clone();mat.userData.baseEmission=mat.emissiveIntensity;mat.userData.baseRoughness=mat.roughness;
       materials.push(mat);parts.push({geometry,material:mat});
     });templateParts.push(parts);
@@ -109,6 +113,7 @@ export async function createProduction(world) {
       const mesh=new THREE.InstancedMesh(part.geometry,part.material,members.length);mesh.castShadow=true;mesh.receiveShadow=true;mesh.frustumCulled=false;city.add(mesh);batches.push({mesh,members,tier:'high'});
     }
     const source=buildings[variant].material,lowMaterial=source.clone();lowMaterial.onBeforeCompile=source.onBeforeCompile;lowMaterial.customProgramCacheKey=source.customProgramCacheKey;
+    if(source.nodeSurface)recordSurface(lowMaterial,source.nodeSurface);
     lowMaterial.color.copy(buildings[variant].userData.facadeBaseColor || source.color);
     lowMaterial.userData.baseColor=lowMaterial.color.clone();lowMaterial.userData.baseEmission=lowMaterial.emissiveIntensity;lowMaterial.userData.baseRoughness=lowMaterial.roughness;materials.push(lowMaterial);
     // A few stepped volumes preserve crowns and setbacks without facade geometry.
@@ -154,7 +159,7 @@ export async function createProduction(world) {
 
   // The fireball has a turbulent surface and cools into dark smoke as it expands.
   const fireUniforms={time:{value:0},fade:{value:1},heat:{value:1}};
-  const fireMaterial=new THREE.ShaderMaterial({uniforms:fireUniforms,transparent:true,depthWrite:false,
+  const fireMaterial=createShaderMaterial({uniforms:fireUniforms,transparent:true,depthWrite:false,
     vertexShader:`uniform float time;varying vec3 spherePoint;${noise}
     void main(){spherePoint=position;float n=fbm(position*5.+vec3(0.,-time*.7,0.));vec3 p=position*(.84+n*.3);gl_Position=projectionMatrix*modelViewMatrix*vec4(p,1.);}`,
     fragmentShader:`uniform float time,fade,heat;varying vec3 spherePoint;${noise}
@@ -178,6 +183,7 @@ export async function createProduction(world) {
   const lawn=landscape.children[0];lawn.material.color.set('#35482b');lawn.material.roughness=1;
   // Countryside scenes plough part of the meadow into crop rows; the park keeps its lawn.
   const fieldPlots={value:0};
+  recordSurface(lawn.material,{kind:'lawn',uniforms:{fieldPlots}});
   lawn.material.onBeforeCompile=shader=>{shader.uniforms.fieldPlots=fieldPlots;shader.vertexShader=shader.vertexShader.replace('#include <common>','#include <common>\nvarying vec3 terrainPoint;').replace('#include <begin_vertex>','#include <begin_vertex>\nterrainPoint=position;');shader.fragmentShader=shader.fragmentShader.replace('#include <common>','#include <common>\nvarying vec3 terrainPoint;uniform float fieldPlots;'+noise).replace('#include <color_fragment>',`#include <color_fragment>
     float meadow=.5+fbm(terrainPoint*.15);
     float plots=smoothstep(.56,.64,fbm(terrainPoint*.021+vec3(3.,0.,7.)))*fieldPlots;

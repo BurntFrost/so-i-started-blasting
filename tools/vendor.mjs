@@ -9,6 +9,8 @@ const prefix = 'vendor/three/';
 
 function resolveThree(specifier) {
   if (specifier === 'three') return `${prefix}build/three.module.js`;
+  if (specifier === 'three/webgpu') return `${prefix}build/three.webgpu.js`;
+  if (specifier === 'three/tsl') return `${prefix}build/three.tsl.js`;
   if (specifier.startsWith('three/addons/')) return `${prefix}examples/jsm/${specifier.slice('three/addons/'.length)}`;
   throw new Error(`Unsupported package import: ${specifier}`);
 }
@@ -18,7 +20,7 @@ function resolveThree(specifier) {
 export async function vendorThree(source) {
   await init;
   const metadata = JSON.parse(await readFile(path.join(packageDir, 'package.json'), 'utf8'));
-  if (metadata.version !== '0.170.0') throw new Error(`Expected Three.js 0.170.0; installed ${metadata.version}. Run npm ci.`);
+  if (metadata.version !== '0.186.0') throw new Error(`Expected Three.js 0.186.0; installed ${metadata.version}. Run npm ci.`);
   const visited = new Set();
   async function rewrite(name) {
     if (visited.has(name)) return;

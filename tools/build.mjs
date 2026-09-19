@@ -148,6 +148,8 @@ export async function build({ sourceDir = path.join(root, 'dist'), outDir = path
     let bytes = source.get(name);
     if (textExtensions.has(extension)) {
       const rewritten = rewriteReferences(bytes.toString('utf8'), (url, computed) => {
+        // Three's node builder concatenates shader comment delimiters, not asset URLs.
+        if (name.startsWith('vendor/three/') && url.startsWith('/*')) return url;
         // These scripts are supplied by Vercel at request time, outside the static output.
         if (url.startsWith('/_vercel/')) return url;
         if (computed) throw new Error(`Use literal local asset URLs in ${name}: ${url}`);

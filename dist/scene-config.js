@@ -40,4 +40,16 @@ const grades = {
   'wandering-earth': {...defaultGrade,bloomStrength:.25,bloomRadius:.35,saturation:.97},
   'evangelion': {...defaultGrade},
 };
-for (const [id, grade] of Object.entries(grades)) sceneConfigs[id].grade = grade;
+// Windows are [start, full strength, start fading, end] in timeline seconds.
+export const heroEmitters = {
+  'independence-day': {id:'beam',position:[-8,78,-20],object:'Mothership beam emitter',lightPosition:[-8,18,-20],color:'#9cffe0',intensity:950,distance:210,strength:.24,window:[9,12,17,20]},
+  'deep-impact': {id:'strike',position:[-50,20,-100],color:'#ffc98b',intensity:1800,distance:240,strength:.22,window:[13,13.6,17,24]},
+  'terminator-2': {id:'fireball',position:[-18,23,-27],object:'Nuclear fireball',color:'#ff973e',intensity:1100,distance:230,strength:.28,window:[4,6,10,17]},
+  'war-of-the-worlds': {id:'heat-ray',position:[20,58,19],object:'Articulated tripod 1',offset:[0,58,7],color:'#9ebdff',intensity:300,distance:95,strength:.16,window:[7,11,29,30]},
+  'knowing': {id:'sun',position:[-35,54,-8],color:'#ffb75e',intensity:0,distance:0,strength:.15,window:[0,3,26,30]},
+  'day-the-earth-stood-still': {id:'sphere',position:[-12,30,-34],object:'Luminous sphere',color:'#8ff0d8',intensity:500,distance:200,strength:.18,window:[0,4,27,30]},
+  'evangelion': {id:'cross',position:[-10,143.5,-70],object:'Crosses of light',instance:1,color:'#ffd0a8',intensity:950,distance:240,strength:.2,window:[12,13.4,20,25]},
+  'dantes-peak': {id:'vent',position:[-60,100,-250],color:'#ff7a2a',intensity:1000,distance:350,strength:.2,window:[5,7,22,30]},
+  'wandering-earth': {id:'jupiter',position:[-190,130,-520],color:'#ffbd79',intensity:0,distance:0,strength:.12,window:[22,23,26,27]},
+};
+for (const [id, grade] of Object.entries(grades)) sceneConfigs[id].grade = {...grade,emitter:heroEmitters[id]||null};

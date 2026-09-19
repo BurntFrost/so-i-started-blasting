@@ -1,4 +1,6 @@
 import * as THREE from 'three';
+import { createShaderMaterial, recordSurface } from './shader-program.js';
+import { applyParticleAtlas } from './particle-atlas.js';
 import { createBakedExplosion } from './baked-explosion.js';
 import { marchedVolume, setInside, volumeFrame, volumeUniforms as sharedVolumeUniforms, markEffects, markEffect } from './render-kit.js';
 
@@ -28,7 +30,7 @@ export function createTerrestrial({ scene, canvas, camera, buildings = [], lands
   const rock = new THREE.IcosahedronGeometry(1, 0);
   const box = new THREE.BoxGeometry(1, 1, 1);
   const cylinder = new THREE.CylinderGeometry(1, 1, 1, 7);
-  const rimGlow = (tint, strength) => new THREE.ShaderMaterial({
+  const rimGlow = (tint, strength) => createShaderMaterial({
     uniforms: { tint: { value: new THREE.Color(tint) }, strength: { value: strength } },
     vertexShader: 'varying vec3 rimNormal;varying vec3 rimView;void main(){vec4 mv=modelViewMatrix*vec4(position,1.);rimNormal=normalize(normalMatrix*normal);rimView=normalize(-mv.xyz);gl_Position=projectionMatrix*mv;}',
     fragmentShader: 'uniform vec3 tint;uniform float strength;varying vec3 rimNormal;varying vec3 rimView;void main(){float rim=pow(1.-abs(dot(rimNormal,rimView)),3.);gl_FragColor=vec4(tint,rim*strength);}',
@@ -69,6 +71,7 @@ export function createTerrestrial({ scene, canvas, camera, buildings = [], lands
         .replace('#include <emissivemap_fragment>', '#include <emissivemap_fragment>\ntotalEmissiveRadiance*=smoothstep(.37,.78,grain)*2.;');
     };
     material.customProgramCacheKey = () => billow ? 'terrestrial-billowing-surface-v2' : 'terrestrial-turbulent-surface-v1';
+    recordSurface(material,{kind:'terrain',uniforms:{terrainTime:clock},billow});
     return { material, clock };
   }
   // Every particle position is a closed-form function of time and its seed; nothing integrates between frames.
@@ -128,7 +131,7 @@ export function createTerrestrial({ scene, canvas, camera, buildings = [], lands
     geometry.setAttribute('seed', new THREE.BufferAttribute(seeds, 4));
     const uniforms = { time: { value: 0 }, size: { value: size }, ratio: { value: 1 }, tint: { value: new THREE.Color(tint) },
       origin: { value: new THREE.Vector3() }, lean: { value: new THREE.Vector2() } };
-    const material = new THREE.ShaderMaterial({ uniforms, transparent: true, depthWrite: false,
+    const material = createShaderMaterial({ uniforms, transparent: true, depthWrite: false,
       blending: kind === 'embers' || kind === 'ascension' ? THREE.AdditiveBlending : THREE.NormalBlending,
       vertexShader: `attribute vec4 seed;uniform float time,size,ratio;uniform vec3 origin;uniform vec2 lean;varying float alpha;varying float variation;
       void main(){float a=seed.x*6.283185;vec3 p=vec3(0.);variation=seed.w;
@@ -140,6 +143,7 @@ export function createTerrestrial({ scene, canvas, camera, buildings = [], lands
       float a=(1.-smoothstep(.05,1.,r))*alpha;
       ${crisp.has(kind) ? '' : 'a*=smoothstep(.18,.6,fbm(vec3(p*5.,variation*13.)));'}
       gl_FragColor=vec4(tint,a);}` });
+    applyParticleAtlas(material, { canvas, kind, motion: motion[kind], opacity: 'alpha' });
     const mesh = new THREE.Points(geometry, material); mesh.frustumCulled = false; parent.add(mesh);
     return { mesh, count, uniforms };
   }
@@ -239,7 +243,7 @@ export function createTerrestrial({ scene, canvas, camera, buildings = [], lands
   const chasm = new THREE.Mesh(chasmGeometry, new THREE.MeshBasicMaterial({ color: '#070404', side: THREE.DoubleSide }));
   chasm.name = 'Jagged continental chasm'; rupture.add(chasm);
   const faultGeometry = new THREE.PlaneGeometry(1, 1, 1, faultRows);
-  const faultMaterial = new THREE.ShaderMaterial({ transparent: true, depthWrite: false, side: THREE.DoubleSide,
+  const faultMaterial = createShaderMaterial({ transparent: true, depthWrite: false, side: THREE.DoubleSide,
     uniforms: { time: { value: 0 } }, vertexShader: 'varying vec2 faultUv;void main(){faultUv=uv;gl_Position=projectionMatrix*modelViewMatrix*vec4(position,1.);}',
     fragmentShader: `uniform float time;varying vec2 faultUv;${noise}
     void main(){float veins=fbm(vec3(faultUv*vec2(7.,45.),time*.15));float edge=pow(abs(faultUv.x-.5)*2.,2.);
@@ -471,6 +475,7 @@ export function createTerrestrial({ scene, canvas, camera, buildings = [], lands
   const funnelSurface = (() => {
     const material = mat('#3a3733', { roughness: 1, transparent: true, opacity: .92, side: THREE.DoubleSide, depthWrite: false });
     const shape = { value: new THREE.Vector4(4, 60, 100, 1.7) }, lean = { value: new THREE.Vector2() }, clock = { value: 0 };
+    recordSurface(material,{kind:'funnel',uniforms:{funnelShape:shape,funnelLean:lean,funnelTime:clock}});
     material.onBeforeCompile = shader => {
       shader.uniforms.funnelShape = shape; shader.uniforms.funnelLean = lean; shader.uniforms.funnelTime = clock;
       shader.vertexShader = shader.vertexShader.replace('#include <common>', '#include <common>\nuniform vec4 funnelShape;uniform vec2 funnelLean;uniform float funnelTime;varying vec2 funnelUv;' + noise)
@@ -743,6 +748,7 @@ export function createTerrestrial({ scene, canvas, camera, buildings = [], lands
       .replace('#include <color_fragment>', '#include <color_fragment>\ndiffuseColor.rgb=mix(diffuseColor.rgb,vec3(.34,.31,.29),ashFall);');
   };
   mountainMaterial.customProgramCacheKey = () => 'terrestrial-ashfall-v1';
+  recordSurface(mountainMaterial,{kind:'mountain',uniforms:{ashFall:ash}});
   function peak(radius, height, craterDepth, x, z, name) {
     const geometry = new THREE.ConeGeometry(radius, height, 72 * fine, 26, false); geometry.translate(0, height / 2, 0);
     const p = geometry.attributes.position, colors = [], snowLine = height * .7, treeLine = height * .34;
@@ -846,6 +852,7 @@ export function createTerrestrial({ scene, canvas, camera, buildings = [], lands
       .replace('#include <roughnessmap_fragment>', '#include <roughnessmap_fragment>\nroughnessFactor+=smoothstep(.56,.66,veins)*.5;');
   };
   iceMaterial.customProgramCacheKey = () => 'terrestrial-ice-sheet-v1';
+  recordSurface(iceMaterial,{kind:'ice',uniforms:{}});
   const ice = new THREE.Mesh(new THREE.PlaneGeometry(600, 600), iceMaterial); ice.name = 'Frozen streets';
   ice.rotation.x = -Math.PI / 2; ice.position.y = -.86; ice.renderOrder = -1; ice.receiveShadow = true; ice.visible = false; superstorm.add(ice);
   // A unit icicle hangs from the origin so scaling y is its length.
@@ -884,7 +891,7 @@ export function createTerrestrial({ scene, canvas, camera, buildings = [], lands
   const visitation = group('The Day the Earth Stood Still — visitation');
   const landing = new THREE.Vector3(-12, 30, -34), stand = new THREE.Vector3(-2, 0, 24);
   const sphereClock = { value: 0 };
-  const luminous = glowValue => new THREE.ShaderMaterial({
+  const luminous = glowValue => createShaderMaterial({
     uniforms: { time: sphereClock, glow: { value: glowValue } },
     vertexShader: 'varying vec3 sphereNormal;varying vec3 spherePoint;varying vec3 sphereView;void main(){spherePoint=position;vec4 mv=modelViewMatrix*vec4(position,1.);sphereNormal=normalize(normalMatrix*normal);sphereView=normalize(-mv.xyz);gl_Position=projectionMatrix*mv;}',
     fragmentShader: `uniform float time,glow;varying vec3 sphereNormal;varying vec3 spherePoint;varying vec3 sphereView;${noise}
@@ -992,7 +999,7 @@ export function createTerrestrial({ scene, canvas, camera, buildings = [], lands
   const impact = group('The End of Evangelion — Third Impact');
   const origin = new THREE.Vector3(-10, 0, -70);
   const radiantClock = { value: 0 };
-  const radiant = strength => new THREE.ShaderMaterial({
+  const radiant = strength => createShaderMaterial({
     uniforms: { time: radiantClock, glow: { value: strength } },
     vertexShader: 'varying vec3 bodyNormal;varying vec3 bodyPoint;varying vec3 bodyView;void main(){bodyPoint=position;vec4 mv=modelViewMatrix*vec4(position,1.);bodyNormal=normalize(normalMatrix*normal);bodyView=normalize(-mv.xyz);gl_Position=projectionMatrix*mv;}',
     fragmentShader: `uniform float time,glow;varying vec3 bodyNormal;varying vec3 bodyPoint;varying vec3 bodyView;${noise}

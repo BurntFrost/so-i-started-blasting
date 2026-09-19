@@ -14,16 +14,18 @@
     "test": "node tools/check-syntax.mjs && node --test tests/*.test.mjs",
     "test:browser": "playwright test --project=chromium",
     "test:webkit": "playwright test --project=webkit",
+    "test:node:webgl": "playwright test --project=node-webgl",
+    "test:node:webgpu": "playwright test --project=node-webgpu",
     "check:public": "node tools/check-public.mjs",
     "infrastructure:verify": "node tools/check-infrastructure.mjs",
     "test:certificates": "python3 -m unittest discover -s tests -p 'test_*.py'",
-    "check": "npm test && npm run test:certificates && npm run assets:verify && npm run build && npm run test:browser && npm run test:webkit",
+    "check": "npm test && npm run test:certificates && npm run assets:verify && npm run build && npm run test:browser && npm run test:node:webgl && npm run test:webkit",
     "serve": "node tools/serve.mjs",
     "assets:verify": "node tools/asset-baseline.mjs"
   },
   "dependencies": {
     "@vercel/speed-insights": "^2.0.0",
-    "three": "0.170.0"
+    "three": "0.186.0"
   },
   "devDependencies": {
     "@playwright/test": "1.63.0",

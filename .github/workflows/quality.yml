@@ -6,8 +6,8 @@ on:
 permissions:
   contents: read
 jobs:
-  quality:
-    name: quality
+  quality-core:
+    name: quality-core
     concurrency:
       group: quality-job-${{ github.workflow }}-${{ github.ref }}
       cancel-in-progress: true
@@ -28,7 +28,7 @@ jobs:
       - name: Install Chromium headless shell
         run: npx playwright install --with-deps --only-shell chromium
       - name: Browser regressions
-        run: npx playwright test --project=chromium
+        run: npx playwright test --project=chromium --max-failures=1
       - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         if: failure()
         with:
@@ -37,6 +37,47 @@ jobs:
             playwright-report/
             test-results/
           retention-days: 7
+  native-webgl:
+    name: native-webgl-${{ matrix.shard }}
+    concurrency:
+      group: native-webgl-${{ matrix.shard }}-${{ github.workflow }}-${{ github.ref }}
+      cancel-in-progress: true
+    strategy:
+      fail-fast: false
+      matrix:
+        shard: [1, 2, 3, 4]
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version-file: .node-version
+          cache: npm
+      - run: npm ci
+      - run: npm run build
+      - run: npx playwright install --with-deps --only-shell chromium
+      - run: npx playwright test --project=node-webgl --fully-parallel --workers=1 --shard=${{ matrix.shard }}/4 --max-failures=1
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        if: failure()
+        with:
+          name: native-webgl-${{ matrix.shard }}-failure-evidence
+          path: |
+            playwright-report/
+            test-results/
+          retention-days: 7
+  quality:
+    name: quality
+    if: always()
+    needs: [quality-core, native-webgl]
+    runs-on: ubuntu-24.04
+    timeout-minutes: 1
+    steps:
+      - name: Require core and all native fallback checks
+        env:
+          CORE_RESULT: ${{ needs.quality-core.result }}
+          NATIVE_RESULT: ${{ needs.native-webgl.result }}
+        run: test "$CORE_RESULT" = success && test "$NATIVE_RESULT" = success
   webkit:
     name: webkit
     runs-on: ubuntu-24.04

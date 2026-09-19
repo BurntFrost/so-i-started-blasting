@@ -1,4 +1,5 @@
 import * as THREE from 'three';
+import { createShaderMaterial } from './shader-program.js';
 
 // Effects render in colour but never in the shared opaque normal/depth buffer.
 export const EFFECTS_LAYER = 1;
@@ -64,7 +65,7 @@ export const hullVertex = 'varying vec3 hullPoint;void main(){vec4 world=modelMa
 // `declare` adds uniforms and helpers, `span` is the march length from the hull surface, `shade` sets sampleColor,
 // `stop` is a condition on the sample point p that ends the march inside an opaque body.
 export function marchedVolume({ name, geometry, uniforms, vertexShader = hullVertex, declare = '', field, span, dt, loop, shade, absorb, terrainCut = false, stop = '', renderOrder = 3 }) {
-  const material = new THREE.ShaderMaterial({ uniforms, vertexShader, transparent: true, depthWrite: false,
+  const material = createShaderMaterial({ uniforms, vertexShader, transparent: true, depthWrite: false,
     fragmentShader: `uniform float time,steps,inside,flash,fogDensity;uniform vec3 origin,sunDirection,sunColor,skyColor,fogColor,flashPoint;varying vec3 hullPoint;
       ${volumeGLSL}
       ${opaqueDepthGLSL}

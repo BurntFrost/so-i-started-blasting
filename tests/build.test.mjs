@@ -159,19 +159,38 @@ test('release identity is staged atomically without changing static asset hashes
 
 test('Three engine and used addons are local, pinned, licensed and fingerprinted transitively', async t => {
   const options = await fixture(t);
-  await writeFile(path.join(options.sourceDir, 'scene.js'), "import * as THREE from 'three'; import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js'; export {THREE,GLTFLoader};");
+  await writeFile(path.join(options.sourceDir, 'scene.js'), "import * as THREE from 'three'; import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js'; import { HDRLoader } from 'three/addons/loaders/HDRLoader.js'; export {THREE,GLTFLoader,HDRLoader};");
   const manifest = await build(options);
   const engine = manifest['/vendor/three/build/three.module.js'];
   const loader = manifest['/vendor/three/examples/jsm/loaders/GLTFLoader.js'];
-  assert.ok(engine && loader);
+  const core = manifest['/vendor/three/build/three.core.js'];
+  const hdrLoader = manifest['/vendor/three/examples/jsm/loaders/HDRLoader.js'];
+  assert.ok(engine && core && loader && hdrLoader);
+  const engineSource = await readFile(path.join(options.outDir, engine), 'utf8');
+  assert.ok(engineSource.includes(core), 'engine references the fingerprinted core module');
+  assert.ok(!engineSource.includes("from './three.core.js'"));
   const scene = await readFile(path.join(options.outDir, manifest['/scene.js']), 'utf8');
-  assert.ok(scene.includes(engine) && scene.includes(loader));
+  assert.ok(scene.includes(engine) && scene.includes(loader) && scene.includes(hdrLoader));
+  const hdrSource = await readFile(path.join(options.outDir, hdrLoader), 'utf8');
+  assert.ok(hdrSource.includes(engine), 'HDR loader references the fingerprinted engine');
   const loaderSource = await readFile(path.join(options.outDir, loader), 'utf8');
   assert.ok(loaderSource.includes(engine));
   assert.ok(loaderSource.includes(manifest['/vendor/three/examples/jsm/utils/BufferGeometryUtils.js']));
   assert.match(await readFile(path.join(options.outDir, 'vendor/three/LICENSE'), 'utf8'), /MIT License/);
-  assert.equal(await readFile(path.join(options.outDir, 'vendor/three/VERSION'), 'utf8'), '0.170.0\n');
+  assert.equal(await readFile(path.join(options.outDir, 'vendor/three/VERSION'), 'utf8'), '0.186.0\n');
   assert.deepEqual((await readdir(path.dirname(options.outDir))).sort(), ['build', 'dist']);
+});
+
+test('node renderer and TSL graph are fingerprinted without treating shader comments as URLs', async t => {
+  const options = await fixture(t);
+  await writeFile(path.join(options.sourceDir, 'scene.js'), "export { WebGPURenderer } from 'three/webgpu'; export { Fn } from 'three/tsl';");
+  const manifest = await build(options);
+  const engine = manifest['/vendor/three/build/three.webgpu.js'];
+  const core = manifest['/vendor/three/build/three.core.js'];
+  const tsl = manifest['/vendor/three/build/three.tsl.js'];
+  assert.ok(engine && core && tsl);
+  assert.ok((await readFile(path.join(options.outDir, engine), 'utf8')).includes(core));
+  assert.ok((await readFile(path.join(options.outDir, tsl), 'utf8')).includes(engine));
 });
 
 test('cycles, unsupported package paths and overlapping output fail without losing the previous build', async t => {

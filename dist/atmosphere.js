@@ -1,4 +1,5 @@
 import * as THREE from 'three';
+import { createShaderMaterial } from './shader-program.js';
 import { markEffect } from './render-kit.js';
 
 const clamp = value => Math.max(0, Math.min(1, value));
@@ -19,7 +20,7 @@ export function createAtmosphere({ scene, camera, canvas }) {
   let weatherRequested = false, nebulaRequested = false;
   const domeGeometry = new THREE.SphereGeometry(1, 40, 24);
   const domeVertex = 'varying vec3 direction;void main(){direction=position;gl_Position=projectionMatrix*modelViewMatrix*vec4(position,1.);}';
-  const celestialMaterial = new THREE.ShaderMaterial({
+  const celestialMaterial = createShaderMaterial({
     uniforms: { panorama: { value: null }, ready: { value: 0 }, strength: { value: .35 } },
     vertexShader: domeVertex,
     fragmentShader: `uniform sampler2D panorama;uniform float ready,strength;varying vec3 direction;
@@ -34,7 +35,7 @@ export function createAtmosphere({ scene, camera, canvas }) {
   celestial.name = 'Locally generated interstellar dust'; celestial.scale.setScalar(690);
   celestial.visible = false; celestial.renderOrder = -20; celestial.frustumCulled = false; markEffect(celestial); scene.add(celestial);
 
-  const cloudMaterial = new THREE.ShaderMaterial({
+  const cloudMaterial = createShaderMaterial({
     uniforms: { weatherMap, weatherReady, time: clock, density: { value: .3 }, wind: { value: 1 }, tint: { value: new THREE.Color('#627783') } },
     vertexShader: domeVertex,
     fragmentShader: `uniform float time,density,wind;uniform vec3 tint;varying vec3 direction;${turbulence}
@@ -52,7 +53,7 @@ export function createAtmosphere({ scene, camera, canvas }) {
   cloudDome.name = 'Layered storm ceiling'; cloudDome.scale.setScalar(610);
   cloudDome.visible = false; cloudDome.renderOrder = -8; cloudDome.frustumCulled = false; markEffect(cloudDome); scene.add(cloudDome);
 
-  const mistMaterial = new THREE.ShaderMaterial({
+  const mistMaterial = createShaderMaterial({
     uniforms: { weatherMap, weatherReady, time: clock, density: { value: .1 }, tint: { value: new THREE.Color() } },
     vertexShader: `varying vec2 mistUv;varying float variation;
     void main(){mistUv=uv;vec4 center=modelViewMatrix*instanceMatrix*vec4(0.,0.,0.,1.);variation=instanceMatrix[3].x*.01;

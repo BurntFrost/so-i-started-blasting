@@ -10,11 +10,13 @@ export async function development(renderer,canvas){
   if(params.get('stats')!=='1')return {cinema};
   const {default:Stats}=await import('stats-gl');
   const stats=new Stats({trackGPU:true,logsPerSecond:2,graphsPerSecond:10});
-  // One query around the complete composer, including all passes; no per-draw patching.
-  await stats.init(renderer.getContext());
+  // Classic/fallback WebGL wraps the complete composer in one query. Native
+  // WebGPU supplies its renderer-managed timestamp metrics to stats-gl.
+  const nativeGPU=renderer.backend?.isWebGPUBackend===true;
+  await stats.init(nativeGPU?renderer:renderer.getContext());
   stats.dom.dataset.performanceOverlay='stats-gl';
   document.body.append(stats.dom);
-  canvas.dataset.gpuTiming=stats.ext?'available':'unavailable';
+  canvas.dataset.gpuTiming=(nativeGPU?renderer.hasFeature('timestamp-query'):stats.ext)?'available':'unavailable';
   let disposed=false;
   const dispose=()=>{if(!disposed){disposed=true;stats.dispose();stats.dom.remove();}};
   canvas.addEventListener('webglcontextlost',dispose,{once:true});

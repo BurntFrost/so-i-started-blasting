@@ -2,7 +2,7 @@ import * as THREE from 'three';
 import { GTAOPass } from 'three/addons/postprocessing/GTAOPass.js';
 import { SimplexNoise } from 'three/addons/math/SimplexNoise.js';
 
-// r170's internal target is retained; only scheduling, noise and sizing are adapted.
+// GTAO's internal target is retained; only scheduling, noise and sizing are adapted.
 export class OpaqueGTAOPass extends GTAOPass {
   constructor(scene, camera, depth) {
     super(scene, camera, 1, 1);
@@ -13,7 +13,7 @@ export class OpaqueGTAOPass extends GTAOPass {
     this.updatePdMaterial({rings: 2, samples: 16});
     this.blendIntensity = 1;
   }
-  generateNoise(size = 64) {
+  _generateNoise(size = 64) {
     let seed = 170;
     const simplex = new SimplexNoise({random: () => { seed = (1664525 * seed + 1013904223) >>> 0; return seed / 4294967296; }});
     const data = new Uint8Array(size * size * 4);
@@ -42,14 +42,14 @@ export class OpaqueGTAOPass extends GTAOPass {
     try {
       camera.layers.set(0);
       renderer.shadowMap.autoUpdate = false; renderer.shadowMap.needsUpdate = false;
-      this.overrideVisibility();
+      this._overrideVisibility();
       renderer.setRenderTarget(this.normalRenderTarget);
       renderer.autoClear = false; renderer.setClearColor(0x7777ff, 1); renderer.clear();
       scene.overrideMaterial = this.normalMaterial;
       renderer.render(scene, camera);
       depth.opaqueDepth.value = this.depthTexture; depth.opaqueDepthAvailable.value = 1;
     } finally {
-      this.restoreVisibility();
+      this._restoreVisibility();
       scene.overrideMaterial = override; camera.layers.mask = mask;
       renderer.shadowMap.autoUpdate = shadowAuto; renderer.shadowMap.needsUpdate = shadowNeeds;
       renderer.autoClear = autoClear; renderer.setClearColor(color, alpha);

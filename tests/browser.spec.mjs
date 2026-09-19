@@ -34,10 +34,11 @@ async function observe(page) {
   });
   return errors;
 }
-async function load(page) {
-  await page.goto('/', { waitUntil: 'domcontentloaded' });
+async function load(page, url = '/') {
+  await page.goto(url, { waitUntil: 'domcontentloaded' });
   await expect(page.locator('#world')).toHaveAttribute('data-draw-calls', /^[1-9]\d*$/);
   await expect(page.locator('#loading')).toBeHidden();
+  await expect(page.locator('#world')).toHaveAttribute('data-particle-atlas', /ready|fallback/);
 }
 async function seek(page, seconds) {
   await seekTimeline(page, seconds);
@@ -58,6 +59,20 @@ async function expectFailure(page, stage) {
   for (const selector of ['#play', '#progress', '#replay']) await expect(page.locator(selector)).toBeDisabled();
   await expect.poll(() => page.evaluate(stage => window.__graphicsEvents.filter(event => event.name === 'Scene Load Failed' && event.data.stage === stage).length, stage)).toBe(1);
 }
+
+test('particle atlas failure retains a reversible procedural scene', async ({ page }) => {
+  const errors = await observe(page);
+  await page.route(/particle-atlas.*\.webp/, route => route.abort());
+  await load(page);
+  await expect(page.locator('#world')).toHaveAttribute('data-particle-atlas', 'fallback');
+  await seek(page, 18);
+  const first = digest(await page.locator('#world').screenshot());
+  await seek(page, 24);
+  await seek(page, 18);
+  expect(digest(await page.locator('#world').screenshot())).toBe(first);
+  await expect(page.locator('#error')).toBeHidden();
+  expect(errors).toEqual([]);
+});
 
 test('every built scene renders offline from CDNs, scrubs reversibly, and keeps player controls usable', async ({ page }) => {
   const errors = await observe(page);
@@ -126,7 +141,10 @@ test.describe('desktop HIGH rendering', () => {
     await expect(canvas).toHaveAttribute('data-quality', 'high');
     await expect(canvas).toHaveAttribute('data-antialias', 'fxaa');
     await expect(canvas).toHaveAttribute('data-ambient-occlusion', 'gtao');
+    await expect(canvas).toHaveAttribute('data-sun-shadows', 'pcss');
+    await expect(canvas).toHaveAttribute('data-soft-particles', 'depth-fade');
     await seek(page, 18);
+    await expect(canvas).toHaveAttribute('data-light-shafts', 'beam');
     const first = digest(await canvas.screenshot());
     expect(Number(await canvas.getAttribute('data-triangles'))).toBeGreaterThan(150000);
     await seek(page, 27);
@@ -147,10 +165,10 @@ test('sustained slow frame intervals lower resolution while retaining scene deta
   await page.addInitScript(()=>{
     const raf=window.requestAnimationFrame.bind(window);
     let last=0,stamp=0;
-    window.__frameIntervalMultiplier=1;
+    window.__controlledFrameInterval=0;
     window.requestAnimationFrame=callback=>raf(now=>{
       // Advance once per browser frame even when multiple callbacks share its timestamp.
-      if(now!==last){stamp+=(now-last)*window.__frameIntervalMultiplier;last=now;}
+      if(now!==last){stamp+=window.__controlledFrameInterval||(now-last);last=now;}
       callback(stamp);
     });
   });
@@ -159,9 +177,11 @@ test('sustained slow frame intervals lower resolution while retaining scene deta
   const canvas=page.locator('#world');
   await expect(canvas).toHaveAttribute('data-authored-assets','ready');
   await expect(canvas).toHaveAttribute('data-quality','balanced');
-  await page.evaluate(()=>{window.__frameIntervalMultiplier=1.5;});
+  // A fixed 20 FPS input exercises sustained pressure independently of the
+  // host GPU. Multiplying software-renderer stalls can exceed the idle-gap guard.
+  await page.evaluate(()=>{window.__controlledFrameInterval=50;});
   await page.locator('#play').click();
-  await expect(canvas).toHaveAttribute('data-resolution-scale','0.9');
+  await expect(canvas).toHaveAttribute('data-resolution-scale','0.9',{timeout:60000});
   await page.locator('#play').click();
   await expect(canvas).toHaveAttribute('data-quality','balanced');
   const size=await canvas.evaluate(e=>({width:e.width,expected:e.clientWidth*Number(e.dataset.pixelRatio),ratio:Number(e.dataset.pixelRatio)}));
@@ -252,21 +272,31 @@ test('module download failure reports a bounded startup category and disables pl
   await expectFailure(page, 'module-load');
 });
 
-test('unavailable WebGL is reported distinctly', async ({ page }) => {
+test('unavailable graphics devices are reported distinctly', async ({ page }) => {
   await observe(page);
   await page.addInitScript(() => {
+    Object.defineProperty(navigator, 'gpu', { configurable: true, value: undefined });
     const original = HTMLCanvasElement.prototype.getContext;
     HTMLCanvasElement.prototype.getContext = function (kind, ...args) {
       return /webgl/i.test(kind) ? null : original.call(this, kind, ...args);
     };
   });
-  await page.goto('/', { waitUntil: 'domcontentloaded' });
-  await expectFailure(page, 'webgl-init');
+  await page.goto('/?renderer=webgpu', { waitUntil: 'domcontentloaded' });
+  await expectFailure(page, 'device-init');
+});
+
+test('native renderer automatically falls back when WebGPU is unavailable', async ({ page }) => {
+  const errors = await observe(page);
+  await page.addInitScript(() => Object.defineProperty(navigator, 'gpu', { configurable: true, value: undefined }));
+  await load(page, '/?renderer=webgpu');
+  await expect(page.locator('#world')).toHaveAttribute('data-backend', 'webgl');
+  await expect(page.locator('#error')).toBeHidden();
+  expect(errors).toEqual([]);
 });
 
 test('a real WebGL context loss stops playback but keeps fullscreen exit usable', async ({ page }) => {
   await observe(page);
-  await load(page);
+  await load(page, '/?renderer=webgl');
   await page.locator('#fullscreen').click();
   await expect.poll(() => page.evaluate(() => document.fullscreenElement?.id)).toBe('player');
   await page.locator('#world').evaluate(canvas => {
@@ -334,6 +364,10 @@ test.describe('desktop ULTRA rendering', () => {
       await select(page, index);
       await seek(page, 18);
       expect(Number(await canvas.getAttribute('data-triangles')), `${scenes[index].id}: phone budget with ULTRA tessellation`).toBeLessThan(150000);
+      if(index===7){
+        await seek(page,27);
+        expect(Number(await canvas.getAttribute('data-triangles')), 'Knowing late engulfment: phone budget after ULTRA resize').toBeLessThan(150000);
+      }
     }
     // Growing again keeps the startup ceiling; promotion back up waits for measured FPS headroom during playback.
     await page.setViewportSize({ width: 1280, height: 800 });
