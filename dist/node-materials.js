@@ -3,10 +3,10 @@ import {
   DataTexture, Matrix3, Matrix4, RGBAFormat, UnsignedByteType
 } from 'three/webgpu';
 import {
-  Fn, If, float, vec2, vec3, vec4, attribute, property, varyingProperty,
+  Fn, If, builtin, float, vec2, vec3, vec4, attribute, property, varyingProperty,
   reference, uniform, texture, renderGroup, modelWorldMatrix, modelViewMatrix,
   cameraProjectionMatrix, cameraViewMatrix, cameraPosition, frontFacing,
-  screenCoordinate, screenSize, screenUV, viewportSize, depth, uv, instancedBufferAttribute
+  screenCoordinate, screenSize, screenUV, viewportSize, uv, instancedBufferAttribute
 } from 'three/tsl';
 import { nodePrograms, shaderProgramKey } from './node-fields.js';
 import { createSurfaceMaterial } from './node-surfaces.js';
@@ -14,6 +14,9 @@ import { particleCells } from './particle-atlas.js';
 
 const emptyTexture = new DataTexture(new Uint8Array([255,255,255,255]),1,1,RGBAFormat,UnsignedByteType);
 emptyTexture.needsUpdate=true;
+// TSL depth reconstructs through view space. Legacy gl_FragCoord.z and soft
+// particle intersections require the rasterizer's depth, including custom vertices.
+const fragmentDepth=Fn(builder=>builtin(builder.getFragCoord().replace(/\.xy$/,'.z')))();
 const materialProperties = ['color','opacity','transparent','side','depthTest','depthWrite','blending',
   'blendSrc','blendDst','blendEquation','premultipliedAlpha','toneMapped','fog','visible','alphaTest',
   'emissive','emissiveIntensity','roughness','metalness','envMapIntensity','map','normalMap','normalScale',
@@ -76,7 +79,7 @@ function rawMaterial(source,object,renderer,points) {
     viewMatrix:cameraViewMatrix,cameraPosition,
     normalMatrix:uniform(new Matrix3()).onObjectUpdate(({object,camera},node)=>
       node.value.getNormalMatrix(new Matrix4().multiplyMatrices(camera.matrixWorldInverse,object.matrixWorld))),
-    gl_FragCoord:vec4(screenCoordinate.x,screenSize.y.sub(screenCoordinate.y),depth,1),
+    gl_FragCoord:vec4(screenCoordinate.x,screenSize.y.sub(screenCoordinate.y),fragmentDepth,1),
     gl_PointCoord:vec2(uv().x,uv().y.oneMinus()),gl_PointSize:pointSize,gl_FrontFacing:frontFacing
   };
   for(const contract of [entry.interface.vertex,entry.interface.fragment])for(const name of Object.keys(contract.builtins)) {
@@ -135,7 +138,7 @@ function standardPoints(source,renderer,depthContext) {
         const linear=value=>near.mul(far).div(far.sub(value.mul(far.sub(near))));
         const opaque=depthContext.nodes.texture.sample(screenUV).r;
         If(available.greaterThan(.5).and(opaque.lessThan(1)),()=>{
-          alpha.mulAssign(linear(opaque).sub(linear(depth)).smoothstep(0,reference('value','float',descriptor.uniforms.particleSoftness)));
+          alpha.mulAssign(linear(opaque).sub(linear(fragmentDepth)).smoothstep(0,reference('value','float',descriptor.uniforms.particleSoftness)));
         });
       }
     }

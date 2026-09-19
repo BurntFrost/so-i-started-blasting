@@ -8,8 +8,37 @@ import { vec4 } from 'three/tsl';
 import NodeBuilder from 'three/src/nodes/core/NodeBuilder.js';
 import NodeUniform from 'three/src/nodes/core/NodeUniform.js';
 import UniformsGroup from 'three/src/renderers/common/UniformsGroup.js';
+import { WebGPURenderer } from 'three/webgpu';
 
 const renderer = () => ({backend:{isWebGPUBackend:false},getPixelRatio:()=>2});
+for(const forceWebGL of [false,true])test(`raw fragment depth uses rasterized ${forceWebGL?'GLSL':'WGSL'} depth with custom vertices`,t=>{
+  const canvas={width:128,height:128,style:{},addEventListener(){},setAttribute(){},
+    getContext(){throw new Error('CPU shader test must not access a GPU');}};
+  const render=new WebGPURenderer({canvas,forceWebGL});
+  render.backend.capabilities={getUniformBufferLimit:()=>65536};
+  render.hasFeature=()=>false;render.hasCompatibility=()=>true;
+  if(forceWebGL)render.backend.extensions={has:()=>false,get:()=>null};
+  else render.backend.utils={getTextureSampleData:()=>({primarySamples:1})};
+  const source=new THREE.ShaderMaterial({
+    vertexShader:'void main(){gl_Position=vec4(position.xy,.6,2.);}',
+    fragmentShader:'void main(){gl_FragColor=vec4(gl_FragCoord.z);}'});
+  const key=shaderProgramKey(source),previous=nodePrograms[key];
+  nodePrograms[key]={interface:{vertex:{uniforms:{},attributes:{},varyings:{},builtins:{}},
+    fragment:{uniforms:{},attributes:{},varyings:{},builtins:{gl_FragCoord:'vec4'}}},
+    createProgram({builtins}){return {vertex:()=>vec4(0,0,.6,2),fragment:()=>vec4(builtins.gl_FragCoord.z)};}};
+  const scene=new THREE.Scene(),object=new THREE.Mesh(new THREE.PlaneGeometry(),source);
+  scene.add(object);const adapter=createNodeMaterialAdapter(render,canvas);
+  t.after(()=>{if(previous)nodePrograms[key]=previous;else delete nodePrograms[key];
+    adapter.dispose();object.geometry.dispose();source.dispose();});
+  adapter.render(scene,()=>{
+    const builder=render.backend.createNodeBuilder(object,render);
+    builder.scene=scene;builder.camera=new THREE.PerspectiveCamera();builder.build();
+    assert.match(builder.fragmentShader,forceWebGL?/gl_FragCoord\.z/:/fragCoord\.z/);
+    assert.doesNotMatch(builder.fragmentShader,/v_clipSpace|positionView/,
+      'fragment depth must not round-trip interpolated clip coordinates through view space');
+  });
+});
+
 test('raw adapter uploads Color vec3 holders as finite RGB and retains live vector bindings', t => {
   const uniforms={tint:{value:new THREE.Color(.2,.4,.6)},origin:{value:new THREE.Vector3(7,8,9)}};
   const source=new THREE.ShaderMaterial({uniforms,
