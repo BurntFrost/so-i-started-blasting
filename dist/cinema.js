@@ -14,6 +14,7 @@ import { defaultGrade, sceneConfigs } from './scene-config.js';
 import { LightShaftsPass, emitterEnvelope, projectEmitter, emitterScreenFade } from './light-shafts.js';
 import { installSoftSunShadows, fitSunShadowFrustum, getSoftSunShadowMapType } from './soft-shadows.js';
 import { applyParticleAtlas, applyParticlePoints } from './particle-atlas.js';
+import { createAdaptiveQuality } from './adaptive-quality.js';
 
 export const qualityTiers=[{name:'LITE',ao:false,aoScale:1,dpr:1,particles:.3,spray:.3,shadows:false,bloom:false,film:false,shadowMap:2048},{name:'BALANCED',ao:false,aoScale:1,dpr:1.25,particles:.6,spray:.6,shadows:false,bloom:true,film:true,shadowMap:2048},{name:'HIGH',ao:true,aoScale:1,dpr:1.7,particles:1,spray:.45,shadows:true,bloom:true,film:true,shadowMap:2048},{name:'ULTRA',ao:true,aoScale:.7,dpr:2,particles:1,spray:.45,shadows:true,bloom:true,film:true,shadowMap:4096}];
 
@@ -231,16 +232,20 @@ export function createCinema(world) {
     landscape:new THREE.Box3(new THREE.Vector3(-130,-20,-150),new THREE.Vector3(130,200,50)),
     space:new THREE.Box3(new THREE.Vector3(-400,-300,-400),new THREE.Vector3(400,400,400))
   };
-  const composer=nodePipeline?null:new EffectComposer(renderer);
-  if(composer){composer.addPass(new RenderPass(scene,camera));composer.addPass(ao);}
-  const shafts=nodePipeline?null:new LightShaftsPass();composer?.addPass(shafts);
+  let composer=null,bloom=null,antialias=null,film=null,shafts=null;
   const shaftUV=new THREE.Vector3(),keyDirection=new THREE.Vector3(-90,85,-110);
   let shaftStrength=0,reflectionScene=false,sceneWorld='city';
-  const bloom=nodePipeline?null:new UnrealBloomPass(new THREE.Vector2(1,1),.65,.65,1.1);
-  if(composer){composer.addPass(bloom);composer.addPass(new OutputPass());}
-  // FXAA smooths the offscreen geometry after output conversion without MSAA renderbuffers.
-  const antialias=nodePipeline?null:new ShaderPass(FXAAShader);composer?.addPass(antialias);
-  const film=nodePipeline?null:new ShaderPass(filmShader);composer?.addPass(film);
+  if(!nodePipeline){
+    if(world.createPipeline)({composer,bloom,antialias,film}=world.createPipeline({renderer,scene,camera,ao,filmShader}));
+    else{
+      composer=new EffectComposer(renderer);
+      composer.addPass(new RenderPass(scene,camera));composer.addPass(ao);
+      shafts=new LightShaftsPass();composer.addPass(shafts);
+      bloom=new UnrealBloomPass(new THREE.Vector2(1,1),.65,.65,1.1);composer.addPass(bloom);composer.addPass(new OutputPass());
+      antialias=new ShaderPass(FXAAShader);composer.addPass(antialias);
+      film=new ShaderPass(filmShader);composer.addPass(film);
+    }
+  }
   // Spray sprites thin out where the crest volume takes over at HIGH and ULTRA.
   const tiers=qualityTiers;
   const phone=()=>matchMedia('(pointer: coarse)').matches||canvas.clientWidth<600;
@@ -250,7 +255,8 @@ export function createCinema(world) {
   // fall below it (phone width) but never rise above it, so ULTRA is never rendered without ULTRA assets.
   const assetCeiling=ceilingFor();
   canvas.dataset.qualityCeiling=tiers[assetCeiling].name.toLowerCase();
-  let ceiling=assetCeiling,quality=ceiling,frameTotal=0,frameCount=0,fastWindows=0,cooldown=0;
+  let ceiling=assetCeiling,quality=Math.min(world.fixedQuality??ceiling,ceiling),resolutionScale=1;
+  const governor=createAdaptiveQuality(quality,ceiling);
   const badge=document.querySelector('.render-label');
   let grade=defaultGrade;
   let sceneTime=0;
@@ -278,7 +284,7 @@ export function createCinema(world) {
     canvas.dataset.lightShafts=enabled?emitter.id:'none';
   }
   function setQuality(next,reason='initial'){
-    quality=next;const tier=tiers[next];renderer.setPixelRatio(Math.min(devicePixelRatio,tier.dpr));renderer.shadowMap.enabled=tier.shadows;
+    quality=next;const tier=tiers[next];renderer.setPixelRatio(Math.min(devicePixelRatio,tier.dpr)*resolutionScale);renderer.shadowMap.enabled=tier.shadows;
     canvas.dataset.sunShadows=tier.shadows?'pcss':'none';
     if(ao){ao.enabled=tier.ao;ao.resolutionScale=tier.aoScale;}depth.opaqueDepthAvailable.value=0;canvas.dataset.ambientOcclusion=tier.ao?'gtao':'none';
     if(film)film.enabled=tier.film;
@@ -290,10 +296,11 @@ export function createCinema(world) {
     for(const p of [sparks,smoke,spray]){p.geometry.setDrawRange(0,Math.floor(p.geometry.attributes.position.count*(p===spray?tier.spray:tier.particles)));p.material.uniforms.pixelRatio.value=renderer.getPixelRatio();}
     snow.geometry.setDrawRange(0,Math.floor(snow.geometry.attributes.position.count*tier.particles));debris.count=Math.floor(300*tier.particles);
     canvas.dataset.quality=tier.name.toLowerCase();canvas.dataset.pixelRatio=String(renderer.getPixelRatio());
+    canvas.dataset.resolutionScale=String(resolutionScale);
     canvas.dataset.softParticles=tier.ao?'depth-fade':'atlas';
     telemetry.setQuality(canvas.dataset.quality,reason);
     if(badge)badge.textContent=`AUTO / ${tier.name}`;
-    resize();cooldown=3;fastWindows=0;
+    resize();
   }
   function resize(){
     const w=canvas.clientWidth,h=canvas.clientHeight;if(!w||!h)return;
@@ -306,16 +313,13 @@ export function createCinema(world) {
     // Bloom is a blur, so ULTRA keeps it near HIGH's pixel count instead of quadrupling the mip chain.
     else if(quality===3)bloom.setSize(Math.round(w*1.2),Math.round(h*1.2));
     }
-    const nextCeiling=Math.min(assetCeiling,ceilingFor());if(nextCeiling!==ceiling){ceiling=nextCeiling;if(quality>ceiling)setQuality(ceiling,'viewport');}
+    const nextCeiling=Math.min(assetCeiling,ceilingFor());if(nextCeiling!==ceiling){ceiling=nextCeiling;const change=governor.setCeiling(ceiling);if(change){resolutionScale=change.scale;setQuality(change.level,change.reason);}}
   }
   function measure(delta,active){
-    if(!active||delta<=0||delta>1){frameTotal=0;frameCount=0;return;}
-    if(cooldown>0){cooldown-=delta;return;}
-    frameTotal+=delta;frameCount++;if(frameTotal<3)return;
-    const fps=frameCount/frameTotal;canvas.dataset.fps=String(Math.round(fps));frameTotal=0;frameCount=0;
-    if(fps<38&&quality>0)setQuality(quality-1,'slow');
-    else if(fps>57&&quality<ceiling){if(++fastWindows>=4)setQuality(quality+1,'headroom');}
-    else fastWindows=0;
+    if(world.fixedQuality!==undefined)return;
+    const change=governor.measure(delta,active);if(!change)return;
+    if(change.fps)canvas.dataset.fps=String(Math.round(change.fps));
+    if(change.reason){resolutionScale=change.scale;setQuality(change.level,change.reason);}
   }
   function update(t,config){
     sceneWorld=config.world;

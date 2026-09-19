@@ -8,6 +8,9 @@
   },
   "scripts": {
     "build": "node tools/build.mjs",
+    "build:dev": "node tools/build.mjs --development",
+    "serve:dev": "SERVE_DIR=build-dev node tools/serve.mjs",
+    "benchmark:render": "node tools/performance/benchmark.mjs",
     "test": "node tools/check-syntax.mjs && node --test tests/*.test.mjs",
     "test:browser": "playwright test --project=chromium",
     "test:webkit": "playwright test --project=webkit",
@@ -26,6 +29,8 @@
   },
   "devDependencies": {
     "@playwright/test": "1.63.0",
-    "es-module-lexer": "3.0.2"
+    "es-module-lexer": "3.0.2",
+    "postprocessing": "6.39.5",
+    "stats-gl": "4.2.3"
   }
 }

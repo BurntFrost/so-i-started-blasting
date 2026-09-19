@@ -20,9 +20,8 @@ export const QUALITY = {
   ultra: { viewport: { width: 1280, height: 800 }, deviceScaleFactor: 2, hasTouch: false },
 };
 
-// dist/cinema.js measure() writes data-fps once per three seconds of rendered frames, after a three-second cooldown.
-const GOVERNOR_WINDOW_SECONDS = 3, PROBE_SAMPLES = 2;
-const PROBE_SECONDS = GOVERNOR_WINDOW_SECONDS * (PROBE_SAMPLES + 1);
+// Two one-second active samples plus startup/resize settling; idle frames do not count.
+const PROBE_SAMPLES = 2, PROBE_SECONDS = 4;
 
 const usage = `Usage:
   node tools/capture-media.mjs capture --quality balanced|high|ultra [--scene ID] [--output DIR] [--url URL]
