@@ -28,7 +28,7 @@ jobs:
       - name: Install Chromium headless shell
         run: npx playwright install --with-deps --only-shell chromium
       - name: Browser regressions
-        run: npx playwright test --project=chromium --project=node-webgl
+        run: npx playwright test --project=chromium --project=node-webgl --max-failures=1
       - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         if: failure()
         with:

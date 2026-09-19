@@ -78,7 +78,29 @@ are outside this worktree and remain untouched.
 - Integrated main's `94891e1` adaptive resolution and development diagnostics. Native
   WebGPU statistics use renderer timestamp support; WebGL retains the composer query.
 
-## Decisions
+## Native renderer measurements
+
+- All fifteen ULTRA scenes were captured and visually reviewed on native WebGPU and
+  native WebGL after the color, film and fog corrections. Both capture manifests
+  reported zero renderer errors. Sheets: `work/remaining-c2-webgpu-final/contact-sheet.jpg`
+  and `work/remaining-c2-webgl-final/contact-sheet.jpg`.
+- Cold browser contexts at a 390x844 touch viewport, using this Mac's GPU without CPU
+  or network throttling: median first frame over three samples was 937 ms classic,
+  2654 ms native WebGL and 2519 ms WebGPU. Decoded JavaScript was 2,799,148 bytes for
+  classic and 5,696,745 bytes for native. These are desktop proxies, not measurements
+  from physical phones. Raw evidence: `work/renderer-startup/startup.json`.
+- Two one-second WebGPU samples per scene at ULTRA: Independence Day 60/59 FPS,
+  Deep Impact 60/60, Knowing 57/45, Twister 60/53 and Evangelion 44/60. Knowing and
+  Evangelion retained ULTRA detail at 90% render resolution; the other scenes stayed
+  at 100%. All probes reported zero renderer errors. These short probes do not
+  establish sustained performance and use shorter windows than the earlier C1 probes.
+- Development statistics, GPU timing, playback and scene switching passed on native
+  WebGPU, native WebGL and the retained classic postprocessing prototype.
+- WebKit passed in GitHub Actions for commit `81fe0d7`; its earlier local download
+  failure is no longer a cross-browser validation gap. Full CI and the remaining
+  native WebGPU reverse-scrub investigation are tracked in draft PR #35.
+
+## Implementation decisions
 
 - Work is isolated because the original checkout is being used for render-performance work.
 - Shafts use three six-tap radial blur passes, with guards for zero distance and all four
