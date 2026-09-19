@@ -42,8 +42,10 @@ for(const [index,scene] of scenes.entries())test(`native ${scene.id} renders and
   await expect(canvas).toHaveAttribute('data-render-state','ready');
   await expect(canvas).toHaveAttribute('data-authored-assets','ready');
   await expect(canvas).toHaveAttribute('data-particle-atlas',/ready|fallback/);
+  await expect(canvas).toHaveAttribute('data-weather-texture',/ready|fallback/);
     await page.locator(`.scene-card[data-scene="${index}"]`).click();
     await expect(canvas).toHaveAttribute('data-scene',scene.id);
+    if(scene.space)await expect(canvas).toHaveAttribute('data-nebula-texture',/ready|fallback/);
     if(scene.id==='terminator-2')await expect(canvas).toHaveAttribute('data-explosion-bake',/ready|fallback/);
     if(scene.id==='evangelion')await expect(canvas).toHaveAttribute('data-at-field-texture',/ready|fallback/);
     for(const t of [6,14,22,27,18]){await seekTimeline(page,t);await settleFrames(page);}
@@ -53,7 +55,13 @@ for(const [index,scene] of scenes.entries())test(`native ${scene.id} renders and
     await seekTimeline(page,25);await settleFrames(page);
     const later=hash(await captureWorld(canvas));
     await seekTimeline(page,18);await settleFrames(page);
-    expect(hash(await captureWorld(canvas)),`${scene.id} reverse pixels`).toBe(before);
+    const restored=await captureWorld(canvas);
+    if(hash(restored)!==before){
+      await info.attach('world-before',{body:image,contentType:'image/png'});
+      await info.attach('world-restored',{body:restored,contentType:'image/png'});
+      await info.attach('render-state',{body:JSON.stringify(await canvas.evaluate(e=>({...e.dataset}))),contentType:'application/json'});
+    }
+    expect(hash(restored),`${scene.id} reverse pixels`).toBe(before);
     expect(later,`${scene.id} timeline changes image`).not.toBe(before);
     expect(errors,`${scene.id} shader errors`).toEqual([]);
     console.log(`${backend}: ${scene.id} renders and reverses exactly`);
