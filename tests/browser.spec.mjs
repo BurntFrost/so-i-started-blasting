@@ -38,6 +38,7 @@ async function load(page) {
   await page.goto('/', { waitUntil: 'domcontentloaded' });
   await expect(page.locator('#world')).toHaveAttribute('data-draw-calls', /^[1-9]\d*$/);
   await expect(page.locator('#loading')).toBeHidden();
+  await expect(page.locator('#world')).toHaveAttribute('data-particle-atlas', /ready|fallback/);
 }
 async function seek(page, seconds) {
   await seekTimeline(page, seconds);
@@ -58,6 +59,20 @@ async function expectFailure(page, stage) {
   for (const selector of ['#play', '#progress', '#replay']) await expect(page.locator(selector)).toBeDisabled();
   await expect.poll(() => page.evaluate(stage => window.__graphicsEvents.filter(event => event.name === 'Scene Load Failed' && event.data.stage === stage).length, stage)).toBe(1);
 }
+
+test('particle atlas failure retains a reversible procedural scene', async ({ page }) => {
+  const errors = await observe(page);
+  await page.route(/particle-atlas.*\.webp/, route => route.abort());
+  await load(page);
+  await expect(page.locator('#world')).toHaveAttribute('data-particle-atlas', 'fallback');
+  await seek(page, 18);
+  const first = digest(await page.locator('#world').screenshot());
+  await seek(page, 24);
+  await seek(page, 18);
+  expect(digest(await page.locator('#world').screenshot())).toBe(first);
+  await expect(page.locator('#error')).toBeHidden();
+  expect(errors).toEqual([]);
+});
 
 test('every built scene renders offline from CDNs, scrubs reversibly, and keeps player controls usable', async ({ page }) => {
   const errors = await observe(page);
@@ -126,7 +141,10 @@ test.describe('desktop HIGH rendering', () => {
     await expect(canvas).toHaveAttribute('data-quality', 'high');
     await expect(canvas).toHaveAttribute('data-antialias', 'fxaa');
     await expect(canvas).toHaveAttribute('data-ambient-occlusion', 'gtao');
+    await expect(canvas).toHaveAttribute('data-sun-shadows', 'pcss');
+    await expect(canvas).toHaveAttribute('data-soft-particles', 'depth-fade');
     await seek(page, 18);
+    await expect(canvas).toHaveAttribute('data-light-shafts', 'beam');
     const first = digest(await canvas.screenshot());
     expect(Number(await canvas.getAttribute('data-triangles'))).toBeGreaterThan(150000);
     await seek(page, 27);

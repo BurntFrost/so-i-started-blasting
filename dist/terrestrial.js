@@ -1,4 +1,5 @@
 import * as THREE from 'three';
+import { applyParticleAtlas } from './particle-atlas.js';
 import { createBakedExplosion } from './baked-explosion.js';
 import { marchedVolume, setInside, volumeFrame, volumeUniforms as sharedVolumeUniforms, markEffects, markEffect } from './render-kit.js';
 
@@ -140,6 +141,7 @@ export function createTerrestrial({ scene, canvas, camera, buildings = [], lands
       float a=(1.-smoothstep(.05,1.,r))*alpha;
       ${crisp.has(kind) ? '' : 'a*=smoothstep(.18,.6,fbm(vec3(p*5.,variation*13.)));'}
       gl_FragColor=vec4(tint,a);}` });
+    applyParticleAtlas(material, { canvas, kind, motion: motion[kind], opacity: 'alpha' });
     const mesh = new THREE.Points(geometry, material); mesh.frustumCulled = false; parent.add(mesh);
     return { mesh, count, uniforms };
   }
