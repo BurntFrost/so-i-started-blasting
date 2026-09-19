@@ -20,6 +20,8 @@ export default defineConfig({
   projects: [
     ...['webgl','webgpu'].map(backend=>({
       name:`node-${backend}`,metadata:{backend},testMatch:'node-browser.spec.mjs',
+      // The giant/volume scenes exceed three minutes on CI's software GPU.
+      timeout:process.env.CI?300000:180000,
       use:{browserName:'chromium',hasTouch:false,viewport:{width:1280,height:800},
         launchOptions:{...(process.env.PLAYWRIGHT_CHANNEL?{channel:process.env.PLAYWRIGHT_CHANNEL}:{}),
           args:['--enable-webgl','--ignore-gpu-blocklist',...(process.env.CI?['--use-angle=swiftshader','--enable-unsafe-swiftshader']:[])]}}
