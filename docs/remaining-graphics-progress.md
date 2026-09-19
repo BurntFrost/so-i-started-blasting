@@ -41,6 +41,22 @@ are outside this worktree and remain untouched.
   included now; the r186 dependency activation belongs to C1.
 - Deep Impact at 18s stepped ULTRA to HIGH, FPS samples 36 and 60; no renderer errors.
 
+## C1 verification
+
+- Pinned Three.js 0.186.0. HDRLoader replaces RGBELoader. GTAO's renamed internal
+  methods retain the same seeded noise and shared-depth scheduling. The PCSS blocker
+  search uses r186's raw native depth via BasicShadowMap; it is not stock Basic filtering.
+- The fifteen-scene ULTRA sheet (`work/remaining-c1-after/contact-sheet.jpg`) was
+  captured and reviewed against the A sheet. PBR brightness shifts are visible but
+  no surface or effect disappeared; no compensating scene grade was necessary.
+- Chromium: 11/12 on the first pass; the failed startup-error test lost its browser
+  process during navigation and passed in isolation. All fifteen-scene reverse-scrub,
+  HIGH/ULTRA, optional asset, audio, phone and context-loss checks passed.
+- Latest unit run: 143 passed, three opt-in GPU tests skipped (includes initial C2 shadow
+  tests under active development); 78 asset checksums and ten certificate tests passed.
+- WebKit remains unverified because both download attempts failed. Five heavy-scene
+  probes are being recorded before C2 activation.
+
 ## Decisions
 
 - Work is isolated because the original checkout is being used for render-performance work.

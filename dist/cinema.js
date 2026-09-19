@@ -11,7 +11,7 @@ import { EFFECTS_LAYER, markEffects, opaqueDepthUniforms } from './render-kit.js
 import { createAtmosphere } from './atmosphere.js';
 import { defaultGrade, sceneConfigs } from './scene-config.js';
 import { LightShaftsPass, emitterEnvelope, projectEmitter, emitterScreenFade } from './light-shafts.js';
-import { installSoftSunShadows, fitSunShadowFrustum } from './soft-shadows.js';
+import { installSoftSunShadows, fitSunShadowFrustum, getSoftSunShadowMapType } from './soft-shadows.js';
 import { applyParticleAtlas, applyParticlePoints } from './particle-atlas.js';
 
 export const qualityTiers=[{name:'LITE',ao:false,aoScale:1,dpr:1,particles:.3,spray:.3,shadows:false,bloom:false,film:false,shadowMap:2048},{name:'BALANCED',ao:false,aoScale:1,dpr:1.25,particles:.6,spray:.6,shadows:false,bloom:true,film:true,shadowMap:2048},{name:'HIGH',ao:true,aoScale:1,dpr:1.7,particles:1,spray:.45,shadows:true,bloom:true,film:true,shadowMap:2048},{name:'ULTRA',ao:true,aoScale:.7,dpr:2,particles:1,spray:.45,shadows:true,bloom:true,film:true,shadowMap:4096}];
@@ -134,7 +134,7 @@ export function createCinema(world) {
   const rim = new THREE.DirectionalLight('#7dbeff',2.2);rim.position.set(80,50,-70);scene.add(rim);
   const impactLight = new THREE.PointLight('#ff8138',0,250,1.3);impactLight.position.set(-8,18,-20);scene.add(impactLight);
   const heroLight=new THREE.PointLight('#ffffff',0,200,1.5);scene.add(heroLight);
-  renderer.shadowMap.type=THREE.PCFSoftShadowMap;
+  renderer.shadowMap.type=getSoftSunShadowMapType();
 
   // Roughen the asteroid silhouette.
   const rockPosition=meteor.geometry.attributes.position;

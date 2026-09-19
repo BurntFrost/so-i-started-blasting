@@ -1,7 +1,7 @@
 import * as THREE from 'three';
 import { markEffect, markEffects } from './render-kit.js';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
-import { RGBELoader } from 'three/addons/loaders/RGBELoader.js';
+import { HDRLoader } from 'three/addons/loaders/HDRLoader.js';
 import { MeshoptDecoder } from 'three/addons/libs/meshopt_decoder.module.js';
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
 import { disposeAsset, loadOptionalAssets } from './asset-loading.js';
@@ -23,7 +23,7 @@ export async function createProduction(world) {
     ['city-model', () => loader.loadAsync('/assets/city-kit.glb')],
     ['ship-model', () => loader.loadAsync('/assets/mothership.glb')],
     // The 2K panorama is the visible sky, so it downloads only where ULTRA can show it.
-    ['sky-hdr', () => new RGBELoader().loadAsync(canvas.dataset.qualityCeiling==='ultra'?'/assets/dusk-2k.hdr':'/assets/dusk.hdr')],
+    ['sky-hdr', () => new HDRLoader().loadAsync(canvas.dataset.qualityCeiling==='ultra'?'/assets/dusk-2k.hdr':'/assets/dusk.hdr')],
     ...[['concrete-albedo','/assets/concrete-albedo.webp'],['concrete-normal','/assets/concrete-normal.webp'],
       ['concrete-roughness','/assets/concrete-roughness.webp'],['asphalt-albedo','/assets/asphalt-albedo.webp'],
       ['asphalt-normal','/assets/asphalt-normal.webp'],['asphalt-roughness','/assets/asphalt-roughness.webp']]
