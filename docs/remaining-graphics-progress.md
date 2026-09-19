@@ -88,6 +88,10 @@ are outside this worktree and remain untouched.
   only ANGLE's specific internal render-pass flush performance notice, retaining
   shader errors, validation warnings and context-loss failures. The governor test
   supplies fixed slow frame intervals rather than multiplying host-dependent stalls.
+- Knowing's lower-tier ejection and engulfment shells use their baseline tessellation
+  even when created at an ULTRA ceiling. HIGH/ULTRA use volumes instead; avoiding
+  unused shell refinement keeps later phone resizing below 150,000 triangles at
+  both the ejection and late engulfment phases without thinning the particle stream.
 
 ## Native renderer measurements
 
@@ -107,9 +111,12 @@ are outside this worktree and remain untouched.
   establish sustained performance and use shorter windows than the earlier C1 probes.
 - Development statistics, GPU timing, playback and scene switching passed on native
   WebGPU, native WebGL and the retained classic postprocessing prototype.
-- WebKit passed in GitHub Actions for commit `81fe0d7`; its earlier local download
-  failure is no longer a cross-browser validation gap. Full CI and the remaining
-  native WebGPU reverse-scrub investigation are tracked in draft PR #35.
+- Final local checks: 214 unit tests passed (five separate opt-in GPU tests skipped),
+  all 32 native browser cases passed, and the ULTRA-to-phone resize and controlled
+  governor tests passed. The native cases cover exact reverse pixels in every scene
+  on both backends and the phone geometry budget. WebKit passed remotely; its earlier
+  local download failure is no longer a cross-browser validation gap. Final required
+  CI status is recorded in draft PR #35.
 
 ## Implementation decisions
 

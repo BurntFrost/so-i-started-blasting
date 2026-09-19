@@ -217,7 +217,8 @@ export function createCosmic({ scene, canvas, camera }) {
   const archMaterial = new THREE.MeshBasicMaterial({ color: new THREE.Color('#ff8a2a').multiplyScalar(3.4), transparent: true, opacity: 0, depthWrite: false, blending: THREE.AdditiveBlending });
   const arch = new THREE.Mesh(new THREE.TubeGeometry(new THREE.CatmullRomCurve3(archPoints), 48, .55, 6, false), archMaterial); arch.name = 'Eruptive prominence'; prominence.add(arch);
   // The coronal mass ejection: a turbulent bubble whose front reaches Earth around twenty seconds.
-  const bubble = new THREE.Mesh(new THREE.SphereGeometry(1, 56 * fine, 36 * fine), createShaderMaterial({
+  // These shells render only below HIGH; retained ULTRA geometry must still fit a phone resize.
+  const bubble = new THREE.Mesh(new THREE.SphereGeometry(1, 56, 36), createShaderMaterial({
     uniforms: { time, front }, vertexShader: vertex,
     fragmentShader: `uniform float time,front;varying vec3 point;varying vec3 viewNormal;varying vec3 viewDirection;${noise}
     void main(){vec3 p=normalize(point);float turbulence=fbm(p*3.5+vec3(time*.09,-time*.05,0.))*.6+fbm(p*9.-vec3(0.,time*.2,0.))*.4;
@@ -235,7 +236,7 @@ export function createCosmic({ scene, canvas, camera }) {
   const solarShock = new THREE.Mesh(new THREE.TorusGeometry(1, .003, 6, 96), new THREE.MeshBasicMaterial({ color: '#ffc46d', transparent: true, opacity: .25, depthWrite: false, blending: THREE.AdditiveBlending }));
   solarShock.name = 'Bow shock'; solarShock.quaternion.setFromUnitVectors(new THREE.Vector3(0, 0, 1), axis); solar.add(solarShock);
   // The plasma front wraps Earth in fire once the ejection arrives.
-  const engulf = new THREE.Mesh(new THREE.SphereGeometry(1, 40 * fine, 26 * fine), createShaderMaterial({
+  const engulf = new THREE.Mesh(new THREE.SphereGeometry(1, 40, 26), createShaderMaterial({
     uniforms: { time, fade: { value: 0 } }, vertexShader: vertex,
     fragmentShader: `uniform float time,fade;varying vec3 point;varying vec3 viewNormal;varying vec3 viewDirection;${noise}
     void main(){vec3 p=normalize(point);float turbulence=fbm(p*6.+vec3(time*.35,-time*.5,0.));

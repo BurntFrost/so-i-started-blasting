@@ -364,6 +364,10 @@ test.describe('desktop ULTRA rendering', () => {
       await select(page, index);
       await seek(page, 18);
       expect(Number(await canvas.getAttribute('data-triangles')), `${scenes[index].id}: phone budget with ULTRA tessellation`).toBeLessThan(150000);
+      if(index===7){
+        await seek(page,27);
+        expect(Number(await canvas.getAttribute('data-triangles')), 'Knowing late engulfment: phone budget after ULTRA resize').toBeLessThan(150000);
+      }
     }
     // Growing again keeps the startup ceiling; promotion back up waits for measured FPS headroom during playback.
     await page.setViewportSize({ width: 1280, height: 800 });
