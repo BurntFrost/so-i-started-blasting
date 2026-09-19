@@ -12,12 +12,13 @@ class ThreePass extends Pass{
   dispose(){this.pass.dispose();}
 }
 
-export function createPrototype({renderer,scene,camera,ao,filmShader}){
+export function createPrototype({renderer,scene,camera,ao,shafts,filmShader}){
   const autoClear=renderer.autoClear;
   const pipeline=new EffectComposer(renderer,{frameBufferType:THREE.HalfFloatType,multisampling:0});
   renderer.autoClear=autoClear;
   pipeline.addPass(new RenderPass(scene,camera));
   const occlusion=new ThreePass(ao);pipeline.addPass(occlusion);
+  const lightShafts=new ThreePass(shafts);pipeline.addPass(lightShafts);
   const glow=new BloomEffect({blendFunction:BlendFunction.ADD,intensity:.65,luminanceThreshold:1.1,luminanceSmoothing:.01,levels:5,radius:.65});
   const tone=new ToneMappingEffect({mode:ToneMappingMode.AGX});
   // Finish in display space before the unchanged FXAA and film stages. Encode once.
@@ -37,7 +38,7 @@ export function createPrototype({renderer,scene,camera,ao,filmShader}){
   const composer={
     setPixelRatio(){}, // This composer reads the renderer's drawing-buffer dimensions.
     setSize(w,h){pipeline.setSize(w,h);},
-    render(){occlusion.enabled=ao.enabled;pipeline.render(0);},
+    render(){occlusion.enabled=ao.enabled;lightShafts.enabled=shafts.enabled;pipeline.render(0);},
   };
   return {composer,bloom,antialias,film};
 }

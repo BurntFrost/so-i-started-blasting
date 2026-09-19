@@ -74,6 +74,32 @@ test('particle atlas failure retains a reversible procedural scene', async ({ pa
   expect(errors).toEqual([]);
 });
 
+test('particle atlas loads on BALANCED without enabling depth effects', async ({ page }) => {
+  const requests=[];
+  page.on('request',request=>{if(/particle-atlas.*\.webp/.test(request.url()))requests.push(request.url());});
+  await load(page);
+  const canvas=page.locator('#world');
+  await expect(canvas).toHaveAttribute('data-quality','balanced');
+  await expect(canvas).toHaveAttribute('data-particle-atlas','ready');
+  await expect(canvas).toHaveAttribute('data-soft-particles','atlas');
+  await expect(canvas).toHaveAttribute('data-light-shafts','none');
+  expect(requests).toHaveLength(1);
+});
+
+test('atlas preserves the phone geometry budget independently of camera reset', async ({ page }) => {
+  const errors=await observe(page);
+  await page.setViewportSize({width:390,height:844});
+  await load(page);
+  for(const index of [0,2,3,4,5,6,10,11,12,13,14]){
+    await select(page,index);await seek(page,18);
+    const canvas=page.locator('#world');
+    await expect(canvas).toHaveAttribute('data-quality',/balanced|lite/);
+    await expect(canvas).toHaveAttribute('data-ambient-occlusion','none');
+    expect(Number(await canvas.getAttribute('data-triangles')),scenes[index].id).toBeLessThan(150000);
+  }
+  expect(errors).toEqual([]);
+});
+
 test('every built scene renders offline from CDNs, scrubs reversibly, and keeps player controls usable', async ({ page }) => {
   const errors = await observe(page);
   const failedAssets = [];

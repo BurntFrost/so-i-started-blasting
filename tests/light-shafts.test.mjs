@@ -3,7 +3,11 @@ import assert from 'node:assert/strict';
 import * as THREE from 'three';
 import { LightShaftsPass, emitterEnvelope, projectEmitter, emitterScreenFade } from '../dist/light-shafts.js';
 import { heroEmitters, sceneConfigs } from '../dist/scene-config.js';
-import { prepareSunForRender } from '../dist/cinema.js';
+import { prepareSunForRender, qualityTiers } from '../dist/cinema.js';
+
+test('shafts have their own tier flag and run only at HIGH and ULTRA',()=>{
+  assert.deepEqual(qualityTiers.map(tier=>tier.shafts),[false,false,true,true]);
+});
 
 test('every emitter is registered and its light and shaft envelope is bounded and reversible',()=>{
   for(const [id,emitter] of Object.entries(heroEmitters)){
