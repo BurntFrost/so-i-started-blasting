@@ -16,7 +16,7 @@ import { installSoftSunShadows, fitSunShadowFrustum, getSoftSunShadowMapType } f
 import { applyParticleAtlas, applyParticlePoints } from './particle-atlas.js';
 import { createAdaptiveQuality } from './adaptive-quality.js';
 
-export const qualityTiers=[{name:'LITE',ao:false,aoScale:1,dpr:1,particles:.3,spray:.3,shadows:false,bloom:false,film:false,shadowMap:2048},{name:'BALANCED',ao:false,aoScale:1,dpr:1.25,particles:.6,spray:.6,shadows:false,bloom:true,film:true,shadowMap:2048},{name:'HIGH',ao:true,aoScale:1,dpr:1.7,particles:1,spray:.45,shadows:true,bloom:true,film:true,shadowMap:2048},{name:'ULTRA',ao:true,aoScale:.7,dpr:2,particles:1,spray:.45,shadows:true,bloom:true,film:true,shadowMap:4096}];
+export const qualityTiers=[{name:'LITE',ao:false,shafts:false,aoScale:1,dpr:1,particles:.3,spray:.3,shadows:false,bloom:false,film:false,shadowMap:2048},{name:'BALANCED',ao:false,shafts:false,aoScale:1,dpr:1.25,particles:.6,spray:.6,shadows:false,bloom:true,film:true,shadowMap:2048},{name:'HIGH',ao:true,shafts:true,aoScale:1,dpr:1.7,particles:1,spray:.45,shadows:true,bloom:true,film:true,shadowMap:2048},{name:'ULTRA',ao:true,shafts:true,aoScale:.7,dpr:2,particles:1,spray:.45,shadows:true,bloom:true,film:true,shadowMap:4096}];
 
 // This pass receives display-referred colour after OutputPass and unmodified FXAA.
 export const filmShader = {
@@ -236,11 +236,12 @@ export function createCinema(world) {
   const shaftUV=new THREE.Vector3(),keyDirection=new THREE.Vector3(-90,85,-110);
   let shaftStrength=0,reflectionScene=false,sceneWorld='city';
   if(!nodePipeline){
-    if(world.createPipeline)({composer,bloom,antialias,film}=world.createPipeline({renderer,scene,camera,ao,filmShader}));
+    shafts=new LightShaftsPass();
+    if(world.createPipeline)({composer,bloom,antialias,film}=world.createPipeline({renderer,scene,camera,ao,shafts,filmShader}));
     else{
       composer=new EffectComposer(renderer);
       composer.addPass(new RenderPass(scene,camera));composer.addPass(ao);
-      shafts=new LightShaftsPass();composer.addPass(shafts);
+      composer.addPass(shafts);
       bloom=new UnrealBloomPass(new THREE.Vector2(1,1),.65,.65,1.1);composer.addPass(bloom);composer.addPass(new OutputPass());
       antialias=new ShaderPass(FXAAShader);composer.addPass(antialias);
       film=new ShaderPass(filmShader);composer.addPass(film);
@@ -278,7 +279,7 @@ export function createCinema(world) {
       if(emitter.lightPosition)heroLight.position.fromArray(emitter.lightPosition);
       else heroLight.position.copy(emitterPosition);
     }
-    const enabled=Boolean(tiers[quality].ao && envelope>0 && emitter && projectEmitter(emitterPosition,camera,shaftUV));
+    const enabled=Boolean(tiers[quality].shafts && envelope>0 && emitter && projectEmitter(emitterPosition,camera,shaftUV));
     shaftStrength=enabled?emitter.strength*envelope*emitterScreenFade(shaftUV):0;
     if(shafts){shafts.enabled=enabled;shafts.screenPosition.copy(shaftUV);shafts.combine.uniforms.strength.value=shaftStrength;}
     canvas.dataset.lightShafts=enabled?emitter.id:'none';
