@@ -3,6 +3,8 @@ work/
 outputs/
 .DS_Store
 build/
+build-dev/
+build-dev.staging-*/
 .vercel/
 .vercel
 node_modules/

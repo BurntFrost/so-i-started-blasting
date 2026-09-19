@@ -143,6 +143,34 @@ test.describe('desktop HIGH rendering', () => {
   });
 });
 
+test('sustained slow frame intervals lower resolution while retaining scene detail',async ({page})=>{
+  await page.addInitScript(()=>{
+    const raf=window.requestAnimationFrame.bind(window);
+    let last=0,stamp=0;
+    window.__frameIntervalMultiplier=1;
+    window.requestAnimationFrame=callback=>raf(now=>{
+      // Advance once per browser frame even when multiple callbacks share its timestamp.
+      if(now!==last){stamp+=(now-last)*window.__frameIntervalMultiplier;last=now;}
+      callback(stamp);
+    });
+  });
+  const errors=await observe(page);
+  await load(page);
+  const canvas=page.locator('#world');
+  await expect(canvas).toHaveAttribute('data-authored-assets','ready');
+  await expect(canvas).toHaveAttribute('data-quality','balanced');
+  await page.evaluate(()=>{window.__frameIntervalMultiplier=1.5;});
+  await page.locator('#play').click();
+  await expect(canvas).toHaveAttribute('data-resolution-scale','0.9');
+  await page.locator('#play').click();
+  await expect(canvas).toHaveAttribute('data-quality','balanced');
+  const size=await canvas.evaluate(e=>({width:e.width,expected:e.clientWidth*Number(e.dataset.pixelRatio),ratio:Number(e.dataset.pixelRatio)}));
+  expect(Math.abs(size.width-size.expected)).toBeLessThanOrEqual(1);
+  expect(size.ratio).toBeLessThan(1);
+  await expect(canvas).toHaveAttribute('data-render-state','ready');
+  expect(errors).toEqual([]);
+});
+
 test('local soundtrack obeys consent, playback, scrubbing, volume and scene changes', async ({ page }) => {
   const errors = await observe(page), audioRequests = [];
   page.on('request', request => { if (/\.mp3(?:\?|$)/.test(request.url())) audioRequests.push(request.url()); });

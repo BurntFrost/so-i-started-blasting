@@ -8,6 +8,7 @@ import { scenes } from './scenes.js';
 import { createTerrestrial } from './terrestrial.js';
 import { createCosmic } from './cosmic.js';
 import { createSceneAudio } from './audio.js';
+import { development } from './development.js';
 
 const telemetry=createGraphicsTelemetry();
 const canvas=document.querySelector('#world');
@@ -70,7 +71,8 @@ const snowGeo=new THREE.BufferGeometry();snowGeo.setAttribute('position',new THR
 const clouds=new THREE.Group();const cloudMat=mat('#5d6b74',{transparent:true,opacity:.14,depthWrite:false});for(let i=0;i<36;i++){const cloud=new THREE.Mesh(new THREE.SphereGeometry(1,12,8),cloudMat);cloud.position.set(random()*350-175,100+random()*30,random()*240-160);cloud.scale.set(20+random()*35,3+random()*8,12+random()*20);clouds.add(cloud);}effects.add(clouds);
 const landscape=new THREE.Group();scene.add(landscape);const lawn=new THREE.Mesh(new THREE.PlaneGeometry(500,500,50,50),mat('#1d342d'));lawn.rotation.x=-Math.PI/2;lawn.position.y=-.5;landscape.add(lawn);for(let i=0;i<24;i++){const tree=new THREE.Group();const trunk=new THREE.Mesh(new THREE.CylinderGeometry(.5,1,9,7),mat('#282c24'));trunk.position.y=4.5;tree.add(trunk);const leaves=new THREE.Mesh(new THREE.ConeGeometry(4+random()*3,18+random()*7,8),mat('#16312c'));leaves.position.y=16;tree.add(leaves);tree.position.set(-90+random()*180,0,-60-random()*60);landscape.add(tree);}
 const debrisCount=300;const debris=new THREE.InstancedMesh(new THREE.BoxGeometry(1,1,1),mat('#6e5140'),debrisCount);effects.add(debris);const debrisSeeds=Array.from({length:debrisCount},()=>[random()*Math.PI*2,random(),random(),random()]);const dummy=new THREE.Object3D();
-const cinema=createCinema({renderer,scene,camera,canvas,sun,buildings,ground,ship,hullMat,core,beam,blast,ocean,wave,meteor,landscape,windows,snow,debris,foam,clouds,glow,telemetry});
+const dev=await development?.(renderer,canvas);
+const cinema=createCinema({renderer,scene,camera,canvas,sun,buildings,ground,ship,hullMat,core,beam,blast,ocean,wave,meteor,landscape,windows,snow,debris,foam,clouds,glow,telemetry,...dev?.cinema});
 scene.environment=cinema.environment;
 const terrestrial=createTerrestrial({scene,canvas,camera,buildings,landscape});
 const cosmic=createCosmic({scene,canvas,camera});
@@ -243,7 +245,7 @@ renderer.setAnimationLoop(now=>{
  if(!needsRender&&!moved&&!playing){cinema.measure(0,false);telemetry.idle();return;}
  const quality=canvas.dataset.quality;cinema.measure(rawDelta,true);if(quality!==canvas.dataset.quality)updateWorld();
  if(authoredWorkPending&&scenes[selected].world!=='space'){telemetry.markAssetsReady();authoredWorkPending=false;}
- renderer.info.reset();cosmic.updateView();terrestrial.updateView();const renderStarted=performance.now();cinema.render();
+ renderer.info.reset();cosmic.updateView();terrestrial.updateView();const renderStarted=performance.now();dev?.begin?.();cinema.render();dev?.end?.();
  telemetry.frame(now,playing||moved,performance.now()-renderStarted);
  canvas.dataset.triangles=String(renderer.info.render.triangles);canvas.dataset.drawCalls=String(renderer.info.render.calls);
  canvas.dataset.renderState='ready';needsRender=false;

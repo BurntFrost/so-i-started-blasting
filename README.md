@@ -104,6 +104,8 @@ This replacement preserves the previous video-clip application in Git history. I
 
 ## Graphics telemetry
 
+Local GPU profiling and renderer comparisons are documented in [the performance lab](docs/performance-lab.md). `npm run build:dev` produces a separate `build-dev/` with opt-in `stats-gl` and a `postprocessing` prototype. The production build excludes both packages. Automatic quality now reduces pixel resolution before dropping scene detail, targets 60 FPS with one-second sample windows, and restores quality only after eight healthy windows.
+
 Base Web Analytics is enabled for the Vercel project, and `/_vercel/insights/script.js` is available on the public domain. The repository uses the standard HTML analytics API and does not require Analytics Plus. For another project, enable Web Analytics and redeploy to activate its collection endpoint. Vercel Authentication protects previews and production origins; Cloudflare authenticates the public domain's origin requests.
 
 Speed Insights loads through `/_vercel/speed-insights/script.js` alongside Web Analytics. Both collectors stay disabled on localhost and for DNT/GPC opt-outs, remove URL query strings and fragments before sending, and discard their own pending queue if their script cannot load. This static site uses Vercel's [HTML script integration](https://vercel.com/docs/speed-insights/quickstart), with the [beforeSend hook](https://vercel.com/docs/speed-insights/package#beforesend) shared by both collectors.

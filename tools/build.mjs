@@ -122,7 +122,7 @@ function rewriteReferences(text, rewrite, javascript = false) {
     });
 }
 
-export async function build({ sourceDir = path.join(root, 'dist'), outDir = path.join(root, 'build') } = {}) {
+export async function build({ sourceDir = path.join(root, 'dist'), outDir = path.join(root, 'build'), development = false } = {}) {
   sourceDir = path.resolve(sourceDir);
   outDir = path.resolve(outDir);
   const overlaps = (a, b) => !path.relative(a, b).startsWith(`..${path.sep}`) && path.relative(a, b) !== '..';
@@ -134,6 +134,7 @@ export async function build({ sourceDir = path.join(root, 'dist'), outDir = path
   if (files.includes('release.json')) throw new Error('release.json is reserved for deployment identity.');
   const release = createReleaseMetadata();
   const source = new Map(await Promise.all(files.map(async name => [name, await readFile(path.join(sourceDir, name))])));
+  if (development) await (await import('./development.mjs')).addDevelopment(source);
   await vendorThree(source);
   files = [...source.keys()].sort();
   const emitted = new Map();
@@ -210,6 +211,7 @@ export async function build({ sourceDir = path.join(root, 'dist'), outDir = path
 }
 
 if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
-  const manifest = await build();
-  console.log(`Built ${Object.keys(manifest).length} fingerprinted assets into build/.`);
+  const development = process.argv.includes('--development');
+  const manifest = await build({development,outDir:path.join(root,development?'build-dev':'build')});
+  console.log(`Built ${Object.keys(manifest).length} fingerprinted assets into ${development?'build-dev':'build'}/.`);
 }
