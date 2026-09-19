@@ -128,6 +128,7 @@ test.describe('desktop HIGH rendering', () => {
     await expect(canvas).toHaveAttribute('data-ambient-occlusion', 'gtao');
     await expect(canvas).toHaveAttribute('data-sun-shadows', 'pcss');
     await seek(page, 18);
+    await expect(canvas).toHaveAttribute('data-light-shafts', 'beam');
     const first = digest(await canvas.screenshot());
     expect(Number(await canvas.getAttribute('data-triangles'))).toBeGreaterThan(150000);
     await seek(page, 27);

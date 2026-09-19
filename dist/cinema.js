@@ -11,9 +11,10 @@ import { EFFECTS_LAYER, markEffects, opaqueDepthUniforms } from './render-kit.js
 import { createAtmosphere } from './atmosphere.js';
 import { defaultGrade, sceneConfigs } from './scene-config.js';
 import { createAdaptiveQuality } from './adaptive-quality.js';
+import { LightShaftsPass, emitterEnvelope, projectEmitter, emitterScreenFade } from './light-shafts.js';
 import { installSoftSunShadows } from './soft-shadows.js';
 
-export const qualityTiers=[{name:'LITE',ao:false,aoScale:1,dpr:1,particles:.3,spray:.3,shadows:false,bloom:false,film:false,shadowMap:2048},{name:'BALANCED',ao:false,aoScale:1,dpr:1.25,particles:.6,spray:.6,shadows:false,bloom:true,film:true,shadowMap:2048},{name:'HIGH',ao:true,aoScale:1,dpr:1.7,particles:1,spray:.45,shadows:true,bloom:true,film:true,shadowMap:2048},{name:'ULTRA',ao:true,aoScale:.7,dpr:2,particles:1,spray:.45,shadows:true,bloom:true,film:true,shadowMap:4096}];
+export const qualityTiers=[{name:'LITE',ao:false,shafts:false,aoScale:1,dpr:1,particles:.3,spray:.3,shadows:false,bloom:false,film:false,shadowMap:2048},{name:'BALANCED',ao:false,shafts:false,aoScale:1,dpr:1.25,particles:.6,spray:.6,shadows:false,bloom:true,film:true,shadowMap:2048},{name:'HIGH',ao:true,shafts:true,aoScale:1,dpr:1.7,particles:1,spray:.45,shadows:true,bloom:true,film:true,shadowMap:2048},{name:'ULTRA',ao:true,shafts:true,aoScale:.7,dpr:2,particles:1,spray:.45,shadows:true,bloom:true,film:true,shadowMap:4096}];
 
 // This pass receives display-referred colour after OutputPass and unmodified FXAA.
 export const filmShader = {
@@ -122,6 +123,7 @@ export function createCinema(world) {
   const reactor = new THREE.Mesh(new THREE.TorusGeometry(6.5,1,12,48), armorMat);
   reactor.rotation.x=Math.PI/2; reactor.position.y=-5; ship.add(reactor);
   core.material.color.setRGB(1.5,4,2.9);
+  core.name='Mothership beam emitter';
   beam.material.color.setRGB(.65,2.6,1.65);
   beam.material.opacity=.55;
 
@@ -131,6 +133,7 @@ export function createCinema(world) {
   sun.shadow.mapSize.set(2048,2048); sun.shadow.bias=-.0003; sun.shadow.normalBias=.12;
   const rim = new THREE.DirectionalLight('#7dbeff',2.2);rim.position.set(80,50,-70);scene.add(rim);
   const impactLight = new THREE.PointLight('#ff8138',0,250,1.3);impactLight.position.set(-8,18,-20);scene.add(impactLight);
+  const heroLight=new THREE.PointLight('#ffffff',0,200,1.5);scene.add(heroLight);
   renderer.shadowMap.type=THREE.PCFSoftShadowMap;
 
   // Roughen the asteroid silhouette.
@@ -218,11 +221,13 @@ export function createCinema(world) {
     landscape:new THREE.Box3(new THREE.Vector3(-130,-20,-150),new THREE.Vector3(130,200,50)),
     space:new THREE.Box3(new THREE.Vector3(-400,-300,-400),new THREE.Vector3(400,400,400))
   };
+  const shafts=new LightShaftsPass();
   let composer,bloom,antialias,film;
-  if(world.createPipeline)({composer,bloom,antialias,film}=world.createPipeline({renderer,scene,camera,ao,filmShader}));
+  if(world.createPipeline)({composer,bloom,antialias,film}=world.createPipeline({renderer,scene,camera,ao,shafts,filmShader}));
   else{
     composer=new EffectComposer(renderer);
     composer.addPass(new RenderPass(scene,camera));composer.addPass(ao);
+    composer.addPass(shafts);
     bloom=new UnrealBloomPass(new THREE.Vector2(1,1),.65,.65,1.1);composer.addPass(bloom);composer.addPass(new OutputPass());
     // FXAA smooths display-referred colour before the film grade.
     antialias=new ShaderPass(FXAAShader);composer.addPass(antialias);
@@ -241,6 +246,29 @@ export function createCinema(world) {
   const governor=createAdaptiveQuality(quality,ceiling);
   const badge=document.querySelector('.render-label');
   let grade=defaultGrade;
+  let sceneTime=0;
+  const emitterPosition=new THREE.Vector3();
+  const emitterMatrix=new THREE.Matrix4();
+  function updateShafts(){
+    const emitter=grade.emitter, envelope=emitterEnvelope(sceneTime,emitter);
+    if(emitter){
+      emitterPosition.fromArray(emitter.position);
+      const anchor=emitter.object&&scene.getObjectByName(emitter.object);
+      if(anchor){
+        anchor.updateWorldMatrix(true,false);
+        if(emitter.instance!==undefined){anchor.getMatrixAt(emitter.instance,emitterMatrix);emitterPosition.setFromMatrixPosition(emitterMatrix).applyMatrix4(anchor.matrixWorld);}
+        else{emitterPosition.fromArray(emitter.offset||[0,0,0]);anchor.localToWorld(emitterPosition);}
+      }
+      if(emitter.id==='jupiter'){
+        emitterPosition.addScaledVector(new THREE.Vector3(14,42,-6).sub(emitterPosition).normalize(),296);
+      }
+      if(emitter.lightPosition)heroLight.position.fromArray(emitter.lightPosition);
+      else heroLight.position.copy(emitterPosition);
+    }
+    shafts.enabled=Boolean(tiers[quality].shafts && envelope>0 && emitter && projectEmitter(emitterPosition,camera,shafts.screenPosition));
+    shafts.combine.uniforms.strength.value=shafts.enabled?emitter.strength*envelope*emitterScreenFade(shafts.screenPosition):0;
+    canvas.dataset.lightShafts=shafts.enabled?emitter.id:'none';
+  }
   function setQuality(next,reason='initial'){
     quality=next;const tier=tiers[next];renderer.setPixelRatio(Math.min(devicePixelRatio,tier.dpr)*resolutionScale);renderer.shadowMap.enabled=tier.shadows;
     canvas.dataset.sunShadows=tier.shadows?'pcss':'none';
@@ -288,6 +316,11 @@ export function createCinema(world) {
     glow.intensity*=7;
     if(blast.visible){blast.material.opacity*=.45;blast.material.color.multiplyScalar(2.5);}
     grade=config.grade||sceneConfigs[id]?.grade||defaultGrade;
+    sceneTime=t;
+    const emitter=grade.emitter;
+    heroLight.intensity=(emitter?.intensity||0)*emitterEnvelope(t,emitter);
+    if(emitter){emitterPosition.fromArray(emitter.position);heroLight.position.copy(emitterPosition);heroLight.color.set(emitter.color);heroLight.distance=emitter.distance;}
+    updateShafts();
     renderer.toneMappingExposure=tiers[quality].film?grade.exposure:1.3;
     bloom.strength=grade.bloomStrength;bloom.radius=grade.bloomRadius;bloom.threshold=grade.bloomThreshold;
     applyFilmGrade(film.uniforms,t,grade);
@@ -297,5 +330,5 @@ export function createCinema(world) {
     ground.material.envMapIntensity=id==='day-after-tomorrow'?.2:.6;
   }
   setQuality(quality);
-  return {update,resize,measure,environment:environment.texture,rim,render:()=>{if(tiers[quality].bloom){if(ao.enabled)ao.prepass(renderer);composer.render();}else renderer.render(scene,camera);}};
+  return {update,resize,measure,environment:environment.texture,rim,render:()=>{updateShafts();if(tiers[quality].bloom){if(ao.enabled)ao.prepass(renderer);composer.render();}else renderer.render(scene,camera);}};
 }
