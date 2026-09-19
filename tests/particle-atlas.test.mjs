@@ -5,6 +5,7 @@ import { createHash } from 'node:crypto';
 import * as THREE from 'three';
 import { particleCells, particleAtlasUniforms, applyParticleAtlas, applyParticlePoints, particleFragmentGLSL } from '../dist/particle-atlas.js';
 import { opaqueDepthUniforms } from '../dist/render-kit.js';
+import { createCosmic } from '../dist/cosmic.js';
 const source = file => readFile(new URL(`../${file}`, import.meta.url), 'utf8');
 const canvas = () => Object.assign(new EventTarget(), { dataset: {} });
 
@@ -102,6 +103,52 @@ test('PointsMaterial integration preserves positions, prior patches and a stable
     points.material.onBeforeCompile(shader); assert.equal(shader.uniforms.prior.value, 1);
     assert.match(shader.fragmentShader, /diffuseColor.a\*=particleAtlasReady/);
   } finally { THREE.TextureLoader.prototype.loadAsync = original; }
+});
+
+test('constructed cosmic starfield uses the shared atlas and preserves one circle fallback', async () => {
+  const original = THREE.TextureLoader.prototype.loadAsync;
+  const requests = [];
+  let rejectAtlas;
+  THREE.TextureLoader.prototype.loadAsync = url => {
+    requests.push(url);
+    return new Promise((resolve, reject) => { rejectAtlas = reject; });
+  };
+  const scene = new THREE.Scene();
+  try {
+    const c = canvas(); c.dataset.quality = 'balanced';
+    const cosmic = createCosmic({ scene, canvas: c, camera: new THREE.PerspectiveCamera() });
+    cosmic.update(16, {id: 'gravity'});
+    const starfields = scene.children.filter(object => object.isPoints && object.material.isPointsMaterial);
+    assert.equal(starfields.length, 1);
+    const stars = starfields[0];
+    assert.equal(stars.visible, true);
+    assert.equal(stars.material.depthWrite, false);
+    assert.equal(stars.material.vertexColors, true);
+    assert.equal(stars.geometry.getAttribute('particleSeed')?.count, stars.geometry.getAttribute('position').count);
+    assert.deepEqual(requests, ['/assets/particle-atlas.webp']);
+    const shader = { uniforms: {}, vertexShader: THREE.ShaderLib.points.vertexShader, fragmentShader: THREE.ShaderLib.points.fragmentShader };
+    stars.material.onBeforeCompile(shader);
+    const shared = particleAtlasUniforms(c);
+    assert.equal(shader.uniforms.particleAtlas, shared.particleAtlas);
+    assert.equal(shader.uniforms.particleAtlasReady, shared.particleAtlasReady);
+    assert.match(stars.material.customProgramCacheKey(), /:particle-atlas:stars$/);
+    assert.match(shader.fragmentShader, /particleAtlasReady>\.5\?particleMask\(\)/);
+    rejectAtlas(new Error('atlas unavailable')); await Promise.resolve();
+    assert.equal(c.dataset.particleAtlas, 'fallback');
+    assert.equal(shader.uniforms.particleAtlasReady.value, 0);
+    // Both the atlas and the fallback must apply coverage once; composing the old
+    // star patch with the helper otherwise multiplies two masks into every star.
+    const masks = [...shader.fragmentShader.matchAll(/diffuseColor\.a\s*\*=\s*([^;]+);/g)]
+      .map(match => match[1]).filter(expression => expression !== 'particleDepthFade()');
+    assert.equal(masks.length, 1, `Star coverage is multiplied more than once: ${masks.join('; ')}`);
+    assert.match(masks[0], /1\.-smoothstep\(\.05,\.5,length\(gl_PointCoord-\.5\)\)/);
+  } finally {
+    THREE.TextureLoader.prototype.loadAsync = original;
+    scene.traverse(object => {
+      object.geometry?.dispose();
+      for (const material of [].concat(object.material || [])) material.dispose();
+    });
+  }
 });
 
 test('checked-in atlas is WebP and matches the reviewed asset baseline', async () => {

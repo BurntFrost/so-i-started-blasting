@@ -89,6 +89,7 @@ export function applyParticlePoints(points, canvas, kind) {
   const uniforms = particleAtlasUniforms(canvas), material = points.material;
   material.depthWrite = false;
   const previous = material.onBeforeCompile, cacheKey = material.customProgramCacheKey();
+  const fallback = kind === 'stars' ? '1.-smoothstep(.05,.5,length(gl_PointCoord-.5))' : '1.-smoothstep(.1,1.,length(gl_PointCoord-.5)*2.)';
   material.onBeforeCompile = shader => {
     previous.call(material, shader);
     Object.assign(shader.uniforms, uniforms);
@@ -97,7 +98,7 @@ export function applyParticlePoints(points, canvas, kind) {
       particleCell=${range[0]}.+floor(min(particleSeed,.999999)*${range[1]}.);particleAngle=particleSeed*6.283185;`);
     shader.fragmentShader = particleFragmentGLSL + shader.fragmentShader;
     shader.fragmentShader = shader.fragmentShader.replace('#include <color_fragment>', `#include <color_fragment>
-      diffuseColor.a*=particleAtlasReady>.5?particleMask():1.-smoothstep(.1,1.,length(gl_PointCoord-.5)*2.);
+      diffuseColor.a*=particleAtlasReady>.5?particleMask():${fallback};
       diffuseColor.a*=particleDepthFade();`);
   };
   material.customProgramCacheKey = () => `${cacheKey}:particle-atlas:${kind}`;
