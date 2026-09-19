@@ -65,12 +65,27 @@ npm test
 npm run build
 TEST_BASE_URL=http://127.0.0.1:4186 PLAYWRIGHT_CHANNEL=chrome npm run test:node:webgl
 TEST_BASE_URL=http://127.0.0.1:4186 PLAYWRIGHT_CHANNEL=chrome npm run test:node:webgpu
+TEST_BASE_URL=http://127.0.0.1:4186 node tools/probe-renderer-startup.mjs
 ```
 
 The browser projects require the named backend, visit every scene at multiple times,
 assert exact reverse-scrub pixels within that backend, reject shader warnings/errors,
-and check the existing phone primitive budget. WebGPU and WebGL pixels need not be
+and check the existing phone primitive budget. Pixel checks hide overlapping DOM and
+require visible scene content above the film-grain range before comparing hashes.
+WebGPU and WebGL pixels need not be
 byte-identical to each other. Visual sheets and performance probes are separate gates.
 
-Status: whole-scene integration validation is in progress. Component GPU checks for
-all generated programs, PCSS, and the postprocessing graph have passed both backends.
+Component GPU checks for all generated programs, PCSS, and the postprocessing graph
+have passed both backends. The film pass also compares gray/color patches with the
+classic output within one byte. CI runs the native fallback's fifteen-scene checks
+alongside the existing Chromium and WebKit regressions.
+
+The startup probe reports three cold-context samples per backend and decoded script
+bytes on a 390x844 touch viewport. This uses the host's desktop GPU, not a physical
+phone. The larger engine remains a tradeoff: the additional WebGPU engine module is
+about 444 KB gzipped, the TSL entry about 8 KB, and generated custom programs about
+35 KB, plus native display addons. The retained classic comparison path is not
+tree-shaken. No runtime transpiler or bundler was introduced.
+
+Review evidence and current cross-browser status are recorded in
+[PR #35](https://github.com/BurntFrost/so-i-started-blasting/pull/35).

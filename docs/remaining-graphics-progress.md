@@ -68,6 +68,15 @@ are outside this worktree and remain untouched.
   declaration is `vec3`: the native uploaders read `rgb` and `xyz` respectively. Using
   the vector uploader for a Color produced NaNs that propagated through compositing.
   The adapter now preserves the shared holder using a native `color` reference.
+- The native film pass now uses explicit `mix(gray, color, saturation)`. TSL's
+  chained form interprets the receiver as the interpolation factor; the initial
+  translation incorrectly brightened every scene. Flat gray now matches classic
+  output exactly (150/255 for linear 0.18), and colored patches/saturation endpoints
+  match within one byte on both backends. No exposure compensation was applied.
+- AO is attenuated by exponential/linear fog visibility so roof silhouettes do not
+  darken dense fog. Both backend component GPU checks passed after this correction.
+- Integrated main's `94891e1` adaptive resolution and development diagnostics. Native
+  WebGPU statistics use renderer timestamp support; WebGL retains the composer query.
 
 ## Decisions
 
