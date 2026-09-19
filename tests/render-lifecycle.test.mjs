@@ -88,7 +88,7 @@ test('the visitor swarm consumes the landscape trees as a function of time and r
 test('the A.T. field mask follows the ULTRA asset ceiling, wakes the paused simulation and never changes geometry', async () => {
   const original = THREE.TextureLoader.prototype.loadAsync, requested = [];
   THREE.TextureLoader.prototype.loadAsync = async function (url) {
-    requested.push(url);
+    if (/\/at-field(?:-4k)?\.webp$/.test(url)) requested.push(url);
     if (url.includes('fail')) throw new Error('Injected texture failure');
     return new THREE.Texture();
   };
@@ -114,7 +114,10 @@ test('the A.T. field mask follows the ULTRA asset ceiling, wakes the paused simu
     const scene = new THREE.Scene(), canvas = Object.assign(new EventTarget(), { dataset: { quality: 'balanced', pixelRatio: '1.25', qualityCeiling: 'fail' } });
     let wakeups = 0;
     canvas.addEventListener('at-field-ready', () => wakeups++);
-    THREE.TextureLoader.prototype.loadAsync = async function () { throw new Error('Injected texture failure'); };
+    THREE.TextureLoader.prototype.loadAsync = async function (url) {
+      if (/\/at-field(?:-4k)?\.webp$/.test(url)) throw new Error('Injected texture failure');
+      return new THREE.Texture();
+    };
     const renderer = createTerrestrial({ scene, canvas, buildings: cityBuildings(), landscape: parkLandscape() });
     renderer.update(14, config('evangelion'));
     await new Promise(setImmediate);

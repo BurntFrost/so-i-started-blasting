@@ -38,6 +38,7 @@ async function load(page) {
   await page.goto('/', { waitUntil: 'domcontentloaded' });
   await expect(page.locator('#world')).toHaveAttribute('data-draw-calls', /^[1-9]\d*$/);
   await expect(page.locator('#loading')).toBeHidden();
+  await expect(page.locator('#world')).toHaveAttribute('data-particle-atlas', /ready|fallback/);
 }
 async function seek(page, seconds) {
   await seekTimeline(page, seconds);
@@ -58,6 +59,46 @@ async function expectFailure(page, stage) {
   for (const selector of ['#play', '#progress', '#replay']) await expect(page.locator(selector)).toBeDisabled();
   await expect.poll(() => page.evaluate(stage => window.__graphicsEvents.filter(event => event.name === 'Scene Load Failed' && event.data.stage === stage).length, stage)).toBe(1);
 }
+
+test('particle atlas failure retains a reversible procedural scene', async ({ page }) => {
+  const errors = await observe(page);
+  await page.route(/particle-atlas.*\.webp/, route => route.abort());
+  await load(page);
+  await expect(page.locator('#world')).toHaveAttribute('data-particle-atlas', 'fallback');
+  await seek(page, 18);
+  const first = digest(await page.locator('#world').screenshot());
+  await seek(page, 24);
+  await seek(page, 18);
+  expect(digest(await page.locator('#world').screenshot())).toBe(first);
+  await expect(page.locator('#error')).toBeHidden();
+  expect(errors).toEqual([]);
+});
+
+test('particle atlas loads on BALANCED without enabling depth effects', async ({ page }) => {
+  const requests=[];
+  page.on('request',request=>{if(/particle-atlas.*\.webp/.test(request.url()))requests.push(request.url());});
+  await load(page);
+  const canvas=page.locator('#world');
+  await expect(canvas).toHaveAttribute('data-quality','balanced');
+  await expect(canvas).toHaveAttribute('data-particle-atlas','ready');
+  await expect(canvas).toHaveAttribute('data-soft-particles','atlas');
+  await expect(canvas).toHaveAttribute('data-light-shafts','none');
+  expect(requests).toHaveLength(1);
+});
+
+test('atlas preserves the phone geometry budget independently of camera reset', async ({ page }) => {
+  const errors=await observe(page);
+  await page.setViewportSize({width:390,height:844});
+  await load(page);
+  for(const index of [0,2,3,4,5,6,10,11,12,13,14]){
+    await select(page,index);await seek(page,18);
+    const canvas=page.locator('#world');
+    await expect(canvas).toHaveAttribute('data-quality',/balanced|lite/);
+    await expect(canvas).toHaveAttribute('data-ambient-occlusion','none');
+    expect(Number(await canvas.getAttribute('data-triangles')),scenes[index].id).toBeLessThan(150000);
+  }
+  expect(errors).toEqual([]);
+});
 
 test('every built scene renders offline from CDNs, scrubs reversibly, and keeps player controls usable', async ({ page }) => {
   const errors = await observe(page);
@@ -127,6 +168,7 @@ test.describe('desktop HIGH rendering', () => {
     await expect(canvas).toHaveAttribute('data-antialias', 'fxaa');
     await expect(canvas).toHaveAttribute('data-ambient-occlusion', 'gtao');
     await expect(canvas).toHaveAttribute('data-sun-shadows', 'pcss');
+    await expect(canvas).toHaveAttribute('data-soft-particles', 'depth-fade');
     await seek(page, 18);
     await expect(canvas).toHaveAttribute('data-light-shafts', 'beam');
     const first = digest(await canvas.screenshot());

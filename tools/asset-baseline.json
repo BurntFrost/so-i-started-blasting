@@ -315,6 +315,10 @@
     "dist/assets/audio/war-of-the-worlds-lightning.mp3": {
       "sha256": "7f3dac92d9e6c321a8ae27850d171925e03c882f4a71eba16f8045ec4025eada",
       "bytes": 41003
+    },
+    "dist/assets/particle-atlas.webp": {
+      "sha256": "d40095065643950de08418ed14805e3eb4aab3a2e0800760343db4c825702e64",
+      "bytes": 97906
     }
   }
 }
