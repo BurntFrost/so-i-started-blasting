@@ -35,7 +35,12 @@ const test=base.extend({
 for(const [index,scene] of scenes.entries())test(`native ${scene.id} renders and restores exact reverse pixels`, async ({page},info)=>{
   const backend=info.project.metadata.backend,errors=[];
   page.on('pageerror',e=>errors.push(e.message));
-  page.on('console',m=>{if(['error','warning'].includes(m.type())&&/THREE|shader|WebGPU|WebGL|WGSL|TSL/i.test(m.text()))errors.push(m.text());});
+  page.on('console',m=>{
+    // ANGLE's software backend can flush an internal render pass early. This
+    // performance notice is not a shader/validation error or a context loss.
+    const queueNotice=m.type()==='warning'&&/GL Driver Message \(OpenGL, Performance, [^)]*\): Running out of reserved outsideRenderPass queueSerial\. ending renderPass now\./.test(m.text());
+    if(!queueNotice&&['error','warning'].includes(m.type())&&/THREE|shader|WebGPU|WebGL|WGSL|TSL/i.test(m.text()))errors.push(m.text());
+  });
   await page.goto(`/?renderer=${backend}`,{waitUntil:'domcontentloaded'});
   const canvas=page.locator('#world');
   await expect(canvas).toHaveAttribute('data-backend',backend);

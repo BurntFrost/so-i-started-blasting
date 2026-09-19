@@ -77,6 +77,17 @@ are outside this worktree and remain untouched.
   darken dense fog. Both backend component GPU checks passed after this correction.
 - Integrated main's `94891e1` adaptive resolution and development diagnostics. Native
   WebGPU statistics use renderer timestamp support; WebGL retains the composer query.
+- Reverse-scrub diagnostics isolated two particle sampling hazards. Atlas mip reads
+  now occur before per-fragment bounds rejection, preserving defined derivatives.
+  Native soft-depth reads use clamped integer texels and actual rasterized fragment
+  depth. This retains fading while removing history-dependent edge pixels. The
+  previously failing seven-scene WebGPU sequence and actual WebGL compilation/reversal
+  passed with the final fix; pixel assertions remain exact.
+- Software-rendered CI runs native fallback tests across four shards. The required
+  `quality` check aggregates core validation and every shard. The harness excludes
+  only ANGLE's specific internal render-pass flush performance notice, retaining
+  shader errors, validation warnings and context-loss failures. The governor test
+  supplies fixed slow frame intervals rather than multiplying host-dependent stalls.
 
 ## Native renderer measurements
 

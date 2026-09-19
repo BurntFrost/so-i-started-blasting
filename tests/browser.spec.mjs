@@ -165,10 +165,10 @@ test('sustained slow frame intervals lower resolution while retaining scene deta
   await page.addInitScript(()=>{
     const raf=window.requestAnimationFrame.bind(window);
     let last=0,stamp=0;
-    window.__frameIntervalMultiplier=1;
+    window.__controlledFrameInterval=0;
     window.requestAnimationFrame=callback=>raf(now=>{
       // Advance once per browser frame even when multiple callbacks share its timestamp.
-      if(now!==last){stamp+=(now-last)*window.__frameIntervalMultiplier;last=now;}
+      if(now!==last){stamp+=window.__controlledFrameInterval||(now-last);last=now;}
       callback(stamp);
     });
   });
@@ -177,9 +177,11 @@ test('sustained slow frame intervals lower resolution while retaining scene deta
   const canvas=page.locator('#world');
   await expect(canvas).toHaveAttribute('data-authored-assets','ready');
   await expect(canvas).toHaveAttribute('data-quality','balanced');
-  await page.evaluate(()=>{window.__frameIntervalMultiplier=1.5;});
+  // A fixed 20 FPS input exercises sustained pressure independently of the
+  // host GPU. Multiplying software-renderer stalls can exceed the idle-gap guard.
+  await page.evaluate(()=>{window.__controlledFrameInterval=50;});
   await page.locator('#play').click();
-  await expect(canvas).toHaveAttribute('data-resolution-scale','0.9');
+  await expect(canvas).toHaveAttribute('data-resolution-scale','0.9',{timeout:60000});
   await page.locator('#play').click();
   await expect(canvas).toHaveAttribute('data-quality','balanced');
   const size=await canvas.evaluate(e=>({width:e.width,expected:e.clientWidth*Number(e.dataset.pixelRatio),ratio:Number(e.dataset.pixelRatio)}));

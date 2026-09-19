@@ -4,7 +4,7 @@ import {
 } from 'three/webgpu';
 import {
   Fn, If, builtin, float, vec2, vec3, vec4, attribute, property, varyingProperty,
-  reference, uniform, texture, renderGroup, modelWorldMatrix, modelViewMatrix,
+  reference, uniform, texture, textureSize, renderGroup, modelWorldMatrix, modelViewMatrix,
   cameraProjectionMatrix, cameraViewMatrix, cameraPosition, frontFacing,
   screenCoordinate, screenSize, screenUV, viewportSize, uv, instancedBufferAttribute
 } from 'three/tsl';
@@ -31,9 +31,25 @@ function linkedMaterial(source, target) {
   return target;
 }
 
+function loadOpaqueDepth(node,coord) {
+  const size=vec2(textureSize(node));
+  const pixel=coord.mul(size).floor().clamp(vec2(0),size.sub(1)).toIVec2();
+  // TextureNode handles the backend's render-target Y orientation for integer loads.
+  // No derivatives, interpolation, or r186's broken GLSL depth textureLod path.
+  return node.load(pixel);
+}
+
 function uniformBinding(holder,type,renderer,key) {
   if (!holder) throw new Error(`Missing shader uniform ${key}`);
-  if (type==='sampler2D') return texture(holder.value || emptyTexture).onRenderUpdate(()=>holder.value || emptyTexture);
+  if (type==='sampler2D') {
+    const node=texture(holder.value || emptyTexture).onRenderUpdate(()=>holder.value || emptyTexture);
+    if(key!=='opaqueDepth')return node;
+    // The generated registry requires a node binding; keep its sample API while
+    // directing reads through the live source node's integer-load path.
+    const binding=node.clone();
+    binding.sample=coord=>loadOpaqueDepth(node,coord);
+    return binding;
+  }
   if (key==='opaqueProjectionInverse') {
     // Legacy field math reconstructs from GL NDC (-1..1); native WebGPU uses 0..1.
     const projection=new Matrix4(), zMap=new Matrix4().set(1,0,0,0, 0,1,0,0, 0,0,.5,.5, 0,0,0,1);
@@ -136,7 +152,7 @@ function standardPoints(source,renderer,depthContext) {
       if(depthContext.nodes) {
         const {available,near,far}=depthContext.nodes;
         const linear=value=>near.mul(far).div(far.sub(value.mul(far.sub(near))));
-        const opaque=depthContext.nodes.texture.sample(screenUV).r;
+        const opaque=loadOpaqueDepth(depthContext.nodes.texture,screenUV).r;
         If(available.greaterThan(.5).and(opaque.lessThan(1)),()=>{
           alpha.mulAssign(linear(opaque).sub(linear(fragmentDepth)).smoothstep(0,reference('value','float',descriptor.uniforms.particleSoftness)));
         });

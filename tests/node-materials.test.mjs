@@ -4,14 +4,14 @@ import * as THREE from 'three';
 import { createNodeMaterialAdapter } from '../dist/node-materials.js';
 import { recordSurface } from '../dist/shader-program.js';
 import { nodePrograms, shaderProgramKey } from '../dist/node-fields.js';
-import { vec4 } from 'three/tsl';
+import { vec2, vec4, texture, uniform } from 'three/tsl';
 import NodeBuilder from 'three/src/nodes/core/NodeBuilder.js';
 import NodeUniform from 'three/src/nodes/core/NodeUniform.js';
 import UniformsGroup from 'three/src/renderers/common/UniformsGroup.js';
 import { WebGPURenderer } from 'three/webgpu';
 
 const renderer = () => ({backend:{isWebGPUBackend:false},getPixelRatio:()=>2});
-for(const forceWebGL of [false,true])test(`raw fragment depth uses rasterized ${forceWebGL?'GLSL':'WGSL'} depth with custom vertices`,t=>{
+function cpuRenderer(forceWebGL){
   const canvas={width:128,height:128,style:{},addEventListener(){},setAttribute(){},
     getContext(){throw new Error('CPU shader test must not access a GPU');}};
   const render=new WebGPURenderer({canvas,forceWebGL});
@@ -19,6 +19,10 @@ for(const forceWebGL of [false,true])test(`raw fragment depth uses rasterized ${
   render.hasFeature=()=>false;render.hasCompatibility=()=>true;
   if(forceWebGL)render.backend.extensions={has:()=>false,get:()=>null};
   else render.backend.utils={getTextureSampleData:()=>({primarySamples:1})};
+  return {render,canvas};
+}
+for(const forceWebGL of [false,true])test(`raw fragment depth uses rasterized ${forceWebGL?'GLSL':'WGSL'} depth with custom vertices`,t=>{
+  const {render,canvas}=cpuRenderer(forceWebGL);
   const source=new THREE.ShaderMaterial({
     vertexShader:'void main(){gl_Position=vec4(position.xy,.6,2.);}',
     fragmentShader:'void main(){gl_FragColor=vec4(gl_FragCoord.z);}'});
@@ -36,6 +40,56 @@ for(const forceWebGL of [false,true])test(`raw fragment depth uses rasterized ${
     assert.match(builder.fragmentShader,forceWebGL?/gl_FragCoord\.z/:/fragCoord\.z/);
     assert.doesNotMatch(builder.fragmentShader,/v_clipSpace|positionView/,
       'fragment depth must not round-trip interpolated clip coordinates through view space');
+  });
+});
+
+for(const forceWebGL of [false,true])for(const points of [false,true])test(`${points?'standard points':'raw shader'} fetches opaque depth as an integer texel in ${forceWebGL?'GLSL':'WGSL'}`,t=>{
+  const {render,canvas}=cpuRenderer(forceWebGL),depthMap=new THREE.DepthTexture(128,128,THREE.FloatType);
+  depthMap.isRenderTargetTexture=true;
+  // Even a linearly configured depth texture must use the exact nearest texel.
+  depthMap.minFilter=depthMap.magFilter=THREE.LinearFilter;
+  const scene=new THREE.Scene(),depthContext={nodes:{texture:texture(depthMap),available:uniform(1),near:uniform(.1),far:uniform(1000)}};
+  let object,key,previous;
+  if(points){
+    const geometry=new THREE.BufferGeometry();
+    geometry.setAttribute('position',new THREE.Float32BufferAttribute([0,0,-10],3));
+    geometry.setAttribute('particleSeed',new THREE.Float32BufferAttribute([.5],1));
+    const source=new THREE.PointsMaterial({transparent:true,depthWrite:false});
+    source.nodeParticle={kind:'snow',uniforms:{particleAtlas:{value:null},opaqueDepth:{value:depthMap},
+      particleAtlasReady:{value:0},particleSoftness:{value:2}}};
+    object=new THREE.Points(geometry,source);
+  }else{
+    const source=new THREE.ShaderMaterial({uniforms:{opaqueDepth:{value:depthMap}},
+      vertexShader:'void main(){gl_Position=vec4(position,1.);}',
+      fragmentShader:'uniform sampler2D opaqueDepth;void main(){gl_FragColor=vec4(texture2D(opaqueDepth,vec2(.5)).r);}'});
+    key=shaderProgramKey(source);previous=nodePrograms[key];
+    nodePrograms[key]={interface:{vertex:{uniforms:{},attributes:{},varyings:{},builtins:{}},
+      fragment:{uniforms:{opaqueDepth:'sampler2D'},attributes:{},varyings:{},builtins:{}}},
+      createProgram({uniforms}){
+        assert.ok(uniforms.opaqueDepth.isNode,'the generated registry requires a node-valued sampler binding');
+        return {vertex:()=>vec4(0,0,0,1),fragment:()=>vec4(uniforms.opaqueDepth.sample(vec2(.5)).r)};
+      }};
+    object=new THREE.Mesh(new THREE.PlaneGeometry(),source);
+  }
+  scene.add(object);const adapter=createNodeMaterialAdapter(render,depthContext);
+  t.after(()=>{if(key){if(previous)nodePrograms[key]=previous;else delete nodePrograms[key];}
+    adapter.dispose();object.geometry.dispose();object.material.dispose();depthMap.dispose();});
+  adapter.render(scene,()=>{
+    const builder=render.backend.createNodeBuilder(object,render);
+    builder.scene=scene;builder.camera=new THREE.PerspectiveCamera();builder.build();
+    const shader=builder.fragmentShader;
+    if(forceWebGL){
+      assert.match(shader,/texelFetch\([^;]+\)\.x/,'GLSL depth fetch must extract a scalar');
+      assert.doesNotMatch(shader,/textureLod\(/);
+      assert.doesNotMatch(shader,/textureSize\([^)]*\)\s*-\s*uvec/,
+        'GLSL textureSize returns signed integers; bounds arithmetic must cast dimensions first');
+    }else{
+      const depthName=shader.match(/var (\w+) : texture_depth_2d/)[1];
+      assert.match(shader,new RegExp(`textureLoad\\( ${depthName},`));
+      assert.doesNotMatch(shader,new RegExp(`textureSample(?:Level)?\\( ${depthName},`));
+    }
+    assert.match(shader,/floor\(/);assert.match(shader,/clamp\(/);
+    if(points)assert.match(shader,/smoothstep\(/,'soft fading remains enabled');
   });
 });
 
