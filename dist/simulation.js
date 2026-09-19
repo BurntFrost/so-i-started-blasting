@@ -1,4 +1,5 @@
 import * as THREE from 'three';
+import { fitSunShadowFrustum } from './soft-shadows.js';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 import { createCinema } from './cinema.js?v=3';
 import { createProduction } from './production.js?v=3';
@@ -142,6 +143,8 @@ function applyEnvironment(s,t){
  const env=s.environment;
  scene.background.set(s.sky);scene.fog.color.set(env.fog);scene.fog.density=env.fogDensity+ease(t/30)*env.fogGrowth;
  sun.position.set(-90,85,-110);sun.intensity=env.sunIntensity;sun.color.set(env.sun);
+ // Fit after the final lighting reset; space restores the original target and does not fit.
+ sun.target.position.set(0,0,0);fitSunShadowFrustum(sun,s.world);
  hemi.color.set(env.hemi);hemi.groundColor.set('#17191f');hemi.intensity=env.hemiIntensity;
  if(cinema.rim){cinema.rim.color.set(env.rim);cinema.rim.intensity=env.rimIntensity;}
  scene.environmentIntensity=env.environmentIntensity;

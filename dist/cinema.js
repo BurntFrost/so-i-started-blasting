@@ -11,6 +11,7 @@ import { EFFECTS_LAYER, markEffects, opaqueDepthUniforms } from './render-kit.js
 import { createAtmosphere } from './atmosphere.js';
 import { defaultGrade, sceneConfigs } from './scene-config.js';
 import { createAdaptiveQuality } from './adaptive-quality.js';
+import { installSoftSunShadows } from './soft-shadows.js';
 
 export const qualityTiers=[{name:'LITE',ao:false,aoScale:1,dpr:1,particles:.3,spray:.3,shadows:false,bloom:false,film:false,shadowMap:2048},{name:'BALANCED',ao:false,aoScale:1,dpr:1.25,particles:.6,spray:.6,shadows:false,bloom:true,film:true,shadowMap:2048},{name:'HIGH',ao:true,aoScale:1,dpr:1.7,particles:1,spray:.45,shadows:true,bloom:true,film:true,shadowMap:2048},{name:'ULTRA',ao:true,aoScale:.7,dpr:2,particles:1,spray:.45,shadows:true,bloom:true,film:true,shadowMap:4096}];
 
@@ -47,6 +48,7 @@ float fbm(vec3 p){return noise(p)*.57+noise(p*2.03)*.28+noise(p*4.11)*.15;}`;
 
 // Shared, deterministic geometry and GPU particles keep scrubbing reversible.
 export function createCinema(world) {
+  installSoftSunShadows();
   const { renderer, scene, camera, canvas, sun, buildings, ground, ship, hullMat,
     core, beam, blast, ocean, wave, meteor, landscape, windows, snow,
     debris, foam, clouds, glow, telemetry } = world;
@@ -241,6 +243,7 @@ export function createCinema(world) {
   let grade=defaultGrade;
   function setQuality(next,reason='initial'){
     quality=next;const tier=tiers[next];renderer.setPixelRatio(Math.min(devicePixelRatio,tier.dpr)*resolutionScale);renderer.shadowMap.enabled=tier.shadows;
+    canvas.dataset.sunShadows=tier.shadows?'pcss':'none';
     ao.enabled=tier.ao;ao.resolutionScale=tier.aoScale;depth.opaqueDepthAvailable.value=0;canvas.dataset.ambientOcclusion=tier.ao?'gtao':'none';
     film.enabled=tier.film;
     renderer.toneMapping=tier.film?THREE.AgXToneMapping:THREE.ACESFilmicToneMapping;
