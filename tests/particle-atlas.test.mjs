@@ -6,8 +6,28 @@ import * as THREE from 'three';
 import { particleCells, particleAtlasUniforms, applyParticleAtlas, applyParticlePoints, particleFragmentGLSL } from '../dist/particle-atlas.js';
 import { opaqueDepthUniforms } from '../dist/render-kit.js';
 import { createCosmic } from '../dist/cosmic.js';
+import { normalizeProgram } from '../tools/tsl-normalize.mjs';
 const source = file => readFile(new URL(`../${file}`, import.meta.url), 'utf8');
 const canvas = () => Object.assign(new EventTarget(), { dataset: {} });
+
+test('atlas mip sampling remains outside per-fragment bounds guards after TSL lowering', () => {
+  const source=particleFragmentGLSL.match(/float particleMask\(\)\{[\s\S]*?\n\}/)[0];
+  const {ast}=normalizeProgram({name:'atlasDerivativeRegression',source,bindings:{
+    gl_PointCoord:'vec2',particleAngle:'float',particleCell:'float',particleAtlas:'sampler2D'}});
+  let samples=0;
+  function visit(node,conditional=false){
+    conditional ||= node.isConditional===true;
+    if(node.isFunctionCall&&node.name==='texture2D'){
+      samples++;
+      assert.equal(conditional,false,'implicit mip derivatives are undefined inside the rotated-cell bounds branch');
+    }
+    for(const [key,value]of Object.entries(node)){
+      if(key==='parent'||key==='linker')continue;
+      for(const child of Array.isArray(value)?value:[value])if(child?.isASTNode)visit(child,conditional);
+    }
+  }
+  visit(ast);assert.equal(samples,1,'retain one mip-filtered atlas sample');
+});
 
 test('every current factory kind and standalone system has a valid atlas range', async () => {
   for (const file of ['terrestrial', 'cosmic']) {

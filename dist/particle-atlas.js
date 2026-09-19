@@ -39,11 +39,13 @@ float particleMask(){
   vec2 p=gl_PointCoord-.5;
   float c=cos(particleAngle),s=sin(particleAngle);
   p=mat2(c,-s,s,c)*p+.5;
-  if(any(lessThan(p,vec2(0.)))||any(greaterThan(p,vec2(1.))))return 0.;
   // Half-texel inset and transparent cell gutters prevent neighboring shapes leaking at the edges.
   vec2 cell=vec2(mod(particleCell,4.),3.-floor(particleCell/4.));
   vec2 uv=(cell*256.+vec2(.5)+vec2(p.x,1.-p.y)*255.)/1024.;
-  return texture2D(particleAtlas,uv).r;
+  // Implicit mip derivatives need uniform control flow, including masked quad corners.
+  float mask=texture2D(particleAtlas,uv).r;
+  if(any(lessThan(p,vec2(0.)))||any(greaterThan(p,vec2(1.))))return 0.;
+  return mask;
 }
 float particleViewDepth(float depth){return opaqueNear*opaqueFar/(opaqueFar-depth*(opaqueFar-opaqueNear));}
 float particleDepthFade(){

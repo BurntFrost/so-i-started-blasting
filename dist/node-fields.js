@@ -343,183 +343,6 @@ export function createNodeFields() {
   return { hash3: shaderFunction0_hash3, noise3: shaderFunction1_noise3, fbm3: shaderFunction2_fbm3, fbm4: shaderFunction3_fbm4, terrainHeight: shaderFunction4_terrainHeight, funnelProfile: shaderFunction5_funnelProfile, coronaDensity: shaderFunction6_coronaDensity, ejectionDensity: shaderFunction7_ejectionDensity, engulfDensity: shaderFunction8_engulfDensity, funnelDensity: shaderFunction9_funnelDensity, wallCloudDensity: shaderFunction10_wallCloudDensity, entryTrailDensity: shaderFunction11_entryTrailDensity, impactColumnDensity: shaderFunction12_impactColumnDensity, crestSprayDensity: shaderFunction13_crestSprayDensity, photosphereColor: shaderFunction14_photosphereColor };
 }
 
-export function create_tsl1_02b584b123768269_vertex({ seed: shaderInput0, time: shaderInput1, size: shaderInput2, ratio: shaderInput3, origin: shaderInput4, lean: shaderInput5, alpha: shaderInput6, variation: shaderInput7, particleCell: shaderInput8, particleAngle: shaderInput9, modelViewMatrix: shaderInput10, projectionMatrix: shaderInput11, gl_PointSize: shaderInput12 }) {
-  const shaderOutput = property('vec4');
-  const shaderFunction0_main = /*@__PURE__*/ Fn( () => {
-
-    shaderOutput.assign( vec4( 0. ) );
-    const shaderLocal0_a = shaderInput0.x.mul( 6.283185 ).toVar();
-    const shaderLocal1_p = vec3( 0. ).toVar();
-    shaderInput7.assign( shaderInput0.w );
-    const shaderLocal2_age = shaderInput1.sub( 12.5 ).sub( shaderInput0.w.mul( 3. ) ).toVar();
-    const shaderLocal3_lift = smoothstep( 0., 4., shaderLocal2_age ).toVar();
-    const shaderLocal4_settle = smoothstep( 26., 30., shaderInput1 ).toVar();
-    const shaderLocal5_h = add( 1., shaderInput0.z.mul( shaderInput0.z ).mul( 72. ).mul( shaderLocal3_lift ) ).mul( sub( 1., shaderLocal4_settle.mul( .85 ) ) ).toVar();
-    const shaderLocal6_r = add( 4., shaderInput0.y.mul( 26. ) ).mul( add( .35, mul( .65, shaderLocal3_lift ) ) ).mul( add( 1., shaderLocal5_h.mul( .02 ) ) ).toVar();
-    const shaderLocal7_angle = shaderLocal0_a.add( shaderInput1.mul( add( 2.6, shaderInput0.y.mul( 1.4 ) ) ) ).add( shaderLocal5_h.mul( .05 ) ).toVar();
-    const shaderLocal8_bend = shaderInput5.mul( shaderLocal5_h.div( 95. ) ).mul( shaderLocal5_h.div( 95. ) ).toVar();
-    shaderLocal1_p.assign( vec3( shaderInput4.x.add( shaderLocal8_bend.x ).add( cos( shaderLocal7_angle ).mul( shaderLocal6_r ) ), shaderInput4.y.add( shaderLocal5_h ), shaderInput4.z.add( shaderLocal8_bend.y ).add( sin( shaderLocal7_angle ).mul( shaderLocal6_r ) ) ) );
-    shaderInput6.assign( step( 0., shaderLocal2_age ).mul( sub( 1., smoothstep( 58., 78., shaderLocal5_h ) ) ).mul( sub( 1., shaderLocal4_settle.mul( .8 ) ) ).mul( .24 ) );
-    const shaderLocal9_mv = shaderInput10.mul( vec4( shaderLocal1_p, 1. ) ).toVar();
-    shaderOutput.assign( shaderInput11.mul( shaderLocal9_mv ) );
-    shaderInput12.assign( clamp( shaderInput2.mul( shaderInput3 ).mul( 240. ).div( max( 1., shaderLocal9_mv.z.negate() ) ), 1., 55. ) );
-    shaderInput8.assign( add( 0., floor( min( shaderInput0.w, .999999 ).mul( 4. ) ) ) );
-    shaderInput9.assign( shaderInput0.x.mul( 6.283185 ).add( shaderInput1.mul( shaderInput0.z.sub( .5 ) ).mul( .35 ) ) );
-
-    return shaderOutput;
-
-  }, 'vec4' );
-
-  return { main: shaderFunction0_main };
-}
-
-export function create_tsl1_02b584b123768269_fragment({ tint: shaderInput0, alpha: shaderInput1, variation: shaderInput2, opaqueDepth: shaderInput3, opaqueDepthAvailable: shaderInput4, opaqueNear: shaderInput5, opaqueFar: shaderInput6, opaqueInverseSize: shaderInput7, opaqueProjectionInverse: shaderInput8, opaqueCameraWorld: shaderInput9, particleAtlas: shaderInput10, particleAtlasReady: shaderInput11, particleSoftness: shaderInput12, particleCell: shaderInput13, particleAngle: shaderInput14, uv: shaderInput15, gl_FragCoord: shaderInput16, gl_PointCoord: shaderInput17 }) {
-  const shaderOutput = property('vec4');
-  const shaderFunction0_offlineOpaqueDepthUv = /*@__PURE__*/ Fn( ( [ shaderLocal0_coord ] ) => {
-
-    return vec2( shaderLocal0_coord.x, sub( 1., shaderLocal0_coord.y ) );
-
-  }, 'vec2' );
-
-  const shaderFunction1_hash = /*@__PURE__*/ Fn( ( [ shaderLocal1_p ] ) => {
-
-    return fract( sin( dot( shaderLocal1_p, vec3( 127.1, 311.7, 74.7 ) ) ).mul( 43758.5453 ) );
-
-  }, 'float' );
-
-  const shaderFunction2_noise = /*@__PURE__*/ Fn( ( [ shaderLocal2_p ] ) => {
-
-    const shaderLocal3_i = floor( shaderLocal2_p ).toVar(), shaderLocal4_f = fract( shaderLocal2_p ).toVar();
-    shaderLocal4_f.assign( shaderLocal4_f.mul( shaderLocal4_f ).mul( sub( 3., mul( 2., shaderLocal4_f ) ) ) );
-
-    return mix( mix( mix( shaderFunction1_hash( shaderLocal3_i ), shaderFunction1_hash( shaderLocal3_i.add( vec3( 1, 0, 0 ) ) ), shaderLocal4_f.x ), mix( shaderFunction1_hash( shaderLocal3_i.add( vec3( 0, 1, 0 ) ) ), shaderFunction1_hash( shaderLocal3_i.add( vec3( 1, 1, 0 ) ) ), shaderLocal4_f.x ), shaderLocal4_f.y ), mix( mix( shaderFunction1_hash( shaderLocal3_i.add( vec3( 0, 0, 1 ) ) ), shaderFunction1_hash( shaderLocal3_i.add( vec3( 1, 0, 1 ) ) ), shaderLocal4_f.x ), mix( shaderFunction1_hash( shaderLocal3_i.add( vec3( 0, 1, 1 ) ) ), shaderFunction1_hash( shaderLocal3_i.add( vec3( 1, 1, 1 ) ) ), shaderLocal4_f.x ), shaderLocal4_f.y ), shaderLocal4_f.z );
-
-  }, 'float' );
-
-  const shaderFunction3_fbm = /*@__PURE__*/ Fn( ( [ shaderLocal5_p ] ) => {
-
-    return shaderFunction2_noise( shaderLocal5_p ).mul( .57 ).add( shaderFunction2_noise( shaderLocal5_p.mul( 2.03 ) ).mul( .28 ) ).add( shaderFunction2_noise( shaderLocal5_p.mul( 4.11 ) ).mul( .15 ) );
-
-  }, 'float' );
-
-  const shaderFunction4_particleFallback = /*@__PURE__*/ Fn( () => {
-
-    const shaderLocal6_p = shaderInput17.sub( .5 ).toVar();
-    const shaderLocal7_r = length( shaderLocal6_p ).mul( 2. ).toVar();
-
-    If( shaderLocal7_r.greaterThan( 1. ), () => {
-
-      Discard();
-
-    } );
-
-    const shaderLocal8_a = sub( 1., smoothstep( .05, 1., shaderLocal7_r ) ).mul( shaderInput1 ).toVar();
-    shaderLocal8_a.mulAssign( smoothstep( .18, .6, shaderFunction3_fbm( vec3( shaderLocal6_p.mul( 5. ), shaderInput2.mul( 13. ) ) ) ) );
-    shaderOutput.assign( vec4( shaderInput0, shaderLocal8_a ) );
-
-  }, 'void' );
-
-  const shaderFunction5_opaqueWorldPoint = /*@__PURE__*/ Fn( ( [ shaderLocal9_uv, shaderLocal10_depth ] ) => {
-
-    const shaderLocal11_view = shaderInput8.mul( vec4( shaderLocal9_uv.mul( 2. ).sub( 1. ), shaderLocal10_depth.mul( 2. ).sub( 1. ), 1. ) ).toVar();
-
-    return shaderInput9.mul( vec4( shaderLocal11_view.xyz.div( shaderLocal11_view.w ), 1. ) ).xyz;
-
-  }, 'vec3' );
-
-  const shaderFunction6_particleMask = /*@__PURE__*/ Fn( () => {
-
-    const shaderLocal12_offlineDone12 = bool( false ).toVar();
-    const shaderLocal13_offlineResult12 = property( 'float' );
-    const shaderLocal14_p = shaderInput17.sub( .5 ).toVar();
-    const shaderLocal15_c = cos( shaderInput14 ).toVar(), shaderLocal16_s = sin( shaderInput14 ).toVar();
-    shaderLocal14_p.assign( mat2( shaderLocal15_c, shaderLocal16_s.negate(), shaderLocal16_s, shaderLocal15_c ).mul( shaderLocal14_p ).add( .5 ) );
-
-    If( any( lessThan( shaderLocal14_p, vec2( 0. ) ) ).or( any( greaterThan( shaderLocal14_p, vec2( 1. ) ) ) ), () => {
-
-      shaderLocal13_offlineResult12.assign( 0. );
-      shaderLocal12_offlineDone12.assign( true );
-
-    } );
-
-    If( shaderLocal12_offlineDone12.not(), () => {
-
-      const shaderLocal17_cell = vec2( mod( shaderInput13, 4. ), sub( 3., floor( shaderInput13.div( 4. ) ) ) ).toVar();
-      const shaderLocal18_uv = shaderLocal17_cell.mul( 256. ).add( vec2( .5 ) ).add( vec2( shaderLocal14_p.x, sub( 1., shaderLocal14_p.y ) ).mul( 255. ) ).div( 1024. ).toVar();
-      shaderLocal13_offlineResult12.assign( shaderInput10.sample( shaderLocal18_uv ).r );
-      shaderLocal12_offlineDone12.assign( true );
-
-    } );
-
-    return shaderLocal13_offlineResult12;
-
-  }, 'float' );
-
-  const shaderFunction7_particleViewDepth = /*@__PURE__*/ Fn( ( [ shaderLocal19_depth ] ) => {
-
-    return shaderInput5.mul( shaderInput6 ).div( shaderInput6.sub( shaderLocal19_depth.mul( shaderInput6.sub( shaderInput5 ) ) ) );
-
-  }, 'float' );
-
-  const shaderFunction8_particleDepthFade = /*@__PURE__*/ Fn( () => {
-
-    const shaderLocal20_offlineDone20 = bool( false ).toVar();
-    const shaderLocal21_offlineResult20 = property( 'float' );
-
-    If( shaderInput4.lessThan( .5 ), () => {
-
-      shaderLocal21_offlineResult20.assign( 1. );
-      shaderLocal20_offlineDone20.assign( true );
-
-    } );
-
-    If( shaderLocal20_offlineDone20.not(), () => {
-
-      const shaderLocal22_depth = shaderInput3.sample( shaderFunction0_offlineOpaqueDepthUv( shaderInput16.xy.mul( shaderInput7 ) ) ).x.toVar();
-
-      If( shaderLocal22_depth.greaterThanEqual( 1. ), () => {
-
-        shaderLocal21_offlineResult20.assign( 1. );
-        shaderLocal20_offlineDone20.assign( true );
-
-      } );
-
-      If( shaderLocal20_offlineDone20.not(), () => {
-
-        shaderLocal21_offlineResult20.assign( smoothstep( 0., max( .001, shaderInput12 ), shaderFunction7_particleViewDepth( shaderLocal22_depth ).sub( shaderFunction7_particleViewDepth( shaderInput16.z ) ) ) );
-        shaderLocal20_offlineDone20.assign( true );
-
-      } );
-
-    } );
-
-    return shaderLocal21_offlineResult20;
-
-  }, 'float' );
-
-  const shaderFunction9_main = /*@__PURE__*/ Fn( () => {
-
-    shaderOutput.assign( vec4( 0. ) );
-
-    If( shaderInput11.greaterThan( .5 ), () => {
-
-      shaderOutput.assign( vec4( shaderInput0, shaderFunction6_particleMask().mul( shaderInput1 ) ) );
-
-    } ).Else( () => {
-
-      shaderFunction4_particleFallback();
-
-    } );
-
-    shaderOutput.a.mulAssign( shaderFunction8_particleDepthFade() );
-
-    return shaderOutput;
-
-  }, 'vec4' );
-
-  return { main: shaderFunction9_main };
-}
-
 export function create_tsl1_04533a5b2593a519_vertex({ point: shaderInput0, viewNormal: shaderInput1, viewDirection: shaderInput2, worldNormal: shaderInput3, position: shaderInput4, normal: shaderInput5, modelMatrix: shaderInput6, modelViewMatrix: shaderInput7, projectionMatrix: shaderInput8, normalMatrix: shaderInput9 }) {
   const shaderOutput = property('vec4');
   const shaderFunction0_main = /*@__PURE__*/ Fn( () => {
@@ -578,6 +401,330 @@ export function create_tsl1_04533a5b2593a519_fragment({ time: shaderInput0, poin
   }, 'vec4' );
 
   return { main: shaderFunction3_main };
+}
+
+export function create_tsl1_05c104f93ff693f9_vertex({ seed: shaderInput0, time: shaderInput1, size: shaderInput2, ratio: shaderInput3, origin: shaderInput4, lean: shaderInput5, alpha: shaderInput6, variation: shaderInput7, particleCell: shaderInput8, particleAngle: shaderInput9, modelViewMatrix: shaderInput10, projectionMatrix: shaderInput11, gl_PointSize: shaderInput12 }) {
+  const shaderOutput = property('vec4');
+  const shaderFunction0_main = /*@__PURE__*/ Fn( () => {
+
+    shaderOutput.assign( vec4( 0. ) );
+    const shaderLocal0_a = shaderInput0.x.mul( 6.283185 ).toVar();
+    const shaderLocal1_p = vec3( 0. ).toVar();
+    shaderInput7.assign( shaderInput0.w );
+    const shaderLocal2_age = max( 0., shaderInput1.sub( 5. ).sub( shaderInput0.w.mul( 5. ) ) ).toVar();
+    const shaderLocal3_speed = add( 9., shaderInput0.y.mul( 10. ) ).toVar();
+    shaderLocal1_p.assign( vec3( add( -18, cos( shaderLocal0_a ).mul( shaderLocal2_age ).mul( shaderLocal3_speed ) ), add( 12., shaderLocal2_age.mul( add( 14., shaderInput0.z.mul( 15. ) ) ) ).sub( shaderLocal2_age.mul( shaderLocal2_age ).mul( 1.3 ) ), add( -27, sin( shaderLocal0_a ).mul( shaderLocal2_age ).mul( shaderLocal3_speed ) ) ) );
+    shaderInput6.assign( step( add( 5., shaderInput0.w.mul( 5. ) ), shaderInput1 ).mul( sub( 1., smoothstep( 4., 14., shaderLocal2_age ) ) ).mul( step( .5, shaderLocal1_p.y ) ) );
+    const shaderLocal4_mv = shaderInput10.mul( vec4( shaderLocal1_p, 1. ) ).toVar();
+    shaderOutput.assign( shaderInput11.mul( shaderLocal4_mv ) );
+    shaderInput12.assign( clamp( shaderInput2.mul( shaderInput3 ).mul( 240. ).div( max( 1., shaderLocal4_mv.z.negate() ) ), 1., 12. ) );
+    shaderInput8.assign( add( 4., floor( min( shaderInput0.w, .999999 ).mul( 4. ) ) ) );
+    shaderInput9.assign( shaderInput0.x.mul( 6.283185 ) );
+
+    return shaderOutput;
+
+  }, 'vec4' );
+
+  return { main: shaderFunction0_main };
+}
+
+export function create_tsl1_05c104f93ff693f9_fragment({ tint: shaderInput0, alpha: shaderInput1, variation: shaderInput2, opaqueDepth: shaderInput3, opaqueDepthAvailable: shaderInput4, opaqueNear: shaderInput5, opaqueFar: shaderInput6, opaqueInverseSize: shaderInput7, opaqueProjectionInverse: shaderInput8, opaqueCameraWorld: shaderInput9, particleAtlas: shaderInput10, particleAtlasReady: shaderInput11, particleSoftness: shaderInput12, particleCell: shaderInput13, particleAngle: shaderInput14, uv: shaderInput15, gl_FragCoord: shaderInput16, gl_PointCoord: shaderInput17 }) {
+  const shaderOutput = property('vec4');
+  const shaderFunction0_offlineOpaqueDepthUv = /*@__PURE__*/ Fn( ( [ shaderLocal0_coord ] ) => {
+
+    return vec2( shaderLocal0_coord.x, sub( 1., shaderLocal0_coord.y ) );
+
+  }, 'vec2' );
+
+  const shaderFunction1_hash = /*@__PURE__*/ Fn( ( [ shaderLocal1_p ] ) => {
+
+    return fract( sin( dot( shaderLocal1_p, vec3( 127.1, 311.7, 74.7 ) ) ).mul( 43758.5453 ) );
+
+  }, 'float' );
+
+  const shaderFunction2_noise = /*@__PURE__*/ Fn( ( [ shaderLocal2_p ] ) => {
+
+    const shaderLocal3_i = floor( shaderLocal2_p ).toVar(), shaderLocal4_f = fract( shaderLocal2_p ).toVar();
+    shaderLocal4_f.assign( shaderLocal4_f.mul( shaderLocal4_f ).mul( sub( 3., mul( 2., shaderLocal4_f ) ) ) );
+
+    return mix( mix( mix( shaderFunction1_hash( shaderLocal3_i ), shaderFunction1_hash( shaderLocal3_i.add( vec3( 1, 0, 0 ) ) ), shaderLocal4_f.x ), mix( shaderFunction1_hash( shaderLocal3_i.add( vec3( 0, 1, 0 ) ) ), shaderFunction1_hash( shaderLocal3_i.add( vec3( 1, 1, 0 ) ) ), shaderLocal4_f.x ), shaderLocal4_f.y ), mix( mix( shaderFunction1_hash( shaderLocal3_i.add( vec3( 0, 0, 1 ) ) ), shaderFunction1_hash( shaderLocal3_i.add( vec3( 1, 0, 1 ) ) ), shaderLocal4_f.x ), mix( shaderFunction1_hash( shaderLocal3_i.add( vec3( 0, 1, 1 ) ) ), shaderFunction1_hash( shaderLocal3_i.add( vec3( 1, 1, 1 ) ) ), shaderLocal4_f.x ), shaderLocal4_f.y ), shaderLocal4_f.z );
+
+  }, 'float' );
+
+  const shaderFunction3_fbm = /*@__PURE__*/ Fn( ( [ shaderLocal5_p ] ) => {
+
+    return shaderFunction2_noise( shaderLocal5_p ).mul( .57 ).add( shaderFunction2_noise( shaderLocal5_p.mul( 2.03 ) ).mul( .28 ) ).add( shaderFunction2_noise( shaderLocal5_p.mul( 4.11 ) ).mul( .15 ) );
+
+  }, 'float' );
+
+  const shaderFunction4_particleFallback = /*@__PURE__*/ Fn( () => {
+
+    const shaderLocal6_p = shaderInput17.sub( .5 ).toVar();
+    const shaderLocal7_r = length( shaderLocal6_p ).mul( 2. ).toVar();
+
+    If( shaderLocal7_r.greaterThan( 1. ), () => {
+
+      Discard();
+
+    } );
+
+    const shaderLocal8_a = sub( 1., smoothstep( .05, 1., shaderLocal7_r ) ).mul( shaderInput1 ).toVar();
+    shaderOutput.assign( vec4( shaderInput0, shaderLocal8_a ) );
+
+  }, 'void' );
+
+  const shaderFunction5_opaqueWorldPoint = /*@__PURE__*/ Fn( ( [ shaderLocal9_uv, shaderLocal10_depth ] ) => {
+
+    const shaderLocal11_view = shaderInput8.mul( vec4( shaderLocal9_uv.mul( 2. ).sub( 1. ), shaderLocal10_depth.mul( 2. ).sub( 1. ), 1. ) ).toVar();
+
+    return shaderInput9.mul( vec4( shaderLocal11_view.xyz.div( shaderLocal11_view.w ), 1. ) ).xyz;
+
+  }, 'vec3' );
+
+  const shaderFunction6_particleMask = /*@__PURE__*/ Fn( () => {
+
+    const shaderLocal12_offlineDone12 = bool( false ).toVar();
+    const shaderLocal13_offlineResult12 = property( 'float' );
+    const shaderLocal14_p = shaderInput17.sub( .5 ).toVar();
+    const shaderLocal15_c = cos( shaderInput14 ).toVar(), shaderLocal16_s = sin( shaderInput14 ).toVar();
+    shaderLocal14_p.assign( mat2( shaderLocal15_c, shaderLocal16_s.negate(), shaderLocal16_s, shaderLocal15_c ).mul( shaderLocal14_p ).add( .5 ) );
+    const shaderLocal17_cell = vec2( mod( shaderInput13, 4. ), sub( 3., floor( shaderInput13.div( 4. ) ) ) ).toVar();
+    const shaderLocal18_uv = shaderLocal17_cell.mul( 256. ).add( vec2( .5 ) ).add( vec2( shaderLocal14_p.x, sub( 1., shaderLocal14_p.y ) ).mul( 255. ) ).div( 1024. ).toVar();
+    const shaderLocal19_mask = shaderInput10.sample( shaderLocal18_uv ).r.toVar();
+
+    If( any( lessThan( shaderLocal14_p, vec2( 0. ) ) ).or( any( greaterThan( shaderLocal14_p, vec2( 1. ) ) ) ), () => {
+
+      shaderLocal13_offlineResult12.assign( 0. );
+      shaderLocal12_offlineDone12.assign( true );
+
+    } );
+
+    If( shaderLocal12_offlineDone12.not(), () => {
+
+      shaderLocal13_offlineResult12.assign( shaderLocal19_mask );
+      shaderLocal12_offlineDone12.assign( true );
+
+    } );
+
+    return shaderLocal13_offlineResult12;
+
+  }, 'float' );
+
+  const shaderFunction7_particleViewDepth = /*@__PURE__*/ Fn( ( [ shaderLocal20_depth ] ) => {
+
+    return shaderInput5.mul( shaderInput6 ).div( shaderInput6.sub( shaderLocal20_depth.mul( shaderInput6.sub( shaderInput5 ) ) ) );
+
+  }, 'float' );
+
+  const shaderFunction8_particleDepthFade = /*@__PURE__*/ Fn( () => {
+
+    const shaderLocal21_offlineDone21 = bool( false ).toVar();
+    const shaderLocal22_offlineResult21 = property( 'float' );
+
+    If( shaderInput4.lessThan( .5 ), () => {
+
+      shaderLocal22_offlineResult21.assign( 1. );
+      shaderLocal21_offlineDone21.assign( true );
+
+    } );
+
+    If( shaderLocal21_offlineDone21.not(), () => {
+
+      const shaderLocal23_depth = shaderInput3.sample( shaderFunction0_offlineOpaqueDepthUv( shaderInput16.xy.mul( shaderInput7 ) ) ).x.toVar();
+
+      If( shaderLocal23_depth.greaterThanEqual( 1. ), () => {
+
+        shaderLocal22_offlineResult21.assign( 1. );
+        shaderLocal21_offlineDone21.assign( true );
+
+      } );
+
+      If( shaderLocal21_offlineDone21.not(), () => {
+
+        shaderLocal22_offlineResult21.assign( smoothstep( 0., max( .001, shaderInput12 ), shaderFunction7_particleViewDepth( shaderLocal23_depth ).sub( shaderFunction7_particleViewDepth( shaderInput16.z ) ) ) );
+        shaderLocal21_offlineDone21.assign( true );
+
+      } );
+
+    } );
+
+    return shaderLocal22_offlineResult21;
+
+  }, 'float' );
+
+  const shaderFunction9_main = /*@__PURE__*/ Fn( () => {
+
+    shaderOutput.assign( vec4( 0. ) );
+
+    If( shaderInput11.greaterThan( .5 ), () => {
+
+      shaderOutput.assign( vec4( shaderInput0, shaderFunction6_particleMask().mul( shaderInput1 ) ) );
+
+    } ).Else( () => {
+
+      shaderFunction4_particleFallback();
+
+    } );
+
+    shaderOutput.a.mulAssign( shaderFunction8_particleDepthFade() );
+
+    return shaderOutput;
+
+  }, 'vec4' );
+
+  return { main: shaderFunction9_main };
+}
+
+export function create_tsl1_077418979224bdc3_vertex({ seed: shaderInput0, time: shaderInput1, phase: shaderInput2, pixelRatio: shaderInput3, origin: shaderInput4, target: shaderInput5, opacity: shaderInput6, warmth: shaderInput7, particleCell: shaderInput8, particleAngle: shaderInput9, modelViewMatrix: shaderInput10, projectionMatrix: shaderInput11, gl_PointSize: shaderInput12 }) {
+  const shaderOutput = property('vec4');
+  const shaderFunction0_main = /*@__PURE__*/ Fn( () => {
+
+    shaderOutput.assign( vec4( 0. ) );
+    const shaderLocal0_a = shaderInput0.x.mul( 6.283185 ).toVar();
+    const shaderLocal1_p = property( 'vec3' );
+    shaderInput7.assign( shaderInput0.z );
+    const shaderLocal2_s = fract( shaderInput0.y.add( shaderInput1.mul( .045 ).mul( add( 1., shaderInput0.z.mul( .5 ) ) ) ) ).toVar();
+    shaderInput7.assign( 0. );
+    const shaderLocal3_c = mix( shaderInput4, shaderInput5, .45 ).add( vec3( 0., 70., 20. ) ).toVar();
+    const shaderLocal4_path = mix( mix( shaderInput4, shaderLocal3_c, shaderLocal2_s ), mix( shaderLocal3_c, shaderInput5, shaderLocal2_s ), shaderLocal2_s ).toVar();
+    const shaderLocal5_spread = add( 2., shaderLocal2_s.mul( 28. ) ).mul( sub( 1., shaderLocal2_s.mul( .3 ) ) ).toVar();
+    shaderLocal1_p.assign( shaderLocal4_path.add( vec3( sin( shaderLocal0_a ).mul( shaderLocal5_spread ), cos( shaderLocal0_a ).mul( shaderLocal5_spread ).mul( .6 ), sin( shaderLocal0_a.mul( 1.7 ) ).mul( shaderLocal5_spread ) ) ) );
+    shaderInput6.assign( shaderInput2.mul( smoothstep( 0., .05, shaderLocal2_s ) ).mul( sub( 1., smoothstep( .85, 1., shaderLocal2_s ) ) ).mul( .85 ) );
+    const shaderLocal6_mv = shaderInput10.mul( vec4( shaderLocal1_p, 1. ) ).toVar();
+    shaderOutput.assign( shaderInput11.mul( shaderLocal6_mv ) );
+    shaderInput12.assign( clamp( add( 1.5, shaderInput0.w.mul( 3. ) ).mul( shaderInput3 ).mul( 230. ).div( max( 1., shaderLocal6_mv.z.negate() ) ), 1., 12. ) );
+    shaderInput8.assign( add( 0., floor( min( shaderInput0.w, .999999 ).mul( 4. ) ) ) );
+    shaderInput9.assign( shaderInput0.x.mul( 6.283185 ).add( shaderInput1.mul( shaderInput0.z.sub( .5 ) ).mul( .35 ) ) );
+
+    return shaderOutput;
+
+  }, 'vec4' );
+
+  return { main: shaderFunction0_main };
+}
+
+export function create_tsl1_077418979224bdc3_fragment({ tint: shaderInput0, opacity: shaderInput1, warmth: shaderInput2, opaqueDepth: shaderInput3, opaqueDepthAvailable: shaderInput4, opaqueNear: shaderInput5, opaqueFar: shaderInput6, opaqueInverseSize: shaderInput7, opaqueProjectionInverse: shaderInput8, opaqueCameraWorld: shaderInput9, particleAtlas: shaderInput10, particleAtlasReady: shaderInput11, particleSoftness: shaderInput12, particleCell: shaderInput13, particleAngle: shaderInput14, uv: shaderInput15, gl_FragCoord: shaderInput16, gl_PointCoord: shaderInput17 }) {
+  const shaderOutput = property('vec4');
+  const shaderFunction0_offlineOpaqueDepthUv = /*@__PURE__*/ Fn( ( [ shaderLocal0_coord ] ) => {
+
+    return vec2( shaderLocal0_coord.x, sub( 1., shaderLocal0_coord.y ) );
+
+  }, 'vec2' );
+
+  const shaderFunction1_particleFallback = /*@__PURE__*/ Fn( () => {
+
+    const shaderLocal1_r = length( shaderInput17.sub( .5 ) ).mul( 2. ).toVar();
+
+    If( shaderLocal1_r.greaterThan( 1. ), () => {
+
+      Discard();
+
+    } );
+
+    shaderOutput.assign( vec4( mix( shaderInput0, shaderInput0.mul( vec3( 1.2, .55, .25 ) ), shaderInput2 ), pow( sub( 1., shaderLocal1_r ), 2. ).mul( shaderInput1 ) ) );
+
+  }, 'void' );
+
+  const shaderFunction2_opaqueWorldPoint = /*@__PURE__*/ Fn( ( [ shaderLocal2_uv, shaderLocal3_depth ] ) => {
+
+    const shaderLocal4_view = shaderInput8.mul( vec4( shaderLocal2_uv.mul( 2. ).sub( 1. ), shaderLocal3_depth.mul( 2. ).sub( 1. ), 1. ) ).toVar();
+
+    return shaderInput9.mul( vec4( shaderLocal4_view.xyz.div( shaderLocal4_view.w ), 1. ) ).xyz;
+
+  }, 'vec3' );
+
+  const shaderFunction3_particleMask = /*@__PURE__*/ Fn( () => {
+
+    const shaderLocal5_offlineDone5 = bool( false ).toVar();
+    const shaderLocal6_offlineResult5 = property( 'float' );
+    const shaderLocal7_p = shaderInput17.sub( .5 ).toVar();
+    const shaderLocal8_c = cos( shaderInput14 ).toVar(), shaderLocal9_s = sin( shaderInput14 ).toVar();
+    shaderLocal7_p.assign( mat2( shaderLocal8_c, shaderLocal9_s.negate(), shaderLocal9_s, shaderLocal8_c ).mul( shaderLocal7_p ).add( .5 ) );
+    const shaderLocal10_cell = vec2( mod( shaderInput13, 4. ), sub( 3., floor( shaderInput13.div( 4. ) ) ) ).toVar();
+    const shaderLocal11_uv = shaderLocal10_cell.mul( 256. ).add( vec2( .5 ) ).add( vec2( shaderLocal7_p.x, sub( 1., shaderLocal7_p.y ) ).mul( 255. ) ).div( 1024. ).toVar();
+    const shaderLocal12_mask = shaderInput10.sample( shaderLocal11_uv ).r.toVar();
+
+    If( any( lessThan( shaderLocal7_p, vec2( 0. ) ) ).or( any( greaterThan( shaderLocal7_p, vec2( 1. ) ) ) ), () => {
+
+      shaderLocal6_offlineResult5.assign( 0. );
+      shaderLocal5_offlineDone5.assign( true );
+
+    } );
+
+    If( shaderLocal5_offlineDone5.not(), () => {
+
+      shaderLocal6_offlineResult5.assign( shaderLocal12_mask );
+      shaderLocal5_offlineDone5.assign( true );
+
+    } );
+
+    return shaderLocal6_offlineResult5;
+
+  }, 'float' );
+
+  const shaderFunction4_particleViewDepth = /*@__PURE__*/ Fn( ( [ shaderLocal13_depth ] ) => {
+
+    return shaderInput5.mul( shaderInput6 ).div( shaderInput6.sub( shaderLocal13_depth.mul( shaderInput6.sub( shaderInput5 ) ) ) );
+
+  }, 'float' );
+
+  const shaderFunction5_particleDepthFade = /*@__PURE__*/ Fn( () => {
+
+    const shaderLocal14_offlineDone14 = bool( false ).toVar();
+    const shaderLocal15_offlineResult14 = property( 'float' );
+
+    If( shaderInput4.lessThan( .5 ), () => {
+
+      shaderLocal15_offlineResult14.assign( 1. );
+      shaderLocal14_offlineDone14.assign( true );
+
+    } );
+
+    If( shaderLocal14_offlineDone14.not(), () => {
+
+      const shaderLocal16_depth = shaderInput3.sample( shaderFunction0_offlineOpaqueDepthUv( shaderInput16.xy.mul( shaderInput7 ) ) ).x.toVar();
+
+      If( shaderLocal16_depth.greaterThanEqual( 1. ), () => {
+
+        shaderLocal15_offlineResult14.assign( 1. );
+        shaderLocal14_offlineDone14.assign( true );
+
+      } );
+
+      If( shaderLocal14_offlineDone14.not(), () => {
+
+        shaderLocal15_offlineResult14.assign( smoothstep( 0., max( .001, shaderInput12 ), shaderFunction4_particleViewDepth( shaderLocal16_depth ).sub( shaderFunction4_particleViewDepth( shaderInput16.z ) ) ) );
+        shaderLocal14_offlineDone14.assign( true );
+
+      } );
+
+    } );
+
+    return shaderLocal15_offlineResult14;
+
+  }, 'float' );
+
+  const shaderFunction6_main = /*@__PURE__*/ Fn( () => {
+
+    shaderOutput.assign( vec4( 0. ) );
+
+    If( shaderInput11.greaterThan( .5 ), () => {
+
+      shaderOutput.assign( vec4( mix( shaderInput0, shaderInput0.mul( vec3( 1.2, .55, .25 ) ), shaderInput2 ), shaderFunction3_particleMask().mul( shaderInput1 ) ) );
+
+    } ).Else( () => {
+
+      shaderFunction1_particleFallback();
+
+    } );
+
+    shaderOutput.a.mulAssign( shaderFunction5_particleDepthFade() );
+
+    return shaderOutput;
+
+  }, 'vec4' );
+
+  return { main: shaderFunction6_main };
 }
 
 export function create_tsl1_096a18086c615958_vertex({ point: shaderInput0, viewNormal: shaderInput1, viewDirection: shaderInput2, worldNormal: shaderInput3, position: shaderInput4, normal: shaderInput5, modelMatrix: shaderInput6, modelViewMatrix: shaderInput7, projectionMatrix: shaderInput8, normalMatrix: shaderInput9 }) {
@@ -642,176 +789,6 @@ export function create_tsl1_096a18086c615958_fragment({ time: shaderInput0, poin
   }, 'vec4' );
 
   return { main: shaderFunction3_main };
-}
-
-export function create_tsl1_0a8e6ac041f25f38_vertex({ seed: shaderInput0, time: shaderInput1, size: shaderInput2, pixelRatio: shaderInput3, origin: shaderInput4, opacity: shaderInput5, variation: shaderInput6, particleCell: shaderInput7, particleAngle: shaderInput8, modelViewMatrix: shaderInput9, projectionMatrix: shaderInput10, gl_PointSize: shaderInput11 }) {
-  const shaderOutput = property('vec4');
-  const shaderFunction0_main = /*@__PURE__*/ Fn( () => {
-
-    shaderOutput.assign( vec4( 0. ) );
-    const shaderLocal0_age = max( 0., shaderInput1.sub( shaderInput0.w.mul( 3. ) ) ).toVar();
-    const shaderLocal1_a = shaderInput0.x.mul( 6.283185 ).toVar();
-    const shaderLocal2_p = shaderInput4.toVar();
-    shaderInput6.assign( shaderInput0.z );
-    shaderLocal2_p.addAssign( vec3( shaderInput0.x.sub( .5 ).mul( 363. ), sin( shaderInput0.y.mul( 13. ).add( shaderInput1 ) ).mul( 3. ).add( shaderInput0.z.mul( 12. ) ), shaderInput0.y.sub( .5 ).mul( 10. ) ) );
-    shaderInput5.assign( .55 );
-    const shaderLocal3_mv = shaderInput9.mul( vec4( shaderLocal2_p, 1. ) ).toVar();
-    shaderOutput.assign( shaderInput10.mul( shaderLocal3_mv ) );
-    shaderInput11.assign( clamp( shaderInput2.mul( shaderInput3 ).mul( div( 300., max( 1., shaderLocal3_mv.z.negate() ) ) ), 1., 32. ) );
-    shaderInput7.assign( add( 12., floor( min( shaderInput0.w, .999999 ).mul( 2. ) ) ) );
-    shaderInput8.assign( shaderInput0.x.mul( 6.283185 ) );
-
-    return shaderOutput;
-
-  }, 'vec4' );
-
-  return { main: shaderFunction0_main };
-}
-
-export function create_tsl1_0a8e6ac041f25f38_fragment({ tint: shaderInput0, opacity: shaderInput1, variation: shaderInput2, opaqueDepth: shaderInput3, opaqueDepthAvailable: shaderInput4, opaqueNear: shaderInput5, opaqueFar: shaderInput6, opaqueInverseSize: shaderInput7, opaqueProjectionInverse: shaderInput8, opaqueCameraWorld: shaderInput9, particleAtlas: shaderInput10, particleAtlasReady: shaderInput11, particleSoftness: shaderInput12, particleCell: shaderInput13, particleAngle: shaderInput14, uv: shaderInput15, gl_FragCoord: shaderInput16, gl_PointCoord: shaderInput17 }) {
-  const shaderOutput = property('vec4');
-  const shaderFunction0_offlineOpaqueDepthUv = /*@__PURE__*/ Fn( ( [ shaderLocal0_coord ] ) => {
-
-    return vec2( shaderLocal0_coord.x, sub( 1., shaderLocal0_coord.y ) );
-
-  }, 'vec2' );
-
-  const shaderFunction1_hash = /*@__PURE__*/ Fn( ( [ shaderLocal1_p ] ) => {
-
-    return fract( sin( dot( shaderLocal1_p, vec3( 127.1, 311.7, 74.7 ) ) ).mul( 43758.5453 ) );
-
-  }, 'float' );
-
-  const shaderFunction2_noise = /*@__PURE__*/ Fn( ( [ shaderLocal2_p ] ) => {
-
-    const shaderLocal3_i = floor( shaderLocal2_p ).toVar(), shaderLocal4_f = fract( shaderLocal2_p ).toVar();
-    shaderLocal4_f.assign( shaderLocal4_f.mul( shaderLocal4_f ).mul( sub( 3., mul( 2., shaderLocal4_f ) ) ) );
-
-    return mix( mix( mix( shaderFunction1_hash( shaderLocal3_i ), shaderFunction1_hash( shaderLocal3_i.add( vec3( 1, 0, 0 ) ) ), shaderLocal4_f.x ), mix( shaderFunction1_hash( shaderLocal3_i.add( vec3( 0, 1, 0 ) ) ), shaderFunction1_hash( shaderLocal3_i.add( vec3( 1, 1, 0 ) ) ), shaderLocal4_f.x ), shaderLocal4_f.y ), mix( mix( shaderFunction1_hash( shaderLocal3_i.add( vec3( 0, 0, 1 ) ) ), shaderFunction1_hash( shaderLocal3_i.add( vec3( 1, 0, 1 ) ) ), shaderLocal4_f.x ), mix( shaderFunction1_hash( shaderLocal3_i.add( vec3( 0, 1, 1 ) ) ), shaderFunction1_hash( shaderLocal3_i.add( vec3( 1, 1, 1 ) ) ), shaderLocal4_f.x ), shaderLocal4_f.y ), shaderLocal4_f.z );
-
-  }, 'float' );
-
-  const shaderFunction3_fbm = /*@__PURE__*/ Fn( ( [ shaderLocal5_p ] ) => {
-
-    return shaderFunction2_noise( shaderLocal5_p ).mul( .57 ).add( shaderFunction2_noise( shaderLocal5_p.mul( 2.03 ) ).mul( .28 ) ).add( shaderFunction2_noise( shaderLocal5_p.mul( 4.11 ) ).mul( .15 ) );
-
-  }, 'float' );
-
-  const shaderFunction4_particleFallback = /*@__PURE__*/ Fn( () => {
-
-    const shaderLocal6_p = shaderInput17.sub( .5 ).toVar();
-    const shaderLocal7_r = length( shaderLocal6_p ).mul( 2. ).toVar();
-
-    If( shaderLocal7_r.greaterThan( 1. ), () => {
-
-      Discard();
-
-    } );
-
-    const shaderLocal8_a = sub( 1., smoothstep( .15, 1., shaderLocal7_r ) ).mul( shaderInput1 ).toVar();
-    shaderOutput.assign( vec4( shaderInput0, shaderLocal8_a ) );
-
-  }, 'void' );
-
-  const shaderFunction5_opaqueWorldPoint = /*@__PURE__*/ Fn( ( [ shaderLocal9_uv, shaderLocal10_depth ] ) => {
-
-    const shaderLocal11_view = shaderInput8.mul( vec4( shaderLocal9_uv.mul( 2. ).sub( 1. ), shaderLocal10_depth.mul( 2. ).sub( 1. ), 1. ) ).toVar();
-
-    return shaderInput9.mul( vec4( shaderLocal11_view.xyz.div( shaderLocal11_view.w ), 1. ) ).xyz;
-
-  }, 'vec3' );
-
-  const shaderFunction6_particleMask = /*@__PURE__*/ Fn( () => {
-
-    const shaderLocal12_offlineDone12 = bool( false ).toVar();
-    const shaderLocal13_offlineResult12 = property( 'float' );
-    const shaderLocal14_p = shaderInput17.sub( .5 ).toVar();
-    const shaderLocal15_c = cos( shaderInput14 ).toVar(), shaderLocal16_s = sin( shaderInput14 ).toVar();
-    shaderLocal14_p.assign( mat2( shaderLocal15_c, shaderLocal16_s.negate(), shaderLocal16_s, shaderLocal15_c ).mul( shaderLocal14_p ).add( .5 ) );
-
-    If( any( lessThan( shaderLocal14_p, vec2( 0. ) ) ).or( any( greaterThan( shaderLocal14_p, vec2( 1. ) ) ) ), () => {
-
-      shaderLocal13_offlineResult12.assign( 0. );
-      shaderLocal12_offlineDone12.assign( true );
-
-    } );
-
-    If( shaderLocal12_offlineDone12.not(), () => {
-
-      const shaderLocal17_cell = vec2( mod( shaderInput13, 4. ), sub( 3., floor( shaderInput13.div( 4. ) ) ) ).toVar();
-      const shaderLocal18_uv = shaderLocal17_cell.mul( 256. ).add( vec2( .5 ) ).add( vec2( shaderLocal14_p.x, sub( 1., shaderLocal14_p.y ) ).mul( 255. ) ).div( 1024. ).toVar();
-      shaderLocal13_offlineResult12.assign( shaderInput10.sample( shaderLocal18_uv ).r );
-      shaderLocal12_offlineDone12.assign( true );
-
-    } );
-
-    return shaderLocal13_offlineResult12;
-
-  }, 'float' );
-
-  const shaderFunction7_particleViewDepth = /*@__PURE__*/ Fn( ( [ shaderLocal19_depth ] ) => {
-
-    return shaderInput5.mul( shaderInput6 ).div( shaderInput6.sub( shaderLocal19_depth.mul( shaderInput6.sub( shaderInput5 ) ) ) );
-
-  }, 'float' );
-
-  const shaderFunction8_particleDepthFade = /*@__PURE__*/ Fn( () => {
-
-    const shaderLocal20_offlineDone20 = bool( false ).toVar();
-    const shaderLocal21_offlineResult20 = property( 'float' );
-
-    If( shaderInput4.lessThan( .5 ), () => {
-
-      shaderLocal21_offlineResult20.assign( 1. );
-      shaderLocal20_offlineDone20.assign( true );
-
-    } );
-
-    If( shaderLocal20_offlineDone20.not(), () => {
-
-      const shaderLocal22_depth = shaderInput3.sample( shaderFunction0_offlineOpaqueDepthUv( shaderInput16.xy.mul( shaderInput7 ) ) ).x.toVar();
-
-      If( shaderLocal22_depth.greaterThanEqual( 1. ), () => {
-
-        shaderLocal21_offlineResult20.assign( 1. );
-        shaderLocal20_offlineDone20.assign( true );
-
-      } );
-
-      If( shaderLocal20_offlineDone20.not(), () => {
-
-        shaderLocal21_offlineResult20.assign( smoothstep( 0., max( .001, shaderInput12 ), shaderFunction7_particleViewDepth( shaderLocal22_depth ).sub( shaderFunction7_particleViewDepth( shaderInput16.z ) ) ) );
-        shaderLocal20_offlineDone20.assign( true );
-
-      } );
-
-    } );
-
-    return shaderLocal21_offlineResult20;
-
-  }, 'float' );
-
-  const shaderFunction9_main = /*@__PURE__*/ Fn( () => {
-
-    shaderOutput.assign( vec4( 0. ) );
-
-    If( shaderInput11.greaterThan( .5 ), () => {
-
-      shaderOutput.assign( vec4( shaderInput0, shaderFunction6_particleMask().mul( shaderInput1 ) ) );
-
-    } ).Else( () => {
-
-      shaderFunction4_particleFallback();
-
-    } );
-
-    shaderOutput.a.mulAssign( shaderFunction8_particleDepthFade() );
-
-    return shaderOutput;
-
-  }, 'vec4' );
-
-  return { main: shaderFunction9_main };
 }
 
 export function create_tsl1_0cd291e5f4dd63fd_vertex({ hullPoint: shaderInput0, position: shaderInput1, modelMatrix: shaderInput2, projectionMatrix: shaderInput3, viewMatrix: shaderInput4 }) {
@@ -1031,177 +1008,6 @@ export function create_tsl1_13cbccfb71568055_fragment({ flash: shaderInput0, spr
   return { main: shaderFunction0_main };
 }
 
-export function create_tsl1_16744313dabd8abd_vertex({ seed: shaderInput0, time: shaderInput1, size: shaderInput2, ratio: shaderInput3, origin: shaderInput4, lean: shaderInput5, alpha: shaderInput6, variation: shaderInput7, particleCell: shaderInput8, particleAngle: shaderInput9, modelViewMatrix: shaderInput10, projectionMatrix: shaderInput11, gl_PointSize: shaderInput12 }) {
-  const shaderOutput = property('vec4');
-  const shaderFunction0_main = /*@__PURE__*/ Fn( () => {
-
-    shaderOutput.assign( vec4( 0. ) );
-    const shaderLocal0_a = shaderInput0.x.mul( 6.283185 ).toVar();
-    const shaderLocal1_p = vec3( 0. ).toVar();
-    shaderInput7.assign( shaderInput0.w );
-    const shaderLocal2_start = add( 24., shaderInput0.w.mul( 4. ) ).toVar();
-    const shaderLocal3_age = max( 0., shaderInput1.sub( shaderLocal2_start ) ).toVar();
-    shaderLocal1_p.assign( vec3( shaderInput0.x.sub( .5 ).mul( 340. ), add( -0.5, shaderLocal3_age.mul( add( 7., shaderInput0.z.mul( 9. ) ) ) ).add( sin( shaderInput1.mul( 1.7 ).add( shaderInput0.y.mul( 30. ) ) ).mul( .8 ) ), shaderInput0.y.sub( .5 ).mul( 300. ).sub( 20. ) ) );
-    shaderInput6.assign( step( shaderLocal2_start, shaderInput1 ).mul( smoothstep( 0., 1., shaderLocal3_age ) ).mul( sub( 1., smoothstep( 45., 130., shaderLocal1_p.y ) ) ).mul( .9 ) );
-    const shaderLocal4_mv = shaderInput10.mul( vec4( shaderLocal1_p, 1. ) ).toVar();
-    shaderOutput.assign( shaderInput11.mul( shaderLocal4_mv ) );
-    shaderInput12.assign( clamp( shaderInput2.mul( shaderInput3 ).mul( 240. ).div( max( 1., shaderLocal4_mv.z.negate() ) ), 1., 7. ) );
-    shaderInput8.assign( add( 4., floor( min( shaderInput0.w, .999999 ).mul( 4. ) ) ) );
-    shaderInput9.assign( shaderInput0.x.mul( 6.283185 ) );
-
-    return shaderOutput;
-
-  }, 'vec4' );
-
-  return { main: shaderFunction0_main };
-}
-
-export function create_tsl1_16744313dabd8abd_fragment({ tint: shaderInput0, alpha: shaderInput1, variation: shaderInput2, opaqueDepth: shaderInput3, opaqueDepthAvailable: shaderInput4, opaqueNear: shaderInput5, opaqueFar: shaderInput6, opaqueInverseSize: shaderInput7, opaqueProjectionInverse: shaderInput8, opaqueCameraWorld: shaderInput9, particleAtlas: shaderInput10, particleAtlasReady: shaderInput11, particleSoftness: shaderInput12, particleCell: shaderInput13, particleAngle: shaderInput14, uv: shaderInput15, gl_FragCoord: shaderInput16, gl_PointCoord: shaderInput17 }) {
-  const shaderOutput = property('vec4');
-  const shaderFunction0_offlineOpaqueDepthUv = /*@__PURE__*/ Fn( ( [ shaderLocal0_coord ] ) => {
-
-    return vec2( shaderLocal0_coord.x, sub( 1., shaderLocal0_coord.y ) );
-
-  }, 'vec2' );
-
-  const shaderFunction1_hash = /*@__PURE__*/ Fn( ( [ shaderLocal1_p ] ) => {
-
-    return fract( sin( dot( shaderLocal1_p, vec3( 127.1, 311.7, 74.7 ) ) ).mul( 43758.5453 ) );
-
-  }, 'float' );
-
-  const shaderFunction2_noise = /*@__PURE__*/ Fn( ( [ shaderLocal2_p ] ) => {
-
-    const shaderLocal3_i = floor( shaderLocal2_p ).toVar(), shaderLocal4_f = fract( shaderLocal2_p ).toVar();
-    shaderLocal4_f.assign( shaderLocal4_f.mul( shaderLocal4_f ).mul( sub( 3., mul( 2., shaderLocal4_f ) ) ) );
-
-    return mix( mix( mix( shaderFunction1_hash( shaderLocal3_i ), shaderFunction1_hash( shaderLocal3_i.add( vec3( 1, 0, 0 ) ) ), shaderLocal4_f.x ), mix( shaderFunction1_hash( shaderLocal3_i.add( vec3( 0, 1, 0 ) ) ), shaderFunction1_hash( shaderLocal3_i.add( vec3( 1, 1, 0 ) ) ), shaderLocal4_f.x ), shaderLocal4_f.y ), mix( mix( shaderFunction1_hash( shaderLocal3_i.add( vec3( 0, 0, 1 ) ) ), shaderFunction1_hash( shaderLocal3_i.add( vec3( 1, 0, 1 ) ) ), shaderLocal4_f.x ), mix( shaderFunction1_hash( shaderLocal3_i.add( vec3( 0, 1, 1 ) ) ), shaderFunction1_hash( shaderLocal3_i.add( vec3( 1, 1, 1 ) ) ), shaderLocal4_f.x ), shaderLocal4_f.y ), shaderLocal4_f.z );
-
-  }, 'float' );
-
-  const shaderFunction3_fbm = /*@__PURE__*/ Fn( ( [ shaderLocal5_p ] ) => {
-
-    return shaderFunction2_noise( shaderLocal5_p ).mul( .57 ).add( shaderFunction2_noise( shaderLocal5_p.mul( 2.03 ) ).mul( .28 ) ).add( shaderFunction2_noise( shaderLocal5_p.mul( 4.11 ) ).mul( .15 ) );
-
-  }, 'float' );
-
-  const shaderFunction4_particleFallback = /*@__PURE__*/ Fn( () => {
-
-    const shaderLocal6_p = shaderInput17.sub( .5 ).toVar();
-    const shaderLocal7_r = length( shaderLocal6_p ).mul( 2. ).toVar();
-
-    If( shaderLocal7_r.greaterThan( 1. ), () => {
-
-      Discard();
-
-    } );
-
-    const shaderLocal8_a = sub( 1., smoothstep( .05, 1., shaderLocal7_r ) ).mul( shaderInput1 ).toVar();
-    shaderOutput.assign( vec4( shaderInput0, shaderLocal8_a ) );
-
-  }, 'void' );
-
-  const shaderFunction5_opaqueWorldPoint = /*@__PURE__*/ Fn( ( [ shaderLocal9_uv, shaderLocal10_depth ] ) => {
-
-    const shaderLocal11_view = shaderInput8.mul( vec4( shaderLocal9_uv.mul( 2. ).sub( 1. ), shaderLocal10_depth.mul( 2. ).sub( 1. ), 1. ) ).toVar();
-
-    return shaderInput9.mul( vec4( shaderLocal11_view.xyz.div( shaderLocal11_view.w ), 1. ) ).xyz;
-
-  }, 'vec3' );
-
-  const shaderFunction6_particleMask = /*@__PURE__*/ Fn( () => {
-
-    const shaderLocal12_offlineDone12 = bool( false ).toVar();
-    const shaderLocal13_offlineResult12 = property( 'float' );
-    const shaderLocal14_p = shaderInput17.sub( .5 ).toVar();
-    const shaderLocal15_c = cos( shaderInput14 ).toVar(), shaderLocal16_s = sin( shaderInput14 ).toVar();
-    shaderLocal14_p.assign( mat2( shaderLocal15_c, shaderLocal16_s.negate(), shaderLocal16_s, shaderLocal15_c ).mul( shaderLocal14_p ).add( .5 ) );
-
-    If( any( lessThan( shaderLocal14_p, vec2( 0. ) ) ).or( any( greaterThan( shaderLocal14_p, vec2( 1. ) ) ) ), () => {
-
-      shaderLocal13_offlineResult12.assign( 0. );
-      shaderLocal12_offlineDone12.assign( true );
-
-    } );
-
-    If( shaderLocal12_offlineDone12.not(), () => {
-
-      const shaderLocal17_cell = vec2( mod( shaderInput13, 4. ), sub( 3., floor( shaderInput13.div( 4. ) ) ) ).toVar();
-      const shaderLocal18_uv = shaderLocal17_cell.mul( 256. ).add( vec2( .5 ) ).add( vec2( shaderLocal14_p.x, sub( 1., shaderLocal14_p.y ) ).mul( 255. ) ).div( 1024. ).toVar();
-      shaderLocal13_offlineResult12.assign( shaderInput10.sample( shaderLocal18_uv ).r );
-      shaderLocal12_offlineDone12.assign( true );
-
-    } );
-
-    return shaderLocal13_offlineResult12;
-
-  }, 'float' );
-
-  const shaderFunction7_particleViewDepth = /*@__PURE__*/ Fn( ( [ shaderLocal19_depth ] ) => {
-
-    return shaderInput5.mul( shaderInput6 ).div( shaderInput6.sub( shaderLocal19_depth.mul( shaderInput6.sub( shaderInput5 ) ) ) );
-
-  }, 'float' );
-
-  const shaderFunction8_particleDepthFade = /*@__PURE__*/ Fn( () => {
-
-    const shaderLocal20_offlineDone20 = bool( false ).toVar();
-    const shaderLocal21_offlineResult20 = property( 'float' );
-
-    If( shaderInput4.lessThan( .5 ), () => {
-
-      shaderLocal21_offlineResult20.assign( 1. );
-      shaderLocal20_offlineDone20.assign( true );
-
-    } );
-
-    If( shaderLocal20_offlineDone20.not(), () => {
-
-      const shaderLocal22_depth = shaderInput3.sample( shaderFunction0_offlineOpaqueDepthUv( shaderInput16.xy.mul( shaderInput7 ) ) ).x.toVar();
-
-      If( shaderLocal22_depth.greaterThanEqual( 1. ), () => {
-
-        shaderLocal21_offlineResult20.assign( 1. );
-        shaderLocal20_offlineDone20.assign( true );
-
-      } );
-
-      If( shaderLocal20_offlineDone20.not(), () => {
-
-        shaderLocal21_offlineResult20.assign( smoothstep( 0., max( .001, shaderInput12 ), shaderFunction7_particleViewDepth( shaderLocal22_depth ).sub( shaderFunction7_particleViewDepth( shaderInput16.z ) ) ) );
-        shaderLocal20_offlineDone20.assign( true );
-
-      } );
-
-    } );
-
-    return shaderLocal21_offlineResult20;
-
-  }, 'float' );
-
-  const shaderFunction9_main = /*@__PURE__*/ Fn( () => {
-
-    shaderOutput.assign( vec4( 0. ) );
-
-    If( shaderInput11.greaterThan( .5 ), () => {
-
-      shaderOutput.assign( vec4( shaderInput0, shaderFunction6_particleMask().mul( shaderInput1 ) ) );
-
-    } ).Else( () => {
-
-      shaderFunction4_particleFallback();
-
-    } );
-
-    shaderOutput.a.mulAssign( shaderFunction8_particleDepthFade() );
-
-    return shaderOutput;
-
-  }, 'vec4' );
-
-  return { main: shaderFunction9_main };
-}
-
 export function create_tsl1_178456f57818c7eb_vertex({ hullPoint: shaderInput0, position: shaderInput1, modelMatrix: shaderInput2, projectionMatrix: shaderInput3, viewMatrix: shaderInput4 }) {
   const shaderOutput = property('vec4');
   const shaderFunction0_main = /*@__PURE__*/ Fn( () => {
@@ -1388,520 +1194,6 @@ export function create_tsl1_178456f57818c7eb_fragment({ time: shaderInput0, step
   return { main: shaderFunction7_main };
 }
 
-export function create_tsl1_1ff3178ac10d3d40_vertex({ seed: shaderInput0, time: shaderInput1, phase: shaderInput2, pixelRatio: shaderInput3, origin: shaderInput4, target: shaderInput5, opacity: shaderInput6, warmth: shaderInput7, particleCell: shaderInput8, particleAngle: shaderInput9, modelViewMatrix: shaderInput10, projectionMatrix: shaderInput11, gl_PointSize: shaderInput12 }) {
-  const shaderOutput = property('vec4');
-  const shaderFunction0_particleNext = /*@__PURE__*/ Fn( ( [ shaderLocal0_time ] ) => {
-
-    const shaderLocal1_a = shaderInput0.x.mul( 6.283185 ).toVar();
-    const shaderLocal2_p = vec3( 0. ).toVar();
-    const shaderLocal3_alpha = float( 0. ).toVar(), shaderLocal4_opacity = float( 0. ).toVar(), shaderLocal5_warmth = shaderInput0.z.toVar();
-    const shaderLocal6_age = fract( shaderInput0.y.add( shaderLocal0_time.mul( .055 ) ) ).toVar();
-    const shaderLocal7_spread = add( 8., shaderLocal6_age.mul( 45. ) ).toVar();
-    shaderLocal2_p.assign( vec3( sub( -34, shaderLocal6_age.mul( 96. ) ), add( 52., shaderLocal6_age.mul( 25. ) ), sub( -12, shaderLocal6_age.mul( 40. ) ) ).add( vec3( sin( shaderLocal1_a ).mul( shaderLocal7_spread ), cos( shaderLocal1_a ).mul( shaderLocal7_spread ).mul( .5 ), cos( shaderLocal1_a.mul( 2. ) ).mul( shaderLocal7_spread ).mul( .6 ) ) ) );
-    shaderLocal4_opacity.assign( sub( 1., shaderLocal6_age ).mul( add( .2, shaderInput2.mul( .8 ) ) ) );
-
-    return shaderLocal2_p;
-
-  }, 'vec3' );
-
-  const shaderFunction1_main = /*@__PURE__*/ Fn( () => {
-
-    shaderOutput.assign( vec4( 0. ) );
-    const shaderLocal8_a = shaderInput0.x.mul( 6.283185 ).toVar();
-    const shaderLocal9_p = property( 'vec3' );
-    shaderInput7.assign( shaderInput0.z );
-    const shaderLocal10_age = fract( shaderInput0.y.add( shaderInput1.mul( .055 ) ) ).toVar();
-    const shaderLocal11_spread = add( 8., shaderLocal10_age.mul( 45. ) ).toVar();
-    shaderLocal9_p.assign( vec3( sub( -34, shaderLocal10_age.mul( 96. ) ), add( 52., shaderLocal10_age.mul( 25. ) ), sub( -12, shaderLocal10_age.mul( 40. ) ) ).add( vec3( sin( shaderLocal8_a ).mul( shaderLocal11_spread ), cos( shaderLocal8_a ).mul( shaderLocal11_spread ).mul( .5 ), cos( shaderLocal8_a.mul( 2. ) ).mul( shaderLocal11_spread ).mul( .6 ) ) ) );
-    shaderInput6.assign( sub( 1., shaderLocal10_age ).mul( add( .2, shaderInput2.mul( .8 ) ) ) );
-    const shaderLocal12_mv = shaderInput10.mul( vec4( shaderLocal9_p, 1. ) ).toVar();
-    shaderOutput.assign( shaderInput11.mul( shaderLocal12_mv ) );
-    shaderInput12.assign( clamp( add( 1.5, shaderInput0.w.mul( 3. ) ).mul( shaderInput3 ).mul( 230. ).div( max( 1., shaderLocal12_mv.z.negate() ) ), 1., 12. ) );
-    shaderInput8.assign( add( 8., floor( min( shaderInput0.w, .999999 ).mul( 4. ) ) ) );
-    shaderInput9.assign( shaderInput0.x.mul( 6.283185 ) );
-    const shaderLocal13_particleFuture = shaderInput10.mul( vec4( shaderFunction0_particleNext( shaderInput1.add( .04 ) ), 1. ) ).toVar();
-    const shaderLocal14_particleDirection = shaderLocal13_particleFuture.xy.div( max( .001, shaderLocal13_particleFuture.z.negate() ) ).sub( shaderLocal12_mv.xy.div( max( .001, shaderLocal12_mv.z.negate() ) ) ).toVar();
-
-    If( dot( shaderLocal14_particleDirection, shaderLocal14_particleDirection ).greaterThan( .00000001 ), () => {
-
-      shaderInput9.assign( atan( shaderLocal14_particleDirection.y.negate(), shaderLocal14_particleDirection.x ) );
-
-    } );
-
-    return shaderOutput;
-
-  }, 'vec4' );
-
-  return { main: shaderFunction1_main };
-}
-
-export function create_tsl1_1ff3178ac10d3d40_fragment({ tint: shaderInput0, opacity: shaderInput1, warmth: shaderInput2, opaqueDepth: shaderInput3, opaqueDepthAvailable: shaderInput4, opaqueNear: shaderInput5, opaqueFar: shaderInput6, opaqueInverseSize: shaderInput7, opaqueProjectionInverse: shaderInput8, opaqueCameraWorld: shaderInput9, particleAtlas: shaderInput10, particleAtlasReady: shaderInput11, particleSoftness: shaderInput12, particleCell: shaderInput13, particleAngle: shaderInput14, uv: shaderInput15, gl_FragCoord: shaderInput16, gl_PointCoord: shaderInput17 }) {
-  const shaderOutput = property('vec4');
-  const shaderFunction0_offlineOpaqueDepthUv = /*@__PURE__*/ Fn( ( [ shaderLocal0_coord ] ) => {
-
-    return vec2( shaderLocal0_coord.x, sub( 1., shaderLocal0_coord.y ) );
-
-  }, 'vec2' );
-
-  const shaderFunction1_particleFallback = /*@__PURE__*/ Fn( () => {
-
-    const shaderLocal1_r = length( shaderInput17.sub( .5 ) ).mul( 2. ).toVar();
-
-    If( shaderLocal1_r.greaterThan( 1. ), () => {
-
-      Discard();
-
-    } );
-
-    shaderOutput.assign( vec4( mix( shaderInput0, shaderInput0.mul( vec3( 1.2, .55, .25 ) ), shaderInput2 ), pow( sub( 1., shaderLocal1_r ), 2. ).mul( shaderInput1 ) ) );
-
-  }, 'void' );
-
-  const shaderFunction2_opaqueWorldPoint = /*@__PURE__*/ Fn( ( [ shaderLocal2_uv, shaderLocal3_depth ] ) => {
-
-    const shaderLocal4_view = shaderInput8.mul( vec4( shaderLocal2_uv.mul( 2. ).sub( 1. ), shaderLocal3_depth.mul( 2. ).sub( 1. ), 1. ) ).toVar();
-
-    return shaderInput9.mul( vec4( shaderLocal4_view.xyz.div( shaderLocal4_view.w ), 1. ) ).xyz;
-
-  }, 'vec3' );
-
-  const shaderFunction3_particleMask = /*@__PURE__*/ Fn( () => {
-
-    const shaderLocal5_offlineDone5 = bool( false ).toVar();
-    const shaderLocal6_offlineResult5 = property( 'float' );
-    const shaderLocal7_p = shaderInput17.sub( .5 ).toVar();
-    const shaderLocal8_c = cos( shaderInput14 ).toVar(), shaderLocal9_s = sin( shaderInput14 ).toVar();
-    shaderLocal7_p.assign( mat2( shaderLocal8_c, shaderLocal9_s.negate(), shaderLocal9_s, shaderLocal8_c ).mul( shaderLocal7_p ).add( .5 ) );
-
-    If( any( lessThan( shaderLocal7_p, vec2( 0. ) ) ).or( any( greaterThan( shaderLocal7_p, vec2( 1. ) ) ) ), () => {
-
-      shaderLocal6_offlineResult5.assign( 0. );
-      shaderLocal5_offlineDone5.assign( true );
-
-    } );
-
-    If( shaderLocal5_offlineDone5.not(), () => {
-
-      const shaderLocal10_cell = vec2( mod( shaderInput13, 4. ), sub( 3., floor( shaderInput13.div( 4. ) ) ) ).toVar();
-      const shaderLocal11_uv = shaderLocal10_cell.mul( 256. ).add( vec2( .5 ) ).add( vec2( shaderLocal7_p.x, sub( 1., shaderLocal7_p.y ) ).mul( 255. ) ).div( 1024. ).toVar();
-      shaderLocal6_offlineResult5.assign( shaderInput10.sample( shaderLocal11_uv ).r );
-      shaderLocal5_offlineDone5.assign( true );
-
-    } );
-
-    return shaderLocal6_offlineResult5;
-
-  }, 'float' );
-
-  const shaderFunction4_particleViewDepth = /*@__PURE__*/ Fn( ( [ shaderLocal12_depth ] ) => {
-
-    return shaderInput5.mul( shaderInput6 ).div( shaderInput6.sub( shaderLocal12_depth.mul( shaderInput6.sub( shaderInput5 ) ) ) );
-
-  }, 'float' );
-
-  const shaderFunction5_particleDepthFade = /*@__PURE__*/ Fn( () => {
-
-    const shaderLocal13_offlineDone13 = bool( false ).toVar();
-    const shaderLocal14_offlineResult13 = property( 'float' );
-
-    If( shaderInput4.lessThan( .5 ), () => {
-
-      shaderLocal14_offlineResult13.assign( 1. );
-      shaderLocal13_offlineDone13.assign( true );
-
-    } );
-
-    If( shaderLocal13_offlineDone13.not(), () => {
-
-      const shaderLocal15_depth = shaderInput3.sample( shaderFunction0_offlineOpaqueDepthUv( shaderInput16.xy.mul( shaderInput7 ) ) ).x.toVar();
-
-      If( shaderLocal15_depth.greaterThanEqual( 1. ), () => {
-
-        shaderLocal14_offlineResult13.assign( 1. );
-        shaderLocal13_offlineDone13.assign( true );
-
-      } );
-
-      If( shaderLocal13_offlineDone13.not(), () => {
-
-        shaderLocal14_offlineResult13.assign( smoothstep( 0., max( .001, shaderInput12 ), shaderFunction4_particleViewDepth( shaderLocal15_depth ).sub( shaderFunction4_particleViewDepth( shaderInput16.z ) ) ) );
-        shaderLocal13_offlineDone13.assign( true );
-
-      } );
-
-    } );
-
-    return shaderLocal14_offlineResult13;
-
-  }, 'float' );
-
-  const shaderFunction6_main = /*@__PURE__*/ Fn( () => {
-
-    shaderOutput.assign( vec4( 0. ) );
-
-    If( shaderInput11.greaterThan( .5 ), () => {
-
-      shaderOutput.assign( vec4( mix( shaderInput0, shaderInput0.mul( vec3( 1.2, .55, .25 ) ), shaderInput2 ), shaderFunction3_particleMask().mul( shaderInput1 ) ) );
-
-    } ).Else( () => {
-
-      shaderFunction1_particleFallback();
-
-    } );
-
-    shaderOutput.a.mulAssign( shaderFunction5_particleDepthFade() );
-
-    return shaderOutput;
-
-  }, 'vec4' );
-
-  return { main: shaderFunction6_main };
-}
-
-export function create_tsl1_251829828cde7940_vertex({ seed: shaderInput0, time: shaderInput1, phase: shaderInput2, pixelRatio: shaderInput3, origin: shaderInput4, target: shaderInput5, opacity: shaderInput6, warmth: shaderInput7, particleCell: shaderInput8, particleAngle: shaderInput9, modelViewMatrix: shaderInput10, projectionMatrix: shaderInput11, gl_PointSize: shaderInput12 }) {
-  const shaderOutput = property('vec4');
-  const shaderFunction0_particleNext = /*@__PURE__*/ Fn( ( [ shaderLocal0_time ] ) => {
-
-    const shaderLocal1_a = shaderInput0.x.mul( 6.283185 ).toVar();
-    const shaderLocal2_p = vec3( 0. ).toVar();
-    const shaderLocal3_alpha = float( 0. ).toVar(), shaderLocal4_opacity = float( 0. ).toVar(), shaderLocal5_warmth = shaderInput0.z.toVar();
-    const shaderLocal6_run = fract( shaderInput0.y.add( shaderLocal0_time.mul( .07 ).mul( add( 1., shaderInput0.z.mul( .8 ) ) ) ) ).toVar();
-    shaderLocal5_warmth.assign( shaderInput0.z.mul( .3 ) );
-    shaderLocal2_p.assign( vec3( 0., 40., 0. ).add( vec3( -0.482, 0., -0.876 ).mul( shaderInput0.x.sub( .5 ) ).mul( 220. ) ).add( vec3( .137, .988, -0.075 ).mul( shaderInput0.w.sub( .5 ) ).mul( 150. ) ).add( vec3( .8655, -0.1558, -0.476 ).mul( shaderLocal6_run.mul( 640. ).sub( 320. ) ) ) );
-    shaderLocal4_opacity.assign( shaderInput2.mul( add( .08, mul( .35, sub( 1., abs( shaderLocal6_run.sub( .5 ) ).mul( 2. ) ) ) ) ) );
-
-    return shaderLocal2_p;
-
-  }, 'vec3' );
-
-  const shaderFunction1_main = /*@__PURE__*/ Fn( () => {
-
-    shaderOutput.assign( vec4( 0. ) );
-    const shaderLocal7_a = shaderInput0.x.mul( 6.283185 ).toVar();
-    const shaderLocal8_p = property( 'vec3' );
-    shaderInput7.assign( shaderInput0.z );
-    const shaderLocal9_run = fract( shaderInput0.y.add( shaderInput1.mul( .07 ).mul( add( 1., shaderInput0.z.mul( .8 ) ) ) ) ).toVar();
-    shaderInput7.assign( shaderInput0.z.mul( .3 ) );
-    shaderLocal8_p.assign( vec3( 0., 40., 0. ).add( vec3( -0.482, 0., -0.876 ).mul( shaderInput0.x.sub( .5 ) ).mul( 220. ) ).add( vec3( .137, .988, -0.075 ).mul( shaderInput0.w.sub( .5 ) ).mul( 150. ) ).add( vec3( .8655, -0.1558, -0.476 ).mul( shaderLocal9_run.mul( 640. ).sub( 320. ) ) ) );
-    shaderInput6.assign( shaderInput2.mul( add( .08, mul( .35, sub( 1., abs( shaderLocal9_run.sub( .5 ) ).mul( 2. ) ) ) ) ) );
-    const shaderLocal10_mv = shaderInput10.mul( vec4( shaderLocal8_p, 1. ) ).toVar();
-    shaderOutput.assign( shaderInput11.mul( shaderLocal10_mv ) );
-    shaderInput12.assign( clamp( add( 1.5, shaderInput0.w.mul( 3. ) ).mul( shaderInput3 ).mul( 230. ).div( max( 1., shaderLocal10_mv.z.negate() ) ), 1., 12. ) );
-    shaderInput8.assign( add( 8., floor( min( shaderInput0.w, .999999 ).mul( 4. ) ) ) );
-    shaderInput9.assign( shaderInput0.x.mul( 6.283185 ) );
-    const shaderLocal11_particleFuture = shaderInput10.mul( vec4( shaderFunction0_particleNext( shaderInput1.add( .04 ) ), 1. ) ).toVar();
-    const shaderLocal12_particleDirection = shaderLocal11_particleFuture.xy.div( max( .001, shaderLocal11_particleFuture.z.negate() ) ).sub( shaderLocal10_mv.xy.div( max( .001, shaderLocal10_mv.z.negate() ) ) ).toVar();
-
-    If( dot( shaderLocal12_particleDirection, shaderLocal12_particleDirection ).greaterThan( .00000001 ), () => {
-
-      shaderInput9.assign( atan( shaderLocal12_particleDirection.y.negate(), shaderLocal12_particleDirection.x ) );
-
-    } );
-
-    return shaderOutput;
-
-  }, 'vec4' );
-
-  return { main: shaderFunction1_main };
-}
-
-export function create_tsl1_251829828cde7940_fragment({ tint: shaderInput0, opacity: shaderInput1, warmth: shaderInput2, opaqueDepth: shaderInput3, opaqueDepthAvailable: shaderInput4, opaqueNear: shaderInput5, opaqueFar: shaderInput6, opaqueInverseSize: shaderInput7, opaqueProjectionInverse: shaderInput8, opaqueCameraWorld: shaderInput9, particleAtlas: shaderInput10, particleAtlasReady: shaderInput11, particleSoftness: shaderInput12, particleCell: shaderInput13, particleAngle: shaderInput14, uv: shaderInput15, gl_FragCoord: shaderInput16, gl_PointCoord: shaderInput17 }) {
-  const shaderOutput = property('vec4');
-  const shaderFunction0_offlineOpaqueDepthUv = /*@__PURE__*/ Fn( ( [ shaderLocal0_coord ] ) => {
-
-    return vec2( shaderLocal0_coord.x, sub( 1., shaderLocal0_coord.y ) );
-
-  }, 'vec2' );
-
-  const shaderFunction1_particleFallback = /*@__PURE__*/ Fn( () => {
-
-    const shaderLocal1_r = length( shaderInput17.sub( .5 ) ).mul( 2. ).toVar();
-
-    If( shaderLocal1_r.greaterThan( 1. ), () => {
-
-      Discard();
-
-    } );
-
-    shaderOutput.assign( vec4( mix( shaderInput0, shaderInput0.mul( vec3( 1.2, .55, .25 ) ), shaderInput2 ), pow( sub( 1., shaderLocal1_r ), 2. ).mul( shaderInput1 ) ) );
-
-  }, 'void' );
-
-  const shaderFunction2_opaqueWorldPoint = /*@__PURE__*/ Fn( ( [ shaderLocal2_uv, shaderLocal3_depth ] ) => {
-
-    const shaderLocal4_view = shaderInput8.mul( vec4( shaderLocal2_uv.mul( 2. ).sub( 1. ), shaderLocal3_depth.mul( 2. ).sub( 1. ), 1. ) ).toVar();
-
-    return shaderInput9.mul( vec4( shaderLocal4_view.xyz.div( shaderLocal4_view.w ), 1. ) ).xyz;
-
-  }, 'vec3' );
-
-  const shaderFunction3_particleMask = /*@__PURE__*/ Fn( () => {
-
-    const shaderLocal5_offlineDone5 = bool( false ).toVar();
-    const shaderLocal6_offlineResult5 = property( 'float' );
-    const shaderLocal7_p = shaderInput17.sub( .5 ).toVar();
-    const shaderLocal8_c = cos( shaderInput14 ).toVar(), shaderLocal9_s = sin( shaderInput14 ).toVar();
-    shaderLocal7_p.assign( mat2( shaderLocal8_c, shaderLocal9_s.negate(), shaderLocal9_s, shaderLocal8_c ).mul( shaderLocal7_p ).add( .5 ) );
-
-    If( any( lessThan( shaderLocal7_p, vec2( 0. ) ) ).or( any( greaterThan( shaderLocal7_p, vec2( 1. ) ) ) ), () => {
-
-      shaderLocal6_offlineResult5.assign( 0. );
-      shaderLocal5_offlineDone5.assign( true );
-
-    } );
-
-    If( shaderLocal5_offlineDone5.not(), () => {
-
-      const shaderLocal10_cell = vec2( mod( shaderInput13, 4. ), sub( 3., floor( shaderInput13.div( 4. ) ) ) ).toVar();
-      const shaderLocal11_uv = shaderLocal10_cell.mul( 256. ).add( vec2( .5 ) ).add( vec2( shaderLocal7_p.x, sub( 1., shaderLocal7_p.y ) ).mul( 255. ) ).div( 1024. ).toVar();
-      shaderLocal6_offlineResult5.assign( shaderInput10.sample( shaderLocal11_uv ).r );
-      shaderLocal5_offlineDone5.assign( true );
-
-    } );
-
-    return shaderLocal6_offlineResult5;
-
-  }, 'float' );
-
-  const shaderFunction4_particleViewDepth = /*@__PURE__*/ Fn( ( [ shaderLocal12_depth ] ) => {
-
-    return shaderInput5.mul( shaderInput6 ).div( shaderInput6.sub( shaderLocal12_depth.mul( shaderInput6.sub( shaderInput5 ) ) ) );
-
-  }, 'float' );
-
-  const shaderFunction5_particleDepthFade = /*@__PURE__*/ Fn( () => {
-
-    const shaderLocal13_offlineDone13 = bool( false ).toVar();
-    const shaderLocal14_offlineResult13 = property( 'float' );
-
-    If( shaderInput4.lessThan( .5 ), () => {
-
-      shaderLocal14_offlineResult13.assign( 1. );
-      shaderLocal13_offlineDone13.assign( true );
-
-    } );
-
-    If( shaderLocal13_offlineDone13.not(), () => {
-
-      const shaderLocal15_depth = shaderInput3.sample( shaderFunction0_offlineOpaqueDepthUv( shaderInput16.xy.mul( shaderInput7 ) ) ).x.toVar();
-
-      If( shaderLocal15_depth.greaterThanEqual( 1. ), () => {
-
-        shaderLocal14_offlineResult13.assign( 1. );
-        shaderLocal13_offlineDone13.assign( true );
-
-      } );
-
-      If( shaderLocal13_offlineDone13.not(), () => {
-
-        shaderLocal14_offlineResult13.assign( smoothstep( 0., max( .001, shaderInput12 ), shaderFunction4_particleViewDepth( shaderLocal15_depth ).sub( shaderFunction4_particleViewDepth( shaderInput16.z ) ) ) );
-        shaderLocal13_offlineDone13.assign( true );
-
-      } );
-
-    } );
-
-    return shaderLocal14_offlineResult13;
-
-  }, 'float' );
-
-  const shaderFunction6_main = /*@__PURE__*/ Fn( () => {
-
-    shaderOutput.assign( vec4( 0. ) );
-
-    If( shaderInput11.greaterThan( .5 ), () => {
-
-      shaderOutput.assign( vec4( mix( shaderInput0, shaderInput0.mul( vec3( 1.2, .55, .25 ) ), shaderInput2 ), shaderFunction3_particleMask().mul( shaderInput1 ) ) );
-
-    } ).Else( () => {
-
-      shaderFunction1_particleFallback();
-
-    } );
-
-    shaderOutput.a.mulAssign( shaderFunction5_particleDepthFade() );
-
-    return shaderOutput;
-
-  }, 'vec4' );
-
-  return { main: shaderFunction6_main };
-}
-
-export function create_tsl1_2cec6dfcd7c3e174_vertex({ seed: shaderInput0, time: shaderInput1, phase: shaderInput2, pixelRatio: shaderInput3, origin: shaderInput4, target: shaderInput5, opacity: shaderInput6, warmth: shaderInput7, particleCell: shaderInput8, particleAngle: shaderInput9, modelViewMatrix: shaderInput10, projectionMatrix: shaderInput11, gl_PointSize: shaderInput12 }) {
-  const shaderOutput = property('vec4');
-  const shaderFunction0_particleNext = /*@__PURE__*/ Fn( ( [ shaderLocal0_time ] ) => {
-
-    const shaderLocal1_a = shaderInput0.x.mul( 6.283185 ).toVar();
-    const shaderLocal2_p = vec3( 0. ).toVar();
-    const shaderLocal3_alpha = float( 0. ).toVar(), shaderLocal4_opacity = float( 0. ).toVar(), shaderLocal5_warmth = shaderInput0.z.toVar();
-    const shaderLocal6_age = max( 0., shaderLocal0_time.sub( 5. ).sub( shaderInput0.w.mul( .6 ) ) ).toVar();
-    const shaderLocal7_speed = add( 14., shaderInput0.z.mul( 34. ) ).toVar();
-    const shaderLocal8_dir = normalize( vec3( shaderInput0.x.sub( .5 ), shaderInput0.y.sub( .5 ), shaderInput0.z.sub( .5 ) ).add( shaderInput5.mul( .9 ) ) ).toVar();
-    shaderLocal2_p.assign( shaderInput4.add( shaderLocal8_dir.mul( shaderLocal6_age ).mul( shaderLocal7_speed ).mul( sub( 1., shaderLocal6_age.mul( .03 ) ) ) ) );
-    shaderLocal5_warmth.assign( shaderInput0.y.mul( .5 ) );
-    shaderLocal4_opacity.assign( step( .001, shaderLocal6_age ).mul( sub( 1., smoothstep( 1., 4.5, shaderLocal6_age ) ) ).mul( .9 ) );
-
-    return shaderLocal2_p;
-
-  }, 'vec3' );
-
-  const shaderFunction1_main = /*@__PURE__*/ Fn( () => {
-
-    shaderOutput.assign( vec4( 0. ) );
-    const shaderLocal9_a = shaderInput0.x.mul( 6.283185 ).toVar();
-    const shaderLocal10_p = property( 'vec3' );
-    shaderInput7.assign( shaderInput0.z );
-    const shaderLocal11_age = max( 0., shaderInput1.sub( 5. ).sub( shaderInput0.w.mul( .6 ) ) ).toVar();
-    const shaderLocal12_speed = add( 14., shaderInput0.z.mul( 34. ) ).toVar();
-    const shaderLocal13_dir = normalize( vec3( shaderInput0.x.sub( .5 ), shaderInput0.y.sub( .5 ), shaderInput0.z.sub( .5 ) ).add( shaderInput5.mul( .9 ) ) ).toVar();
-    shaderLocal10_p.assign( shaderInput4.add( shaderLocal13_dir.mul( shaderLocal11_age ).mul( shaderLocal12_speed ).mul( sub( 1., shaderLocal11_age.mul( .03 ) ) ) ) );
-    shaderInput7.assign( shaderInput0.y.mul( .5 ) );
-    shaderInput6.assign( step( .001, shaderLocal11_age ).mul( sub( 1., smoothstep( 1., 4.5, shaderLocal11_age ) ) ).mul( .9 ) );
-    const shaderLocal14_mv = shaderInput10.mul( vec4( shaderLocal10_p, 1. ) ).toVar();
-    shaderOutput.assign( shaderInput11.mul( shaderLocal14_mv ) );
-    shaderInput12.assign( clamp( add( 1.5, shaderInput0.w.mul( 3. ) ).mul( shaderInput3 ).mul( 230. ).div( max( 1., shaderLocal14_mv.z.negate() ) ), 1., 12. ) );
-    shaderInput8.assign( add( 8., floor( min( shaderInput0.w, .999999 ).mul( 4. ) ) ) );
-    shaderInput9.assign( shaderInput0.x.mul( 6.283185 ) );
-    const shaderLocal15_particleFuture = shaderInput10.mul( vec4( shaderFunction0_particleNext( shaderInput1.add( .04 ) ), 1. ) ).toVar();
-    const shaderLocal16_particleDirection = shaderLocal15_particleFuture.xy.div( max( .001, shaderLocal15_particleFuture.z.negate() ) ).sub( shaderLocal14_mv.xy.div( max( .001, shaderLocal14_mv.z.negate() ) ) ).toVar();
-
-    If( dot( shaderLocal16_particleDirection, shaderLocal16_particleDirection ).greaterThan( .00000001 ), () => {
-
-      shaderInput9.assign( atan( shaderLocal16_particleDirection.y.negate(), shaderLocal16_particleDirection.x ) );
-
-    } );
-
-    return shaderOutput;
-
-  }, 'vec4' );
-
-  return { main: shaderFunction1_main };
-}
-
-export function create_tsl1_2cec6dfcd7c3e174_fragment({ tint: shaderInput0, opacity: shaderInput1, warmth: shaderInput2, opaqueDepth: shaderInput3, opaqueDepthAvailable: shaderInput4, opaqueNear: shaderInput5, opaqueFar: shaderInput6, opaqueInverseSize: shaderInput7, opaqueProjectionInverse: shaderInput8, opaqueCameraWorld: shaderInput9, particleAtlas: shaderInput10, particleAtlasReady: shaderInput11, particleSoftness: shaderInput12, particleCell: shaderInput13, particleAngle: shaderInput14, uv: shaderInput15, gl_FragCoord: shaderInput16, gl_PointCoord: shaderInput17 }) {
-  const shaderOutput = property('vec4');
-  const shaderFunction0_offlineOpaqueDepthUv = /*@__PURE__*/ Fn( ( [ shaderLocal0_coord ] ) => {
-
-    return vec2( shaderLocal0_coord.x, sub( 1., shaderLocal0_coord.y ) );
-
-  }, 'vec2' );
-
-  const shaderFunction1_particleFallback = /*@__PURE__*/ Fn( () => {
-
-    const shaderLocal1_r = length( shaderInput17.sub( .5 ) ).mul( 2. ).toVar();
-
-    If( shaderLocal1_r.greaterThan( 1. ), () => {
-
-      Discard();
-
-    } );
-
-    shaderOutput.assign( vec4( mix( shaderInput0, shaderInput0.mul( vec3( 1.2, .55, .25 ) ), shaderInput2 ), pow( sub( 1., shaderLocal1_r ), 2. ).mul( shaderInput1 ) ) );
-
-  }, 'void' );
-
-  const shaderFunction2_opaqueWorldPoint = /*@__PURE__*/ Fn( ( [ shaderLocal2_uv, shaderLocal3_depth ] ) => {
-
-    const shaderLocal4_view = shaderInput8.mul( vec4( shaderLocal2_uv.mul( 2. ).sub( 1. ), shaderLocal3_depth.mul( 2. ).sub( 1. ), 1. ) ).toVar();
-
-    return shaderInput9.mul( vec4( shaderLocal4_view.xyz.div( shaderLocal4_view.w ), 1. ) ).xyz;
-
-  }, 'vec3' );
-
-  const shaderFunction3_particleMask = /*@__PURE__*/ Fn( () => {
-
-    const shaderLocal5_offlineDone5 = bool( false ).toVar();
-    const shaderLocal6_offlineResult5 = property( 'float' );
-    const shaderLocal7_p = shaderInput17.sub( .5 ).toVar();
-    const shaderLocal8_c = cos( shaderInput14 ).toVar(), shaderLocal9_s = sin( shaderInput14 ).toVar();
-    shaderLocal7_p.assign( mat2( shaderLocal8_c, shaderLocal9_s.negate(), shaderLocal9_s, shaderLocal8_c ).mul( shaderLocal7_p ).add( .5 ) );
-
-    If( any( lessThan( shaderLocal7_p, vec2( 0. ) ) ).or( any( greaterThan( shaderLocal7_p, vec2( 1. ) ) ) ), () => {
-
-      shaderLocal6_offlineResult5.assign( 0. );
-      shaderLocal5_offlineDone5.assign( true );
-
-    } );
-
-    If( shaderLocal5_offlineDone5.not(), () => {
-
-      const shaderLocal10_cell = vec2( mod( shaderInput13, 4. ), sub( 3., floor( shaderInput13.div( 4. ) ) ) ).toVar();
-      const shaderLocal11_uv = shaderLocal10_cell.mul( 256. ).add( vec2( .5 ) ).add( vec2( shaderLocal7_p.x, sub( 1., shaderLocal7_p.y ) ).mul( 255. ) ).div( 1024. ).toVar();
-      shaderLocal6_offlineResult5.assign( shaderInput10.sample( shaderLocal11_uv ).r );
-      shaderLocal5_offlineDone5.assign( true );
-
-    } );
-
-    return shaderLocal6_offlineResult5;
-
-  }, 'float' );
-
-  const shaderFunction4_particleViewDepth = /*@__PURE__*/ Fn( ( [ shaderLocal12_depth ] ) => {
-
-    return shaderInput5.mul( shaderInput6 ).div( shaderInput6.sub( shaderLocal12_depth.mul( shaderInput6.sub( shaderInput5 ) ) ) );
-
-  }, 'float' );
-
-  const shaderFunction5_particleDepthFade = /*@__PURE__*/ Fn( () => {
-
-    const shaderLocal13_offlineDone13 = bool( false ).toVar();
-    const shaderLocal14_offlineResult13 = property( 'float' );
-
-    If( shaderInput4.lessThan( .5 ), () => {
-
-      shaderLocal14_offlineResult13.assign( 1. );
-      shaderLocal13_offlineDone13.assign( true );
-
-    } );
-
-    If( shaderLocal13_offlineDone13.not(), () => {
-
-      const shaderLocal15_depth = shaderInput3.sample( shaderFunction0_offlineOpaqueDepthUv( shaderInput16.xy.mul( shaderInput7 ) ) ).x.toVar();
-
-      If( shaderLocal15_depth.greaterThanEqual( 1. ), () => {
-
-        shaderLocal14_offlineResult13.assign( 1. );
-        shaderLocal13_offlineDone13.assign( true );
-
-      } );
-
-      If( shaderLocal13_offlineDone13.not(), () => {
-
-        shaderLocal14_offlineResult13.assign( smoothstep( 0., max( .001, shaderInput12 ), shaderFunction4_particleViewDepth( shaderLocal15_depth ).sub( shaderFunction4_particleViewDepth( shaderInput16.z ) ) ) );
-        shaderLocal13_offlineDone13.assign( true );
-
-      } );
-
-    } );
-
-    return shaderLocal14_offlineResult13;
-
-  }, 'float' );
-
-  const shaderFunction6_main = /*@__PURE__*/ Fn( () => {
-
-    shaderOutput.assign( vec4( 0. ) );
-
-    If( shaderInput11.greaterThan( .5 ), () => {
-
-      shaderOutput.assign( vec4( mix( shaderInput0, shaderInput0.mul( vec3( 1.2, .55, .25 ) ), shaderInput2 ), shaderFunction3_particleMask().mul( shaderInput1 ) ) );
-
-    } ).Else( () => {
-
-      shaderFunction1_particleFallback();
-
-    } );
-
-    shaderOutput.a.mulAssign( shaderFunction5_particleDepthFade() );
-
-    return shaderOutput;
-
-  }, 'vec4' );
-
-  return { main: shaderFunction6_main };
-}
-
 export function create_tsl1_3097f9b6c5206e26_vertex({ sphereNormal: shaderInput0, spherePoint: shaderInput1, sphereView: shaderInput2, position: shaderInput3, normal: shaderInput4, modelViewMatrix: shaderInput5, projectionMatrix: shaderInput6, normalMatrix: shaderInput7 }) {
   const shaderOutput = property('vec4');
   const shaderFunction0_main = /*@__PURE__*/ Fn( () => {
@@ -1961,6 +1253,177 @@ export function create_tsl1_3097f9b6c5206e26_fragment({ time: shaderInput0, glow
   }, 'vec4' );
 
   return { main: shaderFunction3_main };
+}
+
+export function create_tsl1_34e706255a2952b5_vertex({ seed: shaderInput0, time: shaderInput1, size: shaderInput2, pixelRatio: shaderInput3, origin: shaderInput4, opacity: shaderInput5, variation: shaderInput6, particleCell: shaderInput7, particleAngle: shaderInput8, modelViewMatrix: shaderInput9, projectionMatrix: shaderInput10, gl_PointSize: shaderInput11 }) {
+  const shaderOutput = property('vec4');
+  const shaderFunction0_main = /*@__PURE__*/ Fn( () => {
+
+    shaderOutput.assign( vec4( 0. ) );
+    const shaderLocal0_age = max( 0., shaderInput1.sub( shaderInput0.w.mul( 3. ) ) ).toVar();
+    const shaderLocal1_a = shaderInput0.x.mul( 6.283185 ).toVar();
+    const shaderLocal2_p = shaderInput4.toVar();
+    shaderInput6.assign( shaderInput0.z );
+    shaderLocal2_p.addAssign( vec3( shaderInput0.x.sub( .5 ).mul( 363. ), sin( shaderInput0.y.mul( 13. ).add( shaderInput1 ) ).mul( 3. ).add( shaderInput0.z.mul( 12. ) ), shaderInput0.y.sub( .5 ).mul( 10. ) ) );
+    shaderInput5.assign( .55 );
+    const shaderLocal3_mv = shaderInput9.mul( vec4( shaderLocal2_p, 1. ) ).toVar();
+    shaderOutput.assign( shaderInput10.mul( shaderLocal3_mv ) );
+    shaderInput11.assign( clamp( shaderInput2.mul( shaderInput3 ).mul( div( 300., max( 1., shaderLocal3_mv.z.negate() ) ) ), 1., 32. ) );
+    shaderInput7.assign( add( 12., floor( min( shaderInput0.w, .999999 ).mul( 2. ) ) ) );
+    shaderInput8.assign( shaderInput0.x.mul( 6.283185 ) );
+
+    return shaderOutput;
+
+  }, 'vec4' );
+
+  return { main: shaderFunction0_main };
+}
+
+export function create_tsl1_34e706255a2952b5_fragment({ tint: shaderInput0, opacity: shaderInput1, variation: shaderInput2, opaqueDepth: shaderInput3, opaqueDepthAvailable: shaderInput4, opaqueNear: shaderInput5, opaqueFar: shaderInput6, opaqueInverseSize: shaderInput7, opaqueProjectionInverse: shaderInput8, opaqueCameraWorld: shaderInput9, particleAtlas: shaderInput10, particleAtlasReady: shaderInput11, particleSoftness: shaderInput12, particleCell: shaderInput13, particleAngle: shaderInput14, uv: shaderInput15, gl_FragCoord: shaderInput16, gl_PointCoord: shaderInput17 }) {
+  const shaderOutput = property('vec4');
+  const shaderFunction0_offlineOpaqueDepthUv = /*@__PURE__*/ Fn( ( [ shaderLocal0_coord ] ) => {
+
+    return vec2( shaderLocal0_coord.x, sub( 1., shaderLocal0_coord.y ) );
+
+  }, 'vec2' );
+
+  const shaderFunction1_hash = /*@__PURE__*/ Fn( ( [ shaderLocal1_p ] ) => {
+
+    return fract( sin( dot( shaderLocal1_p, vec3( 127.1, 311.7, 74.7 ) ) ).mul( 43758.5453 ) );
+
+  }, 'float' );
+
+  const shaderFunction2_noise = /*@__PURE__*/ Fn( ( [ shaderLocal2_p ] ) => {
+
+    const shaderLocal3_i = floor( shaderLocal2_p ).toVar(), shaderLocal4_f = fract( shaderLocal2_p ).toVar();
+    shaderLocal4_f.assign( shaderLocal4_f.mul( shaderLocal4_f ).mul( sub( 3., mul( 2., shaderLocal4_f ) ) ) );
+
+    return mix( mix( mix( shaderFunction1_hash( shaderLocal3_i ), shaderFunction1_hash( shaderLocal3_i.add( vec3( 1, 0, 0 ) ) ), shaderLocal4_f.x ), mix( shaderFunction1_hash( shaderLocal3_i.add( vec3( 0, 1, 0 ) ) ), shaderFunction1_hash( shaderLocal3_i.add( vec3( 1, 1, 0 ) ) ), shaderLocal4_f.x ), shaderLocal4_f.y ), mix( mix( shaderFunction1_hash( shaderLocal3_i.add( vec3( 0, 0, 1 ) ) ), shaderFunction1_hash( shaderLocal3_i.add( vec3( 1, 0, 1 ) ) ), shaderLocal4_f.x ), mix( shaderFunction1_hash( shaderLocal3_i.add( vec3( 0, 1, 1 ) ) ), shaderFunction1_hash( shaderLocal3_i.add( vec3( 1, 1, 1 ) ) ), shaderLocal4_f.x ), shaderLocal4_f.y ), shaderLocal4_f.z );
+
+  }, 'float' );
+
+  const shaderFunction3_fbm = /*@__PURE__*/ Fn( ( [ shaderLocal5_p ] ) => {
+
+    return shaderFunction2_noise( shaderLocal5_p ).mul( .57 ).add( shaderFunction2_noise( shaderLocal5_p.mul( 2.03 ) ).mul( .28 ) ).add( shaderFunction2_noise( shaderLocal5_p.mul( 4.11 ) ).mul( .15 ) );
+
+  }, 'float' );
+
+  const shaderFunction4_particleFallback = /*@__PURE__*/ Fn( () => {
+
+    const shaderLocal6_p = shaderInput17.sub( .5 ).toVar();
+    const shaderLocal7_r = length( shaderLocal6_p ).mul( 2. ).toVar();
+
+    If( shaderLocal7_r.greaterThan( 1. ), () => {
+
+      Discard();
+
+    } );
+
+    const shaderLocal8_a = sub( 1., smoothstep( .15, 1., shaderLocal7_r ) ).mul( shaderInput1 ).toVar();
+    shaderOutput.assign( vec4( shaderInput0, shaderLocal8_a ) );
+
+  }, 'void' );
+
+  const shaderFunction5_opaqueWorldPoint = /*@__PURE__*/ Fn( ( [ shaderLocal9_uv, shaderLocal10_depth ] ) => {
+
+    const shaderLocal11_view = shaderInput8.mul( vec4( shaderLocal9_uv.mul( 2. ).sub( 1. ), shaderLocal10_depth.mul( 2. ).sub( 1. ), 1. ) ).toVar();
+
+    return shaderInput9.mul( vec4( shaderLocal11_view.xyz.div( shaderLocal11_view.w ), 1. ) ).xyz;
+
+  }, 'vec3' );
+
+  const shaderFunction6_particleMask = /*@__PURE__*/ Fn( () => {
+
+    const shaderLocal12_offlineDone12 = bool( false ).toVar();
+    const shaderLocal13_offlineResult12 = property( 'float' );
+    const shaderLocal14_p = shaderInput17.sub( .5 ).toVar();
+    const shaderLocal15_c = cos( shaderInput14 ).toVar(), shaderLocal16_s = sin( shaderInput14 ).toVar();
+    shaderLocal14_p.assign( mat2( shaderLocal15_c, shaderLocal16_s.negate(), shaderLocal16_s, shaderLocal15_c ).mul( shaderLocal14_p ).add( .5 ) );
+    const shaderLocal17_cell = vec2( mod( shaderInput13, 4. ), sub( 3., floor( shaderInput13.div( 4. ) ) ) ).toVar();
+    const shaderLocal18_uv = shaderLocal17_cell.mul( 256. ).add( vec2( .5 ) ).add( vec2( shaderLocal14_p.x, sub( 1., shaderLocal14_p.y ) ).mul( 255. ) ).div( 1024. ).toVar();
+    const shaderLocal19_mask = shaderInput10.sample( shaderLocal18_uv ).r.toVar();
+
+    If( any( lessThan( shaderLocal14_p, vec2( 0. ) ) ).or( any( greaterThan( shaderLocal14_p, vec2( 1. ) ) ) ), () => {
+
+      shaderLocal13_offlineResult12.assign( 0. );
+      shaderLocal12_offlineDone12.assign( true );
+
+    } );
+
+    If( shaderLocal12_offlineDone12.not(), () => {
+
+      shaderLocal13_offlineResult12.assign( shaderLocal19_mask );
+      shaderLocal12_offlineDone12.assign( true );
+
+    } );
+
+    return shaderLocal13_offlineResult12;
+
+  }, 'float' );
+
+  const shaderFunction7_particleViewDepth = /*@__PURE__*/ Fn( ( [ shaderLocal20_depth ] ) => {
+
+    return shaderInput5.mul( shaderInput6 ).div( shaderInput6.sub( shaderLocal20_depth.mul( shaderInput6.sub( shaderInput5 ) ) ) );
+
+  }, 'float' );
+
+  const shaderFunction8_particleDepthFade = /*@__PURE__*/ Fn( () => {
+
+    const shaderLocal21_offlineDone21 = bool( false ).toVar();
+    const shaderLocal22_offlineResult21 = property( 'float' );
+
+    If( shaderInput4.lessThan( .5 ), () => {
+
+      shaderLocal22_offlineResult21.assign( 1. );
+      shaderLocal21_offlineDone21.assign( true );
+
+    } );
+
+    If( shaderLocal21_offlineDone21.not(), () => {
+
+      const shaderLocal23_depth = shaderInput3.sample( shaderFunction0_offlineOpaqueDepthUv( shaderInput16.xy.mul( shaderInput7 ) ) ).x.toVar();
+
+      If( shaderLocal23_depth.greaterThanEqual( 1. ), () => {
+
+        shaderLocal22_offlineResult21.assign( 1. );
+        shaderLocal21_offlineDone21.assign( true );
+
+      } );
+
+      If( shaderLocal21_offlineDone21.not(), () => {
+
+        shaderLocal22_offlineResult21.assign( smoothstep( 0., max( .001, shaderInput12 ), shaderFunction7_particleViewDepth( shaderLocal23_depth ).sub( shaderFunction7_particleViewDepth( shaderInput16.z ) ) ) );
+        shaderLocal21_offlineDone21.assign( true );
+
+      } );
+
+    } );
+
+    return shaderLocal22_offlineResult21;
+
+  }, 'float' );
+
+  const shaderFunction9_main = /*@__PURE__*/ Fn( () => {
+
+    shaderOutput.assign( vec4( 0. ) );
+
+    If( shaderInput11.greaterThan( .5 ), () => {
+
+      shaderOutput.assign( vec4( shaderInput0, shaderFunction6_particleMask().mul( shaderInput1 ) ) );
+
+    } ).Else( () => {
+
+      shaderFunction4_particleFallback();
+
+    } );
+
+    shaderOutput.a.mulAssign( shaderFunction8_particleDepthFade() );
+
+    return shaderOutput;
+
+  }, 'vec4' );
+
+  return { main: shaderFunction9_main };
 }
 
 export function create_tsl1_35229f549de11a90_vertex({ shape: shaderInput0, lean: shaderInput1, skirt: shaderInput2, hullPoint: shaderInput3, position: shaderInput4, modelMatrix: shaderInput5, projectionMatrix: shaderInput6, viewMatrix: shaderInput7 }) {
@@ -2430,180 +1893,6 @@ export function create_tsl1_465bd3050d4d567f_fragment({ time: shaderInput0, faul
   return { main: shaderFunction3_main };
 }
 
-export function create_tsl1_53d79d18fbc39da4_vertex({ seed: shaderInput0, time: shaderInput1, size: shaderInput2, ratio: shaderInput3, origin: shaderInput4, lean: shaderInput5, alpha: shaderInput6, variation: shaderInput7, particleCell: shaderInput8, particleAngle: shaderInput9, modelViewMatrix: shaderInput10, projectionMatrix: shaderInput11, gl_PointSize: shaderInput12 }) {
-  const shaderOutput = property('vec4');
-  const shaderFunction0_main = /*@__PURE__*/ Fn( () => {
-
-    shaderOutput.assign( vec4( 0. ) );
-    const shaderLocal0_a = shaderInput0.x.mul( 6.283185 ).toVar();
-    const shaderLocal1_p = vec3( 0. ).toVar();
-    shaderInput7.assign( shaderInput0.w );
-    const shaderLocal2_cycle = float( 9. ).toVar();
-    const shaderLocal3_age = mod( shaderInput1.mul( add( .6, shaderInput0.w.mul( .4 ) ) ).add( shaderInput0.z.mul( shaderLocal2_cycle ) ), shaderLocal2_cycle ).toVar();
-    const shaderLocal4_r = add( 4., add( 30., shaderInput0.y.mul( 150. ) ).mul( sub( 1., shaderLocal3_age.div( shaderLocal2_cycle ) ) ) ).toVar();
-    const shaderLocal5_angle = shaderLocal0_a.add( shaderInput1.mul( .9 ) ).add( sub( 180., shaderLocal4_r ).mul( .02 ) ).toVar();
-    shaderLocal1_p.assign( vec3( shaderInput4.x.add( cos( shaderLocal5_angle ).mul( shaderLocal4_r ) ), shaderInput4.y.add( .6 ).add( shaderInput0.z.mul( 3. ) ).add( sub( 1., smoothstep( 4., 40., shaderLocal4_r ) ).mul( shaderInput0.x ).mul( 30. ) ), shaderInput4.z.add( sin( shaderLocal5_angle ).mul( shaderLocal4_r ) ) ) );
-    shaderInput6.assign( smoothstep( 8., 14., shaderInput1 ).mul( sub( 1., smoothstep( 26., 30., shaderInput1 ).mul( .8 ) ) ).mul( smoothstep( 0., 1.5, shaderLocal3_age ) ).mul( sub( 1., smoothstep( 7.5, 9., shaderLocal3_age ) ) ).mul( .22 ) );
-    const shaderLocal6_mv = shaderInput10.mul( vec4( shaderLocal1_p, 1. ) ).toVar();
-    shaderOutput.assign( shaderInput11.mul( shaderLocal6_mv ) );
-    shaderInput12.assign( clamp( shaderInput2.mul( shaderInput3 ).mul( 240. ).div( max( 1., shaderLocal6_mv.z.negate() ) ), 1., 40. ) );
-    shaderInput8.assign( add( 0., floor( min( shaderInput0.w, .999999 ).mul( 4. ) ) ) );
-    shaderInput9.assign( shaderInput0.x.mul( 6.283185 ).add( shaderInput1.mul( shaderInput0.z.sub( .5 ) ).mul( .35 ) ) );
-
-    return shaderOutput;
-
-  }, 'vec4' );
-
-  return { main: shaderFunction0_main };
-}
-
-export function create_tsl1_53d79d18fbc39da4_fragment({ tint: shaderInput0, alpha: shaderInput1, variation: shaderInput2, opaqueDepth: shaderInput3, opaqueDepthAvailable: shaderInput4, opaqueNear: shaderInput5, opaqueFar: shaderInput6, opaqueInverseSize: shaderInput7, opaqueProjectionInverse: shaderInput8, opaqueCameraWorld: shaderInput9, particleAtlas: shaderInput10, particleAtlasReady: shaderInput11, particleSoftness: shaderInput12, particleCell: shaderInput13, particleAngle: shaderInput14, uv: shaderInput15, gl_FragCoord: shaderInput16, gl_PointCoord: shaderInput17 }) {
-  const shaderOutput = property('vec4');
-  const shaderFunction0_offlineOpaqueDepthUv = /*@__PURE__*/ Fn( ( [ shaderLocal0_coord ] ) => {
-
-    return vec2( shaderLocal0_coord.x, sub( 1., shaderLocal0_coord.y ) );
-
-  }, 'vec2' );
-
-  const shaderFunction1_hash = /*@__PURE__*/ Fn( ( [ shaderLocal1_p ] ) => {
-
-    return fract( sin( dot( shaderLocal1_p, vec3( 127.1, 311.7, 74.7 ) ) ).mul( 43758.5453 ) );
-
-  }, 'float' );
-
-  const shaderFunction2_noise = /*@__PURE__*/ Fn( ( [ shaderLocal2_p ] ) => {
-
-    const shaderLocal3_i = floor( shaderLocal2_p ).toVar(), shaderLocal4_f = fract( shaderLocal2_p ).toVar();
-    shaderLocal4_f.assign( shaderLocal4_f.mul( shaderLocal4_f ).mul( sub( 3., mul( 2., shaderLocal4_f ) ) ) );
-
-    return mix( mix( mix( shaderFunction1_hash( shaderLocal3_i ), shaderFunction1_hash( shaderLocal3_i.add( vec3( 1, 0, 0 ) ) ), shaderLocal4_f.x ), mix( shaderFunction1_hash( shaderLocal3_i.add( vec3( 0, 1, 0 ) ) ), shaderFunction1_hash( shaderLocal3_i.add( vec3( 1, 1, 0 ) ) ), shaderLocal4_f.x ), shaderLocal4_f.y ), mix( mix( shaderFunction1_hash( shaderLocal3_i.add( vec3( 0, 0, 1 ) ) ), shaderFunction1_hash( shaderLocal3_i.add( vec3( 1, 0, 1 ) ) ), shaderLocal4_f.x ), mix( shaderFunction1_hash( shaderLocal3_i.add( vec3( 0, 1, 1 ) ) ), shaderFunction1_hash( shaderLocal3_i.add( vec3( 1, 1, 1 ) ) ), shaderLocal4_f.x ), shaderLocal4_f.y ), shaderLocal4_f.z );
-
-  }, 'float' );
-
-  const shaderFunction3_fbm = /*@__PURE__*/ Fn( ( [ shaderLocal5_p ] ) => {
-
-    return shaderFunction2_noise( shaderLocal5_p ).mul( .57 ).add( shaderFunction2_noise( shaderLocal5_p.mul( 2.03 ) ).mul( .28 ) ).add( shaderFunction2_noise( shaderLocal5_p.mul( 4.11 ) ).mul( .15 ) );
-
-  }, 'float' );
-
-  const shaderFunction4_particleFallback = /*@__PURE__*/ Fn( () => {
-
-    const shaderLocal6_p = shaderInput17.sub( .5 ).toVar();
-    const shaderLocal7_r = length( shaderLocal6_p ).mul( 2. ).toVar();
-
-    If( shaderLocal7_r.greaterThan( 1. ), () => {
-
-      Discard();
-
-    } );
-
-    const shaderLocal8_a = sub( 1., smoothstep( .05, 1., shaderLocal7_r ) ).mul( shaderInput1 ).toVar();
-    shaderLocal8_a.mulAssign( smoothstep( .18, .6, shaderFunction3_fbm( vec3( shaderLocal6_p.mul( 5. ), shaderInput2.mul( 13. ) ) ) ) );
-    shaderOutput.assign( vec4( shaderInput0, shaderLocal8_a ) );
-
-  }, 'void' );
-
-  const shaderFunction5_opaqueWorldPoint = /*@__PURE__*/ Fn( ( [ shaderLocal9_uv, shaderLocal10_depth ] ) => {
-
-    const shaderLocal11_view = shaderInput8.mul( vec4( shaderLocal9_uv.mul( 2. ).sub( 1. ), shaderLocal10_depth.mul( 2. ).sub( 1. ), 1. ) ).toVar();
-
-    return shaderInput9.mul( vec4( shaderLocal11_view.xyz.div( shaderLocal11_view.w ), 1. ) ).xyz;
-
-  }, 'vec3' );
-
-  const shaderFunction6_particleMask = /*@__PURE__*/ Fn( () => {
-
-    const shaderLocal12_offlineDone12 = bool( false ).toVar();
-    const shaderLocal13_offlineResult12 = property( 'float' );
-    const shaderLocal14_p = shaderInput17.sub( .5 ).toVar();
-    const shaderLocal15_c = cos( shaderInput14 ).toVar(), shaderLocal16_s = sin( shaderInput14 ).toVar();
-    shaderLocal14_p.assign( mat2( shaderLocal15_c, shaderLocal16_s.negate(), shaderLocal16_s, shaderLocal15_c ).mul( shaderLocal14_p ).add( .5 ) );
-
-    If( any( lessThan( shaderLocal14_p, vec2( 0. ) ) ).or( any( greaterThan( shaderLocal14_p, vec2( 1. ) ) ) ), () => {
-
-      shaderLocal13_offlineResult12.assign( 0. );
-      shaderLocal12_offlineDone12.assign( true );
-
-    } );
-
-    If( shaderLocal12_offlineDone12.not(), () => {
-
-      const shaderLocal17_cell = vec2( mod( shaderInput13, 4. ), sub( 3., floor( shaderInput13.div( 4. ) ) ) ).toVar();
-      const shaderLocal18_uv = shaderLocal17_cell.mul( 256. ).add( vec2( .5 ) ).add( vec2( shaderLocal14_p.x, sub( 1., shaderLocal14_p.y ) ).mul( 255. ) ).div( 1024. ).toVar();
-      shaderLocal13_offlineResult12.assign( shaderInput10.sample( shaderLocal18_uv ).r );
-      shaderLocal12_offlineDone12.assign( true );
-
-    } );
-
-    return shaderLocal13_offlineResult12;
-
-  }, 'float' );
-
-  const shaderFunction7_particleViewDepth = /*@__PURE__*/ Fn( ( [ shaderLocal19_depth ] ) => {
-
-    return shaderInput5.mul( shaderInput6 ).div( shaderInput6.sub( shaderLocal19_depth.mul( shaderInput6.sub( shaderInput5 ) ) ) );
-
-  }, 'float' );
-
-  const shaderFunction8_particleDepthFade = /*@__PURE__*/ Fn( () => {
-
-    const shaderLocal20_offlineDone20 = bool( false ).toVar();
-    const shaderLocal21_offlineResult20 = property( 'float' );
-
-    If( shaderInput4.lessThan( .5 ), () => {
-
-      shaderLocal21_offlineResult20.assign( 1. );
-      shaderLocal20_offlineDone20.assign( true );
-
-    } );
-
-    If( shaderLocal20_offlineDone20.not(), () => {
-
-      const shaderLocal22_depth = shaderInput3.sample( shaderFunction0_offlineOpaqueDepthUv( shaderInput16.xy.mul( shaderInput7 ) ) ).x.toVar();
-
-      If( shaderLocal22_depth.greaterThanEqual( 1. ), () => {
-
-        shaderLocal21_offlineResult20.assign( 1. );
-        shaderLocal20_offlineDone20.assign( true );
-
-      } );
-
-      If( shaderLocal20_offlineDone20.not(), () => {
-
-        shaderLocal21_offlineResult20.assign( smoothstep( 0., max( .001, shaderInput12 ), shaderFunction7_particleViewDepth( shaderLocal22_depth ).sub( shaderFunction7_particleViewDepth( shaderInput16.z ) ) ) );
-        shaderLocal20_offlineDone20.assign( true );
-
-      } );
-
-    } );
-
-    return shaderLocal21_offlineResult20;
-
-  }, 'float' );
-
-  const shaderFunction9_main = /*@__PURE__*/ Fn( () => {
-
-    shaderOutput.assign( vec4( 0. ) );
-
-    If( shaderInput11.greaterThan( .5 ), () => {
-
-      shaderOutput.assign( vec4( shaderInput0, shaderFunction6_particleMask().mul( shaderInput1 ) ) );
-
-    } ).Else( () => {
-
-      shaderFunction4_particleFallback();
-
-    } );
-
-    shaderOutput.a.mulAssign( shaderFunction8_particleDepthFade() );
-
-    return shaderOutput;
-
-  }, 'vec4' );
-
-  return { main: shaderFunction9_main };
-}
-
 export function create_tsl1_5edf4e9837245752_vertex({ point: shaderInput0, viewNormal: shaderInput1, viewDirection: shaderInput2, worldNormal: shaderInput3, position: shaderInput4, normal: shaderInput5, modelMatrix: shaderInput6, modelViewMatrix: shaderInput7, projectionMatrix: shaderInput8, normalMatrix: shaderInput9 }) {
   const shaderOutput = property('vec4');
   const shaderFunction0_main = /*@__PURE__*/ Fn( () => {
@@ -2737,177 +2026,6 @@ export function create_tsl1_5fc97a7738be7efb_fragment({ time: shaderInput0, fade
   return { main: shaderFunction3_main };
 }
 
-export function create_tsl1_6f77a455d04aa50b_vertex({ seed: shaderInput0, time: shaderInput1, size: shaderInput2, ratio: shaderInput3, origin: shaderInput4, lean: shaderInput5, alpha: shaderInput6, variation: shaderInput7, particleCell: shaderInput8, particleAngle: shaderInput9, modelViewMatrix: shaderInput10, projectionMatrix: shaderInput11, gl_PointSize: shaderInput12 }) {
-  const shaderOutput = property('vec4');
-  const shaderFunction0_main = /*@__PURE__*/ Fn( () => {
-
-    shaderOutput.assign( vec4( 0. ) );
-    const shaderLocal0_a = shaderInput0.x.mul( 6.283185 ).toVar();
-    const shaderLocal1_p = vec3( 0. ).toVar();
-    shaderInput7.assign( shaderInput0.w );
-    const shaderLocal2_fall = mod( shaderInput0.z.mul( 150. ).add( shaderInput1.mul( add( 9., shaderInput0.w.mul( 7. ) ) ) ), 150. ).toVar();
-    shaderLocal1_p.assign( vec3( shaderInput0.x.sub( .5 ).mul( 330. ), sub( 150., shaderLocal2_fall ), shaderInput0.y.sub( .5 ).mul( 330. ).sub( 40. ) ) );
-    shaderInput6.assign( smoothstep( 10., 18., shaderInput1 ).mul( smoothstep( 0., 8., shaderLocal2_fall ) ).mul( smoothstep( 0., 8., sub( 150., shaderLocal2_fall ) ) ).mul( add( .5, mul( .5, shaderInput0.y ) ) ).mul( .26 ) );
-    const shaderLocal3_mv = shaderInput10.mul( vec4( shaderLocal1_p, 1. ) ).toVar();
-    shaderOutput.assign( shaderInput11.mul( shaderLocal3_mv ) );
-    shaderInput12.assign( clamp( shaderInput2.mul( shaderInput3 ).mul( 240. ).div( max( 1., shaderLocal3_mv.z.negate() ) ), 1., 100. ) );
-    shaderInput8.assign( add( 0., floor( min( shaderInput0.w, .999999 ).mul( 4. ) ) ) );
-    shaderInput9.assign( shaderInput0.x.mul( 6.283185 ).add( shaderInput1.mul( shaderInput0.z.sub( .5 ) ).mul( .35 ) ) );
-
-    return shaderOutput;
-
-  }, 'vec4' );
-
-  return { main: shaderFunction0_main };
-}
-
-export function create_tsl1_6f77a455d04aa50b_fragment({ tint: shaderInput0, alpha: shaderInput1, variation: shaderInput2, opaqueDepth: shaderInput3, opaqueDepthAvailable: shaderInput4, opaqueNear: shaderInput5, opaqueFar: shaderInput6, opaqueInverseSize: shaderInput7, opaqueProjectionInverse: shaderInput8, opaqueCameraWorld: shaderInput9, particleAtlas: shaderInput10, particleAtlasReady: shaderInput11, particleSoftness: shaderInput12, particleCell: shaderInput13, particleAngle: shaderInput14, uv: shaderInput15, gl_FragCoord: shaderInput16, gl_PointCoord: shaderInput17 }) {
-  const shaderOutput = property('vec4');
-  const shaderFunction0_offlineOpaqueDepthUv = /*@__PURE__*/ Fn( ( [ shaderLocal0_coord ] ) => {
-
-    return vec2( shaderLocal0_coord.x, sub( 1., shaderLocal0_coord.y ) );
-
-  }, 'vec2' );
-
-  const shaderFunction1_hash = /*@__PURE__*/ Fn( ( [ shaderLocal1_p ] ) => {
-
-    return fract( sin( dot( shaderLocal1_p, vec3( 127.1, 311.7, 74.7 ) ) ).mul( 43758.5453 ) );
-
-  }, 'float' );
-
-  const shaderFunction2_noise = /*@__PURE__*/ Fn( ( [ shaderLocal2_p ] ) => {
-
-    const shaderLocal3_i = floor( shaderLocal2_p ).toVar(), shaderLocal4_f = fract( shaderLocal2_p ).toVar();
-    shaderLocal4_f.assign( shaderLocal4_f.mul( shaderLocal4_f ).mul( sub( 3., mul( 2., shaderLocal4_f ) ) ) );
-
-    return mix( mix( mix( shaderFunction1_hash( shaderLocal3_i ), shaderFunction1_hash( shaderLocal3_i.add( vec3( 1, 0, 0 ) ) ), shaderLocal4_f.x ), mix( shaderFunction1_hash( shaderLocal3_i.add( vec3( 0, 1, 0 ) ) ), shaderFunction1_hash( shaderLocal3_i.add( vec3( 1, 1, 0 ) ) ), shaderLocal4_f.x ), shaderLocal4_f.y ), mix( mix( shaderFunction1_hash( shaderLocal3_i.add( vec3( 0, 0, 1 ) ) ), shaderFunction1_hash( shaderLocal3_i.add( vec3( 1, 0, 1 ) ) ), shaderLocal4_f.x ), mix( shaderFunction1_hash( shaderLocal3_i.add( vec3( 0, 1, 1 ) ) ), shaderFunction1_hash( shaderLocal3_i.add( vec3( 1, 1, 1 ) ) ), shaderLocal4_f.x ), shaderLocal4_f.y ), shaderLocal4_f.z );
-
-  }, 'float' );
-
-  const shaderFunction3_fbm = /*@__PURE__*/ Fn( ( [ shaderLocal5_p ] ) => {
-
-    return shaderFunction2_noise( shaderLocal5_p ).mul( .57 ).add( shaderFunction2_noise( shaderLocal5_p.mul( 2.03 ) ).mul( .28 ) ).add( shaderFunction2_noise( shaderLocal5_p.mul( 4.11 ) ).mul( .15 ) );
-
-  }, 'float' );
-
-  const shaderFunction4_particleFallback = /*@__PURE__*/ Fn( () => {
-
-    const shaderLocal6_p = shaderInput17.sub( .5 ).toVar();
-    const shaderLocal7_r = length( shaderLocal6_p ).mul( 2. ).toVar();
-
-    If( shaderLocal7_r.greaterThan( 1. ), () => {
-
-      Discard();
-
-    } );
-
-    const shaderLocal8_a = sub( 1., smoothstep( .05, 1., shaderLocal7_r ) ).mul( shaderInput1 ).toVar();
-    shaderLocal8_a.mulAssign( smoothstep( .18, .6, shaderFunction3_fbm( vec3( shaderLocal6_p.mul( 5. ), shaderInput2.mul( 13. ) ) ) ) );
-    shaderOutput.assign( vec4( shaderInput0, shaderLocal8_a ) );
-
-  }, 'void' );
-
-  const shaderFunction5_opaqueWorldPoint = /*@__PURE__*/ Fn( ( [ shaderLocal9_uv, shaderLocal10_depth ] ) => {
-
-    const shaderLocal11_view = shaderInput8.mul( vec4( shaderLocal9_uv.mul( 2. ).sub( 1. ), shaderLocal10_depth.mul( 2. ).sub( 1. ), 1. ) ).toVar();
-
-    return shaderInput9.mul( vec4( shaderLocal11_view.xyz.div( shaderLocal11_view.w ), 1. ) ).xyz;
-
-  }, 'vec3' );
-
-  const shaderFunction6_particleMask = /*@__PURE__*/ Fn( () => {
-
-    const shaderLocal12_offlineDone12 = bool( false ).toVar();
-    const shaderLocal13_offlineResult12 = property( 'float' );
-    const shaderLocal14_p = shaderInput17.sub( .5 ).toVar();
-    const shaderLocal15_c = cos( shaderInput14 ).toVar(), shaderLocal16_s = sin( shaderInput14 ).toVar();
-    shaderLocal14_p.assign( mat2( shaderLocal15_c, shaderLocal16_s.negate(), shaderLocal16_s, shaderLocal15_c ).mul( shaderLocal14_p ).add( .5 ) );
-
-    If( any( lessThan( shaderLocal14_p, vec2( 0. ) ) ).or( any( greaterThan( shaderLocal14_p, vec2( 1. ) ) ) ), () => {
-
-      shaderLocal13_offlineResult12.assign( 0. );
-      shaderLocal12_offlineDone12.assign( true );
-
-    } );
-
-    If( shaderLocal12_offlineDone12.not(), () => {
-
-      const shaderLocal17_cell = vec2( mod( shaderInput13, 4. ), sub( 3., floor( shaderInput13.div( 4. ) ) ) ).toVar();
-      const shaderLocal18_uv = shaderLocal17_cell.mul( 256. ).add( vec2( .5 ) ).add( vec2( shaderLocal14_p.x, sub( 1., shaderLocal14_p.y ) ).mul( 255. ) ).div( 1024. ).toVar();
-      shaderLocal13_offlineResult12.assign( shaderInput10.sample( shaderLocal18_uv ).r );
-      shaderLocal12_offlineDone12.assign( true );
-
-    } );
-
-    return shaderLocal13_offlineResult12;
-
-  }, 'float' );
-
-  const shaderFunction7_particleViewDepth = /*@__PURE__*/ Fn( ( [ shaderLocal19_depth ] ) => {
-
-    return shaderInput5.mul( shaderInput6 ).div( shaderInput6.sub( shaderLocal19_depth.mul( shaderInput6.sub( shaderInput5 ) ) ) );
-
-  }, 'float' );
-
-  const shaderFunction8_particleDepthFade = /*@__PURE__*/ Fn( () => {
-
-    const shaderLocal20_offlineDone20 = bool( false ).toVar();
-    const shaderLocal21_offlineResult20 = property( 'float' );
-
-    If( shaderInput4.lessThan( .5 ), () => {
-
-      shaderLocal21_offlineResult20.assign( 1. );
-      shaderLocal20_offlineDone20.assign( true );
-
-    } );
-
-    If( shaderLocal20_offlineDone20.not(), () => {
-
-      const shaderLocal22_depth = shaderInput3.sample( shaderFunction0_offlineOpaqueDepthUv( shaderInput16.xy.mul( shaderInput7 ) ) ).x.toVar();
-
-      If( shaderLocal22_depth.greaterThanEqual( 1. ), () => {
-
-        shaderLocal21_offlineResult20.assign( 1. );
-        shaderLocal20_offlineDone20.assign( true );
-
-      } );
-
-      If( shaderLocal20_offlineDone20.not(), () => {
-
-        shaderLocal21_offlineResult20.assign( smoothstep( 0., max( .001, shaderInput12 ), shaderFunction7_particleViewDepth( shaderLocal22_depth ).sub( shaderFunction7_particleViewDepth( shaderInput16.z ) ) ) );
-        shaderLocal20_offlineDone20.assign( true );
-
-      } );
-
-    } );
-
-    return shaderLocal21_offlineResult20;
-
-  }, 'float' );
-
-  const shaderFunction9_main = /*@__PURE__*/ Fn( () => {
-
-    shaderOutput.assign( vec4( 0. ) );
-
-    If( shaderInput11.greaterThan( .5 ), () => {
-
-      shaderOutput.assign( vec4( shaderInput0, shaderFunction6_particleMask().mul( shaderInput1 ) ) );
-
-    } ).Else( () => {
-
-      shaderFunction4_particleFallback();
-
-    } );
-
-    shaderOutput.a.mulAssign( shaderFunction8_particleDepthFade() );
-
-    return shaderOutput;
-
-  }, 'vec4' );
-
-  return { main: shaderFunction9_main };
-}
-
 export function create_tsl1_72e67f978d1f3d47_vertex({ direction: shaderInput0, position: shaderInput1, modelViewMatrix: shaderInput2, projectionMatrix: shaderInput3 }) {
   const shaderOutput = property('vec4');
   const shaderFunction0_main = /*@__PURE__*/ Fn( () => {
@@ -2949,242 +2067,54 @@ export function create_tsl1_72e67f978d1f3d47_fragment({ panorama: shaderInput0, 
   return { main: shaderFunction0_main };
 }
 
-export function create_tsl1_7e135d67c1d397f3_vertex({ point: shaderInput0, viewNormal: shaderInput1, viewDirection: shaderInput2, worldNormal: shaderInput3, position: shaderInput4, normal: shaderInput5, modelMatrix: shaderInput6, modelViewMatrix: shaderInput7, projectionMatrix: shaderInput8, normalMatrix: shaderInput9 }) {
+export function create_tsl1_7c1d515f59cb04e5_vertex({ seed: shaderInput0, time: shaderInput1, phase: shaderInput2, pixelRatio: shaderInput3, origin: shaderInput4, target: shaderInput5, opacity: shaderInput6, warmth: shaderInput7, particleCell: shaderInput8, particleAngle: shaderInput9, modelViewMatrix: shaderInput10, projectionMatrix: shaderInput11, gl_PointSize: shaderInput12 }) {
   const shaderOutput = property('vec4');
-  const shaderFunction0_main = /*@__PURE__*/ Fn( () => {
+  const shaderFunction0_particleNext = /*@__PURE__*/ Fn( ( [ shaderLocal0_time ] ) => {
 
-    shaderOutput.assign( vec4( 0. ) );
-    shaderInput0.assign( shaderInput4 );
-    const shaderLocal0_mv = shaderInput7.mul( vec4( shaderInput4, 1. ) ).toVar();
-    shaderInput1.assign( normalize( shaderInput9.mul( shaderInput5 ) ) );
-    shaderInput3.assign( normalize( mat3( shaderInput6 ).mul( shaderInput5 ) ) );
-    shaderInput2.assign( normalize( shaderLocal0_mv.xyz.negate() ) );
-    shaderOutput.assign( shaderInput8.mul( shaderLocal0_mv ) );
+    const shaderLocal1_a = shaderInput0.x.mul( 6.283185 ).toVar();
+    const shaderLocal2_p = vec3( 0. ).toVar();
+    const shaderLocal3_alpha = float( 0. ).toVar(), shaderLocal4_opacity = float( 0. ).toVar(), shaderLocal5_warmth = shaderInput0.z.toVar();
+    const shaderLocal6_age = fract( shaderInput0.y.add( shaderLocal0_time.mul( .055 ) ) ).toVar();
+    const shaderLocal7_spread = add( 8., shaderLocal6_age.mul( 45. ) ).toVar();
+    shaderLocal2_p.assign( vec3( sub( -34, shaderLocal6_age.mul( 96. ) ), add( 52., shaderLocal6_age.mul( 25. ) ), sub( -12, shaderLocal6_age.mul( 40. ) ) ).add( vec3( sin( shaderLocal1_a ).mul( shaderLocal7_spread ), cos( shaderLocal1_a ).mul( shaderLocal7_spread ).mul( .5 ), cos( shaderLocal1_a.mul( 2. ) ).mul( shaderLocal7_spread ).mul( .6 ) ) ) );
+    shaderLocal4_opacity.assign( sub( 1., shaderLocal6_age ).mul( add( .2, shaderInput2.mul( .8 ) ) ) );
 
-    return shaderOutput;
-
-  }, 'vec4' );
-
-  return { main: shaderFunction0_main };
-}
-
-export function create_tsl1_7e135d67c1d397f3_fragment({ tint: shaderInput0, strength: shaderInput1, viewNormal: shaderInput2, viewDirection: shaderInput3 }) {
-  const shaderOutput = property('vec4');
-  const shaderFunction0_main = /*@__PURE__*/ Fn( () => {
-
-    shaderOutput.assign( vec4( 0. ) );
-    const shaderLocal0_rim = pow( sub( 1., abs( dot( normalize( shaderInput2 ), normalize( shaderInput3 ) ) ) ), 3. ).toVar();
-    shaderOutput.assign( vec4( shaderInput0, shaderLocal0_rim.mul( shaderInput1 ) ) );
-
-    return shaderOutput;
-
-  }, 'vec4' );
-
-  return { main: shaderFunction0_main };
-}
-
-export function create_tsl1_7e651529a123a669_vertex({ seed: shaderInput0, time: shaderInput1, size: shaderInput2, ratio: shaderInput3, origin: shaderInput4, lean: shaderInput5, alpha: shaderInput6, variation: shaderInput7, particleCell: shaderInput8, particleAngle: shaderInput9, modelViewMatrix: shaderInput10, projectionMatrix: shaderInput11, gl_PointSize: shaderInput12 }) {
-  const shaderOutput = property('vec4');
-  const shaderFunction0_main = /*@__PURE__*/ Fn( () => {
-
-    shaderOutput.assign( vec4( 0. ) );
-    const shaderLocal0_a = shaderInput0.x.mul( 6.283185 ).toVar();
-    const shaderLocal1_p = vec3( 0. ).toVar();
-    shaderInput7.assign( shaderInput0.w );
-    const shaderLocal2_age = max( 0., shaderInput1.sub( 4. ).sub( shaderInput0.w.mul( 11. ) ) ).toVar();
-    const shaderLocal3_z = shaderInput0.x.sub( .5 ).mul( 165. ).toVar();
-    const shaderLocal4_fault = sin( shaderLocal3_z.mul( .045 ) ).mul( 10. ).add( sin( shaderLocal3_z.mul( .16 ) ).mul( 2. ) ).toVar();
-    shaderLocal1_p.assign( vec3( shaderLocal4_fault.add( shaderInput0.y.sub( .5 ).mul( shaderLocal2_age ).mul( 4. ) ), shaderLocal2_age.mul( add( 3., shaderInput0.z.mul( 4. ) ) ), shaderLocal3_z.add( sin( shaderLocal0_a ).mul( shaderLocal2_age ).mul( .65 ) ) ) );
-    shaderInput6.assign( step( add( 4., shaderInput0.w.mul( 11. ) ), shaderInput1 ).mul( smoothstep( 0., 2., shaderLocal2_age ) ).mul( sub( 1., smoothstep( 9., 23., shaderLocal2_age ) ) ).mul( .22 ) );
-    const shaderLocal5_mv = shaderInput10.mul( vec4( shaderLocal1_p, 1. ) ).toVar();
-    shaderOutput.assign( shaderInput11.mul( shaderLocal5_mv ) );
-    shaderInput12.assign( clamp( shaderInput2.mul( shaderInput3 ).mul( 240. ).div( max( 1., shaderLocal5_mv.z.negate() ) ), 1., 100. ) );
-    shaderInput8.assign( add( 0., floor( min( shaderInput0.w, .999999 ).mul( 4. ) ) ) );
-    shaderInput9.assign( shaderInput0.x.mul( 6.283185 ).add( shaderInput1.mul( shaderInput0.z.sub( .5 ) ).mul( .35 ) ) );
-
-    return shaderOutput;
-
-  }, 'vec4' );
-
-  return { main: shaderFunction0_main };
-}
-
-export function create_tsl1_7e651529a123a669_fragment({ tint: shaderInput0, alpha: shaderInput1, variation: shaderInput2, opaqueDepth: shaderInput3, opaqueDepthAvailable: shaderInput4, opaqueNear: shaderInput5, opaqueFar: shaderInput6, opaqueInverseSize: shaderInput7, opaqueProjectionInverse: shaderInput8, opaqueCameraWorld: shaderInput9, particleAtlas: shaderInput10, particleAtlasReady: shaderInput11, particleSoftness: shaderInput12, particleCell: shaderInput13, particleAngle: shaderInput14, uv: shaderInput15, gl_FragCoord: shaderInput16, gl_PointCoord: shaderInput17 }) {
-  const shaderOutput = property('vec4');
-  const shaderFunction0_offlineOpaqueDepthUv = /*@__PURE__*/ Fn( ( [ shaderLocal0_coord ] ) => {
-
-    return vec2( shaderLocal0_coord.x, sub( 1., shaderLocal0_coord.y ) );
-
-  }, 'vec2' );
-
-  const shaderFunction1_hash = /*@__PURE__*/ Fn( ( [ shaderLocal1_p ] ) => {
-
-    return fract( sin( dot( shaderLocal1_p, vec3( 127.1, 311.7, 74.7 ) ) ).mul( 43758.5453 ) );
-
-  }, 'float' );
-
-  const shaderFunction2_noise = /*@__PURE__*/ Fn( ( [ shaderLocal2_p ] ) => {
-
-    const shaderLocal3_i = floor( shaderLocal2_p ).toVar(), shaderLocal4_f = fract( shaderLocal2_p ).toVar();
-    shaderLocal4_f.assign( shaderLocal4_f.mul( shaderLocal4_f ).mul( sub( 3., mul( 2., shaderLocal4_f ) ) ) );
-
-    return mix( mix( mix( shaderFunction1_hash( shaderLocal3_i ), shaderFunction1_hash( shaderLocal3_i.add( vec3( 1, 0, 0 ) ) ), shaderLocal4_f.x ), mix( shaderFunction1_hash( shaderLocal3_i.add( vec3( 0, 1, 0 ) ) ), shaderFunction1_hash( shaderLocal3_i.add( vec3( 1, 1, 0 ) ) ), shaderLocal4_f.x ), shaderLocal4_f.y ), mix( mix( shaderFunction1_hash( shaderLocal3_i.add( vec3( 0, 0, 1 ) ) ), shaderFunction1_hash( shaderLocal3_i.add( vec3( 1, 0, 1 ) ) ), shaderLocal4_f.x ), mix( shaderFunction1_hash( shaderLocal3_i.add( vec3( 0, 1, 1 ) ) ), shaderFunction1_hash( shaderLocal3_i.add( vec3( 1, 1, 1 ) ) ), shaderLocal4_f.x ), shaderLocal4_f.y ), shaderLocal4_f.z );
-
-  }, 'float' );
-
-  const shaderFunction3_fbm = /*@__PURE__*/ Fn( ( [ shaderLocal5_p ] ) => {
-
-    return shaderFunction2_noise( shaderLocal5_p ).mul( .57 ).add( shaderFunction2_noise( shaderLocal5_p.mul( 2.03 ) ).mul( .28 ) ).add( shaderFunction2_noise( shaderLocal5_p.mul( 4.11 ) ).mul( .15 ) );
-
-  }, 'float' );
-
-  const shaderFunction4_particleFallback = /*@__PURE__*/ Fn( () => {
-
-    const shaderLocal6_p = shaderInput17.sub( .5 ).toVar();
-    const shaderLocal7_r = length( shaderLocal6_p ).mul( 2. ).toVar();
-
-    If( shaderLocal7_r.greaterThan( 1. ), () => {
-
-      Discard();
-
-    } );
-
-    const shaderLocal8_a = sub( 1., smoothstep( .05, 1., shaderLocal7_r ) ).mul( shaderInput1 ).toVar();
-    shaderLocal8_a.mulAssign( smoothstep( .18, .6, shaderFunction3_fbm( vec3( shaderLocal6_p.mul( 5. ), shaderInput2.mul( 13. ) ) ) ) );
-    shaderOutput.assign( vec4( shaderInput0, shaderLocal8_a ) );
-
-  }, 'void' );
-
-  const shaderFunction5_opaqueWorldPoint = /*@__PURE__*/ Fn( ( [ shaderLocal9_uv, shaderLocal10_depth ] ) => {
-
-    const shaderLocal11_view = shaderInput8.mul( vec4( shaderLocal9_uv.mul( 2. ).sub( 1. ), shaderLocal10_depth.mul( 2. ).sub( 1. ), 1. ) ).toVar();
-
-    return shaderInput9.mul( vec4( shaderLocal11_view.xyz.div( shaderLocal11_view.w ), 1. ) ).xyz;
+    return shaderLocal2_p;
 
   }, 'vec3' );
 
-  const shaderFunction6_particleMask = /*@__PURE__*/ Fn( () => {
-
-    const shaderLocal12_offlineDone12 = bool( false ).toVar();
-    const shaderLocal13_offlineResult12 = property( 'float' );
-    const shaderLocal14_p = shaderInput17.sub( .5 ).toVar();
-    const shaderLocal15_c = cos( shaderInput14 ).toVar(), shaderLocal16_s = sin( shaderInput14 ).toVar();
-    shaderLocal14_p.assign( mat2( shaderLocal15_c, shaderLocal16_s.negate(), shaderLocal16_s, shaderLocal15_c ).mul( shaderLocal14_p ).add( .5 ) );
-
-    If( any( lessThan( shaderLocal14_p, vec2( 0. ) ) ).or( any( greaterThan( shaderLocal14_p, vec2( 1. ) ) ) ), () => {
-
-      shaderLocal13_offlineResult12.assign( 0. );
-      shaderLocal12_offlineDone12.assign( true );
-
-    } );
-
-    If( shaderLocal12_offlineDone12.not(), () => {
-
-      const shaderLocal17_cell = vec2( mod( shaderInput13, 4. ), sub( 3., floor( shaderInput13.div( 4. ) ) ) ).toVar();
-      const shaderLocal18_uv = shaderLocal17_cell.mul( 256. ).add( vec2( .5 ) ).add( vec2( shaderLocal14_p.x, sub( 1., shaderLocal14_p.y ) ).mul( 255. ) ).div( 1024. ).toVar();
-      shaderLocal13_offlineResult12.assign( shaderInput10.sample( shaderLocal18_uv ).r );
-      shaderLocal12_offlineDone12.assign( true );
-
-    } );
-
-    return shaderLocal13_offlineResult12;
-
-  }, 'float' );
-
-  const shaderFunction7_particleViewDepth = /*@__PURE__*/ Fn( ( [ shaderLocal19_depth ] ) => {
-
-    return shaderInput5.mul( shaderInput6 ).div( shaderInput6.sub( shaderLocal19_depth.mul( shaderInput6.sub( shaderInput5 ) ) ) );
-
-  }, 'float' );
-
-  const shaderFunction8_particleDepthFade = /*@__PURE__*/ Fn( () => {
-
-    const shaderLocal20_offlineDone20 = bool( false ).toVar();
-    const shaderLocal21_offlineResult20 = property( 'float' );
-
-    If( shaderInput4.lessThan( .5 ), () => {
-
-      shaderLocal21_offlineResult20.assign( 1. );
-      shaderLocal20_offlineDone20.assign( true );
-
-    } );
-
-    If( shaderLocal20_offlineDone20.not(), () => {
-
-      const shaderLocal22_depth = shaderInput3.sample( shaderFunction0_offlineOpaqueDepthUv( shaderInput16.xy.mul( shaderInput7 ) ) ).x.toVar();
-
-      If( shaderLocal22_depth.greaterThanEqual( 1. ), () => {
-
-        shaderLocal21_offlineResult20.assign( 1. );
-        shaderLocal20_offlineDone20.assign( true );
-
-      } );
-
-      If( shaderLocal20_offlineDone20.not(), () => {
-
-        shaderLocal21_offlineResult20.assign( smoothstep( 0., max( .001, shaderInput12 ), shaderFunction7_particleViewDepth( shaderLocal22_depth ).sub( shaderFunction7_particleViewDepth( shaderInput16.z ) ) ) );
-        shaderLocal20_offlineDone20.assign( true );
-
-      } );
-
-    } );
-
-    return shaderLocal21_offlineResult20;
-
-  }, 'float' );
-
-  const shaderFunction9_main = /*@__PURE__*/ Fn( () => {
+  const shaderFunction1_main = /*@__PURE__*/ Fn( () => {
 
     shaderOutput.assign( vec4( 0. ) );
-
-    If( shaderInput11.greaterThan( .5 ), () => {
-
-      shaderOutput.assign( vec4( shaderInput0, shaderFunction6_particleMask().mul( shaderInput1 ) ) );
-
-    } ).Else( () => {
-
-      shaderFunction4_particleFallback();
-
-    } );
-
-    shaderOutput.a.mulAssign( shaderFunction8_particleDepthFade() );
-
-    return shaderOutput;
-
-  }, 'vec4' );
-
-  return { main: shaderFunction9_main };
-}
-
-export function create_tsl1_81bff182cb4fc5ee_vertex({ seed: shaderInput0, time: shaderInput1, phase: shaderInput2, pixelRatio: shaderInput3, origin: shaderInput4, target: shaderInput5, opacity: shaderInput6, warmth: shaderInput7, particleCell: shaderInput8, particleAngle: shaderInput9, modelViewMatrix: shaderInput10, projectionMatrix: shaderInput11, gl_PointSize: shaderInput12 }) {
-  const shaderOutput = property('vec4');
-  const shaderFunction0_main = /*@__PURE__*/ Fn( () => {
-
-    shaderOutput.assign( vec4( 0. ) );
-    const shaderLocal0_a = shaderInput0.x.mul( 6.283185 ).toVar();
-    const shaderLocal1_p = property( 'vec3' );
+    const shaderLocal8_a = shaderInput0.x.mul( 6.283185 ).toVar();
+    const shaderLocal9_p = property( 'vec3' );
     shaderInput7.assign( shaderInput0.z );
-    const shaderLocal2_s = fract( shaderInput0.y.add( shaderInput1.mul( .045 ).mul( add( 1., shaderInput0.z.mul( .5 ) ) ) ) ).toVar();
-    shaderInput7.assign( 0. );
-    const shaderLocal3_c = mix( shaderInput4, shaderInput5, .45 ).add( vec3( 0., 70., 20. ) ).toVar();
-    const shaderLocal4_path = mix( mix( shaderInput4, shaderLocal3_c, shaderLocal2_s ), mix( shaderLocal3_c, shaderInput5, shaderLocal2_s ), shaderLocal2_s ).toVar();
-    const shaderLocal5_spread = add( 2., shaderLocal2_s.mul( 28. ) ).mul( sub( 1., shaderLocal2_s.mul( .3 ) ) ).toVar();
-    shaderLocal1_p.assign( shaderLocal4_path.add( vec3( sin( shaderLocal0_a ).mul( shaderLocal5_spread ), cos( shaderLocal0_a ).mul( shaderLocal5_spread ).mul( .6 ), sin( shaderLocal0_a.mul( 1.7 ) ).mul( shaderLocal5_spread ) ) ) );
-    shaderInput6.assign( shaderInput2.mul( smoothstep( 0., .05, shaderLocal2_s ) ).mul( sub( 1., smoothstep( .85, 1., shaderLocal2_s ) ) ).mul( .85 ) );
-    const shaderLocal6_mv = shaderInput10.mul( vec4( shaderLocal1_p, 1. ) ).toVar();
-    shaderOutput.assign( shaderInput11.mul( shaderLocal6_mv ) );
-    shaderInput12.assign( clamp( add( 1.5, shaderInput0.w.mul( 3. ) ).mul( shaderInput3 ).mul( 230. ).div( max( 1., shaderLocal6_mv.z.negate() ) ), 1., 12. ) );
-    shaderInput8.assign( add( 0., floor( min( shaderInput0.w, .999999 ).mul( 4. ) ) ) );
-    shaderInput9.assign( shaderInput0.x.mul( 6.283185 ).add( shaderInput1.mul( shaderInput0.z.sub( .5 ) ).mul( .35 ) ) );
+    const shaderLocal10_age = fract( shaderInput0.y.add( shaderInput1.mul( .055 ) ) ).toVar();
+    const shaderLocal11_spread = add( 8., shaderLocal10_age.mul( 45. ) ).toVar();
+    shaderLocal9_p.assign( vec3( sub( -34, shaderLocal10_age.mul( 96. ) ), add( 52., shaderLocal10_age.mul( 25. ) ), sub( -12, shaderLocal10_age.mul( 40. ) ) ).add( vec3( sin( shaderLocal8_a ).mul( shaderLocal11_spread ), cos( shaderLocal8_a ).mul( shaderLocal11_spread ).mul( .5 ), cos( shaderLocal8_a.mul( 2. ) ).mul( shaderLocal11_spread ).mul( .6 ) ) ) );
+    shaderInput6.assign( sub( 1., shaderLocal10_age ).mul( add( .2, shaderInput2.mul( .8 ) ) ) );
+    const shaderLocal12_mv = shaderInput10.mul( vec4( shaderLocal9_p, 1. ) ).toVar();
+    shaderOutput.assign( shaderInput11.mul( shaderLocal12_mv ) );
+    shaderInput12.assign( clamp( add( 1.5, shaderInput0.w.mul( 3. ) ).mul( shaderInput3 ).mul( 230. ).div( max( 1., shaderLocal12_mv.z.negate() ) ), 1., 12. ) );
+    shaderInput8.assign( add( 8., floor( min( shaderInput0.w, .999999 ).mul( 4. ) ) ) );
+    shaderInput9.assign( shaderInput0.x.mul( 6.283185 ) );
+    const shaderLocal13_particleFuture = shaderInput10.mul( vec4( shaderFunction0_particleNext( shaderInput1.add( .04 ) ), 1. ) ).toVar();
+    const shaderLocal14_particleDirection = shaderLocal13_particleFuture.xy.div( max( .001, shaderLocal13_particleFuture.z.negate() ) ).sub( shaderLocal12_mv.xy.div( max( .001, shaderLocal12_mv.z.negate() ) ) ).toVar();
+
+    If( dot( shaderLocal14_particleDirection, shaderLocal14_particleDirection ).greaterThan( .00000001 ), () => {
+
+      shaderInput9.assign( atan( shaderLocal14_particleDirection.y.negate(), shaderLocal14_particleDirection.x ) );
+
+    } );
 
     return shaderOutput;
 
   }, 'vec4' );
 
-  return { main: shaderFunction0_main };
+  return { main: shaderFunction1_main };
 }
 
-export function create_tsl1_81bff182cb4fc5ee_fragment({ tint: shaderInput0, opacity: shaderInput1, warmth: shaderInput2, opaqueDepth: shaderInput3, opaqueDepthAvailable: shaderInput4, opaqueNear: shaderInput5, opaqueFar: shaderInput6, opaqueInverseSize: shaderInput7, opaqueProjectionInverse: shaderInput8, opaqueCameraWorld: shaderInput9, particleAtlas: shaderInput10, particleAtlasReady: shaderInput11, particleSoftness: shaderInput12, particleCell: shaderInput13, particleAngle: shaderInput14, uv: shaderInput15, gl_FragCoord: shaderInput16, gl_PointCoord: shaderInput17 }) {
+export function create_tsl1_7c1d515f59cb04e5_fragment({ tint: shaderInput0, opacity: shaderInput1, warmth: shaderInput2, opaqueDepth: shaderInput3, opaqueDepthAvailable: shaderInput4, opaqueNear: shaderInput5, opaqueFar: shaderInput6, opaqueInverseSize: shaderInput7, opaqueProjectionInverse: shaderInput8, opaqueCameraWorld: shaderInput9, particleAtlas: shaderInput10, particleAtlasReady: shaderInput11, particleSoftness: shaderInput12, particleCell: shaderInput13, particleAngle: shaderInput14, uv: shaderInput15, gl_FragCoord: shaderInput16, gl_PointCoord: shaderInput17 }) {
   const shaderOutput = property('vec4');
   const shaderFunction0_offlineOpaqueDepthUv = /*@__PURE__*/ Fn( ( [ shaderLocal0_coord ] ) => {
 
@@ -3221,6 +2151,9 @@ export function create_tsl1_81bff182cb4fc5ee_fragment({ tint: shaderInput0, opac
     const shaderLocal7_p = shaderInput17.sub( .5 ).toVar();
     const shaderLocal8_c = cos( shaderInput14 ).toVar(), shaderLocal9_s = sin( shaderInput14 ).toVar();
     shaderLocal7_p.assign( mat2( shaderLocal8_c, shaderLocal9_s.negate(), shaderLocal9_s, shaderLocal8_c ).mul( shaderLocal7_p ).add( .5 ) );
+    const shaderLocal10_cell = vec2( mod( shaderInput13, 4. ), sub( 3., floor( shaderInput13.div( 4. ) ) ) ).toVar();
+    const shaderLocal11_uv = shaderLocal10_cell.mul( 256. ).add( vec2( .5 ) ).add( vec2( shaderLocal7_p.x, sub( 1., shaderLocal7_p.y ) ).mul( 255. ) ).div( 1024. ).toVar();
+    const shaderLocal12_mask = shaderInput10.sample( shaderLocal11_uv ).r.toVar();
 
     If( any( lessThan( shaderLocal7_p, vec2( 0. ) ) ).or( any( greaterThan( shaderLocal7_p, vec2( 1. ) ) ) ), () => {
 
@@ -3231,9 +2164,7 @@ export function create_tsl1_81bff182cb4fc5ee_fragment({ tint: shaderInput0, opac
 
     If( shaderLocal5_offlineDone5.not(), () => {
 
-      const shaderLocal10_cell = vec2( mod( shaderInput13, 4. ), sub( 3., floor( shaderInput13.div( 4. ) ) ) ).toVar();
-      const shaderLocal11_uv = shaderLocal10_cell.mul( 256. ).add( vec2( .5 ) ).add( vec2( shaderLocal7_p.x, sub( 1., shaderLocal7_p.y ) ).mul( 255. ) ).div( 1024. ).toVar();
-      shaderLocal6_offlineResult5.assign( shaderInput10.sample( shaderLocal11_uv ).r );
+      shaderLocal6_offlineResult5.assign( shaderLocal12_mask );
       shaderLocal5_offlineDone5.assign( true );
 
     } );
@@ -3242,45 +2173,45 @@ export function create_tsl1_81bff182cb4fc5ee_fragment({ tint: shaderInput0, opac
 
   }, 'float' );
 
-  const shaderFunction4_particleViewDepth = /*@__PURE__*/ Fn( ( [ shaderLocal12_depth ] ) => {
+  const shaderFunction4_particleViewDepth = /*@__PURE__*/ Fn( ( [ shaderLocal13_depth ] ) => {
 
-    return shaderInput5.mul( shaderInput6 ).div( shaderInput6.sub( shaderLocal12_depth.mul( shaderInput6.sub( shaderInput5 ) ) ) );
+    return shaderInput5.mul( shaderInput6 ).div( shaderInput6.sub( shaderLocal13_depth.mul( shaderInput6.sub( shaderInput5 ) ) ) );
 
   }, 'float' );
 
   const shaderFunction5_particleDepthFade = /*@__PURE__*/ Fn( () => {
 
-    const shaderLocal13_offlineDone13 = bool( false ).toVar();
-    const shaderLocal14_offlineResult13 = property( 'float' );
+    const shaderLocal14_offlineDone14 = bool( false ).toVar();
+    const shaderLocal15_offlineResult14 = property( 'float' );
 
     If( shaderInput4.lessThan( .5 ), () => {
 
-      shaderLocal14_offlineResult13.assign( 1. );
-      shaderLocal13_offlineDone13.assign( true );
+      shaderLocal15_offlineResult14.assign( 1. );
+      shaderLocal14_offlineDone14.assign( true );
 
     } );
 
-    If( shaderLocal13_offlineDone13.not(), () => {
+    If( shaderLocal14_offlineDone14.not(), () => {
 
-      const shaderLocal15_depth = shaderInput3.sample( shaderFunction0_offlineOpaqueDepthUv( shaderInput16.xy.mul( shaderInput7 ) ) ).x.toVar();
+      const shaderLocal16_depth = shaderInput3.sample( shaderFunction0_offlineOpaqueDepthUv( shaderInput16.xy.mul( shaderInput7 ) ) ).x.toVar();
 
-      If( shaderLocal15_depth.greaterThanEqual( 1. ), () => {
+      If( shaderLocal16_depth.greaterThanEqual( 1. ), () => {
 
-        shaderLocal14_offlineResult13.assign( 1. );
-        shaderLocal13_offlineDone13.assign( true );
+        shaderLocal15_offlineResult14.assign( 1. );
+        shaderLocal14_offlineDone14.assign( true );
 
       } );
 
-      If( shaderLocal13_offlineDone13.not(), () => {
+      If( shaderLocal14_offlineDone14.not(), () => {
 
-        shaderLocal14_offlineResult13.assign( smoothstep( 0., max( .001, shaderInput12 ), shaderFunction4_particleViewDepth( shaderLocal15_depth ).sub( shaderFunction4_particleViewDepth( shaderInput16.z ) ) ) );
-        shaderLocal13_offlineDone13.assign( true );
+        shaderLocal15_offlineResult14.assign( smoothstep( 0., max( .001, shaderInput12 ), shaderFunction4_particleViewDepth( shaderLocal16_depth ).sub( shaderFunction4_particleViewDepth( shaderInput16.z ) ) ) );
+        shaderLocal14_offlineDone14.assign( true );
 
       } );
 
     } );
 
-    return shaderLocal14_offlineResult13;
+    return shaderLocal15_offlineResult14;
 
   }, 'float' );
 
@@ -3305,6 +2236,213 @@ export function create_tsl1_81bff182cb4fc5ee_fragment({ tint: shaderInput0, opac
   }, 'vec4' );
 
   return { main: shaderFunction6_main };
+}
+
+export function create_tsl1_7d0c5125d6fe4ab1_vertex({ seed: shaderInput0, time: shaderInput1, phase: shaderInput2, pixelRatio: shaderInput3, origin: shaderInput4, target: shaderInput5, opacity: shaderInput6, warmth: shaderInput7, particleCell: shaderInput8, particleAngle: shaderInput9, modelViewMatrix: shaderInput10, projectionMatrix: shaderInput11, gl_PointSize: shaderInput12 }) {
+  const shaderOutput = property('vec4');
+  const shaderFunction0_particleNext = /*@__PURE__*/ Fn( ( [ shaderLocal0_time ] ) => {
+
+    const shaderLocal1_a = shaderInput0.x.mul( 6.283185 ).toVar();
+    const shaderLocal2_p = vec3( 0. ).toVar();
+    const shaderLocal3_alpha = float( 0. ).toVar(), shaderLocal4_opacity = float( 0. ).toVar(), shaderLocal5_warmth = shaderInput0.z.toVar();
+    const shaderLocal6_f = fract( shaderInput0.y.sub( shaderLocal0_time.mul( .035 ) ) ).toVar();
+    const shaderLocal7_radius = add( 17., pow( shaderLocal6_f, .6 ).mul( 65. ) ).toVar();
+    const shaderLocal8_angle = shaderLocal1_a.add( shaderLocal0_time.mul( add( .2, sub( 1., shaderLocal6_f ).mul( 1.25 ) ) ) ).toVar();
+    shaderLocal2_p.assign( vec3( cos( shaderLocal8_angle ).mul( shaderLocal7_radius ), add( 50., sin( shaderInput0.z.mul( 6.283185 ) ).mul( add( .5, shaderLocal6_f.mul( 6. ) ) ) ), sin( shaderLocal8_angle ).mul( shaderLocal7_radius ) ) );
+    shaderLocal4_opacity.assign( smoothstep( 0., .08, shaderLocal6_f ).mul( add( .3, mul( .7, sub( 1., shaderLocal6_f ) ) ) ) );
+
+    return shaderLocal2_p;
+
+  }, 'vec3' );
+
+  const shaderFunction1_main = /*@__PURE__*/ Fn( () => {
+
+    shaderOutput.assign( vec4( 0. ) );
+    const shaderLocal9_a = shaderInput0.x.mul( 6.283185 ).toVar();
+    const shaderLocal10_p = property( 'vec3' );
+    shaderInput7.assign( shaderInput0.z );
+    const shaderLocal11_f = fract( shaderInput0.y.sub( shaderInput1.mul( .035 ) ) ).toVar();
+    const shaderLocal12_radius = add( 17., pow( shaderLocal11_f, .6 ).mul( 65. ) ).toVar();
+    const shaderLocal13_angle = shaderLocal9_a.add( shaderInput1.mul( add( .2, sub( 1., shaderLocal11_f ).mul( 1.25 ) ) ) ).toVar();
+    shaderLocal10_p.assign( vec3( cos( shaderLocal13_angle ).mul( shaderLocal12_radius ), add( 50., sin( shaderInput0.z.mul( 6.283185 ) ).mul( add( .5, shaderLocal11_f.mul( 6. ) ) ) ), sin( shaderLocal13_angle ).mul( shaderLocal12_radius ) ) );
+    shaderInput6.assign( smoothstep( 0., .08, shaderLocal11_f ).mul( add( .3, mul( .7, sub( 1., shaderLocal11_f ) ) ) ) );
+    const shaderLocal14_mv = shaderInput10.mul( vec4( shaderLocal10_p, 1. ) ).toVar();
+    shaderOutput.assign( shaderInput11.mul( shaderLocal14_mv ) );
+    shaderInput12.assign( clamp( add( 1.5, shaderInput0.w.mul( 3. ) ).mul( shaderInput3 ).mul( 230. ).div( max( 1., shaderLocal14_mv.z.negate() ) ), 1., 12. ) );
+    shaderInput8.assign( add( 8., floor( min( shaderInput0.w, .999999 ).mul( 4. ) ) ) );
+    shaderInput9.assign( shaderInput0.x.mul( 6.283185 ) );
+    const shaderLocal15_particleFuture = shaderInput10.mul( vec4( shaderFunction0_particleNext( shaderInput1.add( .04 ) ), 1. ) ).toVar();
+    const shaderLocal16_particleDirection = shaderLocal15_particleFuture.xy.div( max( .001, shaderLocal15_particleFuture.z.negate() ) ).sub( shaderLocal14_mv.xy.div( max( .001, shaderLocal14_mv.z.negate() ) ) ).toVar();
+
+    If( dot( shaderLocal16_particleDirection, shaderLocal16_particleDirection ).greaterThan( .00000001 ), () => {
+
+      shaderInput9.assign( atan( shaderLocal16_particleDirection.y.negate(), shaderLocal16_particleDirection.x ) );
+
+    } );
+
+    return shaderOutput;
+
+  }, 'vec4' );
+
+  return { main: shaderFunction1_main };
+}
+
+export function create_tsl1_7d0c5125d6fe4ab1_fragment({ tint: shaderInput0, opacity: shaderInput1, warmth: shaderInput2, opaqueDepth: shaderInput3, opaqueDepthAvailable: shaderInput4, opaqueNear: shaderInput5, opaqueFar: shaderInput6, opaqueInverseSize: shaderInput7, opaqueProjectionInverse: shaderInput8, opaqueCameraWorld: shaderInput9, particleAtlas: shaderInput10, particleAtlasReady: shaderInput11, particleSoftness: shaderInput12, particleCell: shaderInput13, particleAngle: shaderInput14, uv: shaderInput15, gl_FragCoord: shaderInput16, gl_PointCoord: shaderInput17 }) {
+  const shaderOutput = property('vec4');
+  const shaderFunction0_offlineOpaqueDepthUv = /*@__PURE__*/ Fn( ( [ shaderLocal0_coord ] ) => {
+
+    return vec2( shaderLocal0_coord.x, sub( 1., shaderLocal0_coord.y ) );
+
+  }, 'vec2' );
+
+  const shaderFunction1_particleFallback = /*@__PURE__*/ Fn( () => {
+
+    const shaderLocal1_r = length( shaderInput17.sub( .5 ) ).mul( 2. ).toVar();
+
+    If( shaderLocal1_r.greaterThan( 1. ), () => {
+
+      Discard();
+
+    } );
+
+    shaderOutput.assign( vec4( mix( shaderInput0, shaderInput0.mul( vec3( 1.2, .55, .25 ) ), shaderInput2 ), pow( sub( 1., shaderLocal1_r ), 2. ).mul( shaderInput1 ) ) );
+
+  }, 'void' );
+
+  const shaderFunction2_opaqueWorldPoint = /*@__PURE__*/ Fn( ( [ shaderLocal2_uv, shaderLocal3_depth ] ) => {
+
+    const shaderLocal4_view = shaderInput8.mul( vec4( shaderLocal2_uv.mul( 2. ).sub( 1. ), shaderLocal3_depth.mul( 2. ).sub( 1. ), 1. ) ).toVar();
+
+    return shaderInput9.mul( vec4( shaderLocal4_view.xyz.div( shaderLocal4_view.w ), 1. ) ).xyz;
+
+  }, 'vec3' );
+
+  const shaderFunction3_particleMask = /*@__PURE__*/ Fn( () => {
+
+    const shaderLocal5_offlineDone5 = bool( false ).toVar();
+    const shaderLocal6_offlineResult5 = property( 'float' );
+    const shaderLocal7_p = shaderInput17.sub( .5 ).toVar();
+    const shaderLocal8_c = cos( shaderInput14 ).toVar(), shaderLocal9_s = sin( shaderInput14 ).toVar();
+    shaderLocal7_p.assign( mat2( shaderLocal8_c, shaderLocal9_s.negate(), shaderLocal9_s, shaderLocal8_c ).mul( shaderLocal7_p ).add( .5 ) );
+    const shaderLocal10_cell = vec2( mod( shaderInput13, 4. ), sub( 3., floor( shaderInput13.div( 4. ) ) ) ).toVar();
+    const shaderLocal11_uv = shaderLocal10_cell.mul( 256. ).add( vec2( .5 ) ).add( vec2( shaderLocal7_p.x, sub( 1., shaderLocal7_p.y ) ).mul( 255. ) ).div( 1024. ).toVar();
+    const shaderLocal12_mask = shaderInput10.sample( shaderLocal11_uv ).r.toVar();
+
+    If( any( lessThan( shaderLocal7_p, vec2( 0. ) ) ).or( any( greaterThan( shaderLocal7_p, vec2( 1. ) ) ) ), () => {
+
+      shaderLocal6_offlineResult5.assign( 0. );
+      shaderLocal5_offlineDone5.assign( true );
+
+    } );
+
+    If( shaderLocal5_offlineDone5.not(), () => {
+
+      shaderLocal6_offlineResult5.assign( shaderLocal12_mask );
+      shaderLocal5_offlineDone5.assign( true );
+
+    } );
+
+    return shaderLocal6_offlineResult5;
+
+  }, 'float' );
+
+  const shaderFunction4_particleViewDepth = /*@__PURE__*/ Fn( ( [ shaderLocal13_depth ] ) => {
+
+    return shaderInput5.mul( shaderInput6 ).div( shaderInput6.sub( shaderLocal13_depth.mul( shaderInput6.sub( shaderInput5 ) ) ) );
+
+  }, 'float' );
+
+  const shaderFunction5_particleDepthFade = /*@__PURE__*/ Fn( () => {
+
+    const shaderLocal14_offlineDone14 = bool( false ).toVar();
+    const shaderLocal15_offlineResult14 = property( 'float' );
+
+    If( shaderInput4.lessThan( .5 ), () => {
+
+      shaderLocal15_offlineResult14.assign( 1. );
+      shaderLocal14_offlineDone14.assign( true );
+
+    } );
+
+    If( shaderLocal14_offlineDone14.not(), () => {
+
+      const shaderLocal16_depth = shaderInput3.sample( shaderFunction0_offlineOpaqueDepthUv( shaderInput16.xy.mul( shaderInput7 ) ) ).x.toVar();
+
+      If( shaderLocal16_depth.greaterThanEqual( 1. ), () => {
+
+        shaderLocal15_offlineResult14.assign( 1. );
+        shaderLocal14_offlineDone14.assign( true );
+
+      } );
+
+      If( shaderLocal14_offlineDone14.not(), () => {
+
+        shaderLocal15_offlineResult14.assign( smoothstep( 0., max( .001, shaderInput12 ), shaderFunction4_particleViewDepth( shaderLocal16_depth ).sub( shaderFunction4_particleViewDepth( shaderInput16.z ) ) ) );
+        shaderLocal14_offlineDone14.assign( true );
+
+      } );
+
+    } );
+
+    return shaderLocal15_offlineResult14;
+
+  }, 'float' );
+
+  const shaderFunction6_main = /*@__PURE__*/ Fn( () => {
+
+    shaderOutput.assign( vec4( 0. ) );
+
+    If( shaderInput11.greaterThan( .5 ), () => {
+
+      shaderOutput.assign( vec4( mix( shaderInput0, shaderInput0.mul( vec3( 1.2, .55, .25 ) ), shaderInput2 ), shaderFunction3_particleMask().mul( shaderInput1 ) ) );
+
+    } ).Else( () => {
+
+      shaderFunction1_particleFallback();
+
+    } );
+
+    shaderOutput.a.mulAssign( shaderFunction5_particleDepthFade() );
+
+    return shaderOutput;
+
+  }, 'vec4' );
+
+  return { main: shaderFunction6_main };
+}
+
+export function create_tsl1_7e135d67c1d397f3_vertex({ point: shaderInput0, viewNormal: shaderInput1, viewDirection: shaderInput2, worldNormal: shaderInput3, position: shaderInput4, normal: shaderInput5, modelMatrix: shaderInput6, modelViewMatrix: shaderInput7, projectionMatrix: shaderInput8, normalMatrix: shaderInput9 }) {
+  const shaderOutput = property('vec4');
+  const shaderFunction0_main = /*@__PURE__*/ Fn( () => {
+
+    shaderOutput.assign( vec4( 0. ) );
+    shaderInput0.assign( shaderInput4 );
+    const shaderLocal0_mv = shaderInput7.mul( vec4( shaderInput4, 1. ) ).toVar();
+    shaderInput1.assign( normalize( shaderInput9.mul( shaderInput5 ) ) );
+    shaderInput3.assign( normalize( mat3( shaderInput6 ).mul( shaderInput5 ) ) );
+    shaderInput2.assign( normalize( shaderLocal0_mv.xyz.negate() ) );
+    shaderOutput.assign( shaderInput8.mul( shaderLocal0_mv ) );
+
+    return shaderOutput;
+
+  }, 'vec4' );
+
+  return { main: shaderFunction0_main };
+}
+
+export function create_tsl1_7e135d67c1d397f3_fragment({ tint: shaderInput0, strength: shaderInput1, viewNormal: shaderInput2, viewDirection: shaderInput3 }) {
+  const shaderOutput = property('vec4');
+  const shaderFunction0_main = /*@__PURE__*/ Fn( () => {
+
+    shaderOutput.assign( vec4( 0. ) );
+    const shaderLocal0_rim = pow( sub( 1., abs( dot( normalize( shaderInput2 ), normalize( shaderInput3 ) ) ) ), 3. ).toVar();
+    shaderOutput.assign( vec4( shaderInput0, shaderLocal0_rim.mul( shaderInput1 ) ) );
+
+    return shaderOutput;
+
+  }, 'vec4' );
+
+  return { main: shaderFunction0_main };
 }
 
 export function create_tsl1_81d8e5149cd1bb9c_vertex({ puffUv: shaderInput0, position: shaderInput1, uv: shaderInput2, modelViewMatrix: shaderInput3, projectionMatrix: shaderInput4, instanceMatrix: shaderInput5 }) {
@@ -3356,7 +2494,7 @@ export function create_tsl1_81d8e5149cd1bb9c_fragment({ atlas: shaderInput0, fra
   return { main: shaderFunction1_main };
 }
 
-export function create_tsl1_844b9f685a231a2c_vertex({ seed: shaderInput0, time: shaderInput1, size: shaderInput2, ratio: shaderInput3, origin: shaderInput4, lean: shaderInput5, alpha: shaderInput6, variation: shaderInput7, particleCell: shaderInput8, particleAngle: shaderInput9, modelViewMatrix: shaderInput10, projectionMatrix: shaderInput11, gl_PointSize: shaderInput12 }) {
+export function create_tsl1_83ee5653120e7975_vertex({ seed: shaderInput0, time: shaderInput1, size: shaderInput2, ratio: shaderInput3, origin: shaderInput4, lean: shaderInput5, alpha: shaderInput6, variation: shaderInput7, particleCell: shaderInput8, particleAngle: shaderInput9, modelViewMatrix: shaderInput10, projectionMatrix: shaderInput11, gl_PointSize: shaderInput12 }) {
   const shaderOutput = property('vec4');
   const shaderFunction0_main = /*@__PURE__*/ Fn( () => {
 
@@ -3364,12 +2502,15 @@ export function create_tsl1_844b9f685a231a2c_vertex({ seed: shaderInput0, time: 
     const shaderLocal0_a = shaderInput0.x.mul( 6.283185 ).toVar();
     const shaderLocal1_p = vec3( 0. ).toVar();
     shaderInput7.assign( shaderInput0.w );
-    const shaderLocal2_age = mod( shaderInput1.mul( .7 ).add( shaderInput0.w.mul( 17. ) ), 17. ).toVar();
-    shaderLocal1_p.assign( vec3( shaderInput0.x.sub( .5 ).mul( 170. ).add( sin( shaderLocal2_age.mul( .3 ).add( shaderInput0.y ) ).mul( 4. ) ), shaderInput0.z.mul( 19. ).add( shaderLocal2_age.mul( .6 ) ), shaderInput0.y.sub( .5 ).mul( 170. ) ) );
-    shaderInput6.assign( smoothstep( 0., 4., shaderInput1 ).mul( sin( shaderLocal2_age.div( 17. ).mul( 3.14159 ) ) ).mul( .23 ) );
-    const shaderLocal3_mv = shaderInput10.mul( vec4( shaderLocal1_p, 1. ) ).toVar();
-    shaderOutput.assign( shaderInput11.mul( shaderLocal3_mv ) );
-    shaderInput12.assign( clamp( shaderInput2.mul( shaderInput3 ).mul( 240. ).div( max( 1., shaderLocal3_mv.z.negate() ) ), 1., 100. ) );
+    const shaderLocal2_cycle = float( 9. ).toVar();
+    const shaderLocal3_age = mod( shaderInput1.mul( add( .6, shaderInput0.w.mul( .4 ) ) ).add( shaderInput0.z.mul( shaderLocal2_cycle ) ), shaderLocal2_cycle ).toVar();
+    const shaderLocal4_r = add( 4., add( 30., shaderInput0.y.mul( 150. ) ).mul( sub( 1., shaderLocal3_age.div( shaderLocal2_cycle ) ) ) ).toVar();
+    const shaderLocal5_angle = shaderLocal0_a.add( shaderInput1.mul( .9 ) ).add( sub( 180., shaderLocal4_r ).mul( .02 ) ).toVar();
+    shaderLocal1_p.assign( vec3( shaderInput4.x.add( cos( shaderLocal5_angle ).mul( shaderLocal4_r ) ), shaderInput4.y.add( .6 ).add( shaderInput0.z.mul( 3. ) ).add( sub( 1., smoothstep( 4., 40., shaderLocal4_r ) ).mul( shaderInput0.x ).mul( 30. ) ), shaderInput4.z.add( sin( shaderLocal5_angle ).mul( shaderLocal4_r ) ) ) );
+    shaderInput6.assign( smoothstep( 8., 14., shaderInput1 ).mul( sub( 1., smoothstep( 26., 30., shaderInput1 ).mul( .8 ) ) ).mul( smoothstep( 0., 1.5, shaderLocal3_age ) ).mul( sub( 1., smoothstep( 7.5, 9., shaderLocal3_age ) ) ).mul( .22 ) );
+    const shaderLocal6_mv = shaderInput10.mul( vec4( shaderLocal1_p, 1. ) ).toVar();
+    shaderOutput.assign( shaderInput11.mul( shaderLocal6_mv ) );
+    shaderInput12.assign( clamp( shaderInput2.mul( shaderInput3 ).mul( 240. ).div( max( 1., shaderLocal6_mv.z.negate() ) ), 1., 40. ) );
     shaderInput8.assign( add( 0., floor( min( shaderInput0.w, .999999 ).mul( 4. ) ) ) );
     shaderInput9.assign( shaderInput0.x.mul( 6.283185 ).add( shaderInput1.mul( shaderInput0.z.sub( .5 ) ).mul( .35 ) ) );
 
@@ -3380,7 +2521,7 @@ export function create_tsl1_844b9f685a231a2c_vertex({ seed: shaderInput0, time: 
   return { main: shaderFunction0_main };
 }
 
-export function create_tsl1_844b9f685a231a2c_fragment({ tint: shaderInput0, alpha: shaderInput1, variation: shaderInput2, opaqueDepth: shaderInput3, opaqueDepthAvailable: shaderInput4, opaqueNear: shaderInput5, opaqueFar: shaderInput6, opaqueInverseSize: shaderInput7, opaqueProjectionInverse: shaderInput8, opaqueCameraWorld: shaderInput9, particleAtlas: shaderInput10, particleAtlasReady: shaderInput11, particleSoftness: shaderInput12, particleCell: shaderInput13, particleAngle: shaderInput14, uv: shaderInput15, gl_FragCoord: shaderInput16, gl_PointCoord: shaderInput17 }) {
+export function create_tsl1_83ee5653120e7975_fragment({ tint: shaderInput0, alpha: shaderInput1, variation: shaderInput2, opaqueDepth: shaderInput3, opaqueDepthAvailable: shaderInput4, opaqueNear: shaderInput5, opaqueFar: shaderInput6, opaqueInverseSize: shaderInput7, opaqueProjectionInverse: shaderInput8, opaqueCameraWorld: shaderInput9, particleAtlas: shaderInput10, particleAtlasReady: shaderInput11, particleSoftness: shaderInput12, particleCell: shaderInput13, particleAngle: shaderInput14, uv: shaderInput15, gl_FragCoord: shaderInput16, gl_PointCoord: shaderInput17 }) {
   const shaderOutput = property('vec4');
   const shaderFunction0_offlineOpaqueDepthUv = /*@__PURE__*/ Fn( ( [ shaderLocal0_coord ] ) => {
 
@@ -3441,6 +2582,9 @@ export function create_tsl1_844b9f685a231a2c_fragment({ tint: shaderInput0, alph
     const shaderLocal14_p = shaderInput17.sub( .5 ).toVar();
     const shaderLocal15_c = cos( shaderInput14 ).toVar(), shaderLocal16_s = sin( shaderInput14 ).toVar();
     shaderLocal14_p.assign( mat2( shaderLocal15_c, shaderLocal16_s.negate(), shaderLocal16_s, shaderLocal15_c ).mul( shaderLocal14_p ).add( .5 ) );
+    const shaderLocal17_cell = vec2( mod( shaderInput13, 4. ), sub( 3., floor( shaderInput13.div( 4. ) ) ) ).toVar();
+    const shaderLocal18_uv = shaderLocal17_cell.mul( 256. ).add( vec2( .5 ) ).add( vec2( shaderLocal14_p.x, sub( 1., shaderLocal14_p.y ) ).mul( 255. ) ).div( 1024. ).toVar();
+    const shaderLocal19_mask = shaderInput10.sample( shaderLocal18_uv ).r.toVar();
 
     If( any( lessThan( shaderLocal14_p, vec2( 0. ) ) ).or( any( greaterThan( shaderLocal14_p, vec2( 1. ) ) ) ), () => {
 
@@ -3451,9 +2595,7 @@ export function create_tsl1_844b9f685a231a2c_fragment({ tint: shaderInput0, alph
 
     If( shaderLocal12_offlineDone12.not(), () => {
 
-      const shaderLocal17_cell = vec2( mod( shaderInput13, 4. ), sub( 3., floor( shaderInput13.div( 4. ) ) ) ).toVar();
-      const shaderLocal18_uv = shaderLocal17_cell.mul( 256. ).add( vec2( .5 ) ).add( vec2( shaderLocal14_p.x, sub( 1., shaderLocal14_p.y ) ).mul( 255. ) ).div( 1024. ).toVar();
-      shaderLocal13_offlineResult12.assign( shaderInput10.sample( shaderLocal18_uv ).r );
+      shaderLocal13_offlineResult12.assign( shaderLocal19_mask );
       shaderLocal12_offlineDone12.assign( true );
 
     } );
@@ -3462,45 +2604,739 @@ export function create_tsl1_844b9f685a231a2c_fragment({ tint: shaderInput0, alph
 
   }, 'float' );
 
-  const shaderFunction7_particleViewDepth = /*@__PURE__*/ Fn( ( [ shaderLocal19_depth ] ) => {
+  const shaderFunction7_particleViewDepth = /*@__PURE__*/ Fn( ( [ shaderLocal20_depth ] ) => {
 
-    return shaderInput5.mul( shaderInput6 ).div( shaderInput6.sub( shaderLocal19_depth.mul( shaderInput6.sub( shaderInput5 ) ) ) );
+    return shaderInput5.mul( shaderInput6 ).div( shaderInput6.sub( shaderLocal20_depth.mul( shaderInput6.sub( shaderInput5 ) ) ) );
 
   }, 'float' );
 
   const shaderFunction8_particleDepthFade = /*@__PURE__*/ Fn( () => {
 
-    const shaderLocal20_offlineDone20 = bool( false ).toVar();
-    const shaderLocal21_offlineResult20 = property( 'float' );
+    const shaderLocal21_offlineDone21 = bool( false ).toVar();
+    const shaderLocal22_offlineResult21 = property( 'float' );
 
     If( shaderInput4.lessThan( .5 ), () => {
 
-      shaderLocal21_offlineResult20.assign( 1. );
-      shaderLocal20_offlineDone20.assign( true );
+      shaderLocal22_offlineResult21.assign( 1. );
+      shaderLocal21_offlineDone21.assign( true );
 
     } );
 
-    If( shaderLocal20_offlineDone20.not(), () => {
+    If( shaderLocal21_offlineDone21.not(), () => {
 
-      const shaderLocal22_depth = shaderInput3.sample( shaderFunction0_offlineOpaqueDepthUv( shaderInput16.xy.mul( shaderInput7 ) ) ).x.toVar();
+      const shaderLocal23_depth = shaderInput3.sample( shaderFunction0_offlineOpaqueDepthUv( shaderInput16.xy.mul( shaderInput7 ) ) ).x.toVar();
 
-      If( shaderLocal22_depth.greaterThanEqual( 1. ), () => {
+      If( shaderLocal23_depth.greaterThanEqual( 1. ), () => {
 
-        shaderLocal21_offlineResult20.assign( 1. );
-        shaderLocal20_offlineDone20.assign( true );
+        shaderLocal22_offlineResult21.assign( 1. );
+        shaderLocal21_offlineDone21.assign( true );
 
       } );
 
-      If( shaderLocal20_offlineDone20.not(), () => {
+      If( shaderLocal21_offlineDone21.not(), () => {
 
-        shaderLocal21_offlineResult20.assign( smoothstep( 0., max( .001, shaderInput12 ), shaderFunction7_particleViewDepth( shaderLocal22_depth ).sub( shaderFunction7_particleViewDepth( shaderInput16.z ) ) ) );
-        shaderLocal20_offlineDone20.assign( true );
+        shaderLocal22_offlineResult21.assign( smoothstep( 0., max( .001, shaderInput12 ), shaderFunction7_particleViewDepth( shaderLocal23_depth ).sub( shaderFunction7_particleViewDepth( shaderInput16.z ) ) ) );
+        shaderLocal21_offlineDone21.assign( true );
 
       } );
 
     } );
 
-    return shaderLocal21_offlineResult20;
+    return shaderLocal22_offlineResult21;
+
+  }, 'float' );
+
+  const shaderFunction9_main = /*@__PURE__*/ Fn( () => {
+
+    shaderOutput.assign( vec4( 0. ) );
+
+    If( shaderInput11.greaterThan( .5 ), () => {
+
+      shaderOutput.assign( vec4( shaderInput0, shaderFunction6_particleMask().mul( shaderInput1 ) ) );
+
+    } ).Else( () => {
+
+      shaderFunction4_particleFallback();
+
+    } );
+
+    shaderOutput.a.mulAssign( shaderFunction8_particleDepthFade() );
+
+    return shaderOutput;
+
+  }, 'vec4' );
+
+  return { main: shaderFunction9_main };
+}
+
+export function create_tsl1_8bb0acd4a8f6f1ae_vertex({ seed: shaderInput0, time: shaderInput1, size: shaderInput2, ratio: shaderInput3, origin: shaderInput4, lean: shaderInput5, alpha: shaderInput6, variation: shaderInput7, particleCell: shaderInput8, particleAngle: shaderInput9, modelViewMatrix: shaderInput10, projectionMatrix: shaderInput11, gl_PointSize: shaderInput12 }) {
+  const shaderOutput = property('vec4');
+  const shaderFunction0_main = /*@__PURE__*/ Fn( () => {
+
+    shaderOutput.assign( vec4( 0. ) );
+    const shaderLocal0_a = shaderInput0.x.mul( 6.283185 ).toVar();
+    const shaderLocal1_p = vec3( 0. ).toVar();
+    shaderInput7.assign( shaderInput0.w );
+    const shaderLocal2_gust = add( 8., smoothstep( 4., 18., shaderInput1 ).mul( 40. ) ).toVar();
+    const shaderLocal3_fall = add( 6., shaderInput0.w.mul( 10. ) ).toVar();
+    shaderLocal1_p.assign( vec3( mod( shaderInput0.x.mul( 320. ).add( shaderInput1.mul( shaderLocal2_gust ).mul( add( .75, shaderInput0.z.mul( .5 ) ) ) ), 320. ).sub( 160. ), mod( shaderInput0.y.mul( 140. ).sub( shaderInput1.mul( shaderLocal3_fall ) ), 140. ).sub( 1. ), mod( shaderInput0.z.mul( 300. ).add( shaderInput1.mul( shaderLocal2_gust ).mul( .28 ) ).add( sin( shaderInput1.mul( 1.9 ).add( shaderInput0.w.mul( 11. ) ) ).mul( 3. ) ), 300. ).sub( 150. ) ) );
+    shaderInput6.assign( add( .18, mul( .82, smoothstep( 3., 16., shaderInput1 ) ) ).mul( add( .45, mul( .55, shaderInput0.w ) ) ) );
+    const shaderLocal4_mv = shaderInput10.mul( vec4( shaderLocal1_p, 1. ) ).toVar();
+    shaderOutput.assign( shaderInput11.mul( shaderLocal4_mv ) );
+    shaderInput12.assign( clamp( shaderInput2.mul( shaderInput3 ).mul( 240. ).div( max( 1., shaderLocal4_mv.z.negate() ) ), 1., 7. ) );
+    shaderInput8.assign( add( 14., floor( min( shaderInput0.w, .999999 ).mul( 2. ) ) ) );
+    shaderInput9.assign( shaderInput0.x.mul( 6.283185 ) );
+
+    return shaderOutput;
+
+  }, 'vec4' );
+
+  return { main: shaderFunction0_main };
+}
+
+export function create_tsl1_8bb0acd4a8f6f1ae_fragment({ tint: shaderInput0, alpha: shaderInput1, variation: shaderInput2, opaqueDepth: shaderInput3, opaqueDepthAvailable: shaderInput4, opaqueNear: shaderInput5, opaqueFar: shaderInput6, opaqueInverseSize: shaderInput7, opaqueProjectionInverse: shaderInput8, opaqueCameraWorld: shaderInput9, particleAtlas: shaderInput10, particleAtlasReady: shaderInput11, particleSoftness: shaderInput12, particleCell: shaderInput13, particleAngle: shaderInput14, uv: shaderInput15, gl_FragCoord: shaderInput16, gl_PointCoord: shaderInput17 }) {
+  const shaderOutput = property('vec4');
+  const shaderFunction0_offlineOpaqueDepthUv = /*@__PURE__*/ Fn( ( [ shaderLocal0_coord ] ) => {
+
+    return vec2( shaderLocal0_coord.x, sub( 1., shaderLocal0_coord.y ) );
+
+  }, 'vec2' );
+
+  const shaderFunction1_hash = /*@__PURE__*/ Fn( ( [ shaderLocal1_p ] ) => {
+
+    return fract( sin( dot( shaderLocal1_p, vec3( 127.1, 311.7, 74.7 ) ) ).mul( 43758.5453 ) );
+
+  }, 'float' );
+
+  const shaderFunction2_noise = /*@__PURE__*/ Fn( ( [ shaderLocal2_p ] ) => {
+
+    const shaderLocal3_i = floor( shaderLocal2_p ).toVar(), shaderLocal4_f = fract( shaderLocal2_p ).toVar();
+    shaderLocal4_f.assign( shaderLocal4_f.mul( shaderLocal4_f ).mul( sub( 3., mul( 2., shaderLocal4_f ) ) ) );
+
+    return mix( mix( mix( shaderFunction1_hash( shaderLocal3_i ), shaderFunction1_hash( shaderLocal3_i.add( vec3( 1, 0, 0 ) ) ), shaderLocal4_f.x ), mix( shaderFunction1_hash( shaderLocal3_i.add( vec3( 0, 1, 0 ) ) ), shaderFunction1_hash( shaderLocal3_i.add( vec3( 1, 1, 0 ) ) ), shaderLocal4_f.x ), shaderLocal4_f.y ), mix( mix( shaderFunction1_hash( shaderLocal3_i.add( vec3( 0, 0, 1 ) ) ), shaderFunction1_hash( shaderLocal3_i.add( vec3( 1, 0, 1 ) ) ), shaderLocal4_f.x ), mix( shaderFunction1_hash( shaderLocal3_i.add( vec3( 0, 1, 1 ) ) ), shaderFunction1_hash( shaderLocal3_i.add( vec3( 1, 1, 1 ) ) ), shaderLocal4_f.x ), shaderLocal4_f.y ), shaderLocal4_f.z );
+
+  }, 'float' );
+
+  const shaderFunction3_fbm = /*@__PURE__*/ Fn( ( [ shaderLocal5_p ] ) => {
+
+    return shaderFunction2_noise( shaderLocal5_p ).mul( .57 ).add( shaderFunction2_noise( shaderLocal5_p.mul( 2.03 ) ).mul( .28 ) ).add( shaderFunction2_noise( shaderLocal5_p.mul( 4.11 ) ).mul( .15 ) );
+
+  }, 'float' );
+
+  const shaderFunction4_particleFallback = /*@__PURE__*/ Fn( () => {
+
+    const shaderLocal6_p = shaderInput17.sub( .5 ).toVar();
+    const shaderLocal7_r = length( shaderLocal6_p ).mul( 2. ).toVar();
+
+    If( shaderLocal7_r.greaterThan( 1. ), () => {
+
+      Discard();
+
+    } );
+
+    const shaderLocal8_a = sub( 1., smoothstep( .05, 1., shaderLocal7_r ) ).mul( shaderInput1 ).toVar();
+    shaderOutput.assign( vec4( shaderInput0, shaderLocal8_a ) );
+
+  }, 'void' );
+
+  const shaderFunction5_opaqueWorldPoint = /*@__PURE__*/ Fn( ( [ shaderLocal9_uv, shaderLocal10_depth ] ) => {
+
+    const shaderLocal11_view = shaderInput8.mul( vec4( shaderLocal9_uv.mul( 2. ).sub( 1. ), shaderLocal10_depth.mul( 2. ).sub( 1. ), 1. ) ).toVar();
+
+    return shaderInput9.mul( vec4( shaderLocal11_view.xyz.div( shaderLocal11_view.w ), 1. ) ).xyz;
+
+  }, 'vec3' );
+
+  const shaderFunction6_particleMask = /*@__PURE__*/ Fn( () => {
+
+    const shaderLocal12_offlineDone12 = bool( false ).toVar();
+    const shaderLocal13_offlineResult12 = property( 'float' );
+    const shaderLocal14_p = shaderInput17.sub( .5 ).toVar();
+    const shaderLocal15_c = cos( shaderInput14 ).toVar(), shaderLocal16_s = sin( shaderInput14 ).toVar();
+    shaderLocal14_p.assign( mat2( shaderLocal15_c, shaderLocal16_s.negate(), shaderLocal16_s, shaderLocal15_c ).mul( shaderLocal14_p ).add( .5 ) );
+    const shaderLocal17_cell = vec2( mod( shaderInput13, 4. ), sub( 3., floor( shaderInput13.div( 4. ) ) ) ).toVar();
+    const shaderLocal18_uv = shaderLocal17_cell.mul( 256. ).add( vec2( .5 ) ).add( vec2( shaderLocal14_p.x, sub( 1., shaderLocal14_p.y ) ).mul( 255. ) ).div( 1024. ).toVar();
+    const shaderLocal19_mask = shaderInput10.sample( shaderLocal18_uv ).r.toVar();
+
+    If( any( lessThan( shaderLocal14_p, vec2( 0. ) ) ).or( any( greaterThan( shaderLocal14_p, vec2( 1. ) ) ) ), () => {
+
+      shaderLocal13_offlineResult12.assign( 0. );
+      shaderLocal12_offlineDone12.assign( true );
+
+    } );
+
+    If( shaderLocal12_offlineDone12.not(), () => {
+
+      shaderLocal13_offlineResult12.assign( shaderLocal19_mask );
+      shaderLocal12_offlineDone12.assign( true );
+
+    } );
+
+    return shaderLocal13_offlineResult12;
+
+  }, 'float' );
+
+  const shaderFunction7_particleViewDepth = /*@__PURE__*/ Fn( ( [ shaderLocal20_depth ] ) => {
+
+    return shaderInput5.mul( shaderInput6 ).div( shaderInput6.sub( shaderLocal20_depth.mul( shaderInput6.sub( shaderInput5 ) ) ) );
+
+  }, 'float' );
+
+  const shaderFunction8_particleDepthFade = /*@__PURE__*/ Fn( () => {
+
+    const shaderLocal21_offlineDone21 = bool( false ).toVar();
+    const shaderLocal22_offlineResult21 = property( 'float' );
+
+    If( shaderInput4.lessThan( .5 ), () => {
+
+      shaderLocal22_offlineResult21.assign( 1. );
+      shaderLocal21_offlineDone21.assign( true );
+
+    } );
+
+    If( shaderLocal21_offlineDone21.not(), () => {
+
+      const shaderLocal23_depth = shaderInput3.sample( shaderFunction0_offlineOpaqueDepthUv( shaderInput16.xy.mul( shaderInput7 ) ) ).x.toVar();
+
+      If( shaderLocal23_depth.greaterThanEqual( 1. ), () => {
+
+        shaderLocal22_offlineResult21.assign( 1. );
+        shaderLocal21_offlineDone21.assign( true );
+
+      } );
+
+      If( shaderLocal21_offlineDone21.not(), () => {
+
+        shaderLocal22_offlineResult21.assign( smoothstep( 0., max( .001, shaderInput12 ), shaderFunction7_particleViewDepth( shaderLocal23_depth ).sub( shaderFunction7_particleViewDepth( shaderInput16.z ) ) ) );
+        shaderLocal21_offlineDone21.assign( true );
+
+      } );
+
+    } );
+
+    return shaderLocal22_offlineResult21;
+
+  }, 'float' );
+
+  const shaderFunction9_main = /*@__PURE__*/ Fn( () => {
+
+    shaderOutput.assign( vec4( 0. ) );
+
+    If( shaderInput11.greaterThan( .5 ), () => {
+
+      shaderOutput.assign( vec4( shaderInput0, shaderFunction6_particleMask().mul( shaderInput1 ) ) );
+
+    } ).Else( () => {
+
+      shaderFunction4_particleFallback();
+
+    } );
+
+    shaderOutput.a.mulAssign( shaderFunction8_particleDepthFade() );
+
+    return shaderOutput;
+
+  }, 'vec4' );
+
+  return { main: shaderFunction9_main };
+}
+
+export function create_tsl1_8bfb51e70f696ed3_vertex({ seed: shaderInput0, time: shaderInput1, size: shaderInput2, ratio: shaderInput3, origin: shaderInput4, lean: shaderInput5, alpha: shaderInput6, variation: shaderInput7, particleCell: shaderInput8, particleAngle: shaderInput9, modelViewMatrix: shaderInput10, projectionMatrix: shaderInput11, gl_PointSize: shaderInput12 }) {
+  const shaderOutput = property('vec4');
+  const shaderFunction0_main = /*@__PURE__*/ Fn( () => {
+
+    shaderOutput.assign( vec4( 0. ) );
+    const shaderLocal0_a = shaderInput0.x.mul( 6.283185 ).toVar();
+    const shaderLocal1_p = vec3( 0. ).toVar();
+    shaderInput7.assign( shaderInput0.w );
+    const shaderLocal2_spread = smoothstep( 19., 30., shaderInput1 ).toVar();
+    const shaderLocal3_hold = sub( 1., shaderLocal2_spread ).toVar();
+    const shaderLocal4_r = add( 1.2, shaderInput0.y.mul( 3.5 ) ).mul( shaderLocal3_hold ).add( shaderLocal2_spread.mul( add( 20., shaderInput0.y.mul( 250. ) ) ) ).toVar();
+    const shaderLocal5_angle = shaderLocal0_a.add( shaderInput1.mul( add( 2.2, shaderInput0.z.mul( 5. ) ) ).div( add( 1., shaderLocal4_r.mul( .04 ) ) ) ).toVar();
+    const shaderLocal6_h = shaderInput0.w.mul( shaderLocal3_hold.mul( 24. ).add( shaderLocal2_spread.mul( add( 2., shaderLocal4_r.mul( .09 ) ) ) ) ).add( sin( shaderInput1.mul( 4. ).add( shaderInput0.x.mul( 20. ) ) ).mul( add( .3, shaderLocal2_spread.mul( 1.5 ) ) ) ).toVar();
+    shaderLocal1_p.assign( vec3( shaderInput4.x.add( cos( shaderLocal5_angle ).mul( shaderLocal4_r ) ), max( .2, shaderInput4.y.add( shaderLocal6_h ) ), shaderInput4.z.add( sin( shaderLocal5_angle ).mul( shaderLocal4_r ) ) ) );
+    shaderInput6.assign( smoothstep( 17.5, 19.5, shaderInput1 ).mul( add( .4, mul( .5, shaderInput0.w ) ) ).mul( sub( 1., smoothstep( 150., 260., shaderLocal4_r ) ) ) );
+    const shaderLocal7_mv = shaderInput10.mul( vec4( shaderLocal1_p, 1. ) ).toVar();
+    shaderOutput.assign( shaderInput11.mul( shaderLocal7_mv ) );
+    shaderInput12.assign( clamp( shaderInput2.mul( shaderInput3 ).mul( 240. ).div( max( 1., shaderLocal7_mv.z.negate() ) ), 1., 5. ) );
+    shaderInput8.assign( add( 4., floor( min( shaderInput0.w, .999999 ).mul( 4. ) ) ) );
+    shaderInput9.assign( shaderInput0.x.mul( 6.283185 ) );
+
+    return shaderOutput;
+
+  }, 'vec4' );
+
+  return { main: shaderFunction0_main };
+}
+
+export function create_tsl1_8bfb51e70f696ed3_fragment({ tint: shaderInput0, alpha: shaderInput1, variation: shaderInput2, opaqueDepth: shaderInput3, opaqueDepthAvailable: shaderInput4, opaqueNear: shaderInput5, opaqueFar: shaderInput6, opaqueInverseSize: shaderInput7, opaqueProjectionInverse: shaderInput8, opaqueCameraWorld: shaderInput9, particleAtlas: shaderInput10, particleAtlasReady: shaderInput11, particleSoftness: shaderInput12, particleCell: shaderInput13, particleAngle: shaderInput14, uv: shaderInput15, gl_FragCoord: shaderInput16, gl_PointCoord: shaderInput17 }) {
+  const shaderOutput = property('vec4');
+  const shaderFunction0_offlineOpaqueDepthUv = /*@__PURE__*/ Fn( ( [ shaderLocal0_coord ] ) => {
+
+    return vec2( shaderLocal0_coord.x, sub( 1., shaderLocal0_coord.y ) );
+
+  }, 'vec2' );
+
+  const shaderFunction1_hash = /*@__PURE__*/ Fn( ( [ shaderLocal1_p ] ) => {
+
+    return fract( sin( dot( shaderLocal1_p, vec3( 127.1, 311.7, 74.7 ) ) ).mul( 43758.5453 ) );
+
+  }, 'float' );
+
+  const shaderFunction2_noise = /*@__PURE__*/ Fn( ( [ shaderLocal2_p ] ) => {
+
+    const shaderLocal3_i = floor( shaderLocal2_p ).toVar(), shaderLocal4_f = fract( shaderLocal2_p ).toVar();
+    shaderLocal4_f.assign( shaderLocal4_f.mul( shaderLocal4_f ).mul( sub( 3., mul( 2., shaderLocal4_f ) ) ) );
+
+    return mix( mix( mix( shaderFunction1_hash( shaderLocal3_i ), shaderFunction1_hash( shaderLocal3_i.add( vec3( 1, 0, 0 ) ) ), shaderLocal4_f.x ), mix( shaderFunction1_hash( shaderLocal3_i.add( vec3( 0, 1, 0 ) ) ), shaderFunction1_hash( shaderLocal3_i.add( vec3( 1, 1, 0 ) ) ), shaderLocal4_f.x ), shaderLocal4_f.y ), mix( mix( shaderFunction1_hash( shaderLocal3_i.add( vec3( 0, 0, 1 ) ) ), shaderFunction1_hash( shaderLocal3_i.add( vec3( 1, 0, 1 ) ) ), shaderLocal4_f.x ), mix( shaderFunction1_hash( shaderLocal3_i.add( vec3( 0, 1, 1 ) ) ), shaderFunction1_hash( shaderLocal3_i.add( vec3( 1, 1, 1 ) ) ), shaderLocal4_f.x ), shaderLocal4_f.y ), shaderLocal4_f.z );
+
+  }, 'float' );
+
+  const shaderFunction3_fbm = /*@__PURE__*/ Fn( ( [ shaderLocal5_p ] ) => {
+
+    return shaderFunction2_noise( shaderLocal5_p ).mul( .57 ).add( shaderFunction2_noise( shaderLocal5_p.mul( 2.03 ) ).mul( .28 ) ).add( shaderFunction2_noise( shaderLocal5_p.mul( 4.11 ) ).mul( .15 ) );
+
+  }, 'float' );
+
+  const shaderFunction4_particleFallback = /*@__PURE__*/ Fn( () => {
+
+    const shaderLocal6_p = shaderInput17.sub( .5 ).toVar();
+    const shaderLocal7_r = length( shaderLocal6_p ).mul( 2. ).toVar();
+
+    If( shaderLocal7_r.greaterThan( 1. ), () => {
+
+      Discard();
+
+    } );
+
+    const shaderLocal8_a = sub( 1., smoothstep( .05, 1., shaderLocal7_r ) ).mul( shaderInput1 ).toVar();
+    shaderOutput.assign( vec4( shaderInput0, shaderLocal8_a ) );
+
+  }, 'void' );
+
+  const shaderFunction5_opaqueWorldPoint = /*@__PURE__*/ Fn( ( [ shaderLocal9_uv, shaderLocal10_depth ] ) => {
+
+    const shaderLocal11_view = shaderInput8.mul( vec4( shaderLocal9_uv.mul( 2. ).sub( 1. ), shaderLocal10_depth.mul( 2. ).sub( 1. ), 1. ) ).toVar();
+
+    return shaderInput9.mul( vec4( shaderLocal11_view.xyz.div( shaderLocal11_view.w ), 1. ) ).xyz;
+
+  }, 'vec3' );
+
+  const shaderFunction6_particleMask = /*@__PURE__*/ Fn( () => {
+
+    const shaderLocal12_offlineDone12 = bool( false ).toVar();
+    const shaderLocal13_offlineResult12 = property( 'float' );
+    const shaderLocal14_p = shaderInput17.sub( .5 ).toVar();
+    const shaderLocal15_c = cos( shaderInput14 ).toVar(), shaderLocal16_s = sin( shaderInput14 ).toVar();
+    shaderLocal14_p.assign( mat2( shaderLocal15_c, shaderLocal16_s.negate(), shaderLocal16_s, shaderLocal15_c ).mul( shaderLocal14_p ).add( .5 ) );
+    const shaderLocal17_cell = vec2( mod( shaderInput13, 4. ), sub( 3., floor( shaderInput13.div( 4. ) ) ) ).toVar();
+    const shaderLocal18_uv = shaderLocal17_cell.mul( 256. ).add( vec2( .5 ) ).add( vec2( shaderLocal14_p.x, sub( 1., shaderLocal14_p.y ) ).mul( 255. ) ).div( 1024. ).toVar();
+    const shaderLocal19_mask = shaderInput10.sample( shaderLocal18_uv ).r.toVar();
+
+    If( any( lessThan( shaderLocal14_p, vec2( 0. ) ) ).or( any( greaterThan( shaderLocal14_p, vec2( 1. ) ) ) ), () => {
+
+      shaderLocal13_offlineResult12.assign( 0. );
+      shaderLocal12_offlineDone12.assign( true );
+
+    } );
+
+    If( shaderLocal12_offlineDone12.not(), () => {
+
+      shaderLocal13_offlineResult12.assign( shaderLocal19_mask );
+      shaderLocal12_offlineDone12.assign( true );
+
+    } );
+
+    return shaderLocal13_offlineResult12;
+
+  }, 'float' );
+
+  const shaderFunction7_particleViewDepth = /*@__PURE__*/ Fn( ( [ shaderLocal20_depth ] ) => {
+
+    return shaderInput5.mul( shaderInput6 ).div( shaderInput6.sub( shaderLocal20_depth.mul( shaderInput6.sub( shaderInput5 ) ) ) );
+
+  }, 'float' );
+
+  const shaderFunction8_particleDepthFade = /*@__PURE__*/ Fn( () => {
+
+    const shaderLocal21_offlineDone21 = bool( false ).toVar();
+    const shaderLocal22_offlineResult21 = property( 'float' );
+
+    If( shaderInput4.lessThan( .5 ), () => {
+
+      shaderLocal22_offlineResult21.assign( 1. );
+      shaderLocal21_offlineDone21.assign( true );
+
+    } );
+
+    If( shaderLocal21_offlineDone21.not(), () => {
+
+      const shaderLocal23_depth = shaderInput3.sample( shaderFunction0_offlineOpaqueDepthUv( shaderInput16.xy.mul( shaderInput7 ) ) ).x.toVar();
+
+      If( shaderLocal23_depth.greaterThanEqual( 1. ), () => {
+
+        shaderLocal22_offlineResult21.assign( 1. );
+        shaderLocal21_offlineDone21.assign( true );
+
+      } );
+
+      If( shaderLocal21_offlineDone21.not(), () => {
+
+        shaderLocal22_offlineResult21.assign( smoothstep( 0., max( .001, shaderInput12 ), shaderFunction7_particleViewDepth( shaderLocal23_depth ).sub( shaderFunction7_particleViewDepth( shaderInput16.z ) ) ) );
+        shaderLocal21_offlineDone21.assign( true );
+
+      } );
+
+    } );
+
+    return shaderLocal22_offlineResult21;
+
+  }, 'float' );
+
+  const shaderFunction9_main = /*@__PURE__*/ Fn( () => {
+
+    shaderOutput.assign( vec4( 0. ) );
+
+    If( shaderInput11.greaterThan( .5 ), () => {
+
+      shaderOutput.assign( vec4( shaderInput0, shaderFunction6_particleMask().mul( shaderInput1 ) ) );
+
+    } ).Else( () => {
+
+      shaderFunction4_particleFallback();
+
+    } );
+
+    shaderOutput.a.mulAssign( shaderFunction8_particleDepthFade() );
+
+    return shaderOutput;
+
+  }, 'vec4' );
+
+  return { main: shaderFunction9_main };
+}
+
+export function create_tsl1_947bb76da7185ad1_vertex({ seed: shaderInput0, time: shaderInput1, phase: shaderInput2, pixelRatio: shaderInput3, origin: shaderInput4, target: shaderInput5, opacity: shaderInput6, warmth: shaderInput7, particleCell: shaderInput8, particleAngle: shaderInput9, modelViewMatrix: shaderInput10, projectionMatrix: shaderInput11, gl_PointSize: shaderInput12 }) {
+  const shaderOutput = property('vec4');
+  const shaderFunction0_particleNext = /*@__PURE__*/ Fn( ( [ shaderLocal0_time ] ) => {
+
+    const shaderLocal1_a = shaderInput0.x.mul( 6.283185 ).toVar();
+    const shaderLocal2_p = vec3( 0. ).toVar();
+    const shaderLocal3_alpha = float( 0. ).toVar(), shaderLocal4_opacity = float( 0. ).toVar(), shaderLocal5_warmth = shaderInput0.z.toVar();
+    const shaderLocal6_age = max( 0., shaderLocal0_time.sub( 5. ).sub( shaderInput0.w.mul( .6 ) ) ).toVar();
+    const shaderLocal7_speed = add( 14., shaderInput0.z.mul( 34. ) ).toVar();
+    const shaderLocal8_dir = normalize( vec3( shaderInput0.x.sub( .5 ), shaderInput0.y.sub( .5 ), shaderInput0.z.sub( .5 ) ).add( shaderInput5.mul( .9 ) ) ).toVar();
+    shaderLocal2_p.assign( shaderInput4.add( shaderLocal8_dir.mul( shaderLocal6_age ).mul( shaderLocal7_speed ).mul( sub( 1., shaderLocal6_age.mul( .03 ) ) ) ) );
+    shaderLocal5_warmth.assign( shaderInput0.y.mul( .5 ) );
+    shaderLocal4_opacity.assign( step( .001, shaderLocal6_age ).mul( sub( 1., smoothstep( 1., 4.5, shaderLocal6_age ) ) ).mul( .9 ) );
+
+    return shaderLocal2_p;
+
+  }, 'vec3' );
+
+  const shaderFunction1_main = /*@__PURE__*/ Fn( () => {
+
+    shaderOutput.assign( vec4( 0. ) );
+    const shaderLocal9_a = shaderInput0.x.mul( 6.283185 ).toVar();
+    const shaderLocal10_p = property( 'vec3' );
+    shaderInput7.assign( shaderInput0.z );
+    const shaderLocal11_age = max( 0., shaderInput1.sub( 5. ).sub( shaderInput0.w.mul( .6 ) ) ).toVar();
+    const shaderLocal12_speed = add( 14., shaderInput0.z.mul( 34. ) ).toVar();
+    const shaderLocal13_dir = normalize( vec3( shaderInput0.x.sub( .5 ), shaderInput0.y.sub( .5 ), shaderInput0.z.sub( .5 ) ).add( shaderInput5.mul( .9 ) ) ).toVar();
+    shaderLocal10_p.assign( shaderInput4.add( shaderLocal13_dir.mul( shaderLocal11_age ).mul( shaderLocal12_speed ).mul( sub( 1., shaderLocal11_age.mul( .03 ) ) ) ) );
+    shaderInput7.assign( shaderInput0.y.mul( .5 ) );
+    shaderInput6.assign( step( .001, shaderLocal11_age ).mul( sub( 1., smoothstep( 1., 4.5, shaderLocal11_age ) ) ).mul( .9 ) );
+    const shaderLocal14_mv = shaderInput10.mul( vec4( shaderLocal10_p, 1. ) ).toVar();
+    shaderOutput.assign( shaderInput11.mul( shaderLocal14_mv ) );
+    shaderInput12.assign( clamp( add( 1.5, shaderInput0.w.mul( 3. ) ).mul( shaderInput3 ).mul( 230. ).div( max( 1., shaderLocal14_mv.z.negate() ) ), 1., 12. ) );
+    shaderInput8.assign( add( 8., floor( min( shaderInput0.w, .999999 ).mul( 4. ) ) ) );
+    shaderInput9.assign( shaderInput0.x.mul( 6.283185 ) );
+    const shaderLocal15_particleFuture = shaderInput10.mul( vec4( shaderFunction0_particleNext( shaderInput1.add( .04 ) ), 1. ) ).toVar();
+    const shaderLocal16_particleDirection = shaderLocal15_particleFuture.xy.div( max( .001, shaderLocal15_particleFuture.z.negate() ) ).sub( shaderLocal14_mv.xy.div( max( .001, shaderLocal14_mv.z.negate() ) ) ).toVar();
+
+    If( dot( shaderLocal16_particleDirection, shaderLocal16_particleDirection ).greaterThan( .00000001 ), () => {
+
+      shaderInput9.assign( atan( shaderLocal16_particleDirection.y.negate(), shaderLocal16_particleDirection.x ) );
+
+    } );
+
+    return shaderOutput;
+
+  }, 'vec4' );
+
+  return { main: shaderFunction1_main };
+}
+
+export function create_tsl1_947bb76da7185ad1_fragment({ tint: shaderInput0, opacity: shaderInput1, warmth: shaderInput2, opaqueDepth: shaderInput3, opaqueDepthAvailable: shaderInput4, opaqueNear: shaderInput5, opaqueFar: shaderInput6, opaqueInverseSize: shaderInput7, opaqueProjectionInverse: shaderInput8, opaqueCameraWorld: shaderInput9, particleAtlas: shaderInput10, particleAtlasReady: shaderInput11, particleSoftness: shaderInput12, particleCell: shaderInput13, particleAngle: shaderInput14, uv: shaderInput15, gl_FragCoord: shaderInput16, gl_PointCoord: shaderInput17 }) {
+  const shaderOutput = property('vec4');
+  const shaderFunction0_offlineOpaqueDepthUv = /*@__PURE__*/ Fn( ( [ shaderLocal0_coord ] ) => {
+
+    return vec2( shaderLocal0_coord.x, sub( 1., shaderLocal0_coord.y ) );
+
+  }, 'vec2' );
+
+  const shaderFunction1_particleFallback = /*@__PURE__*/ Fn( () => {
+
+    const shaderLocal1_r = length( shaderInput17.sub( .5 ) ).mul( 2. ).toVar();
+
+    If( shaderLocal1_r.greaterThan( 1. ), () => {
+
+      Discard();
+
+    } );
+
+    shaderOutput.assign( vec4( mix( shaderInput0, shaderInput0.mul( vec3( 1.2, .55, .25 ) ), shaderInput2 ), pow( sub( 1., shaderLocal1_r ), 2. ).mul( shaderInput1 ) ) );
+
+  }, 'void' );
+
+  const shaderFunction2_opaqueWorldPoint = /*@__PURE__*/ Fn( ( [ shaderLocal2_uv, shaderLocal3_depth ] ) => {
+
+    const shaderLocal4_view = shaderInput8.mul( vec4( shaderLocal2_uv.mul( 2. ).sub( 1. ), shaderLocal3_depth.mul( 2. ).sub( 1. ), 1. ) ).toVar();
+
+    return shaderInput9.mul( vec4( shaderLocal4_view.xyz.div( shaderLocal4_view.w ), 1. ) ).xyz;
+
+  }, 'vec3' );
+
+  const shaderFunction3_particleMask = /*@__PURE__*/ Fn( () => {
+
+    const shaderLocal5_offlineDone5 = bool( false ).toVar();
+    const shaderLocal6_offlineResult5 = property( 'float' );
+    const shaderLocal7_p = shaderInput17.sub( .5 ).toVar();
+    const shaderLocal8_c = cos( shaderInput14 ).toVar(), shaderLocal9_s = sin( shaderInput14 ).toVar();
+    shaderLocal7_p.assign( mat2( shaderLocal8_c, shaderLocal9_s.negate(), shaderLocal9_s, shaderLocal8_c ).mul( shaderLocal7_p ).add( .5 ) );
+    const shaderLocal10_cell = vec2( mod( shaderInput13, 4. ), sub( 3., floor( shaderInput13.div( 4. ) ) ) ).toVar();
+    const shaderLocal11_uv = shaderLocal10_cell.mul( 256. ).add( vec2( .5 ) ).add( vec2( shaderLocal7_p.x, sub( 1., shaderLocal7_p.y ) ).mul( 255. ) ).div( 1024. ).toVar();
+    const shaderLocal12_mask = shaderInput10.sample( shaderLocal11_uv ).r.toVar();
+
+    If( any( lessThan( shaderLocal7_p, vec2( 0. ) ) ).or( any( greaterThan( shaderLocal7_p, vec2( 1. ) ) ) ), () => {
+
+      shaderLocal6_offlineResult5.assign( 0. );
+      shaderLocal5_offlineDone5.assign( true );
+
+    } );
+
+    If( shaderLocal5_offlineDone5.not(), () => {
+
+      shaderLocal6_offlineResult5.assign( shaderLocal12_mask );
+      shaderLocal5_offlineDone5.assign( true );
+
+    } );
+
+    return shaderLocal6_offlineResult5;
+
+  }, 'float' );
+
+  const shaderFunction4_particleViewDepth = /*@__PURE__*/ Fn( ( [ shaderLocal13_depth ] ) => {
+
+    return shaderInput5.mul( shaderInput6 ).div( shaderInput6.sub( shaderLocal13_depth.mul( shaderInput6.sub( shaderInput5 ) ) ) );
+
+  }, 'float' );
+
+  const shaderFunction5_particleDepthFade = /*@__PURE__*/ Fn( () => {
+
+    const shaderLocal14_offlineDone14 = bool( false ).toVar();
+    const shaderLocal15_offlineResult14 = property( 'float' );
+
+    If( shaderInput4.lessThan( .5 ), () => {
+
+      shaderLocal15_offlineResult14.assign( 1. );
+      shaderLocal14_offlineDone14.assign( true );
+
+    } );
+
+    If( shaderLocal14_offlineDone14.not(), () => {
+
+      const shaderLocal16_depth = shaderInput3.sample( shaderFunction0_offlineOpaqueDepthUv( shaderInput16.xy.mul( shaderInput7 ) ) ).x.toVar();
+
+      If( shaderLocal16_depth.greaterThanEqual( 1. ), () => {
+
+        shaderLocal15_offlineResult14.assign( 1. );
+        shaderLocal14_offlineDone14.assign( true );
+
+      } );
+
+      If( shaderLocal14_offlineDone14.not(), () => {
+
+        shaderLocal15_offlineResult14.assign( smoothstep( 0., max( .001, shaderInput12 ), shaderFunction4_particleViewDepth( shaderLocal16_depth ).sub( shaderFunction4_particleViewDepth( shaderInput16.z ) ) ) );
+        shaderLocal14_offlineDone14.assign( true );
+
+      } );
+
+    } );
+
+    return shaderLocal15_offlineResult14;
+
+  }, 'float' );
+
+  const shaderFunction6_main = /*@__PURE__*/ Fn( () => {
+
+    shaderOutput.assign( vec4( 0. ) );
+
+    If( shaderInput11.greaterThan( .5 ), () => {
+
+      shaderOutput.assign( vec4( mix( shaderInput0, shaderInput0.mul( vec3( 1.2, .55, .25 ) ), shaderInput2 ), shaderFunction3_particleMask().mul( shaderInput1 ) ) );
+
+    } ).Else( () => {
+
+      shaderFunction1_particleFallback();
+
+    } );
+
+    shaderOutput.a.mulAssign( shaderFunction5_particleDepthFade() );
+
+    return shaderOutput;
+
+  }, 'vec4' );
+
+  return { main: shaderFunction6_main };
+}
+
+export function create_tsl1_9aa5005ca1d80d7e_vertex({ seed: shaderInput0, time: shaderInput1, size: shaderInput2, ratio: shaderInput3, origin: shaderInput4, lean: shaderInput5, alpha: shaderInput6, variation: shaderInput7, particleCell: shaderInput8, particleAngle: shaderInput9, modelViewMatrix: shaderInput10, projectionMatrix: shaderInput11, gl_PointSize: shaderInput12 }) {
+  const shaderOutput = property('vec4');
+  const shaderFunction0_main = /*@__PURE__*/ Fn( () => {
+
+    shaderOutput.assign( vec4( 0. ) );
+    const shaderLocal0_a = shaderInput0.x.mul( 6.283185 ).toVar();
+    const shaderLocal1_p = vec3( 0. ).toVar();
+    shaderInput7.assign( shaderInput0.w );
+    const shaderLocal2_fall = mod( shaderInput0.z.mul( 150. ).add( shaderInput1.mul( add( 9., shaderInput0.w.mul( 7. ) ) ) ), 150. ).toVar();
+    shaderLocal1_p.assign( vec3( shaderInput0.x.sub( .5 ).mul( 330. ), sub( 150., shaderLocal2_fall ), shaderInput0.y.sub( .5 ).mul( 330. ).sub( 40. ) ) );
+    shaderInput6.assign( smoothstep( 10., 18., shaderInput1 ).mul( smoothstep( 0., 8., shaderLocal2_fall ) ).mul( smoothstep( 0., 8., sub( 150., shaderLocal2_fall ) ) ).mul( add( .5, mul( .5, shaderInput0.y ) ) ).mul( .26 ) );
+    const shaderLocal3_mv = shaderInput10.mul( vec4( shaderLocal1_p, 1. ) ).toVar();
+    shaderOutput.assign( shaderInput11.mul( shaderLocal3_mv ) );
+    shaderInput12.assign( clamp( shaderInput2.mul( shaderInput3 ).mul( 240. ).div( max( 1., shaderLocal3_mv.z.negate() ) ), 1., 100. ) );
+    shaderInput8.assign( add( 0., floor( min( shaderInput0.w, .999999 ).mul( 4. ) ) ) );
+    shaderInput9.assign( shaderInput0.x.mul( 6.283185 ).add( shaderInput1.mul( shaderInput0.z.sub( .5 ) ).mul( .35 ) ) );
+
+    return shaderOutput;
+
+  }, 'vec4' );
+
+  return { main: shaderFunction0_main };
+}
+
+export function create_tsl1_9aa5005ca1d80d7e_fragment({ tint: shaderInput0, alpha: shaderInput1, variation: shaderInput2, opaqueDepth: shaderInput3, opaqueDepthAvailable: shaderInput4, opaqueNear: shaderInput5, opaqueFar: shaderInput6, opaqueInverseSize: shaderInput7, opaqueProjectionInverse: shaderInput8, opaqueCameraWorld: shaderInput9, particleAtlas: shaderInput10, particleAtlasReady: shaderInput11, particleSoftness: shaderInput12, particleCell: shaderInput13, particleAngle: shaderInput14, uv: shaderInput15, gl_FragCoord: shaderInput16, gl_PointCoord: shaderInput17 }) {
+  const shaderOutput = property('vec4');
+  const shaderFunction0_offlineOpaqueDepthUv = /*@__PURE__*/ Fn( ( [ shaderLocal0_coord ] ) => {
+
+    return vec2( shaderLocal0_coord.x, sub( 1., shaderLocal0_coord.y ) );
+
+  }, 'vec2' );
+
+  const shaderFunction1_hash = /*@__PURE__*/ Fn( ( [ shaderLocal1_p ] ) => {
+
+    return fract( sin( dot( shaderLocal1_p, vec3( 127.1, 311.7, 74.7 ) ) ).mul( 43758.5453 ) );
+
+  }, 'float' );
+
+  const shaderFunction2_noise = /*@__PURE__*/ Fn( ( [ shaderLocal2_p ] ) => {
+
+    const shaderLocal3_i = floor( shaderLocal2_p ).toVar(), shaderLocal4_f = fract( shaderLocal2_p ).toVar();
+    shaderLocal4_f.assign( shaderLocal4_f.mul( shaderLocal4_f ).mul( sub( 3., mul( 2., shaderLocal4_f ) ) ) );
+
+    return mix( mix( mix( shaderFunction1_hash( shaderLocal3_i ), shaderFunction1_hash( shaderLocal3_i.add( vec3( 1, 0, 0 ) ) ), shaderLocal4_f.x ), mix( shaderFunction1_hash( shaderLocal3_i.add( vec3( 0, 1, 0 ) ) ), shaderFunction1_hash( shaderLocal3_i.add( vec3( 1, 1, 0 ) ) ), shaderLocal4_f.x ), shaderLocal4_f.y ), mix( mix( shaderFunction1_hash( shaderLocal3_i.add( vec3( 0, 0, 1 ) ) ), shaderFunction1_hash( shaderLocal3_i.add( vec3( 1, 0, 1 ) ) ), shaderLocal4_f.x ), mix( shaderFunction1_hash( shaderLocal3_i.add( vec3( 0, 1, 1 ) ) ), shaderFunction1_hash( shaderLocal3_i.add( vec3( 1, 1, 1 ) ) ), shaderLocal4_f.x ), shaderLocal4_f.y ), shaderLocal4_f.z );
+
+  }, 'float' );
+
+  const shaderFunction3_fbm = /*@__PURE__*/ Fn( ( [ shaderLocal5_p ] ) => {
+
+    return shaderFunction2_noise( shaderLocal5_p ).mul( .57 ).add( shaderFunction2_noise( shaderLocal5_p.mul( 2.03 ) ).mul( .28 ) ).add( shaderFunction2_noise( shaderLocal5_p.mul( 4.11 ) ).mul( .15 ) );
+
+  }, 'float' );
+
+  const shaderFunction4_particleFallback = /*@__PURE__*/ Fn( () => {
+
+    const shaderLocal6_p = shaderInput17.sub( .5 ).toVar();
+    const shaderLocal7_r = length( shaderLocal6_p ).mul( 2. ).toVar();
+
+    If( shaderLocal7_r.greaterThan( 1. ), () => {
+
+      Discard();
+
+    } );
+
+    const shaderLocal8_a = sub( 1., smoothstep( .05, 1., shaderLocal7_r ) ).mul( shaderInput1 ).toVar();
+    shaderLocal8_a.mulAssign( smoothstep( .18, .6, shaderFunction3_fbm( vec3( shaderLocal6_p.mul( 5. ), shaderInput2.mul( 13. ) ) ) ) );
+    shaderOutput.assign( vec4( shaderInput0, shaderLocal8_a ) );
+
+  }, 'void' );
+
+  const shaderFunction5_opaqueWorldPoint = /*@__PURE__*/ Fn( ( [ shaderLocal9_uv, shaderLocal10_depth ] ) => {
+
+    const shaderLocal11_view = shaderInput8.mul( vec4( shaderLocal9_uv.mul( 2. ).sub( 1. ), shaderLocal10_depth.mul( 2. ).sub( 1. ), 1. ) ).toVar();
+
+    return shaderInput9.mul( vec4( shaderLocal11_view.xyz.div( shaderLocal11_view.w ), 1. ) ).xyz;
+
+  }, 'vec3' );
+
+  const shaderFunction6_particleMask = /*@__PURE__*/ Fn( () => {
+
+    const shaderLocal12_offlineDone12 = bool( false ).toVar();
+    const shaderLocal13_offlineResult12 = property( 'float' );
+    const shaderLocal14_p = shaderInput17.sub( .5 ).toVar();
+    const shaderLocal15_c = cos( shaderInput14 ).toVar(), shaderLocal16_s = sin( shaderInput14 ).toVar();
+    shaderLocal14_p.assign( mat2( shaderLocal15_c, shaderLocal16_s.negate(), shaderLocal16_s, shaderLocal15_c ).mul( shaderLocal14_p ).add( .5 ) );
+    const shaderLocal17_cell = vec2( mod( shaderInput13, 4. ), sub( 3., floor( shaderInput13.div( 4. ) ) ) ).toVar();
+    const shaderLocal18_uv = shaderLocal17_cell.mul( 256. ).add( vec2( .5 ) ).add( vec2( shaderLocal14_p.x, sub( 1., shaderLocal14_p.y ) ).mul( 255. ) ).div( 1024. ).toVar();
+    const shaderLocal19_mask = shaderInput10.sample( shaderLocal18_uv ).r.toVar();
+
+    If( any( lessThan( shaderLocal14_p, vec2( 0. ) ) ).or( any( greaterThan( shaderLocal14_p, vec2( 1. ) ) ) ), () => {
+
+      shaderLocal13_offlineResult12.assign( 0. );
+      shaderLocal12_offlineDone12.assign( true );
+
+    } );
+
+    If( shaderLocal12_offlineDone12.not(), () => {
+
+      shaderLocal13_offlineResult12.assign( shaderLocal19_mask );
+      shaderLocal12_offlineDone12.assign( true );
+
+    } );
+
+    return shaderLocal13_offlineResult12;
+
+  }, 'float' );
+
+  const shaderFunction7_particleViewDepth = /*@__PURE__*/ Fn( ( [ shaderLocal20_depth ] ) => {
+
+    return shaderInput5.mul( shaderInput6 ).div( shaderInput6.sub( shaderLocal20_depth.mul( shaderInput6.sub( shaderInput5 ) ) ) );
+
+  }, 'float' );
+
+  const shaderFunction8_particleDepthFade = /*@__PURE__*/ Fn( () => {
+
+    const shaderLocal21_offlineDone21 = bool( false ).toVar();
+    const shaderLocal22_offlineResult21 = property( 'float' );
+
+    If( shaderInput4.lessThan( .5 ), () => {
+
+      shaderLocal22_offlineResult21.assign( 1. );
+      shaderLocal21_offlineDone21.assign( true );
+
+    } );
+
+    If( shaderLocal21_offlineDone21.not(), () => {
+
+      const shaderLocal23_depth = shaderInput3.sample( shaderFunction0_offlineOpaqueDepthUv( shaderInput16.xy.mul( shaderInput7 ) ) ).x.toVar();
+
+      If( shaderLocal23_depth.greaterThanEqual( 1. ), () => {
+
+        shaderLocal22_offlineResult21.assign( 1. );
+        shaderLocal21_offlineDone21.assign( true );
+
+      } );
+
+      If( shaderLocal21_offlineDone21.not(), () => {
+
+        shaderLocal22_offlineResult21.assign( smoothstep( 0., max( .001, shaderInput12 ), shaderFunction7_particleViewDepth( shaderLocal23_depth ).sub( shaderFunction7_particleViewDepth( shaderInput16.z ) ) ) );
+        shaderLocal21_offlineDone21.assign( true );
+
+      } );
+
+    } );
+
+    return shaderLocal22_offlineResult21;
 
   }, 'float' );
 
@@ -3583,6 +3419,180 @@ export function create_tsl1_a0d737cab386bcf4_fragment({ time: shaderInput0, fade
   }, 'vec4' );
 
   return { main: shaderFunction3_main };
+}
+
+export function create_tsl1_a1804a7019977f44_vertex({ seed: shaderInput0, time: shaderInput1, size: shaderInput2, ratio: shaderInput3, origin: shaderInput4, lean: shaderInput5, alpha: shaderInput6, variation: shaderInput7, particleCell: shaderInput8, particleAngle: shaderInput9, modelViewMatrix: shaderInput10, projectionMatrix: shaderInput11, gl_PointSize: shaderInput12 }) {
+  const shaderOutput = property('vec4');
+  const shaderFunction0_main = /*@__PURE__*/ Fn( () => {
+
+    shaderOutput.assign( vec4( 0. ) );
+    const shaderLocal0_a = shaderInput0.x.mul( 6.283185 ).toVar();
+    const shaderLocal1_p = vec3( 0. ).toVar();
+    shaderInput7.assign( shaderInput0.w );
+    const shaderLocal2_age = max( 0., shaderInput1.sub( 4. ).sub( shaderInput0.w.mul( 11. ) ) ).toVar();
+    const shaderLocal3_z = shaderInput0.x.sub( .5 ).mul( 165. ).toVar();
+    const shaderLocal4_fault = sin( shaderLocal3_z.mul( .045 ) ).mul( 10. ).add( sin( shaderLocal3_z.mul( .16 ) ).mul( 2. ) ).toVar();
+    shaderLocal1_p.assign( vec3( shaderLocal4_fault.add( shaderInput0.y.sub( .5 ).mul( shaderLocal2_age ).mul( 4. ) ), shaderLocal2_age.mul( add( 3., shaderInput0.z.mul( 4. ) ) ), shaderLocal3_z.add( sin( shaderLocal0_a ).mul( shaderLocal2_age ).mul( .65 ) ) ) );
+    shaderInput6.assign( step( add( 4., shaderInput0.w.mul( 11. ) ), shaderInput1 ).mul( smoothstep( 0., 2., shaderLocal2_age ) ).mul( sub( 1., smoothstep( 9., 23., shaderLocal2_age ) ) ).mul( .22 ) );
+    const shaderLocal5_mv = shaderInput10.mul( vec4( shaderLocal1_p, 1. ) ).toVar();
+    shaderOutput.assign( shaderInput11.mul( shaderLocal5_mv ) );
+    shaderInput12.assign( clamp( shaderInput2.mul( shaderInput3 ).mul( 240. ).div( max( 1., shaderLocal5_mv.z.negate() ) ), 1., 100. ) );
+    shaderInput8.assign( add( 0., floor( min( shaderInput0.w, .999999 ).mul( 4. ) ) ) );
+    shaderInput9.assign( shaderInput0.x.mul( 6.283185 ).add( shaderInput1.mul( shaderInput0.z.sub( .5 ) ).mul( .35 ) ) );
+
+    return shaderOutput;
+
+  }, 'vec4' );
+
+  return { main: shaderFunction0_main };
+}
+
+export function create_tsl1_a1804a7019977f44_fragment({ tint: shaderInput0, alpha: shaderInput1, variation: shaderInput2, opaqueDepth: shaderInput3, opaqueDepthAvailable: shaderInput4, opaqueNear: shaderInput5, opaqueFar: shaderInput6, opaqueInverseSize: shaderInput7, opaqueProjectionInverse: shaderInput8, opaqueCameraWorld: shaderInput9, particleAtlas: shaderInput10, particleAtlasReady: shaderInput11, particleSoftness: shaderInput12, particleCell: shaderInput13, particleAngle: shaderInput14, uv: shaderInput15, gl_FragCoord: shaderInput16, gl_PointCoord: shaderInput17 }) {
+  const shaderOutput = property('vec4');
+  const shaderFunction0_offlineOpaqueDepthUv = /*@__PURE__*/ Fn( ( [ shaderLocal0_coord ] ) => {
+
+    return vec2( shaderLocal0_coord.x, sub( 1., shaderLocal0_coord.y ) );
+
+  }, 'vec2' );
+
+  const shaderFunction1_hash = /*@__PURE__*/ Fn( ( [ shaderLocal1_p ] ) => {
+
+    return fract( sin( dot( shaderLocal1_p, vec3( 127.1, 311.7, 74.7 ) ) ).mul( 43758.5453 ) );
+
+  }, 'float' );
+
+  const shaderFunction2_noise = /*@__PURE__*/ Fn( ( [ shaderLocal2_p ] ) => {
+
+    const shaderLocal3_i = floor( shaderLocal2_p ).toVar(), shaderLocal4_f = fract( shaderLocal2_p ).toVar();
+    shaderLocal4_f.assign( shaderLocal4_f.mul( shaderLocal4_f ).mul( sub( 3., mul( 2., shaderLocal4_f ) ) ) );
+
+    return mix( mix( mix( shaderFunction1_hash( shaderLocal3_i ), shaderFunction1_hash( shaderLocal3_i.add( vec3( 1, 0, 0 ) ) ), shaderLocal4_f.x ), mix( shaderFunction1_hash( shaderLocal3_i.add( vec3( 0, 1, 0 ) ) ), shaderFunction1_hash( shaderLocal3_i.add( vec3( 1, 1, 0 ) ) ), shaderLocal4_f.x ), shaderLocal4_f.y ), mix( mix( shaderFunction1_hash( shaderLocal3_i.add( vec3( 0, 0, 1 ) ) ), shaderFunction1_hash( shaderLocal3_i.add( vec3( 1, 0, 1 ) ) ), shaderLocal4_f.x ), mix( shaderFunction1_hash( shaderLocal3_i.add( vec3( 0, 1, 1 ) ) ), shaderFunction1_hash( shaderLocal3_i.add( vec3( 1, 1, 1 ) ) ), shaderLocal4_f.x ), shaderLocal4_f.y ), shaderLocal4_f.z );
+
+  }, 'float' );
+
+  const shaderFunction3_fbm = /*@__PURE__*/ Fn( ( [ shaderLocal5_p ] ) => {
+
+    return shaderFunction2_noise( shaderLocal5_p ).mul( .57 ).add( shaderFunction2_noise( shaderLocal5_p.mul( 2.03 ) ).mul( .28 ) ).add( shaderFunction2_noise( shaderLocal5_p.mul( 4.11 ) ).mul( .15 ) );
+
+  }, 'float' );
+
+  const shaderFunction4_particleFallback = /*@__PURE__*/ Fn( () => {
+
+    const shaderLocal6_p = shaderInput17.sub( .5 ).toVar();
+    const shaderLocal7_r = length( shaderLocal6_p ).mul( 2. ).toVar();
+
+    If( shaderLocal7_r.greaterThan( 1. ), () => {
+
+      Discard();
+
+    } );
+
+    const shaderLocal8_a = sub( 1., smoothstep( .05, 1., shaderLocal7_r ) ).mul( shaderInput1 ).toVar();
+    shaderLocal8_a.mulAssign( smoothstep( .18, .6, shaderFunction3_fbm( vec3( shaderLocal6_p.mul( 5. ), shaderInput2.mul( 13. ) ) ) ) );
+    shaderOutput.assign( vec4( shaderInput0, shaderLocal8_a ) );
+
+  }, 'void' );
+
+  const shaderFunction5_opaqueWorldPoint = /*@__PURE__*/ Fn( ( [ shaderLocal9_uv, shaderLocal10_depth ] ) => {
+
+    const shaderLocal11_view = shaderInput8.mul( vec4( shaderLocal9_uv.mul( 2. ).sub( 1. ), shaderLocal10_depth.mul( 2. ).sub( 1. ), 1. ) ).toVar();
+
+    return shaderInput9.mul( vec4( shaderLocal11_view.xyz.div( shaderLocal11_view.w ), 1. ) ).xyz;
+
+  }, 'vec3' );
+
+  const shaderFunction6_particleMask = /*@__PURE__*/ Fn( () => {
+
+    const shaderLocal12_offlineDone12 = bool( false ).toVar();
+    const shaderLocal13_offlineResult12 = property( 'float' );
+    const shaderLocal14_p = shaderInput17.sub( .5 ).toVar();
+    const shaderLocal15_c = cos( shaderInput14 ).toVar(), shaderLocal16_s = sin( shaderInput14 ).toVar();
+    shaderLocal14_p.assign( mat2( shaderLocal15_c, shaderLocal16_s.negate(), shaderLocal16_s, shaderLocal15_c ).mul( shaderLocal14_p ).add( .5 ) );
+    const shaderLocal17_cell = vec2( mod( shaderInput13, 4. ), sub( 3., floor( shaderInput13.div( 4. ) ) ) ).toVar();
+    const shaderLocal18_uv = shaderLocal17_cell.mul( 256. ).add( vec2( .5 ) ).add( vec2( shaderLocal14_p.x, sub( 1., shaderLocal14_p.y ) ).mul( 255. ) ).div( 1024. ).toVar();
+    const shaderLocal19_mask = shaderInput10.sample( shaderLocal18_uv ).r.toVar();
+
+    If( any( lessThan( shaderLocal14_p, vec2( 0. ) ) ).or( any( greaterThan( shaderLocal14_p, vec2( 1. ) ) ) ), () => {
+
+      shaderLocal13_offlineResult12.assign( 0. );
+      shaderLocal12_offlineDone12.assign( true );
+
+    } );
+
+    If( shaderLocal12_offlineDone12.not(), () => {
+
+      shaderLocal13_offlineResult12.assign( shaderLocal19_mask );
+      shaderLocal12_offlineDone12.assign( true );
+
+    } );
+
+    return shaderLocal13_offlineResult12;
+
+  }, 'float' );
+
+  const shaderFunction7_particleViewDepth = /*@__PURE__*/ Fn( ( [ shaderLocal20_depth ] ) => {
+
+    return shaderInput5.mul( shaderInput6 ).div( shaderInput6.sub( shaderLocal20_depth.mul( shaderInput6.sub( shaderInput5 ) ) ) );
+
+  }, 'float' );
+
+  const shaderFunction8_particleDepthFade = /*@__PURE__*/ Fn( () => {
+
+    const shaderLocal21_offlineDone21 = bool( false ).toVar();
+    const shaderLocal22_offlineResult21 = property( 'float' );
+
+    If( shaderInput4.lessThan( .5 ), () => {
+
+      shaderLocal22_offlineResult21.assign( 1. );
+      shaderLocal21_offlineDone21.assign( true );
+
+    } );
+
+    If( shaderLocal21_offlineDone21.not(), () => {
+
+      const shaderLocal23_depth = shaderInput3.sample( shaderFunction0_offlineOpaqueDepthUv( shaderInput16.xy.mul( shaderInput7 ) ) ).x.toVar();
+
+      If( shaderLocal23_depth.greaterThanEqual( 1. ), () => {
+
+        shaderLocal22_offlineResult21.assign( 1. );
+        shaderLocal21_offlineDone21.assign( true );
+
+      } );
+
+      If( shaderLocal21_offlineDone21.not(), () => {
+
+        shaderLocal22_offlineResult21.assign( smoothstep( 0., max( .001, shaderInput12 ), shaderFunction7_particleViewDepth( shaderLocal23_depth ).sub( shaderFunction7_particleViewDepth( shaderInput16.z ) ) ) );
+        shaderLocal21_offlineDone21.assign( true );
+
+      } );
+
+    } );
+
+    return shaderLocal22_offlineResult21;
+
+  }, 'float' );
+
+  const shaderFunction9_main = /*@__PURE__*/ Fn( () => {
+
+    shaderOutput.assign( vec4( 0. ) );
+
+    If( shaderInput11.greaterThan( .5 ), () => {
+
+      shaderOutput.assign( vec4( shaderInput0, shaderFunction6_particleMask().mul( shaderInput1 ) ) );
+
+    } ).Else( () => {
+
+      shaderFunction4_particleFallback();
+
+    } );
+
+    shaderOutput.a.mulAssign( shaderFunction8_particleDepthFade() );
+
+    return shaderOutput;
+
+  }, 'vec4' );
+
+  return { main: shaderFunction9_main };
 }
 
 export function create_tsl1_a19fdce44a244ea0_vertex({ hullPoint: shaderInput0, position: shaderInput1, modelMatrix: shaderInput2, projectionMatrix: shaderInput3, viewMatrix: shaderInput4 }) {
@@ -3763,177 +3773,6 @@ export function create_tsl1_a19fdce44a244ea0_fragment({ time: shaderInput0, step
   return { main: shaderFunction7_main };
 }
 
-export function create_tsl1_a2e644aa7e6056c0_vertex({ seed: shaderInput0, time: shaderInput1, size: shaderInput2, ratio: shaderInput3, origin: shaderInput4, lean: shaderInput5, alpha: shaderInput6, variation: shaderInput7, particleCell: shaderInput8, particleAngle: shaderInput9, modelViewMatrix: shaderInput10, projectionMatrix: shaderInput11, gl_PointSize: shaderInput12 }) {
-  const shaderOutput = property('vec4');
-  const shaderFunction0_main = /*@__PURE__*/ Fn( () => {
-
-    shaderOutput.assign( vec4( 0. ) );
-    const shaderLocal0_a = shaderInput0.x.mul( 6.283185 ).toVar();
-    const shaderLocal1_p = vec3( 0. ).toVar();
-    shaderInput7.assign( shaderInput0.w );
-    const shaderLocal2_age = max( 0., shaderInput1.sub( 5. ).sub( shaderInput0.w.mul( 5. ) ) ).toVar();
-    const shaderLocal3_speed = add( 9., shaderInput0.y.mul( 10. ) ).toVar();
-    shaderLocal1_p.assign( vec3( add( -18, cos( shaderLocal0_a ).mul( shaderLocal2_age ).mul( shaderLocal3_speed ) ), add( 12., shaderLocal2_age.mul( add( 14., shaderInput0.z.mul( 15. ) ) ) ).sub( shaderLocal2_age.mul( shaderLocal2_age ).mul( 1.3 ) ), add( -27, sin( shaderLocal0_a ).mul( shaderLocal2_age ).mul( shaderLocal3_speed ) ) ) );
-    shaderInput6.assign( step( add( 5., shaderInput0.w.mul( 5. ) ), shaderInput1 ).mul( sub( 1., smoothstep( 4., 14., shaderLocal2_age ) ) ).mul( step( .5, shaderLocal1_p.y ) ) );
-    const shaderLocal4_mv = shaderInput10.mul( vec4( shaderLocal1_p, 1. ) ).toVar();
-    shaderOutput.assign( shaderInput11.mul( shaderLocal4_mv ) );
-    shaderInput12.assign( clamp( shaderInput2.mul( shaderInput3 ).mul( 240. ).div( max( 1., shaderLocal4_mv.z.negate() ) ), 1., 12. ) );
-    shaderInput8.assign( add( 4., floor( min( shaderInput0.w, .999999 ).mul( 4. ) ) ) );
-    shaderInput9.assign( shaderInput0.x.mul( 6.283185 ) );
-
-    return shaderOutput;
-
-  }, 'vec4' );
-
-  return { main: shaderFunction0_main };
-}
-
-export function create_tsl1_a2e644aa7e6056c0_fragment({ tint: shaderInput0, alpha: shaderInput1, variation: shaderInput2, opaqueDepth: shaderInput3, opaqueDepthAvailable: shaderInput4, opaqueNear: shaderInput5, opaqueFar: shaderInput6, opaqueInverseSize: shaderInput7, opaqueProjectionInverse: shaderInput8, opaqueCameraWorld: shaderInput9, particleAtlas: shaderInput10, particleAtlasReady: shaderInput11, particleSoftness: shaderInput12, particleCell: shaderInput13, particleAngle: shaderInput14, uv: shaderInput15, gl_FragCoord: shaderInput16, gl_PointCoord: shaderInput17 }) {
-  const shaderOutput = property('vec4');
-  const shaderFunction0_offlineOpaqueDepthUv = /*@__PURE__*/ Fn( ( [ shaderLocal0_coord ] ) => {
-
-    return vec2( shaderLocal0_coord.x, sub( 1., shaderLocal0_coord.y ) );
-
-  }, 'vec2' );
-
-  const shaderFunction1_hash = /*@__PURE__*/ Fn( ( [ shaderLocal1_p ] ) => {
-
-    return fract( sin( dot( shaderLocal1_p, vec3( 127.1, 311.7, 74.7 ) ) ).mul( 43758.5453 ) );
-
-  }, 'float' );
-
-  const shaderFunction2_noise = /*@__PURE__*/ Fn( ( [ shaderLocal2_p ] ) => {
-
-    const shaderLocal3_i = floor( shaderLocal2_p ).toVar(), shaderLocal4_f = fract( shaderLocal2_p ).toVar();
-    shaderLocal4_f.assign( shaderLocal4_f.mul( shaderLocal4_f ).mul( sub( 3., mul( 2., shaderLocal4_f ) ) ) );
-
-    return mix( mix( mix( shaderFunction1_hash( shaderLocal3_i ), shaderFunction1_hash( shaderLocal3_i.add( vec3( 1, 0, 0 ) ) ), shaderLocal4_f.x ), mix( shaderFunction1_hash( shaderLocal3_i.add( vec3( 0, 1, 0 ) ) ), shaderFunction1_hash( shaderLocal3_i.add( vec3( 1, 1, 0 ) ) ), shaderLocal4_f.x ), shaderLocal4_f.y ), mix( mix( shaderFunction1_hash( shaderLocal3_i.add( vec3( 0, 0, 1 ) ) ), shaderFunction1_hash( shaderLocal3_i.add( vec3( 1, 0, 1 ) ) ), shaderLocal4_f.x ), mix( shaderFunction1_hash( shaderLocal3_i.add( vec3( 0, 1, 1 ) ) ), shaderFunction1_hash( shaderLocal3_i.add( vec3( 1, 1, 1 ) ) ), shaderLocal4_f.x ), shaderLocal4_f.y ), shaderLocal4_f.z );
-
-  }, 'float' );
-
-  const shaderFunction3_fbm = /*@__PURE__*/ Fn( ( [ shaderLocal5_p ] ) => {
-
-    return shaderFunction2_noise( shaderLocal5_p ).mul( .57 ).add( shaderFunction2_noise( shaderLocal5_p.mul( 2.03 ) ).mul( .28 ) ).add( shaderFunction2_noise( shaderLocal5_p.mul( 4.11 ) ).mul( .15 ) );
-
-  }, 'float' );
-
-  const shaderFunction4_particleFallback = /*@__PURE__*/ Fn( () => {
-
-    const shaderLocal6_p = shaderInput17.sub( .5 ).toVar();
-    const shaderLocal7_r = length( shaderLocal6_p ).mul( 2. ).toVar();
-
-    If( shaderLocal7_r.greaterThan( 1. ), () => {
-
-      Discard();
-
-    } );
-
-    const shaderLocal8_a = sub( 1., smoothstep( .05, 1., shaderLocal7_r ) ).mul( shaderInput1 ).toVar();
-    shaderOutput.assign( vec4( shaderInput0, shaderLocal8_a ) );
-
-  }, 'void' );
-
-  const shaderFunction5_opaqueWorldPoint = /*@__PURE__*/ Fn( ( [ shaderLocal9_uv, shaderLocal10_depth ] ) => {
-
-    const shaderLocal11_view = shaderInput8.mul( vec4( shaderLocal9_uv.mul( 2. ).sub( 1. ), shaderLocal10_depth.mul( 2. ).sub( 1. ), 1. ) ).toVar();
-
-    return shaderInput9.mul( vec4( shaderLocal11_view.xyz.div( shaderLocal11_view.w ), 1. ) ).xyz;
-
-  }, 'vec3' );
-
-  const shaderFunction6_particleMask = /*@__PURE__*/ Fn( () => {
-
-    const shaderLocal12_offlineDone12 = bool( false ).toVar();
-    const shaderLocal13_offlineResult12 = property( 'float' );
-    const shaderLocal14_p = shaderInput17.sub( .5 ).toVar();
-    const shaderLocal15_c = cos( shaderInput14 ).toVar(), shaderLocal16_s = sin( shaderInput14 ).toVar();
-    shaderLocal14_p.assign( mat2( shaderLocal15_c, shaderLocal16_s.negate(), shaderLocal16_s, shaderLocal15_c ).mul( shaderLocal14_p ).add( .5 ) );
-
-    If( any( lessThan( shaderLocal14_p, vec2( 0. ) ) ).or( any( greaterThan( shaderLocal14_p, vec2( 1. ) ) ) ), () => {
-
-      shaderLocal13_offlineResult12.assign( 0. );
-      shaderLocal12_offlineDone12.assign( true );
-
-    } );
-
-    If( shaderLocal12_offlineDone12.not(), () => {
-
-      const shaderLocal17_cell = vec2( mod( shaderInput13, 4. ), sub( 3., floor( shaderInput13.div( 4. ) ) ) ).toVar();
-      const shaderLocal18_uv = shaderLocal17_cell.mul( 256. ).add( vec2( .5 ) ).add( vec2( shaderLocal14_p.x, sub( 1., shaderLocal14_p.y ) ).mul( 255. ) ).div( 1024. ).toVar();
-      shaderLocal13_offlineResult12.assign( shaderInput10.sample( shaderLocal18_uv ).r );
-      shaderLocal12_offlineDone12.assign( true );
-
-    } );
-
-    return shaderLocal13_offlineResult12;
-
-  }, 'float' );
-
-  const shaderFunction7_particleViewDepth = /*@__PURE__*/ Fn( ( [ shaderLocal19_depth ] ) => {
-
-    return shaderInput5.mul( shaderInput6 ).div( shaderInput6.sub( shaderLocal19_depth.mul( shaderInput6.sub( shaderInput5 ) ) ) );
-
-  }, 'float' );
-
-  const shaderFunction8_particleDepthFade = /*@__PURE__*/ Fn( () => {
-
-    const shaderLocal20_offlineDone20 = bool( false ).toVar();
-    const shaderLocal21_offlineResult20 = property( 'float' );
-
-    If( shaderInput4.lessThan( .5 ), () => {
-
-      shaderLocal21_offlineResult20.assign( 1. );
-      shaderLocal20_offlineDone20.assign( true );
-
-    } );
-
-    If( shaderLocal20_offlineDone20.not(), () => {
-
-      const shaderLocal22_depth = shaderInput3.sample( shaderFunction0_offlineOpaqueDepthUv( shaderInput16.xy.mul( shaderInput7 ) ) ).x.toVar();
-
-      If( shaderLocal22_depth.greaterThanEqual( 1. ), () => {
-
-        shaderLocal21_offlineResult20.assign( 1. );
-        shaderLocal20_offlineDone20.assign( true );
-
-      } );
-
-      If( shaderLocal20_offlineDone20.not(), () => {
-
-        shaderLocal21_offlineResult20.assign( smoothstep( 0., max( .001, shaderInput12 ), shaderFunction7_particleViewDepth( shaderLocal22_depth ).sub( shaderFunction7_particleViewDepth( shaderInput16.z ) ) ) );
-        shaderLocal20_offlineDone20.assign( true );
-
-      } );
-
-    } );
-
-    return shaderLocal21_offlineResult20;
-
-  }, 'float' );
-
-  const shaderFunction9_main = /*@__PURE__*/ Fn( () => {
-
-    shaderOutput.assign( vec4( 0. ) );
-
-    If( shaderInput11.greaterThan( .5 ), () => {
-
-      shaderOutput.assign( vec4( shaderInput0, shaderFunction6_particleMask().mul( shaderInput1 ) ) );
-
-    } ).Else( () => {
-
-      shaderFunction4_particleFallback();
-
-    } );
-
-    shaderOutput.a.mulAssign( shaderFunction8_particleDepthFade() );
-
-    return shaderOutput;
-
-  }, 'vec4' );
-
-  return { main: shaderFunction9_main };
-}
-
 export function create_tsl1_a3f2d31fcacd1a55_vertex({ direction: shaderInput0, position: shaderInput1, modelViewMatrix: shaderInput2, projectionMatrix: shaderInput3 }) {
   const shaderOutput = property('vec4');
   const shaderFunction0_main = /*@__PURE__*/ Fn( () => {
@@ -4015,7 +3854,7 @@ export function create_tsl1_a3f2d31fcacd1a55_fragment({ time: shaderInput0, dens
   return { main: shaderFunction3_main };
 }
 
-export function create_tsl1_a666c9adc3fa4adb_vertex({ seed: shaderInput0, time: shaderInput1, size: shaderInput2, ratio: shaderInput3, origin: shaderInput4, lean: shaderInput5, alpha: shaderInput6, variation: shaderInput7, particleCell: shaderInput8, particleAngle: shaderInput9, modelViewMatrix: shaderInput10, projectionMatrix: shaderInput11, gl_PointSize: shaderInput12 }) {
+export function create_tsl1_aa6ff42a3d810e28_vertex({ seed: shaderInput0, time: shaderInput1, size: shaderInput2, ratio: shaderInput3, origin: shaderInput4, lean: shaderInput5, alpha: shaderInput6, variation: shaderInput7, particleCell: shaderInput8, particleAngle: shaderInput9, modelViewMatrix: shaderInput10, projectionMatrix: shaderInput11, gl_PointSize: shaderInput12 }) {
   const shaderOutput = property('vec4');
   const shaderFunction0_main = /*@__PURE__*/ Fn( () => {
 
@@ -4023,14 +3862,366 @@ export function create_tsl1_a666c9adc3fa4adb_vertex({ seed: shaderInput0, time: 
     const shaderLocal0_a = shaderInput0.x.mul( 6.283185 ).toVar();
     const shaderLocal1_p = vec3( 0. ).toVar();
     shaderInput7.assign( shaderInput0.w );
-    const shaderLocal2_gust = add( 8., smoothstep( 4., 18., shaderInput1 ).mul( 40. ) ).toVar();
-    const shaderLocal3_fall = add( 6., shaderInput0.w.mul( 10. ) ).toVar();
-    shaderLocal1_p.assign( vec3( mod( shaderInput0.x.mul( 320. ).add( shaderInput1.mul( shaderLocal2_gust ).mul( add( .75, shaderInput0.z.mul( .5 ) ) ) ), 320. ).sub( 160. ), mod( shaderInput0.y.mul( 140. ).sub( shaderInput1.mul( shaderLocal3_fall ) ), 140. ).sub( 1. ), mod( shaderInput0.z.mul( 300. ).add( shaderInput1.mul( shaderLocal2_gust ).mul( .28 ) ).add( sin( shaderInput1.mul( 1.9 ).add( shaderInput0.w.mul( 11. ) ) ).mul( 3. ) ), 300. ).sub( 150. ) ) );
-    shaderInput6.assign( add( .18, mul( .82, smoothstep( 3., 16., shaderInput1 ) ) ).mul( add( .45, mul( .55, shaderInput0.w ) ) ) );
-    const shaderLocal4_mv = shaderInput10.mul( vec4( shaderLocal1_p, 1. ) ).toVar();
-    shaderOutput.assign( shaderInput11.mul( shaderLocal4_mv ) );
-    shaderInput12.assign( clamp( shaderInput2.mul( shaderInput3 ).mul( 240. ).div( max( 1., shaderLocal4_mv.z.negate() ) ), 1., 7. ) );
-    shaderInput8.assign( add( 14., floor( min( shaderInput0.w, .999999 ).mul( 2. ) ) ) );
+    const shaderLocal2_gust = add( 10., smoothstep( 6., 20., shaderInput1 ).mul( 46. ) ).toVar();
+    shaderLocal1_p.assign( vec3( mod( shaderInput0.x.mul( 340. ).add( shaderInput1.mul( shaderLocal2_gust ).mul( add( .8, shaderInput0.z.mul( .4 ) ) ) ), 340. ).sub( 170. ), add( -0.4, shaderInput0.y.mul( shaderInput0.y ).mul( 7.5 ) ).add( sin( shaderInput1.mul( 2.3 ).add( shaderInput0.w.mul( 8. ) ) ).mul( .6 ) ), mod( shaderInput0.z.mul( 300. ).add( shaderInput1.mul( shaderLocal2_gust ).mul( .3 ) ), 300. ).sub( 150. ) ) );
+    shaderInput6.assign( smoothstep( 8., 20., shaderInput1 ).mul( sub( 1., shaderInput0.y.mul( shaderInput0.y ) ) ).mul( .3 ) );
+    const shaderLocal3_mv = shaderInput10.mul( vec4( shaderLocal1_p, 1. ) ).toVar();
+    shaderOutput.assign( shaderInput11.mul( shaderLocal3_mv ) );
+    shaderInput12.assign( clamp( shaderInput2.mul( shaderInput3 ).mul( 240. ).div( max( 1., shaderLocal3_mv.z.negate() ) ), 1., 100. ) );
+    shaderInput8.assign( add( 0., floor( min( shaderInput0.w, .999999 ).mul( 4. ) ) ) );
+    shaderInput9.assign( shaderInput0.x.mul( 6.283185 ).add( shaderInput1.mul( shaderInput0.z.sub( .5 ) ).mul( .35 ) ) );
+
+    return shaderOutput;
+
+  }, 'vec4' );
+
+  return { main: shaderFunction0_main };
+}
+
+export function create_tsl1_aa6ff42a3d810e28_fragment({ tint: shaderInput0, alpha: shaderInput1, variation: shaderInput2, opaqueDepth: shaderInput3, opaqueDepthAvailable: shaderInput4, opaqueNear: shaderInput5, opaqueFar: shaderInput6, opaqueInverseSize: shaderInput7, opaqueProjectionInverse: shaderInput8, opaqueCameraWorld: shaderInput9, particleAtlas: shaderInput10, particleAtlasReady: shaderInput11, particleSoftness: shaderInput12, particleCell: shaderInput13, particleAngle: shaderInput14, uv: shaderInput15, gl_FragCoord: shaderInput16, gl_PointCoord: shaderInput17 }) {
+  const shaderOutput = property('vec4');
+  const shaderFunction0_offlineOpaqueDepthUv = /*@__PURE__*/ Fn( ( [ shaderLocal0_coord ] ) => {
+
+    return vec2( shaderLocal0_coord.x, sub( 1., shaderLocal0_coord.y ) );
+
+  }, 'vec2' );
+
+  const shaderFunction1_hash = /*@__PURE__*/ Fn( ( [ shaderLocal1_p ] ) => {
+
+    return fract( sin( dot( shaderLocal1_p, vec3( 127.1, 311.7, 74.7 ) ) ).mul( 43758.5453 ) );
+
+  }, 'float' );
+
+  const shaderFunction2_noise = /*@__PURE__*/ Fn( ( [ shaderLocal2_p ] ) => {
+
+    const shaderLocal3_i = floor( shaderLocal2_p ).toVar(), shaderLocal4_f = fract( shaderLocal2_p ).toVar();
+    shaderLocal4_f.assign( shaderLocal4_f.mul( shaderLocal4_f ).mul( sub( 3., mul( 2., shaderLocal4_f ) ) ) );
+
+    return mix( mix( mix( shaderFunction1_hash( shaderLocal3_i ), shaderFunction1_hash( shaderLocal3_i.add( vec3( 1, 0, 0 ) ) ), shaderLocal4_f.x ), mix( shaderFunction1_hash( shaderLocal3_i.add( vec3( 0, 1, 0 ) ) ), shaderFunction1_hash( shaderLocal3_i.add( vec3( 1, 1, 0 ) ) ), shaderLocal4_f.x ), shaderLocal4_f.y ), mix( mix( shaderFunction1_hash( shaderLocal3_i.add( vec3( 0, 0, 1 ) ) ), shaderFunction1_hash( shaderLocal3_i.add( vec3( 1, 0, 1 ) ) ), shaderLocal4_f.x ), mix( shaderFunction1_hash( shaderLocal3_i.add( vec3( 0, 1, 1 ) ) ), shaderFunction1_hash( shaderLocal3_i.add( vec3( 1, 1, 1 ) ) ), shaderLocal4_f.x ), shaderLocal4_f.y ), shaderLocal4_f.z );
+
+  }, 'float' );
+
+  const shaderFunction3_fbm = /*@__PURE__*/ Fn( ( [ shaderLocal5_p ] ) => {
+
+    return shaderFunction2_noise( shaderLocal5_p ).mul( .57 ).add( shaderFunction2_noise( shaderLocal5_p.mul( 2.03 ) ).mul( .28 ) ).add( shaderFunction2_noise( shaderLocal5_p.mul( 4.11 ) ).mul( .15 ) );
+
+  }, 'float' );
+
+  const shaderFunction4_particleFallback = /*@__PURE__*/ Fn( () => {
+
+    const shaderLocal6_p = shaderInput17.sub( .5 ).toVar();
+    const shaderLocal7_r = length( shaderLocal6_p ).mul( 2. ).toVar();
+
+    If( shaderLocal7_r.greaterThan( 1. ), () => {
+
+      Discard();
+
+    } );
+
+    const shaderLocal8_a = sub( 1., smoothstep( .05, 1., shaderLocal7_r ) ).mul( shaderInput1 ).toVar();
+    shaderLocal8_a.mulAssign( smoothstep( .18, .6, shaderFunction3_fbm( vec3( shaderLocal6_p.mul( 5. ), shaderInput2.mul( 13. ) ) ) ) );
+    shaderOutput.assign( vec4( shaderInput0, shaderLocal8_a ) );
+
+  }, 'void' );
+
+  const shaderFunction5_opaqueWorldPoint = /*@__PURE__*/ Fn( ( [ shaderLocal9_uv, shaderLocal10_depth ] ) => {
+
+    const shaderLocal11_view = shaderInput8.mul( vec4( shaderLocal9_uv.mul( 2. ).sub( 1. ), shaderLocal10_depth.mul( 2. ).sub( 1. ), 1. ) ).toVar();
+
+    return shaderInput9.mul( vec4( shaderLocal11_view.xyz.div( shaderLocal11_view.w ), 1. ) ).xyz;
+
+  }, 'vec3' );
+
+  const shaderFunction6_particleMask = /*@__PURE__*/ Fn( () => {
+
+    const shaderLocal12_offlineDone12 = bool( false ).toVar();
+    const shaderLocal13_offlineResult12 = property( 'float' );
+    const shaderLocal14_p = shaderInput17.sub( .5 ).toVar();
+    const shaderLocal15_c = cos( shaderInput14 ).toVar(), shaderLocal16_s = sin( shaderInput14 ).toVar();
+    shaderLocal14_p.assign( mat2( shaderLocal15_c, shaderLocal16_s.negate(), shaderLocal16_s, shaderLocal15_c ).mul( shaderLocal14_p ).add( .5 ) );
+    const shaderLocal17_cell = vec2( mod( shaderInput13, 4. ), sub( 3., floor( shaderInput13.div( 4. ) ) ) ).toVar();
+    const shaderLocal18_uv = shaderLocal17_cell.mul( 256. ).add( vec2( .5 ) ).add( vec2( shaderLocal14_p.x, sub( 1., shaderLocal14_p.y ) ).mul( 255. ) ).div( 1024. ).toVar();
+    const shaderLocal19_mask = shaderInput10.sample( shaderLocal18_uv ).r.toVar();
+
+    If( any( lessThan( shaderLocal14_p, vec2( 0. ) ) ).or( any( greaterThan( shaderLocal14_p, vec2( 1. ) ) ) ), () => {
+
+      shaderLocal13_offlineResult12.assign( 0. );
+      shaderLocal12_offlineDone12.assign( true );
+
+    } );
+
+    If( shaderLocal12_offlineDone12.not(), () => {
+
+      shaderLocal13_offlineResult12.assign( shaderLocal19_mask );
+      shaderLocal12_offlineDone12.assign( true );
+
+    } );
+
+    return shaderLocal13_offlineResult12;
+
+  }, 'float' );
+
+  const shaderFunction7_particleViewDepth = /*@__PURE__*/ Fn( ( [ shaderLocal20_depth ] ) => {
+
+    return shaderInput5.mul( shaderInput6 ).div( shaderInput6.sub( shaderLocal20_depth.mul( shaderInput6.sub( shaderInput5 ) ) ) );
+
+  }, 'float' );
+
+  const shaderFunction8_particleDepthFade = /*@__PURE__*/ Fn( () => {
+
+    const shaderLocal21_offlineDone21 = bool( false ).toVar();
+    const shaderLocal22_offlineResult21 = property( 'float' );
+
+    If( shaderInput4.lessThan( .5 ), () => {
+
+      shaderLocal22_offlineResult21.assign( 1. );
+      shaderLocal21_offlineDone21.assign( true );
+
+    } );
+
+    If( shaderLocal21_offlineDone21.not(), () => {
+
+      const shaderLocal23_depth = shaderInput3.sample( shaderFunction0_offlineOpaqueDepthUv( shaderInput16.xy.mul( shaderInput7 ) ) ).x.toVar();
+
+      If( shaderLocal23_depth.greaterThanEqual( 1. ), () => {
+
+        shaderLocal22_offlineResult21.assign( 1. );
+        shaderLocal21_offlineDone21.assign( true );
+
+      } );
+
+      If( shaderLocal21_offlineDone21.not(), () => {
+
+        shaderLocal22_offlineResult21.assign( smoothstep( 0., max( .001, shaderInput12 ), shaderFunction7_particleViewDepth( shaderLocal23_depth ).sub( shaderFunction7_particleViewDepth( shaderInput16.z ) ) ) );
+        shaderLocal21_offlineDone21.assign( true );
+
+      } );
+
+    } );
+
+    return shaderLocal22_offlineResult21;
+
+  }, 'float' );
+
+  const shaderFunction9_main = /*@__PURE__*/ Fn( () => {
+
+    shaderOutput.assign( vec4( 0. ) );
+
+    If( shaderInput11.greaterThan( .5 ), () => {
+
+      shaderOutput.assign( vec4( shaderInput0, shaderFunction6_particleMask().mul( shaderInput1 ) ) );
+
+    } ).Else( () => {
+
+      shaderFunction4_particleFallback();
+
+    } );
+
+    shaderOutput.a.mulAssign( shaderFunction8_particleDepthFade() );
+
+    return shaderOutput;
+
+  }, 'vec4' );
+
+  return { main: shaderFunction9_main };
+}
+
+export function create_tsl1_ad912ae43283011c_vertex({ seed: shaderInput0, time: shaderInput1, size: shaderInput2, ratio: shaderInput3, origin: shaderInput4, lean: shaderInput5, alpha: shaderInput6, variation: shaderInput7, particleCell: shaderInput8, particleAngle: shaderInput9, modelViewMatrix: shaderInput10, projectionMatrix: shaderInput11, gl_PointSize: shaderInput12 }) {
+  const shaderOutput = property('vec4');
+  const shaderFunction0_main = /*@__PURE__*/ Fn( () => {
+
+    shaderOutput.assign( vec4( 0. ) );
+    const shaderLocal0_a = shaderInput0.x.mul( 6.283185 ).toVar();
+    const shaderLocal1_p = vec3( 0. ).toVar();
+    shaderInput7.assign( shaderInput0.w );
+    const shaderLocal2_spread = smoothstep( 19., 30., shaderInput1 ).toVar();
+    const shaderLocal3_r = shaderLocal2_spread.mul( add( 6., shaderInput0.y.mul( 250. ) ) ).toVar();
+    const shaderLocal4_angle = shaderLocal0_a.add( shaderInput1.mul( add( .6, shaderInput0.z.mul( 1.5 ) ) ) ).toVar();
+    shaderLocal1_p.assign( vec3( shaderInput4.x.add( cos( shaderLocal4_angle ).mul( shaderLocal3_r ) ), add( 1.5, shaderInput0.w.mul( add( 4., shaderLocal2_spread.mul( 14. ) ) ) ), shaderInput4.z.add( sin( shaderLocal4_angle ).mul( shaderLocal3_r ) ) ) );
+    shaderInput6.assign( smoothstep( 19., 21., shaderInput1 ).mul( sub( 1., smoothstep( .6, 1., shaderInput0.y ) ) ).mul( .45 ) );
+    const shaderLocal5_mv = shaderInput10.mul( vec4( shaderLocal1_p, 1. ) ).toVar();
+    shaderOutput.assign( shaderInput11.mul( shaderLocal5_mv ) );
+    shaderInput12.assign( clamp( shaderInput2.mul( shaderInput3 ).mul( 240. ).div( max( 1., shaderLocal5_mv.z.negate() ) ), 1., 100. ) );
+    shaderInput8.assign( add( 0., floor( min( shaderInput0.w, .999999 ).mul( 4. ) ) ) );
+    shaderInput9.assign( shaderInput0.x.mul( 6.283185 ).add( shaderInput1.mul( shaderInput0.z.sub( .5 ) ).mul( .35 ) ) );
+
+    return shaderOutput;
+
+  }, 'vec4' );
+
+  return { main: shaderFunction0_main };
+}
+
+export function create_tsl1_ad912ae43283011c_fragment({ tint: shaderInput0, alpha: shaderInput1, variation: shaderInput2, opaqueDepth: shaderInput3, opaqueDepthAvailable: shaderInput4, opaqueNear: shaderInput5, opaqueFar: shaderInput6, opaqueInverseSize: shaderInput7, opaqueProjectionInverse: shaderInput8, opaqueCameraWorld: shaderInput9, particleAtlas: shaderInput10, particleAtlasReady: shaderInput11, particleSoftness: shaderInput12, particleCell: shaderInput13, particleAngle: shaderInput14, uv: shaderInput15, gl_FragCoord: shaderInput16, gl_PointCoord: shaderInput17 }) {
+  const shaderOutput = property('vec4');
+  const shaderFunction0_offlineOpaqueDepthUv = /*@__PURE__*/ Fn( ( [ shaderLocal0_coord ] ) => {
+
+    return vec2( shaderLocal0_coord.x, sub( 1., shaderLocal0_coord.y ) );
+
+  }, 'vec2' );
+
+  const shaderFunction1_hash = /*@__PURE__*/ Fn( ( [ shaderLocal1_p ] ) => {
+
+    return fract( sin( dot( shaderLocal1_p, vec3( 127.1, 311.7, 74.7 ) ) ).mul( 43758.5453 ) );
+
+  }, 'float' );
+
+  const shaderFunction2_noise = /*@__PURE__*/ Fn( ( [ shaderLocal2_p ] ) => {
+
+    const shaderLocal3_i = floor( shaderLocal2_p ).toVar(), shaderLocal4_f = fract( shaderLocal2_p ).toVar();
+    shaderLocal4_f.assign( shaderLocal4_f.mul( shaderLocal4_f ).mul( sub( 3., mul( 2., shaderLocal4_f ) ) ) );
+
+    return mix( mix( mix( shaderFunction1_hash( shaderLocal3_i ), shaderFunction1_hash( shaderLocal3_i.add( vec3( 1, 0, 0 ) ) ), shaderLocal4_f.x ), mix( shaderFunction1_hash( shaderLocal3_i.add( vec3( 0, 1, 0 ) ) ), shaderFunction1_hash( shaderLocal3_i.add( vec3( 1, 1, 0 ) ) ), shaderLocal4_f.x ), shaderLocal4_f.y ), mix( mix( shaderFunction1_hash( shaderLocal3_i.add( vec3( 0, 0, 1 ) ) ), shaderFunction1_hash( shaderLocal3_i.add( vec3( 1, 0, 1 ) ) ), shaderLocal4_f.x ), mix( shaderFunction1_hash( shaderLocal3_i.add( vec3( 0, 1, 1 ) ) ), shaderFunction1_hash( shaderLocal3_i.add( vec3( 1, 1, 1 ) ) ), shaderLocal4_f.x ), shaderLocal4_f.y ), shaderLocal4_f.z );
+
+  }, 'float' );
+
+  const shaderFunction3_fbm = /*@__PURE__*/ Fn( ( [ shaderLocal5_p ] ) => {
+
+    return shaderFunction2_noise( shaderLocal5_p ).mul( .57 ).add( shaderFunction2_noise( shaderLocal5_p.mul( 2.03 ) ).mul( .28 ) ).add( shaderFunction2_noise( shaderLocal5_p.mul( 4.11 ) ).mul( .15 ) );
+
+  }, 'float' );
+
+  const shaderFunction4_particleFallback = /*@__PURE__*/ Fn( () => {
+
+    const shaderLocal6_p = shaderInput17.sub( .5 ).toVar();
+    const shaderLocal7_r = length( shaderLocal6_p ).mul( 2. ).toVar();
+
+    If( shaderLocal7_r.greaterThan( 1. ), () => {
+
+      Discard();
+
+    } );
+
+    const shaderLocal8_a = sub( 1., smoothstep( .05, 1., shaderLocal7_r ) ).mul( shaderInput1 ).toVar();
+    shaderLocal8_a.mulAssign( smoothstep( .18, .6, shaderFunction3_fbm( vec3( shaderLocal6_p.mul( 5. ), shaderInput2.mul( 13. ) ) ) ) );
+    shaderOutput.assign( vec4( shaderInput0, shaderLocal8_a ) );
+
+  }, 'void' );
+
+  const shaderFunction5_opaqueWorldPoint = /*@__PURE__*/ Fn( ( [ shaderLocal9_uv, shaderLocal10_depth ] ) => {
+
+    const shaderLocal11_view = shaderInput8.mul( vec4( shaderLocal9_uv.mul( 2. ).sub( 1. ), shaderLocal10_depth.mul( 2. ).sub( 1. ), 1. ) ).toVar();
+
+    return shaderInput9.mul( vec4( shaderLocal11_view.xyz.div( shaderLocal11_view.w ), 1. ) ).xyz;
+
+  }, 'vec3' );
+
+  const shaderFunction6_particleMask = /*@__PURE__*/ Fn( () => {
+
+    const shaderLocal12_offlineDone12 = bool( false ).toVar();
+    const shaderLocal13_offlineResult12 = property( 'float' );
+    const shaderLocal14_p = shaderInput17.sub( .5 ).toVar();
+    const shaderLocal15_c = cos( shaderInput14 ).toVar(), shaderLocal16_s = sin( shaderInput14 ).toVar();
+    shaderLocal14_p.assign( mat2( shaderLocal15_c, shaderLocal16_s.negate(), shaderLocal16_s, shaderLocal15_c ).mul( shaderLocal14_p ).add( .5 ) );
+    const shaderLocal17_cell = vec2( mod( shaderInput13, 4. ), sub( 3., floor( shaderInput13.div( 4. ) ) ) ).toVar();
+    const shaderLocal18_uv = shaderLocal17_cell.mul( 256. ).add( vec2( .5 ) ).add( vec2( shaderLocal14_p.x, sub( 1., shaderLocal14_p.y ) ).mul( 255. ) ).div( 1024. ).toVar();
+    const shaderLocal19_mask = shaderInput10.sample( shaderLocal18_uv ).r.toVar();
+
+    If( any( lessThan( shaderLocal14_p, vec2( 0. ) ) ).or( any( greaterThan( shaderLocal14_p, vec2( 1. ) ) ) ), () => {
+
+      shaderLocal13_offlineResult12.assign( 0. );
+      shaderLocal12_offlineDone12.assign( true );
+
+    } );
+
+    If( shaderLocal12_offlineDone12.not(), () => {
+
+      shaderLocal13_offlineResult12.assign( shaderLocal19_mask );
+      shaderLocal12_offlineDone12.assign( true );
+
+    } );
+
+    return shaderLocal13_offlineResult12;
+
+  }, 'float' );
+
+  const shaderFunction7_particleViewDepth = /*@__PURE__*/ Fn( ( [ shaderLocal20_depth ] ) => {
+
+    return shaderInput5.mul( shaderInput6 ).div( shaderInput6.sub( shaderLocal20_depth.mul( shaderInput6.sub( shaderInput5 ) ) ) );
+
+  }, 'float' );
+
+  const shaderFunction8_particleDepthFade = /*@__PURE__*/ Fn( () => {
+
+    const shaderLocal21_offlineDone21 = bool( false ).toVar();
+    const shaderLocal22_offlineResult21 = property( 'float' );
+
+    If( shaderInput4.lessThan( .5 ), () => {
+
+      shaderLocal22_offlineResult21.assign( 1. );
+      shaderLocal21_offlineDone21.assign( true );
+
+    } );
+
+    If( shaderLocal21_offlineDone21.not(), () => {
+
+      const shaderLocal23_depth = shaderInput3.sample( shaderFunction0_offlineOpaqueDepthUv( shaderInput16.xy.mul( shaderInput7 ) ) ).x.toVar();
+
+      If( shaderLocal23_depth.greaterThanEqual( 1. ), () => {
+
+        shaderLocal22_offlineResult21.assign( 1. );
+        shaderLocal21_offlineDone21.assign( true );
+
+      } );
+
+      If( shaderLocal21_offlineDone21.not(), () => {
+
+        shaderLocal22_offlineResult21.assign( smoothstep( 0., max( .001, shaderInput12 ), shaderFunction7_particleViewDepth( shaderLocal23_depth ).sub( shaderFunction7_particleViewDepth( shaderInput16.z ) ) ) );
+        shaderLocal21_offlineDone21.assign( true );
+
+      } );
+
+    } );
+
+    return shaderLocal22_offlineResult21;
+
+  }, 'float' );
+
+  const shaderFunction9_main = /*@__PURE__*/ Fn( () => {
+
+    shaderOutput.assign( vec4( 0. ) );
+
+    If( shaderInput11.greaterThan( .5 ), () => {
+
+      shaderOutput.assign( vec4( shaderInput0, shaderFunction6_particleMask().mul( shaderInput1 ) ) );
+
+    } ).Else( () => {
+
+      shaderFunction4_particleFallback();
+
+    } );
+
+    shaderOutput.a.mulAssign( shaderFunction8_particleDepthFade() );
+
+    return shaderOutput;
+
+  }, 'vec4' );
+
+  return { main: shaderFunction9_main };
+}
+
+export function create_tsl1_aec863a0aec0b3ec_vertex({ seed: shaderInput0, time: shaderInput1, phase: shaderInput2, pixelRatio: shaderInput3, origin: shaderInput4, target: shaderInput5, opacity: shaderInput6, warmth: shaderInput7, particleCell: shaderInput8, particleAngle: shaderInput9, modelViewMatrix: shaderInput10, projectionMatrix: shaderInput11, gl_PointSize: shaderInput12 }) {
+  const shaderOutput = property('vec4');
+  const shaderFunction0_main = /*@__PURE__*/ Fn( () => {
+
+    shaderOutput.assign( vec4( 0. ) );
+    const shaderLocal0_a = shaderInput0.x.mul( 6.283185 ).toVar();
+    const shaderLocal1_p = property( 'vec3' );
+    shaderInput7.assign( shaderInput0.z );
+    const shaderLocal2_d = fract( shaderInput0.y.add( shaderInput1.mul( .09 ) ) ).toVar();
+    const shaderLocal3_reach = pow( shaderLocal2_d, .85 ).mul( 104. ).toVar();
+    const shaderLocal4_spread = pow( shaderLocal2_d, .7 ).mul( add( 4., shaderInput0.z.mul( 26. ) ) ).mul( add( 1., shaderInput2.mul( .3 ) ) ).toVar();
+    const shaderLocal5_u = normalize( cross( shaderInput5, vec3( 0., 1., 0. ) ) ).toVar();
+    const shaderLocal6_v = cross( shaderInput5, shaderLocal5_u ).toVar();
+    const shaderLocal7_swirl = shaderLocal0_a.add( shaderLocal2_d.mul( 7. ) ).add( shaderInput1.mul( .6 ) ).toVar();
+    shaderLocal1_p.assign( shaderInput4.add( shaderInput5.mul( shaderLocal3_reach ) ).add( shaderLocal5_u.mul( cos( shaderLocal7_swirl ) ).add( shaderLocal6_v.mul( sin( shaderLocal7_swirl ) ) ).mul( shaderLocal4_spread ) ) );
+    const shaderLocal8_arrived = sub( 1., smoothstep( shaderInput1.sub( 5. ).mul( 7. ).sub( 8. ), shaderInput1.sub( 5. ).mul( 7. ), shaderLocal3_reach ) ).toVar();
+    shaderInput7.assign( shaderLocal2_d );
+    shaderInput6.assign( smoothstep( .01, .12, shaderLocal2_d ).mul( sub( 1., smoothstep( .72, 1., shaderLocal2_d ) ) ).mul( shaderInput2 ).mul( shaderLocal8_arrived ).mul( add( .5, mul( .5, shaderInput0.w ) ) ) );
+    const shaderLocal9_mv = shaderInput10.mul( vec4( shaderLocal1_p, 1. ) ).toVar();
+    shaderOutput.assign( shaderInput11.mul( shaderLocal9_mv ) );
+    shaderInput12.assign( clamp( add( 1.5, shaderInput0.w.mul( 3. ) ).mul( shaderInput3 ).mul( 230. ).div( max( 1., shaderLocal9_mv.z.negate() ) ), 1., 12. ) );
+    shaderInput8.assign( add( 4., floor( min( shaderInput0.w, .999999 ).mul( 4. ) ) ) );
     shaderInput9.assign( shaderInput0.x.mul( 6.283185 ) );
 
     return shaderOutput;
@@ -4040,7 +4231,506 @@ export function create_tsl1_a666c9adc3fa4adb_vertex({ seed: shaderInput0, time: 
   return { main: shaderFunction0_main };
 }
 
-export function create_tsl1_a666c9adc3fa4adb_fragment({ tint: shaderInput0, alpha: shaderInput1, variation: shaderInput2, opaqueDepth: shaderInput3, opaqueDepthAvailable: shaderInput4, opaqueNear: shaderInput5, opaqueFar: shaderInput6, opaqueInverseSize: shaderInput7, opaqueProjectionInverse: shaderInput8, opaqueCameraWorld: shaderInput9, particleAtlas: shaderInput10, particleAtlasReady: shaderInput11, particleSoftness: shaderInput12, particleCell: shaderInput13, particleAngle: shaderInput14, uv: shaderInput15, gl_FragCoord: shaderInput16, gl_PointCoord: shaderInput17 }) {
+export function create_tsl1_aec863a0aec0b3ec_fragment({ tint: shaderInput0, opacity: shaderInput1, warmth: shaderInput2, opaqueDepth: shaderInput3, opaqueDepthAvailable: shaderInput4, opaqueNear: shaderInput5, opaqueFar: shaderInput6, opaqueInverseSize: shaderInput7, opaqueProjectionInverse: shaderInput8, opaqueCameraWorld: shaderInput9, particleAtlas: shaderInput10, particleAtlasReady: shaderInput11, particleSoftness: shaderInput12, particleCell: shaderInput13, particleAngle: shaderInput14, uv: shaderInput15, gl_FragCoord: shaderInput16, gl_PointCoord: shaderInput17 }) {
+  const shaderOutput = property('vec4');
+  const shaderFunction0_offlineOpaqueDepthUv = /*@__PURE__*/ Fn( ( [ shaderLocal0_coord ] ) => {
+
+    return vec2( shaderLocal0_coord.x, sub( 1., shaderLocal0_coord.y ) );
+
+  }, 'vec2' );
+
+  const shaderFunction1_particleFallback = /*@__PURE__*/ Fn( () => {
+
+    const shaderLocal1_r = length( shaderInput17.sub( .5 ) ).mul( 2. ).toVar();
+
+    If( shaderLocal1_r.greaterThan( 1. ), () => {
+
+      Discard();
+
+    } );
+
+    shaderOutput.assign( vec4( mix( shaderInput0, shaderInput0.mul( vec3( 1.2, .55, .25 ) ), shaderInput2 ), pow( sub( 1., shaderLocal1_r ), 2. ).mul( shaderInput1 ) ) );
+
+  }, 'void' );
+
+  const shaderFunction2_opaqueWorldPoint = /*@__PURE__*/ Fn( ( [ shaderLocal2_uv, shaderLocal3_depth ] ) => {
+
+    const shaderLocal4_view = shaderInput8.mul( vec4( shaderLocal2_uv.mul( 2. ).sub( 1. ), shaderLocal3_depth.mul( 2. ).sub( 1. ), 1. ) ).toVar();
+
+    return shaderInput9.mul( vec4( shaderLocal4_view.xyz.div( shaderLocal4_view.w ), 1. ) ).xyz;
+
+  }, 'vec3' );
+
+  const shaderFunction3_particleMask = /*@__PURE__*/ Fn( () => {
+
+    const shaderLocal5_offlineDone5 = bool( false ).toVar();
+    const shaderLocal6_offlineResult5 = property( 'float' );
+    const shaderLocal7_p = shaderInput17.sub( .5 ).toVar();
+    const shaderLocal8_c = cos( shaderInput14 ).toVar(), shaderLocal9_s = sin( shaderInput14 ).toVar();
+    shaderLocal7_p.assign( mat2( shaderLocal8_c, shaderLocal9_s.negate(), shaderLocal9_s, shaderLocal8_c ).mul( shaderLocal7_p ).add( .5 ) );
+    const shaderLocal10_cell = vec2( mod( shaderInput13, 4. ), sub( 3., floor( shaderInput13.div( 4. ) ) ) ).toVar();
+    const shaderLocal11_uv = shaderLocal10_cell.mul( 256. ).add( vec2( .5 ) ).add( vec2( shaderLocal7_p.x, sub( 1., shaderLocal7_p.y ) ).mul( 255. ) ).div( 1024. ).toVar();
+    const shaderLocal12_mask = shaderInput10.sample( shaderLocal11_uv ).r.toVar();
+
+    If( any( lessThan( shaderLocal7_p, vec2( 0. ) ) ).or( any( greaterThan( shaderLocal7_p, vec2( 1. ) ) ) ), () => {
+
+      shaderLocal6_offlineResult5.assign( 0. );
+      shaderLocal5_offlineDone5.assign( true );
+
+    } );
+
+    If( shaderLocal5_offlineDone5.not(), () => {
+
+      shaderLocal6_offlineResult5.assign( shaderLocal12_mask );
+      shaderLocal5_offlineDone5.assign( true );
+
+    } );
+
+    return shaderLocal6_offlineResult5;
+
+  }, 'float' );
+
+  const shaderFunction4_particleViewDepth = /*@__PURE__*/ Fn( ( [ shaderLocal13_depth ] ) => {
+
+    return shaderInput5.mul( shaderInput6 ).div( shaderInput6.sub( shaderLocal13_depth.mul( shaderInput6.sub( shaderInput5 ) ) ) );
+
+  }, 'float' );
+
+  const shaderFunction5_particleDepthFade = /*@__PURE__*/ Fn( () => {
+
+    const shaderLocal14_offlineDone14 = bool( false ).toVar();
+    const shaderLocal15_offlineResult14 = property( 'float' );
+
+    If( shaderInput4.lessThan( .5 ), () => {
+
+      shaderLocal15_offlineResult14.assign( 1. );
+      shaderLocal14_offlineDone14.assign( true );
+
+    } );
+
+    If( shaderLocal14_offlineDone14.not(), () => {
+
+      const shaderLocal16_depth = shaderInput3.sample( shaderFunction0_offlineOpaqueDepthUv( shaderInput16.xy.mul( shaderInput7 ) ) ).x.toVar();
+
+      If( shaderLocal16_depth.greaterThanEqual( 1. ), () => {
+
+        shaderLocal15_offlineResult14.assign( 1. );
+        shaderLocal14_offlineDone14.assign( true );
+
+      } );
+
+      If( shaderLocal14_offlineDone14.not(), () => {
+
+        shaderLocal15_offlineResult14.assign( smoothstep( 0., max( .001, shaderInput12 ), shaderFunction4_particleViewDepth( shaderLocal16_depth ).sub( shaderFunction4_particleViewDepth( shaderInput16.z ) ) ) );
+        shaderLocal14_offlineDone14.assign( true );
+
+      } );
+
+    } );
+
+    return shaderLocal15_offlineResult14;
+
+  }, 'float' );
+
+  const shaderFunction6_main = /*@__PURE__*/ Fn( () => {
+
+    shaderOutput.assign( vec4( 0. ) );
+
+    If( shaderInput11.greaterThan( .5 ), () => {
+
+      shaderOutput.assign( vec4( mix( shaderInput0, shaderInput0.mul( vec3( 1.2, .55, .25 ) ), shaderInput2 ), shaderFunction3_particleMask().mul( shaderInput1 ) ) );
+
+    } ).Else( () => {
+
+      shaderFunction1_particleFallback();
+
+    } );
+
+    shaderOutput.a.mulAssign( shaderFunction5_particleDepthFade() );
+
+    return shaderOutput;
+
+  }, 'vec4' );
+
+  return { main: shaderFunction6_main };
+}
+
+export function create_tsl1_b89aec637c37e56d_vertex({ seed: shaderInput0, time: shaderInput1, size: shaderInput2, ratio: shaderInput3, origin: shaderInput4, lean: shaderInput5, alpha: shaderInput6, variation: shaderInput7, particleCell: shaderInput8, particleAngle: shaderInput9, modelViewMatrix: shaderInput10, projectionMatrix: shaderInput11, gl_PointSize: shaderInput12 }) {
+  const shaderOutput = property('vec4');
+  const shaderFunction0_main = /*@__PURE__*/ Fn( () => {
+
+    shaderOutput.assign( vec4( 0. ) );
+    const shaderLocal0_a = shaderInput0.x.mul( 6.283185 ).toVar();
+    const shaderLocal1_p = vec3( 0. ).toVar();
+    shaderInput7.assign( shaderInput0.w );
+    const shaderLocal2_age = mod( shaderInput1.mul( .7 ).add( shaderInput0.w.mul( 17. ) ), 17. ).toVar();
+    shaderLocal1_p.assign( vec3( shaderInput0.x.sub( .5 ).mul( 170. ).add( sin( shaderLocal2_age.mul( .3 ).add( shaderInput0.y ) ).mul( 4. ) ), shaderInput0.z.mul( 19. ).add( shaderLocal2_age.mul( .6 ) ), shaderInput0.y.sub( .5 ).mul( 170. ) ) );
+    shaderInput6.assign( smoothstep( 0., 4., shaderInput1 ).mul( sin( shaderLocal2_age.div( 17. ).mul( 3.14159 ) ) ).mul( .23 ) );
+    const shaderLocal3_mv = shaderInput10.mul( vec4( shaderLocal1_p, 1. ) ).toVar();
+    shaderOutput.assign( shaderInput11.mul( shaderLocal3_mv ) );
+    shaderInput12.assign( clamp( shaderInput2.mul( shaderInput3 ).mul( 240. ).div( max( 1., shaderLocal3_mv.z.negate() ) ), 1., 100. ) );
+    shaderInput8.assign( add( 0., floor( min( shaderInput0.w, .999999 ).mul( 4. ) ) ) );
+    shaderInput9.assign( shaderInput0.x.mul( 6.283185 ).add( shaderInput1.mul( shaderInput0.z.sub( .5 ) ).mul( .35 ) ) );
+
+    return shaderOutput;
+
+  }, 'vec4' );
+
+  return { main: shaderFunction0_main };
+}
+
+export function create_tsl1_b89aec637c37e56d_fragment({ tint: shaderInput0, alpha: shaderInput1, variation: shaderInput2, opaqueDepth: shaderInput3, opaqueDepthAvailable: shaderInput4, opaqueNear: shaderInput5, opaqueFar: shaderInput6, opaqueInverseSize: shaderInput7, opaqueProjectionInverse: shaderInput8, opaqueCameraWorld: shaderInput9, particleAtlas: shaderInput10, particleAtlasReady: shaderInput11, particleSoftness: shaderInput12, particleCell: shaderInput13, particleAngle: shaderInput14, uv: shaderInput15, gl_FragCoord: shaderInput16, gl_PointCoord: shaderInput17 }) {
+  const shaderOutput = property('vec4');
+  const shaderFunction0_offlineOpaqueDepthUv = /*@__PURE__*/ Fn( ( [ shaderLocal0_coord ] ) => {
+
+    return vec2( shaderLocal0_coord.x, sub( 1., shaderLocal0_coord.y ) );
+
+  }, 'vec2' );
+
+  const shaderFunction1_hash = /*@__PURE__*/ Fn( ( [ shaderLocal1_p ] ) => {
+
+    return fract( sin( dot( shaderLocal1_p, vec3( 127.1, 311.7, 74.7 ) ) ).mul( 43758.5453 ) );
+
+  }, 'float' );
+
+  const shaderFunction2_noise = /*@__PURE__*/ Fn( ( [ shaderLocal2_p ] ) => {
+
+    const shaderLocal3_i = floor( shaderLocal2_p ).toVar(), shaderLocal4_f = fract( shaderLocal2_p ).toVar();
+    shaderLocal4_f.assign( shaderLocal4_f.mul( shaderLocal4_f ).mul( sub( 3., mul( 2., shaderLocal4_f ) ) ) );
+
+    return mix( mix( mix( shaderFunction1_hash( shaderLocal3_i ), shaderFunction1_hash( shaderLocal3_i.add( vec3( 1, 0, 0 ) ) ), shaderLocal4_f.x ), mix( shaderFunction1_hash( shaderLocal3_i.add( vec3( 0, 1, 0 ) ) ), shaderFunction1_hash( shaderLocal3_i.add( vec3( 1, 1, 0 ) ) ), shaderLocal4_f.x ), shaderLocal4_f.y ), mix( mix( shaderFunction1_hash( shaderLocal3_i.add( vec3( 0, 0, 1 ) ) ), shaderFunction1_hash( shaderLocal3_i.add( vec3( 1, 0, 1 ) ) ), shaderLocal4_f.x ), mix( shaderFunction1_hash( shaderLocal3_i.add( vec3( 0, 1, 1 ) ) ), shaderFunction1_hash( shaderLocal3_i.add( vec3( 1, 1, 1 ) ) ), shaderLocal4_f.x ), shaderLocal4_f.y ), shaderLocal4_f.z );
+
+  }, 'float' );
+
+  const shaderFunction3_fbm = /*@__PURE__*/ Fn( ( [ shaderLocal5_p ] ) => {
+
+    return shaderFunction2_noise( shaderLocal5_p ).mul( .57 ).add( shaderFunction2_noise( shaderLocal5_p.mul( 2.03 ) ).mul( .28 ) ).add( shaderFunction2_noise( shaderLocal5_p.mul( 4.11 ) ).mul( .15 ) );
+
+  }, 'float' );
+
+  const shaderFunction4_particleFallback = /*@__PURE__*/ Fn( () => {
+
+    const shaderLocal6_p = shaderInput17.sub( .5 ).toVar();
+    const shaderLocal7_r = length( shaderLocal6_p ).mul( 2. ).toVar();
+
+    If( shaderLocal7_r.greaterThan( 1. ), () => {
+
+      Discard();
+
+    } );
+
+    const shaderLocal8_a = sub( 1., smoothstep( .05, 1., shaderLocal7_r ) ).mul( shaderInput1 ).toVar();
+    shaderLocal8_a.mulAssign( smoothstep( .18, .6, shaderFunction3_fbm( vec3( shaderLocal6_p.mul( 5. ), shaderInput2.mul( 13. ) ) ) ) );
+    shaderOutput.assign( vec4( shaderInput0, shaderLocal8_a ) );
+
+  }, 'void' );
+
+  const shaderFunction5_opaqueWorldPoint = /*@__PURE__*/ Fn( ( [ shaderLocal9_uv, shaderLocal10_depth ] ) => {
+
+    const shaderLocal11_view = shaderInput8.mul( vec4( shaderLocal9_uv.mul( 2. ).sub( 1. ), shaderLocal10_depth.mul( 2. ).sub( 1. ), 1. ) ).toVar();
+
+    return shaderInput9.mul( vec4( shaderLocal11_view.xyz.div( shaderLocal11_view.w ), 1. ) ).xyz;
+
+  }, 'vec3' );
+
+  const shaderFunction6_particleMask = /*@__PURE__*/ Fn( () => {
+
+    const shaderLocal12_offlineDone12 = bool( false ).toVar();
+    const shaderLocal13_offlineResult12 = property( 'float' );
+    const shaderLocal14_p = shaderInput17.sub( .5 ).toVar();
+    const shaderLocal15_c = cos( shaderInput14 ).toVar(), shaderLocal16_s = sin( shaderInput14 ).toVar();
+    shaderLocal14_p.assign( mat2( shaderLocal15_c, shaderLocal16_s.negate(), shaderLocal16_s, shaderLocal15_c ).mul( shaderLocal14_p ).add( .5 ) );
+    const shaderLocal17_cell = vec2( mod( shaderInput13, 4. ), sub( 3., floor( shaderInput13.div( 4. ) ) ) ).toVar();
+    const shaderLocal18_uv = shaderLocal17_cell.mul( 256. ).add( vec2( .5 ) ).add( vec2( shaderLocal14_p.x, sub( 1., shaderLocal14_p.y ) ).mul( 255. ) ).div( 1024. ).toVar();
+    const shaderLocal19_mask = shaderInput10.sample( shaderLocal18_uv ).r.toVar();
+
+    If( any( lessThan( shaderLocal14_p, vec2( 0. ) ) ).or( any( greaterThan( shaderLocal14_p, vec2( 1. ) ) ) ), () => {
+
+      shaderLocal13_offlineResult12.assign( 0. );
+      shaderLocal12_offlineDone12.assign( true );
+
+    } );
+
+    If( shaderLocal12_offlineDone12.not(), () => {
+
+      shaderLocal13_offlineResult12.assign( shaderLocal19_mask );
+      shaderLocal12_offlineDone12.assign( true );
+
+    } );
+
+    return shaderLocal13_offlineResult12;
+
+  }, 'float' );
+
+  const shaderFunction7_particleViewDepth = /*@__PURE__*/ Fn( ( [ shaderLocal20_depth ] ) => {
+
+    return shaderInput5.mul( shaderInput6 ).div( shaderInput6.sub( shaderLocal20_depth.mul( shaderInput6.sub( shaderInput5 ) ) ) );
+
+  }, 'float' );
+
+  const shaderFunction8_particleDepthFade = /*@__PURE__*/ Fn( () => {
+
+    const shaderLocal21_offlineDone21 = bool( false ).toVar();
+    const shaderLocal22_offlineResult21 = property( 'float' );
+
+    If( shaderInput4.lessThan( .5 ), () => {
+
+      shaderLocal22_offlineResult21.assign( 1. );
+      shaderLocal21_offlineDone21.assign( true );
+
+    } );
+
+    If( shaderLocal21_offlineDone21.not(), () => {
+
+      const shaderLocal23_depth = shaderInput3.sample( shaderFunction0_offlineOpaqueDepthUv( shaderInput16.xy.mul( shaderInput7 ) ) ).x.toVar();
+
+      If( shaderLocal23_depth.greaterThanEqual( 1. ), () => {
+
+        shaderLocal22_offlineResult21.assign( 1. );
+        shaderLocal21_offlineDone21.assign( true );
+
+      } );
+
+      If( shaderLocal21_offlineDone21.not(), () => {
+
+        shaderLocal22_offlineResult21.assign( smoothstep( 0., max( .001, shaderInput12 ), shaderFunction7_particleViewDepth( shaderLocal23_depth ).sub( shaderFunction7_particleViewDepth( shaderInput16.z ) ) ) );
+        shaderLocal21_offlineDone21.assign( true );
+
+      } );
+
+    } );
+
+    return shaderLocal22_offlineResult21;
+
+  }, 'float' );
+
+  const shaderFunction9_main = /*@__PURE__*/ Fn( () => {
+
+    shaderOutput.assign( vec4( 0. ) );
+
+    If( shaderInput11.greaterThan( .5 ), () => {
+
+      shaderOutput.assign( vec4( shaderInput0, shaderFunction6_particleMask().mul( shaderInput1 ) ) );
+
+    } ).Else( () => {
+
+      shaderFunction4_particleFallback();
+
+    } );
+
+    shaderOutput.a.mulAssign( shaderFunction8_particleDepthFade() );
+
+    return shaderOutput;
+
+  }, 'vec4' );
+
+  return { main: shaderFunction9_main };
+}
+
+export function create_tsl1_c0d580d8f747cb44_vertex({ seed: shaderInput0, time: shaderInput1, size: shaderInput2, ratio: shaderInput3, origin: shaderInput4, lean: shaderInput5, alpha: shaderInput6, variation: shaderInput7, particleCell: shaderInput8, particleAngle: shaderInput9, modelViewMatrix: shaderInput10, projectionMatrix: shaderInput11, gl_PointSize: shaderInput12 }) {
+  const shaderOutput = property('vec4');
+  const shaderFunction0_main = /*@__PURE__*/ Fn( () => {
+
+    shaderOutput.assign( vec4( 0. ) );
+    const shaderLocal0_a = shaderInput0.x.mul( 6.283185 ).toVar();
+    const shaderLocal1_p = vec3( 0. ).toVar();
+    shaderInput7.assign( shaderInput0.w );
+    const shaderLocal2_age = shaderInput1.sub( 12.5 ).sub( shaderInput0.w.mul( 3. ) ).toVar();
+    const shaderLocal3_lift = smoothstep( 0., 4., shaderLocal2_age ).toVar();
+    const shaderLocal4_settle = smoothstep( 26., 30., shaderInput1 ).toVar();
+    const shaderLocal5_h = add( 1., shaderInput0.z.mul( shaderInput0.z ).mul( 72. ).mul( shaderLocal3_lift ) ).mul( sub( 1., shaderLocal4_settle.mul( .85 ) ) ).toVar();
+    const shaderLocal6_r = add( 4., shaderInput0.y.mul( 26. ) ).mul( add( .35, mul( .65, shaderLocal3_lift ) ) ).mul( add( 1., shaderLocal5_h.mul( .02 ) ) ).toVar();
+    const shaderLocal7_angle = shaderLocal0_a.add( shaderInput1.mul( add( 2.6, shaderInput0.y.mul( 1.4 ) ) ) ).add( shaderLocal5_h.mul( .05 ) ).toVar();
+    const shaderLocal8_bend = shaderInput5.mul( shaderLocal5_h.div( 95. ) ).mul( shaderLocal5_h.div( 95. ) ).toVar();
+    shaderLocal1_p.assign( vec3( shaderInput4.x.add( shaderLocal8_bend.x ).add( cos( shaderLocal7_angle ).mul( shaderLocal6_r ) ), shaderInput4.y.add( shaderLocal5_h ), shaderInput4.z.add( shaderLocal8_bend.y ).add( sin( shaderLocal7_angle ).mul( shaderLocal6_r ) ) ) );
+    shaderInput6.assign( step( 0., shaderLocal2_age ).mul( sub( 1., smoothstep( 58., 78., shaderLocal5_h ) ) ).mul( sub( 1., shaderLocal4_settle.mul( .8 ) ) ).mul( .24 ) );
+    const shaderLocal9_mv = shaderInput10.mul( vec4( shaderLocal1_p, 1. ) ).toVar();
+    shaderOutput.assign( shaderInput11.mul( shaderLocal9_mv ) );
+    shaderInput12.assign( clamp( shaderInput2.mul( shaderInput3 ).mul( 240. ).div( max( 1., shaderLocal9_mv.z.negate() ) ), 1., 55. ) );
+    shaderInput8.assign( add( 0., floor( min( shaderInput0.w, .999999 ).mul( 4. ) ) ) );
+    shaderInput9.assign( shaderInput0.x.mul( 6.283185 ).add( shaderInput1.mul( shaderInput0.z.sub( .5 ) ).mul( .35 ) ) );
+
+    return shaderOutput;
+
+  }, 'vec4' );
+
+  return { main: shaderFunction0_main };
+}
+
+export function create_tsl1_c0d580d8f747cb44_fragment({ tint: shaderInput0, alpha: shaderInput1, variation: shaderInput2, opaqueDepth: shaderInput3, opaqueDepthAvailable: shaderInput4, opaqueNear: shaderInput5, opaqueFar: shaderInput6, opaqueInverseSize: shaderInput7, opaqueProjectionInverse: shaderInput8, opaqueCameraWorld: shaderInput9, particleAtlas: shaderInput10, particleAtlasReady: shaderInput11, particleSoftness: shaderInput12, particleCell: shaderInput13, particleAngle: shaderInput14, uv: shaderInput15, gl_FragCoord: shaderInput16, gl_PointCoord: shaderInput17 }) {
+  const shaderOutput = property('vec4');
+  const shaderFunction0_offlineOpaqueDepthUv = /*@__PURE__*/ Fn( ( [ shaderLocal0_coord ] ) => {
+
+    return vec2( shaderLocal0_coord.x, sub( 1., shaderLocal0_coord.y ) );
+
+  }, 'vec2' );
+
+  const shaderFunction1_hash = /*@__PURE__*/ Fn( ( [ shaderLocal1_p ] ) => {
+
+    return fract( sin( dot( shaderLocal1_p, vec3( 127.1, 311.7, 74.7 ) ) ).mul( 43758.5453 ) );
+
+  }, 'float' );
+
+  const shaderFunction2_noise = /*@__PURE__*/ Fn( ( [ shaderLocal2_p ] ) => {
+
+    const shaderLocal3_i = floor( shaderLocal2_p ).toVar(), shaderLocal4_f = fract( shaderLocal2_p ).toVar();
+    shaderLocal4_f.assign( shaderLocal4_f.mul( shaderLocal4_f ).mul( sub( 3., mul( 2., shaderLocal4_f ) ) ) );
+
+    return mix( mix( mix( shaderFunction1_hash( shaderLocal3_i ), shaderFunction1_hash( shaderLocal3_i.add( vec3( 1, 0, 0 ) ) ), shaderLocal4_f.x ), mix( shaderFunction1_hash( shaderLocal3_i.add( vec3( 0, 1, 0 ) ) ), shaderFunction1_hash( shaderLocal3_i.add( vec3( 1, 1, 0 ) ) ), shaderLocal4_f.x ), shaderLocal4_f.y ), mix( mix( shaderFunction1_hash( shaderLocal3_i.add( vec3( 0, 0, 1 ) ) ), shaderFunction1_hash( shaderLocal3_i.add( vec3( 1, 0, 1 ) ) ), shaderLocal4_f.x ), mix( shaderFunction1_hash( shaderLocal3_i.add( vec3( 0, 1, 1 ) ) ), shaderFunction1_hash( shaderLocal3_i.add( vec3( 1, 1, 1 ) ) ), shaderLocal4_f.x ), shaderLocal4_f.y ), shaderLocal4_f.z );
+
+  }, 'float' );
+
+  const shaderFunction3_fbm = /*@__PURE__*/ Fn( ( [ shaderLocal5_p ] ) => {
+
+    return shaderFunction2_noise( shaderLocal5_p ).mul( .57 ).add( shaderFunction2_noise( shaderLocal5_p.mul( 2.03 ) ).mul( .28 ) ).add( shaderFunction2_noise( shaderLocal5_p.mul( 4.11 ) ).mul( .15 ) );
+
+  }, 'float' );
+
+  const shaderFunction4_particleFallback = /*@__PURE__*/ Fn( () => {
+
+    const shaderLocal6_p = shaderInput17.sub( .5 ).toVar();
+    const shaderLocal7_r = length( shaderLocal6_p ).mul( 2. ).toVar();
+
+    If( shaderLocal7_r.greaterThan( 1. ), () => {
+
+      Discard();
+
+    } );
+
+    const shaderLocal8_a = sub( 1., smoothstep( .05, 1., shaderLocal7_r ) ).mul( shaderInput1 ).toVar();
+    shaderLocal8_a.mulAssign( smoothstep( .18, .6, shaderFunction3_fbm( vec3( shaderLocal6_p.mul( 5. ), shaderInput2.mul( 13. ) ) ) ) );
+    shaderOutput.assign( vec4( shaderInput0, shaderLocal8_a ) );
+
+  }, 'void' );
+
+  const shaderFunction5_opaqueWorldPoint = /*@__PURE__*/ Fn( ( [ shaderLocal9_uv, shaderLocal10_depth ] ) => {
+
+    const shaderLocal11_view = shaderInput8.mul( vec4( shaderLocal9_uv.mul( 2. ).sub( 1. ), shaderLocal10_depth.mul( 2. ).sub( 1. ), 1. ) ).toVar();
+
+    return shaderInput9.mul( vec4( shaderLocal11_view.xyz.div( shaderLocal11_view.w ), 1. ) ).xyz;
+
+  }, 'vec3' );
+
+  const shaderFunction6_particleMask = /*@__PURE__*/ Fn( () => {
+
+    const shaderLocal12_offlineDone12 = bool( false ).toVar();
+    const shaderLocal13_offlineResult12 = property( 'float' );
+    const shaderLocal14_p = shaderInput17.sub( .5 ).toVar();
+    const shaderLocal15_c = cos( shaderInput14 ).toVar(), shaderLocal16_s = sin( shaderInput14 ).toVar();
+    shaderLocal14_p.assign( mat2( shaderLocal15_c, shaderLocal16_s.negate(), shaderLocal16_s, shaderLocal15_c ).mul( shaderLocal14_p ).add( .5 ) );
+    const shaderLocal17_cell = vec2( mod( shaderInput13, 4. ), sub( 3., floor( shaderInput13.div( 4. ) ) ) ).toVar();
+    const shaderLocal18_uv = shaderLocal17_cell.mul( 256. ).add( vec2( .5 ) ).add( vec2( shaderLocal14_p.x, sub( 1., shaderLocal14_p.y ) ).mul( 255. ) ).div( 1024. ).toVar();
+    const shaderLocal19_mask = shaderInput10.sample( shaderLocal18_uv ).r.toVar();
+
+    If( any( lessThan( shaderLocal14_p, vec2( 0. ) ) ).or( any( greaterThan( shaderLocal14_p, vec2( 1. ) ) ) ), () => {
+
+      shaderLocal13_offlineResult12.assign( 0. );
+      shaderLocal12_offlineDone12.assign( true );
+
+    } );
+
+    If( shaderLocal12_offlineDone12.not(), () => {
+
+      shaderLocal13_offlineResult12.assign( shaderLocal19_mask );
+      shaderLocal12_offlineDone12.assign( true );
+
+    } );
+
+    return shaderLocal13_offlineResult12;
+
+  }, 'float' );
+
+  const shaderFunction7_particleViewDepth = /*@__PURE__*/ Fn( ( [ shaderLocal20_depth ] ) => {
+
+    return shaderInput5.mul( shaderInput6 ).div( shaderInput6.sub( shaderLocal20_depth.mul( shaderInput6.sub( shaderInput5 ) ) ) );
+
+  }, 'float' );
+
+  const shaderFunction8_particleDepthFade = /*@__PURE__*/ Fn( () => {
+
+    const shaderLocal21_offlineDone21 = bool( false ).toVar();
+    const shaderLocal22_offlineResult21 = property( 'float' );
+
+    If( shaderInput4.lessThan( .5 ), () => {
+
+      shaderLocal22_offlineResult21.assign( 1. );
+      shaderLocal21_offlineDone21.assign( true );
+
+    } );
+
+    If( shaderLocal21_offlineDone21.not(), () => {
+
+      const shaderLocal23_depth = shaderInput3.sample( shaderFunction0_offlineOpaqueDepthUv( shaderInput16.xy.mul( shaderInput7 ) ) ).x.toVar();
+
+      If( shaderLocal23_depth.greaterThanEqual( 1. ), () => {
+
+        shaderLocal22_offlineResult21.assign( 1. );
+        shaderLocal21_offlineDone21.assign( true );
+
+      } );
+
+      If( shaderLocal21_offlineDone21.not(), () => {
+
+        shaderLocal22_offlineResult21.assign( smoothstep( 0., max( .001, shaderInput12 ), shaderFunction7_particleViewDepth( shaderLocal23_depth ).sub( shaderFunction7_particleViewDepth( shaderInput16.z ) ) ) );
+        shaderLocal21_offlineDone21.assign( true );
+
+      } );
+
+    } );
+
+    return shaderLocal22_offlineResult21;
+
+  }, 'float' );
+
+  const shaderFunction9_main = /*@__PURE__*/ Fn( () => {
+
+    shaderOutput.assign( vec4( 0. ) );
+
+    If( shaderInput11.greaterThan( .5 ), () => {
+
+      shaderOutput.assign( vec4( shaderInput0, shaderFunction6_particleMask().mul( shaderInput1 ) ) );
+
+    } ).Else( () => {
+
+      shaderFunction4_particleFallback();
+
+    } );
+
+    shaderOutput.a.mulAssign( shaderFunction8_particleDepthFade() );
+
+    return shaderOutput;
+
+  }, 'vec4' );
+
+  return { main: shaderFunction9_main };
+}
+
+export function create_tsl1_c34ee2262bdd7ad0_vertex({ seed: shaderInput0, time: shaderInput1, size: shaderInput2, ratio: shaderInput3, origin: shaderInput4, lean: shaderInput5, alpha: shaderInput6, variation: shaderInput7, particleCell: shaderInput8, particleAngle: shaderInput9, modelViewMatrix: shaderInput10, projectionMatrix: shaderInput11, gl_PointSize: shaderInput12 }) {
+  const shaderOutput = property('vec4');
+  const shaderFunction0_main = /*@__PURE__*/ Fn( () => {
+
+    shaderOutput.assign( vec4( 0. ) );
+    const shaderLocal0_a = shaderInput0.x.mul( 6.283185 ).toVar();
+    const shaderLocal1_p = vec3( 0. ).toVar();
+    shaderInput7.assign( shaderInput0.w );
+    const shaderLocal2_start = add( 24., shaderInput0.w.mul( 4. ) ).toVar();
+    const shaderLocal3_age = max( 0., shaderInput1.sub( shaderLocal2_start ) ).toVar();
+    shaderLocal1_p.assign( vec3( shaderInput0.x.sub( .5 ).mul( 340. ), add( -0.5, shaderLocal3_age.mul( add( 7., shaderInput0.z.mul( 9. ) ) ) ).add( sin( shaderInput1.mul( 1.7 ).add( shaderInput0.y.mul( 30. ) ) ).mul( .8 ) ), shaderInput0.y.sub( .5 ).mul( 300. ).sub( 20. ) ) );
+    shaderInput6.assign( step( shaderLocal2_start, shaderInput1 ).mul( smoothstep( 0., 1., shaderLocal3_age ) ).mul( sub( 1., smoothstep( 45., 130., shaderLocal1_p.y ) ) ).mul( .9 ) );
+    const shaderLocal4_mv = shaderInput10.mul( vec4( shaderLocal1_p, 1. ) ).toVar();
+    shaderOutput.assign( shaderInput11.mul( shaderLocal4_mv ) );
+    shaderInput12.assign( clamp( shaderInput2.mul( shaderInput3 ).mul( 240. ).div( max( 1., shaderLocal4_mv.z.negate() ) ), 1., 7. ) );
+    shaderInput8.assign( add( 4., floor( min( shaderInput0.w, .999999 ).mul( 4. ) ) ) );
+    shaderInput9.assign( shaderInput0.x.mul( 6.283185 ) );
+
+    return shaderOutput;
+
+  }, 'vec4' );
+
+  return { main: shaderFunction0_main };
+}
+
+export function create_tsl1_c34ee2262bdd7ad0_fragment({ tint: shaderInput0, alpha: shaderInput1, variation: shaderInput2, opaqueDepth: shaderInput3, opaqueDepthAvailable: shaderInput4, opaqueNear: shaderInput5, opaqueFar: shaderInput6, opaqueInverseSize: shaderInput7, opaqueProjectionInverse: shaderInput8, opaqueCameraWorld: shaderInput9, particleAtlas: shaderInput10, particleAtlasReady: shaderInput11, particleSoftness: shaderInput12, particleCell: shaderInput13, particleAngle: shaderInput14, uv: shaderInput15, gl_FragCoord: shaderInput16, gl_PointCoord: shaderInput17 }) {
   const shaderOutput = property('vec4');
   const shaderFunction0_offlineOpaqueDepthUv = /*@__PURE__*/ Fn( ( [ shaderLocal0_coord ] ) => {
 
@@ -4100,6 +4790,9 @@ export function create_tsl1_a666c9adc3fa4adb_fragment({ tint: shaderInput0, alph
     const shaderLocal14_p = shaderInput17.sub( .5 ).toVar();
     const shaderLocal15_c = cos( shaderInput14 ).toVar(), shaderLocal16_s = sin( shaderInput14 ).toVar();
     shaderLocal14_p.assign( mat2( shaderLocal15_c, shaderLocal16_s.negate(), shaderLocal16_s, shaderLocal15_c ).mul( shaderLocal14_p ).add( .5 ) );
+    const shaderLocal17_cell = vec2( mod( shaderInput13, 4. ), sub( 3., floor( shaderInput13.div( 4. ) ) ) ).toVar();
+    const shaderLocal18_uv = shaderLocal17_cell.mul( 256. ).add( vec2( .5 ) ).add( vec2( shaderLocal14_p.x, sub( 1., shaderLocal14_p.y ) ).mul( 255. ) ).div( 1024. ).toVar();
+    const shaderLocal19_mask = shaderInput10.sample( shaderLocal18_uv ).r.toVar();
 
     If( any( lessThan( shaderLocal14_p, vec2( 0. ) ) ).or( any( greaterThan( shaderLocal14_p, vec2( 1. ) ) ) ), () => {
 
@@ -4110,9 +4803,7 @@ export function create_tsl1_a666c9adc3fa4adb_fragment({ tint: shaderInput0, alph
 
     If( shaderLocal12_offlineDone12.not(), () => {
 
-      const shaderLocal17_cell = vec2( mod( shaderInput13, 4. ), sub( 3., floor( shaderInput13.div( 4. ) ) ) ).toVar();
-      const shaderLocal18_uv = shaderLocal17_cell.mul( 256. ).add( vec2( .5 ) ).add( vec2( shaderLocal14_p.x, sub( 1., shaderLocal14_p.y ) ).mul( 255. ) ).div( 1024. ).toVar();
-      shaderLocal13_offlineResult12.assign( shaderInput10.sample( shaderLocal18_uv ).r );
+      shaderLocal13_offlineResult12.assign( shaderLocal19_mask );
       shaderLocal12_offlineDone12.assign( true );
 
     } );
@@ -4121,45 +4812,45 @@ export function create_tsl1_a666c9adc3fa4adb_fragment({ tint: shaderInput0, alph
 
   }, 'float' );
 
-  const shaderFunction7_particleViewDepth = /*@__PURE__*/ Fn( ( [ shaderLocal19_depth ] ) => {
+  const shaderFunction7_particleViewDepth = /*@__PURE__*/ Fn( ( [ shaderLocal20_depth ] ) => {
 
-    return shaderInput5.mul( shaderInput6 ).div( shaderInput6.sub( shaderLocal19_depth.mul( shaderInput6.sub( shaderInput5 ) ) ) );
+    return shaderInput5.mul( shaderInput6 ).div( shaderInput6.sub( shaderLocal20_depth.mul( shaderInput6.sub( shaderInput5 ) ) ) );
 
   }, 'float' );
 
   const shaderFunction8_particleDepthFade = /*@__PURE__*/ Fn( () => {
 
-    const shaderLocal20_offlineDone20 = bool( false ).toVar();
-    const shaderLocal21_offlineResult20 = property( 'float' );
+    const shaderLocal21_offlineDone21 = bool( false ).toVar();
+    const shaderLocal22_offlineResult21 = property( 'float' );
 
     If( shaderInput4.lessThan( .5 ), () => {
 
-      shaderLocal21_offlineResult20.assign( 1. );
-      shaderLocal20_offlineDone20.assign( true );
+      shaderLocal22_offlineResult21.assign( 1. );
+      shaderLocal21_offlineDone21.assign( true );
 
     } );
 
-    If( shaderLocal20_offlineDone20.not(), () => {
+    If( shaderLocal21_offlineDone21.not(), () => {
 
-      const shaderLocal22_depth = shaderInput3.sample( shaderFunction0_offlineOpaqueDepthUv( shaderInput16.xy.mul( shaderInput7 ) ) ).x.toVar();
+      const shaderLocal23_depth = shaderInput3.sample( shaderFunction0_offlineOpaqueDepthUv( shaderInput16.xy.mul( shaderInput7 ) ) ).x.toVar();
 
-      If( shaderLocal22_depth.greaterThanEqual( 1. ), () => {
+      If( shaderLocal23_depth.greaterThanEqual( 1. ), () => {
 
-        shaderLocal21_offlineResult20.assign( 1. );
-        shaderLocal20_offlineDone20.assign( true );
+        shaderLocal22_offlineResult21.assign( 1. );
+        shaderLocal21_offlineDone21.assign( true );
 
       } );
 
-      If( shaderLocal20_offlineDone20.not(), () => {
+      If( shaderLocal21_offlineDone21.not(), () => {
 
-        shaderLocal21_offlineResult20.assign( smoothstep( 0., max( .001, shaderInput12 ), shaderFunction7_particleViewDepth( shaderLocal22_depth ).sub( shaderFunction7_particleViewDepth( shaderInput16.z ) ) ) );
-        shaderLocal20_offlineDone20.assign( true );
+        shaderLocal22_offlineResult21.assign( smoothstep( 0., max( .001, shaderInput12 ), shaderFunction7_particleViewDepth( shaderLocal23_depth ).sub( shaderFunction7_particleViewDepth( shaderInput16.z ) ) ) );
+        shaderLocal21_offlineDone21.assign( true );
 
       } );
 
     } );
 
-    return shaderLocal21_offlineResult20;
+    return shaderLocal22_offlineResult21;
 
   }, 'float' );
 
@@ -4184,331 +4875,6 @@ export function create_tsl1_a666c9adc3fa4adb_fragment({ tint: shaderInput0, alph
   }, 'vec4' );
 
   return { main: shaderFunction9_main };
-}
-
-export function create_tsl1_b6e2b2d8b02fb7f6_vertex({ seed: shaderInput0, time: shaderInput1, size: shaderInput2, pixelRatio: shaderInput3, origin: shaderInput4, opacity: shaderInput5, variation: shaderInput6, particleCell: shaderInput7, particleAngle: shaderInput8, modelViewMatrix: shaderInput9, projectionMatrix: shaderInput10, gl_PointSize: shaderInput11 }) {
-  const shaderOutput = property('vec4');
-  const shaderFunction0_main = /*@__PURE__*/ Fn( () => {
-
-    shaderOutput.assign( vec4( 0. ) );
-    const shaderLocal0_age = max( 0., shaderInput1.sub( shaderInput0.w.mul( 3. ) ) ).toVar();
-    const shaderLocal1_a = shaderInput0.x.mul( 6.283185 ).toVar();
-    const shaderLocal2_p = shaderInput4.toVar();
-    shaderInput6.assign( shaderInput0.z );
-    shaderLocal2_p.addAssign( vec3( sin( shaderLocal1_a ).mul( shaderLocal0_age ).mul( 3. ), shaderLocal0_age.mul( add( 2., shaderInput0.z.mul( 2. ) ) ), cos( shaderLocal1_a ).mul( shaderLocal0_age ).mul( 3. ) ) );
-    shaderInput5.assign( step( 0., shaderInput1.sub( shaderInput0.w.mul( 3. ) ) ).mul( smoothstep( 0., 2., shaderLocal0_age ) ).mul( sub( 1., smoothstep( 10., 20., shaderLocal0_age ) ) ).mul( .18 ) );
-    const shaderLocal3_mv = shaderInput9.mul( vec4( shaderLocal2_p, 1. ) ).toVar();
-    shaderOutput.assign( shaderInput10.mul( shaderLocal3_mv ) );
-    shaderInput11.assign( clamp( shaderInput2.mul( shaderInput3 ).mul( div( 300., max( 1., shaderLocal3_mv.z.negate() ) ) ).mul( add( 1., shaderLocal0_age.mul( .7 ) ) ), 1., 190. ) );
-    shaderInput7.assign( add( 0., floor( min( shaderInput0.w, .999999 ).mul( 4. ) ) ) );
-    shaderInput8.assign( shaderInput0.x.mul( 6.283185 ).add( shaderInput1.mul( shaderInput0.z.sub( .5 ) ).mul( .35 ) ) );
-
-    return shaderOutput;
-
-  }, 'vec4' );
-
-  return { main: shaderFunction0_main };
-}
-
-export function create_tsl1_b6e2b2d8b02fb7f6_fragment({ tint: shaderInput0, opacity: shaderInput1, variation: shaderInput2, opaqueDepth: shaderInput3, opaqueDepthAvailable: shaderInput4, opaqueNear: shaderInput5, opaqueFar: shaderInput6, opaqueInverseSize: shaderInput7, opaqueProjectionInverse: shaderInput8, opaqueCameraWorld: shaderInput9, particleAtlas: shaderInput10, particleAtlasReady: shaderInput11, particleSoftness: shaderInput12, particleCell: shaderInput13, particleAngle: shaderInput14, uv: shaderInput15, gl_FragCoord: shaderInput16, gl_PointCoord: shaderInput17 }) {
-  const shaderOutput = property('vec4');
-  const shaderFunction0_offlineOpaqueDepthUv = /*@__PURE__*/ Fn( ( [ shaderLocal0_coord ] ) => {
-
-    return vec2( shaderLocal0_coord.x, sub( 1., shaderLocal0_coord.y ) );
-
-  }, 'vec2' );
-
-  const shaderFunction1_hash = /*@__PURE__*/ Fn( ( [ shaderLocal1_p ] ) => {
-
-    return fract( sin( dot( shaderLocal1_p, vec3( 127.1, 311.7, 74.7 ) ) ).mul( 43758.5453 ) );
-
-  }, 'float' );
-
-  const shaderFunction2_noise = /*@__PURE__*/ Fn( ( [ shaderLocal2_p ] ) => {
-
-    const shaderLocal3_i = floor( shaderLocal2_p ).toVar(), shaderLocal4_f = fract( shaderLocal2_p ).toVar();
-    shaderLocal4_f.assign( shaderLocal4_f.mul( shaderLocal4_f ).mul( sub( 3., mul( 2., shaderLocal4_f ) ) ) );
-
-    return mix( mix( mix( shaderFunction1_hash( shaderLocal3_i ), shaderFunction1_hash( shaderLocal3_i.add( vec3( 1, 0, 0 ) ) ), shaderLocal4_f.x ), mix( shaderFunction1_hash( shaderLocal3_i.add( vec3( 0, 1, 0 ) ) ), shaderFunction1_hash( shaderLocal3_i.add( vec3( 1, 1, 0 ) ) ), shaderLocal4_f.x ), shaderLocal4_f.y ), mix( mix( shaderFunction1_hash( shaderLocal3_i.add( vec3( 0, 0, 1 ) ) ), shaderFunction1_hash( shaderLocal3_i.add( vec3( 1, 0, 1 ) ) ), shaderLocal4_f.x ), mix( shaderFunction1_hash( shaderLocal3_i.add( vec3( 0, 1, 1 ) ) ), shaderFunction1_hash( shaderLocal3_i.add( vec3( 1, 1, 1 ) ) ), shaderLocal4_f.x ), shaderLocal4_f.y ), shaderLocal4_f.z );
-
-  }, 'float' );
-
-  const shaderFunction3_fbm = /*@__PURE__*/ Fn( ( [ shaderLocal5_p ] ) => {
-
-    return shaderFunction2_noise( shaderLocal5_p ).mul( .57 ).add( shaderFunction2_noise( shaderLocal5_p.mul( 2.03 ) ).mul( .28 ) ).add( shaderFunction2_noise( shaderLocal5_p.mul( 4.11 ) ).mul( .15 ) );
-
-  }, 'float' );
-
-  const shaderFunction4_particleFallback = /*@__PURE__*/ Fn( () => {
-
-    const shaderLocal6_p = shaderInput17.sub( .5 ).toVar();
-    const shaderLocal7_r = length( shaderLocal6_p ).mul( 2. ).toVar();
-
-    If( shaderLocal7_r.greaterThan( 1. ), () => {
-
-      Discard();
-
-    } );
-
-    const shaderLocal8_a = sub( 1., smoothstep( .15, 1., shaderLocal7_r ) ).mul( shaderInput1 ).toVar();
-    shaderLocal8_a.mulAssign( smoothstep( .15, .65, shaderFunction3_fbm( vec3( shaderLocal6_p.mul( 5. ), shaderInput2.mul( 10. ) ) ) ) );
-    shaderOutput.assign( vec4( shaderInput0, shaderLocal8_a ) );
-
-  }, 'void' );
-
-  const shaderFunction5_opaqueWorldPoint = /*@__PURE__*/ Fn( ( [ shaderLocal9_uv, shaderLocal10_depth ] ) => {
-
-    const shaderLocal11_view = shaderInput8.mul( vec4( shaderLocal9_uv.mul( 2. ).sub( 1. ), shaderLocal10_depth.mul( 2. ).sub( 1. ), 1. ) ).toVar();
-
-    return shaderInput9.mul( vec4( shaderLocal11_view.xyz.div( shaderLocal11_view.w ), 1. ) ).xyz;
-
-  }, 'vec3' );
-
-  const shaderFunction6_particleMask = /*@__PURE__*/ Fn( () => {
-
-    const shaderLocal12_offlineDone12 = bool( false ).toVar();
-    const shaderLocal13_offlineResult12 = property( 'float' );
-    const shaderLocal14_p = shaderInput17.sub( .5 ).toVar();
-    const shaderLocal15_c = cos( shaderInput14 ).toVar(), shaderLocal16_s = sin( shaderInput14 ).toVar();
-    shaderLocal14_p.assign( mat2( shaderLocal15_c, shaderLocal16_s.negate(), shaderLocal16_s, shaderLocal15_c ).mul( shaderLocal14_p ).add( .5 ) );
-
-    If( any( lessThan( shaderLocal14_p, vec2( 0. ) ) ).or( any( greaterThan( shaderLocal14_p, vec2( 1. ) ) ) ), () => {
-
-      shaderLocal13_offlineResult12.assign( 0. );
-      shaderLocal12_offlineDone12.assign( true );
-
-    } );
-
-    If( shaderLocal12_offlineDone12.not(), () => {
-
-      const shaderLocal17_cell = vec2( mod( shaderInput13, 4. ), sub( 3., floor( shaderInput13.div( 4. ) ) ) ).toVar();
-      const shaderLocal18_uv = shaderLocal17_cell.mul( 256. ).add( vec2( .5 ) ).add( vec2( shaderLocal14_p.x, sub( 1., shaderLocal14_p.y ) ).mul( 255. ) ).div( 1024. ).toVar();
-      shaderLocal13_offlineResult12.assign( shaderInput10.sample( shaderLocal18_uv ).r );
-      shaderLocal12_offlineDone12.assign( true );
-
-    } );
-
-    return shaderLocal13_offlineResult12;
-
-  }, 'float' );
-
-  const shaderFunction7_particleViewDepth = /*@__PURE__*/ Fn( ( [ shaderLocal19_depth ] ) => {
-
-    return shaderInput5.mul( shaderInput6 ).div( shaderInput6.sub( shaderLocal19_depth.mul( shaderInput6.sub( shaderInput5 ) ) ) );
-
-  }, 'float' );
-
-  const shaderFunction8_particleDepthFade = /*@__PURE__*/ Fn( () => {
-
-    const shaderLocal20_offlineDone20 = bool( false ).toVar();
-    const shaderLocal21_offlineResult20 = property( 'float' );
-
-    If( shaderInput4.lessThan( .5 ), () => {
-
-      shaderLocal21_offlineResult20.assign( 1. );
-      shaderLocal20_offlineDone20.assign( true );
-
-    } );
-
-    If( shaderLocal20_offlineDone20.not(), () => {
-
-      const shaderLocal22_depth = shaderInput3.sample( shaderFunction0_offlineOpaqueDepthUv( shaderInput16.xy.mul( shaderInput7 ) ) ).x.toVar();
-
-      If( shaderLocal22_depth.greaterThanEqual( 1. ), () => {
-
-        shaderLocal21_offlineResult20.assign( 1. );
-        shaderLocal20_offlineDone20.assign( true );
-
-      } );
-
-      If( shaderLocal20_offlineDone20.not(), () => {
-
-        shaderLocal21_offlineResult20.assign( smoothstep( 0., max( .001, shaderInput12 ), shaderFunction7_particleViewDepth( shaderLocal22_depth ).sub( shaderFunction7_particleViewDepth( shaderInput16.z ) ) ) );
-        shaderLocal20_offlineDone20.assign( true );
-
-      } );
-
-    } );
-
-    return shaderLocal21_offlineResult20;
-
-  }, 'float' );
-
-  const shaderFunction9_main = /*@__PURE__*/ Fn( () => {
-
-    shaderOutput.assign( vec4( 0. ) );
-
-    If( shaderInput11.greaterThan( .5 ), () => {
-
-      shaderOutput.assign( vec4( shaderInput0, shaderFunction6_particleMask().mul( shaderInput1 ) ) );
-
-    } ).Else( () => {
-
-      shaderFunction4_particleFallback();
-
-    } );
-
-    shaderOutput.a.mulAssign( shaderFunction8_particleDepthFade() );
-
-    return shaderOutput;
-
-  }, 'vec4' );
-
-  return { main: shaderFunction9_main };
-}
-
-export function create_tsl1_b9aa1a875314d0cd_vertex({ seed: shaderInput0, time: shaderInput1, phase: shaderInput2, pixelRatio: shaderInput3, origin: shaderInput4, target: shaderInput5, opacity: shaderInput6, warmth: shaderInput7, particleCell: shaderInput8, particleAngle: shaderInput9, modelViewMatrix: shaderInput10, projectionMatrix: shaderInput11, gl_PointSize: shaderInput12 }) {
-  const shaderOutput = property('vec4');
-  const shaderFunction0_main = /*@__PURE__*/ Fn( () => {
-
-    shaderOutput.assign( vec4( 0. ) );
-    const shaderLocal0_a = shaderInput0.x.mul( 6.283185 ).toVar();
-    const shaderLocal1_p = property( 'vec3' );
-    shaderInput7.assign( shaderInput0.z );
-    const shaderLocal2_d = fract( shaderInput0.y.add( shaderInput1.mul( .09 ) ) ).toVar();
-    const shaderLocal3_reach = pow( shaderLocal2_d, .85 ).mul( 104. ).toVar();
-    const shaderLocal4_spread = pow( shaderLocal2_d, .7 ).mul( add( 4., shaderInput0.z.mul( 26. ) ) ).mul( add( 1., shaderInput2.mul( .3 ) ) ).toVar();
-    const shaderLocal5_u = normalize( cross( shaderInput5, vec3( 0., 1., 0. ) ) ).toVar();
-    const shaderLocal6_v = cross( shaderInput5, shaderLocal5_u ).toVar();
-    const shaderLocal7_swirl = shaderLocal0_a.add( shaderLocal2_d.mul( 7. ) ).add( shaderInput1.mul( .6 ) ).toVar();
-    shaderLocal1_p.assign( shaderInput4.add( shaderInput5.mul( shaderLocal3_reach ) ).add( shaderLocal5_u.mul( cos( shaderLocal7_swirl ) ).add( shaderLocal6_v.mul( sin( shaderLocal7_swirl ) ) ).mul( shaderLocal4_spread ) ) );
-    const shaderLocal8_arrived = sub( 1., smoothstep( shaderInput1.sub( 5. ).mul( 7. ).sub( 8. ), shaderInput1.sub( 5. ).mul( 7. ), shaderLocal3_reach ) ).toVar();
-    shaderInput7.assign( shaderLocal2_d );
-    shaderInput6.assign( smoothstep( .01, .12, shaderLocal2_d ).mul( sub( 1., smoothstep( .72, 1., shaderLocal2_d ) ) ).mul( shaderInput2 ).mul( shaderLocal8_arrived ).mul( add( .5, mul( .5, shaderInput0.w ) ) ) );
-    const shaderLocal9_mv = shaderInput10.mul( vec4( shaderLocal1_p, 1. ) ).toVar();
-    shaderOutput.assign( shaderInput11.mul( shaderLocal9_mv ) );
-    shaderInput12.assign( clamp( add( 1.5, shaderInput0.w.mul( 3. ) ).mul( shaderInput3 ).mul( 230. ).div( max( 1., shaderLocal9_mv.z.negate() ) ), 1., 12. ) );
-    shaderInput8.assign( add( 4., floor( min( shaderInput0.w, .999999 ).mul( 4. ) ) ) );
-    shaderInput9.assign( shaderInput0.x.mul( 6.283185 ) );
-
-    return shaderOutput;
-
-  }, 'vec4' );
-
-  return { main: shaderFunction0_main };
-}
-
-export function create_tsl1_b9aa1a875314d0cd_fragment({ tint: shaderInput0, opacity: shaderInput1, warmth: shaderInput2, opaqueDepth: shaderInput3, opaqueDepthAvailable: shaderInput4, opaqueNear: shaderInput5, opaqueFar: shaderInput6, opaqueInverseSize: shaderInput7, opaqueProjectionInverse: shaderInput8, opaqueCameraWorld: shaderInput9, particleAtlas: shaderInput10, particleAtlasReady: shaderInput11, particleSoftness: shaderInput12, particleCell: shaderInput13, particleAngle: shaderInput14, uv: shaderInput15, gl_FragCoord: shaderInput16, gl_PointCoord: shaderInput17 }) {
-  const shaderOutput = property('vec4');
-  const shaderFunction0_offlineOpaqueDepthUv = /*@__PURE__*/ Fn( ( [ shaderLocal0_coord ] ) => {
-
-    return vec2( shaderLocal0_coord.x, sub( 1., shaderLocal0_coord.y ) );
-
-  }, 'vec2' );
-
-  const shaderFunction1_particleFallback = /*@__PURE__*/ Fn( () => {
-
-    const shaderLocal1_r = length( shaderInput17.sub( .5 ) ).mul( 2. ).toVar();
-
-    If( shaderLocal1_r.greaterThan( 1. ), () => {
-
-      Discard();
-
-    } );
-
-    shaderOutput.assign( vec4( mix( shaderInput0, shaderInput0.mul( vec3( 1.2, .55, .25 ) ), shaderInput2 ), pow( sub( 1., shaderLocal1_r ), 2. ).mul( shaderInput1 ) ) );
-
-  }, 'void' );
-
-  const shaderFunction2_opaqueWorldPoint = /*@__PURE__*/ Fn( ( [ shaderLocal2_uv, shaderLocal3_depth ] ) => {
-
-    const shaderLocal4_view = shaderInput8.mul( vec4( shaderLocal2_uv.mul( 2. ).sub( 1. ), shaderLocal3_depth.mul( 2. ).sub( 1. ), 1. ) ).toVar();
-
-    return shaderInput9.mul( vec4( shaderLocal4_view.xyz.div( shaderLocal4_view.w ), 1. ) ).xyz;
-
-  }, 'vec3' );
-
-  const shaderFunction3_particleMask = /*@__PURE__*/ Fn( () => {
-
-    const shaderLocal5_offlineDone5 = bool( false ).toVar();
-    const shaderLocal6_offlineResult5 = property( 'float' );
-    const shaderLocal7_p = shaderInput17.sub( .5 ).toVar();
-    const shaderLocal8_c = cos( shaderInput14 ).toVar(), shaderLocal9_s = sin( shaderInput14 ).toVar();
-    shaderLocal7_p.assign( mat2( shaderLocal8_c, shaderLocal9_s.negate(), shaderLocal9_s, shaderLocal8_c ).mul( shaderLocal7_p ).add( .5 ) );
-
-    If( any( lessThan( shaderLocal7_p, vec2( 0. ) ) ).or( any( greaterThan( shaderLocal7_p, vec2( 1. ) ) ) ), () => {
-
-      shaderLocal6_offlineResult5.assign( 0. );
-      shaderLocal5_offlineDone5.assign( true );
-
-    } );
-
-    If( shaderLocal5_offlineDone5.not(), () => {
-
-      const shaderLocal10_cell = vec2( mod( shaderInput13, 4. ), sub( 3., floor( shaderInput13.div( 4. ) ) ) ).toVar();
-      const shaderLocal11_uv = shaderLocal10_cell.mul( 256. ).add( vec2( .5 ) ).add( vec2( shaderLocal7_p.x, sub( 1., shaderLocal7_p.y ) ).mul( 255. ) ).div( 1024. ).toVar();
-      shaderLocal6_offlineResult5.assign( shaderInput10.sample( shaderLocal11_uv ).r );
-      shaderLocal5_offlineDone5.assign( true );
-
-    } );
-
-    return shaderLocal6_offlineResult5;
-
-  }, 'float' );
-
-  const shaderFunction4_particleViewDepth = /*@__PURE__*/ Fn( ( [ shaderLocal12_depth ] ) => {
-
-    return shaderInput5.mul( shaderInput6 ).div( shaderInput6.sub( shaderLocal12_depth.mul( shaderInput6.sub( shaderInput5 ) ) ) );
-
-  }, 'float' );
-
-  const shaderFunction5_particleDepthFade = /*@__PURE__*/ Fn( () => {
-
-    const shaderLocal13_offlineDone13 = bool( false ).toVar();
-    const shaderLocal14_offlineResult13 = property( 'float' );
-
-    If( shaderInput4.lessThan( .5 ), () => {
-
-      shaderLocal14_offlineResult13.assign( 1. );
-      shaderLocal13_offlineDone13.assign( true );
-
-    } );
-
-    If( shaderLocal13_offlineDone13.not(), () => {
-
-      const shaderLocal15_depth = shaderInput3.sample( shaderFunction0_offlineOpaqueDepthUv( shaderInput16.xy.mul( shaderInput7 ) ) ).x.toVar();
-
-      If( shaderLocal15_depth.greaterThanEqual( 1. ), () => {
-
-        shaderLocal14_offlineResult13.assign( 1. );
-        shaderLocal13_offlineDone13.assign( true );
-
-      } );
-
-      If( shaderLocal13_offlineDone13.not(), () => {
-
-        shaderLocal14_offlineResult13.assign( smoothstep( 0., max( .001, shaderInput12 ), shaderFunction4_particleViewDepth( shaderLocal15_depth ).sub( shaderFunction4_particleViewDepth( shaderInput16.z ) ) ) );
-        shaderLocal13_offlineDone13.assign( true );
-
-      } );
-
-    } );
-
-    return shaderLocal14_offlineResult13;
-
-  }, 'float' );
-
-  const shaderFunction6_main = /*@__PURE__*/ Fn( () => {
-
-    shaderOutput.assign( vec4( 0. ) );
-
-    If( shaderInput11.greaterThan( .5 ), () => {
-
-      shaderOutput.assign( vec4( mix( shaderInput0, shaderInput0.mul( vec3( 1.2, .55, .25 ) ), shaderInput2 ), shaderFunction3_particleMask().mul( shaderInput1 ) ) );
-
-    } ).Else( () => {
-
-      shaderFunction1_particleFallback();
-
-    } );
-
-    shaderOutput.a.mulAssign( shaderFunction5_particleDepthFade() );
-
-    return shaderOutput;
-
-  }, 'vec4' );
-
-  return { main: shaderFunction6_main };
 }
 
 export function create_tsl1_c45008e2c4d56104_vertex({ hullPoint: shaderInput0, position: shaderInput1, modelMatrix: shaderInput2, projectionMatrix: shaderInput3, viewMatrix: shaderInput4 }) {
@@ -4752,179 +5118,6 @@ export function create_tsl1_c8ca535eddf6de42_fragment({ panorama: shaderInput0, 
   return { main: shaderFunction0_main };
 }
 
-export function create_tsl1_d010b5bd0c946771_vertex({ seed: shaderInput0, time: shaderInput1, size: shaderInput2, ratio: shaderInput3, origin: shaderInput4, lean: shaderInput5, alpha: shaderInput6, variation: shaderInput7, particleCell: shaderInput8, particleAngle: shaderInput9, modelViewMatrix: shaderInput10, projectionMatrix: shaderInput11, gl_PointSize: shaderInput12 }) {
-  const shaderOutput = property('vec4');
-  const shaderFunction0_main = /*@__PURE__*/ Fn( () => {
-
-    shaderOutput.assign( vec4( 0. ) );
-    const shaderLocal0_a = shaderInput0.x.mul( 6.283185 ).toVar();
-    const shaderLocal1_p = vec3( 0. ).toVar();
-    shaderInput7.assign( shaderInput0.w );
-    const shaderLocal2_spread = smoothstep( 19., 30., shaderInput1 ).toVar();
-    const shaderLocal3_r = shaderLocal2_spread.mul( add( 6., shaderInput0.y.mul( 250. ) ) ).toVar();
-    const shaderLocal4_angle = shaderLocal0_a.add( shaderInput1.mul( add( .6, shaderInput0.z.mul( 1.5 ) ) ) ).toVar();
-    shaderLocal1_p.assign( vec3( shaderInput4.x.add( cos( shaderLocal4_angle ).mul( shaderLocal3_r ) ), add( 1.5, shaderInput0.w.mul( add( 4., shaderLocal2_spread.mul( 14. ) ) ) ), shaderInput4.z.add( sin( shaderLocal4_angle ).mul( shaderLocal3_r ) ) ) );
-    shaderInput6.assign( smoothstep( 19., 21., shaderInput1 ).mul( sub( 1., smoothstep( .6, 1., shaderInput0.y ) ) ).mul( .45 ) );
-    const shaderLocal5_mv = shaderInput10.mul( vec4( shaderLocal1_p, 1. ) ).toVar();
-    shaderOutput.assign( shaderInput11.mul( shaderLocal5_mv ) );
-    shaderInput12.assign( clamp( shaderInput2.mul( shaderInput3 ).mul( 240. ).div( max( 1., shaderLocal5_mv.z.negate() ) ), 1., 100. ) );
-    shaderInput8.assign( add( 0., floor( min( shaderInput0.w, .999999 ).mul( 4. ) ) ) );
-    shaderInput9.assign( shaderInput0.x.mul( 6.283185 ).add( shaderInput1.mul( shaderInput0.z.sub( .5 ) ).mul( .35 ) ) );
-
-    return shaderOutput;
-
-  }, 'vec4' );
-
-  return { main: shaderFunction0_main };
-}
-
-export function create_tsl1_d010b5bd0c946771_fragment({ tint: shaderInput0, alpha: shaderInput1, variation: shaderInput2, opaqueDepth: shaderInput3, opaqueDepthAvailable: shaderInput4, opaqueNear: shaderInput5, opaqueFar: shaderInput6, opaqueInverseSize: shaderInput7, opaqueProjectionInverse: shaderInput8, opaqueCameraWorld: shaderInput9, particleAtlas: shaderInput10, particleAtlasReady: shaderInput11, particleSoftness: shaderInput12, particleCell: shaderInput13, particleAngle: shaderInput14, uv: shaderInput15, gl_FragCoord: shaderInput16, gl_PointCoord: shaderInput17 }) {
-  const shaderOutput = property('vec4');
-  const shaderFunction0_offlineOpaqueDepthUv = /*@__PURE__*/ Fn( ( [ shaderLocal0_coord ] ) => {
-
-    return vec2( shaderLocal0_coord.x, sub( 1., shaderLocal0_coord.y ) );
-
-  }, 'vec2' );
-
-  const shaderFunction1_hash = /*@__PURE__*/ Fn( ( [ shaderLocal1_p ] ) => {
-
-    return fract( sin( dot( shaderLocal1_p, vec3( 127.1, 311.7, 74.7 ) ) ).mul( 43758.5453 ) );
-
-  }, 'float' );
-
-  const shaderFunction2_noise = /*@__PURE__*/ Fn( ( [ shaderLocal2_p ] ) => {
-
-    const shaderLocal3_i = floor( shaderLocal2_p ).toVar(), shaderLocal4_f = fract( shaderLocal2_p ).toVar();
-    shaderLocal4_f.assign( shaderLocal4_f.mul( shaderLocal4_f ).mul( sub( 3., mul( 2., shaderLocal4_f ) ) ) );
-
-    return mix( mix( mix( shaderFunction1_hash( shaderLocal3_i ), shaderFunction1_hash( shaderLocal3_i.add( vec3( 1, 0, 0 ) ) ), shaderLocal4_f.x ), mix( shaderFunction1_hash( shaderLocal3_i.add( vec3( 0, 1, 0 ) ) ), shaderFunction1_hash( shaderLocal3_i.add( vec3( 1, 1, 0 ) ) ), shaderLocal4_f.x ), shaderLocal4_f.y ), mix( mix( shaderFunction1_hash( shaderLocal3_i.add( vec3( 0, 0, 1 ) ) ), shaderFunction1_hash( shaderLocal3_i.add( vec3( 1, 0, 1 ) ) ), shaderLocal4_f.x ), mix( shaderFunction1_hash( shaderLocal3_i.add( vec3( 0, 1, 1 ) ) ), shaderFunction1_hash( shaderLocal3_i.add( vec3( 1, 1, 1 ) ) ), shaderLocal4_f.x ), shaderLocal4_f.y ), shaderLocal4_f.z );
-
-  }, 'float' );
-
-  const shaderFunction3_fbm = /*@__PURE__*/ Fn( ( [ shaderLocal5_p ] ) => {
-
-    return shaderFunction2_noise( shaderLocal5_p ).mul( .57 ).add( shaderFunction2_noise( shaderLocal5_p.mul( 2.03 ) ).mul( .28 ) ).add( shaderFunction2_noise( shaderLocal5_p.mul( 4.11 ) ).mul( .15 ) );
-
-  }, 'float' );
-
-  const shaderFunction4_particleFallback = /*@__PURE__*/ Fn( () => {
-
-    const shaderLocal6_p = shaderInput17.sub( .5 ).toVar();
-    const shaderLocal7_r = length( shaderLocal6_p ).mul( 2. ).toVar();
-
-    If( shaderLocal7_r.greaterThan( 1. ), () => {
-
-      Discard();
-
-    } );
-
-    const shaderLocal8_a = sub( 1., smoothstep( .05, 1., shaderLocal7_r ) ).mul( shaderInput1 ).toVar();
-    shaderLocal8_a.mulAssign( smoothstep( .18, .6, shaderFunction3_fbm( vec3( shaderLocal6_p.mul( 5. ), shaderInput2.mul( 13. ) ) ) ) );
-    shaderOutput.assign( vec4( shaderInput0, shaderLocal8_a ) );
-
-  }, 'void' );
-
-  const shaderFunction5_opaqueWorldPoint = /*@__PURE__*/ Fn( ( [ shaderLocal9_uv, shaderLocal10_depth ] ) => {
-
-    const shaderLocal11_view = shaderInput8.mul( vec4( shaderLocal9_uv.mul( 2. ).sub( 1. ), shaderLocal10_depth.mul( 2. ).sub( 1. ), 1. ) ).toVar();
-
-    return shaderInput9.mul( vec4( shaderLocal11_view.xyz.div( shaderLocal11_view.w ), 1. ) ).xyz;
-
-  }, 'vec3' );
-
-  const shaderFunction6_particleMask = /*@__PURE__*/ Fn( () => {
-
-    const shaderLocal12_offlineDone12 = bool( false ).toVar();
-    const shaderLocal13_offlineResult12 = property( 'float' );
-    const shaderLocal14_p = shaderInput17.sub( .5 ).toVar();
-    const shaderLocal15_c = cos( shaderInput14 ).toVar(), shaderLocal16_s = sin( shaderInput14 ).toVar();
-    shaderLocal14_p.assign( mat2( shaderLocal15_c, shaderLocal16_s.negate(), shaderLocal16_s, shaderLocal15_c ).mul( shaderLocal14_p ).add( .5 ) );
-
-    If( any( lessThan( shaderLocal14_p, vec2( 0. ) ) ).or( any( greaterThan( shaderLocal14_p, vec2( 1. ) ) ) ), () => {
-
-      shaderLocal13_offlineResult12.assign( 0. );
-      shaderLocal12_offlineDone12.assign( true );
-
-    } );
-
-    If( shaderLocal12_offlineDone12.not(), () => {
-
-      const shaderLocal17_cell = vec2( mod( shaderInput13, 4. ), sub( 3., floor( shaderInput13.div( 4. ) ) ) ).toVar();
-      const shaderLocal18_uv = shaderLocal17_cell.mul( 256. ).add( vec2( .5 ) ).add( vec2( shaderLocal14_p.x, sub( 1., shaderLocal14_p.y ) ).mul( 255. ) ).div( 1024. ).toVar();
-      shaderLocal13_offlineResult12.assign( shaderInput10.sample( shaderLocal18_uv ).r );
-      shaderLocal12_offlineDone12.assign( true );
-
-    } );
-
-    return shaderLocal13_offlineResult12;
-
-  }, 'float' );
-
-  const shaderFunction7_particleViewDepth = /*@__PURE__*/ Fn( ( [ shaderLocal19_depth ] ) => {
-
-    return shaderInput5.mul( shaderInput6 ).div( shaderInput6.sub( shaderLocal19_depth.mul( shaderInput6.sub( shaderInput5 ) ) ) );
-
-  }, 'float' );
-
-  const shaderFunction8_particleDepthFade = /*@__PURE__*/ Fn( () => {
-
-    const shaderLocal20_offlineDone20 = bool( false ).toVar();
-    const shaderLocal21_offlineResult20 = property( 'float' );
-
-    If( shaderInput4.lessThan( .5 ), () => {
-
-      shaderLocal21_offlineResult20.assign( 1. );
-      shaderLocal20_offlineDone20.assign( true );
-
-    } );
-
-    If( shaderLocal20_offlineDone20.not(), () => {
-
-      const shaderLocal22_depth = shaderInput3.sample( shaderFunction0_offlineOpaqueDepthUv( shaderInput16.xy.mul( shaderInput7 ) ) ).x.toVar();
-
-      If( shaderLocal22_depth.greaterThanEqual( 1. ), () => {
-
-        shaderLocal21_offlineResult20.assign( 1. );
-        shaderLocal20_offlineDone20.assign( true );
-
-      } );
-
-      If( shaderLocal20_offlineDone20.not(), () => {
-
-        shaderLocal21_offlineResult20.assign( smoothstep( 0., max( .001, shaderInput12 ), shaderFunction7_particleViewDepth( shaderLocal22_depth ).sub( shaderFunction7_particleViewDepth( shaderInput16.z ) ) ) );
-        shaderLocal20_offlineDone20.assign( true );
-
-      } );
-
-    } );
-
-    return shaderLocal21_offlineResult20;
-
-  }, 'float' );
-
-  const shaderFunction9_main = /*@__PURE__*/ Fn( () => {
-
-    shaderOutput.assign( vec4( 0. ) );
-
-    If( shaderInput11.greaterThan( .5 ), () => {
-
-      shaderOutput.assign( vec4( shaderInput0, shaderFunction6_particleMask().mul( shaderInput1 ) ) );
-
-    } ).Else( () => {
-
-      shaderFunction4_particleFallback();
-
-    } );
-
-    shaderOutput.a.mulAssign( shaderFunction8_particleDepthFade() );
-
-    return shaderOutput;
-
-  }, 'vec4' );
-
-  return { main: shaderFunction9_main };
-}
-
 export function create_tsl1_d277a2cac50ef6b2_vertex({ bodyNormal: shaderInput0, bodyPoint: shaderInput1, bodyView: shaderInput2, position: shaderInput3, normal: shaderInput4, modelViewMatrix: shaderInput5, projectionMatrix: shaderInput6, normalMatrix: shaderInput7 }) {
   const shaderOutput = property('vec4');
   const shaderFunction0_main = /*@__PURE__*/ Fn( () => {
@@ -4983,56 +5176,32 @@ export function create_tsl1_d277a2cac50ef6b2_fragment({ time: shaderInput0, glow
   return { main: shaderFunction3_main };
 }
 
-export function create_tsl1_d7031034e5e97c54_vertex({ seed: shaderInput0, time: shaderInput1, phase: shaderInput2, pixelRatio: shaderInput3, origin: shaderInput4, target: shaderInput5, opacity: shaderInput6, warmth: shaderInput7, particleCell: shaderInput8, particleAngle: shaderInput9, modelViewMatrix: shaderInput10, projectionMatrix: shaderInput11, gl_PointSize: shaderInput12 }) {
+export function create_tsl1_d46172f6a4f8a250_vertex({ seed: shaderInput0, time: shaderInput1, size: shaderInput2, pixelRatio: shaderInput3, origin: shaderInput4, opacity: shaderInput5, variation: shaderInput6, particleCell: shaderInput7, particleAngle: shaderInput8, modelViewMatrix: shaderInput9, projectionMatrix: shaderInput10, gl_PointSize: shaderInput11 }) {
   const shaderOutput = property('vec4');
-  const shaderFunction0_particleNext = /*@__PURE__*/ Fn( ( [ shaderLocal0_time ] ) => {
-
-    const shaderLocal1_a = shaderInput0.x.mul( 6.283185 ).toVar();
-    const shaderLocal2_p = vec3( 0. ).toVar();
-    const shaderLocal3_alpha = float( 0. ).toVar(), shaderLocal4_opacity = float( 0. ).toVar(), shaderLocal5_warmth = shaderInput0.z.toVar();
-    const shaderLocal6_f = fract( shaderInput0.y.sub( shaderLocal0_time.mul( .035 ) ) ).toVar();
-    const shaderLocal7_radius = add( 17., pow( shaderLocal6_f, .6 ).mul( 65. ) ).toVar();
-    const shaderLocal8_angle = shaderLocal1_a.add( shaderLocal0_time.mul( add( .2, sub( 1., shaderLocal6_f ).mul( 1.25 ) ) ) ).toVar();
-    shaderLocal2_p.assign( vec3( cos( shaderLocal8_angle ).mul( shaderLocal7_radius ), add( 50., sin( shaderInput0.z.mul( 6.283185 ) ).mul( add( .5, shaderLocal6_f.mul( 6. ) ) ) ), sin( shaderLocal8_angle ).mul( shaderLocal7_radius ) ) );
-    shaderLocal4_opacity.assign( smoothstep( 0., .08, shaderLocal6_f ).mul( add( .3, mul( .7, sub( 1., shaderLocal6_f ) ) ) ) );
-
-    return shaderLocal2_p;
-
-  }, 'vec3' );
-
-  const shaderFunction1_main = /*@__PURE__*/ Fn( () => {
+  const shaderFunction0_main = /*@__PURE__*/ Fn( () => {
 
     shaderOutput.assign( vec4( 0. ) );
-    const shaderLocal9_a = shaderInput0.x.mul( 6.283185 ).toVar();
-    const shaderLocal10_p = property( 'vec3' );
-    shaderInput7.assign( shaderInput0.z );
-    const shaderLocal11_f = fract( shaderInput0.y.sub( shaderInput1.mul( .035 ) ) ).toVar();
-    const shaderLocal12_radius = add( 17., pow( shaderLocal11_f, .6 ).mul( 65. ) ).toVar();
-    const shaderLocal13_angle = shaderLocal9_a.add( shaderInput1.mul( add( .2, sub( 1., shaderLocal11_f ).mul( 1.25 ) ) ) ).toVar();
-    shaderLocal10_p.assign( vec3( cos( shaderLocal13_angle ).mul( shaderLocal12_radius ), add( 50., sin( shaderInput0.z.mul( 6.283185 ) ).mul( add( .5, shaderLocal11_f.mul( 6. ) ) ) ), sin( shaderLocal13_angle ).mul( shaderLocal12_radius ) ) );
-    shaderInput6.assign( smoothstep( 0., .08, shaderLocal11_f ).mul( add( .3, mul( .7, sub( 1., shaderLocal11_f ) ) ) ) );
-    const shaderLocal14_mv = shaderInput10.mul( vec4( shaderLocal10_p, 1. ) ).toVar();
-    shaderOutput.assign( shaderInput11.mul( shaderLocal14_mv ) );
-    shaderInput12.assign( clamp( add( 1.5, shaderInput0.w.mul( 3. ) ).mul( shaderInput3 ).mul( 230. ).div( max( 1., shaderLocal14_mv.z.negate() ) ), 1., 12. ) );
-    shaderInput8.assign( add( 8., floor( min( shaderInput0.w, .999999 ).mul( 4. ) ) ) );
-    shaderInput9.assign( shaderInput0.x.mul( 6.283185 ) );
-    const shaderLocal15_particleFuture = shaderInput10.mul( vec4( shaderFunction0_particleNext( shaderInput1.add( .04 ) ), 1. ) ).toVar();
-    const shaderLocal16_particleDirection = shaderLocal15_particleFuture.xy.div( max( .001, shaderLocal15_particleFuture.z.negate() ) ).sub( shaderLocal14_mv.xy.div( max( .001, shaderLocal14_mv.z.negate() ) ) ).toVar();
-
-    If( dot( shaderLocal16_particleDirection, shaderLocal16_particleDirection ).greaterThan( .00000001 ), () => {
-
-      shaderInput9.assign( atan( shaderLocal16_particleDirection.y.negate(), shaderLocal16_particleDirection.x ) );
-
-    } );
+    const shaderLocal0_age = max( 0., shaderInput1.sub( shaderInput0.w.mul( 3. ) ) ).toVar();
+    const shaderLocal1_a = shaderInput0.x.mul( 6.283185 ).toVar();
+    const shaderLocal2_p = shaderInput4.toVar();
+    shaderInput6.assign( shaderInput0.z );
+    shaderLocal2_p.addAssign( vec3( sin( shaderLocal1_a ), 0., cos( shaderLocal1_a ) ).mul( shaderLocal0_age ).mul( add( 5., shaderInput0.y.mul( 12. ) ) ) );
+    shaderLocal2_p.y.addAssign( shaderLocal0_age.mul( add( 10., shaderInput0.z.mul( 20. ) ) ).sub( shaderLocal0_age.mul( shaderLocal0_age ).mul( 1.9 ) ) );
+    shaderInput5.assign( step( 0., shaderInput1.sub( shaderInput0.w.mul( 3. ) ) ).mul( sub( 1., smoothstep( 2., 8., shaderLocal0_age ) ) ).mul( step( 0., shaderLocal2_p.y ) ) );
+    const shaderLocal3_mv = shaderInput9.mul( vec4( shaderLocal2_p, 1. ) ).toVar();
+    shaderOutput.assign( shaderInput10.mul( shaderLocal3_mv ) );
+    shaderInput11.assign( clamp( shaderInput2.mul( shaderInput3 ).mul( div( 300., max( 1., shaderLocal3_mv.z.negate() ) ) ), 1., 32. ) );
+    shaderInput7.assign( add( 4., floor( min( shaderInput0.w, .999999 ).mul( 4. ) ) ) );
+    shaderInput8.assign( shaderInput0.x.mul( 6.283185 ) );
 
     return shaderOutput;
 
   }, 'vec4' );
 
-  return { main: shaderFunction1_main };
+  return { main: shaderFunction0_main };
 }
 
-export function create_tsl1_d7031034e5e97c54_fragment({ tint: shaderInput0, opacity: shaderInput1, warmth: shaderInput2, opaqueDepth: shaderInput3, opaqueDepthAvailable: shaderInput4, opaqueNear: shaderInput5, opaqueFar: shaderInput6, opaqueInverseSize: shaderInput7, opaqueProjectionInverse: shaderInput8, opaqueCameraWorld: shaderInput9, particleAtlas: shaderInput10, particleAtlasReady: shaderInput11, particleSoftness: shaderInput12, particleCell: shaderInput13, particleAngle: shaderInput14, uv: shaderInput15, gl_FragCoord: shaderInput16, gl_PointCoord: shaderInput17 }) {
+export function create_tsl1_d46172f6a4f8a250_fragment({ tint: shaderInput0, opacity: shaderInput1, variation: shaderInput2, opaqueDepth: shaderInput3, opaqueDepthAvailable: shaderInput4, opaqueNear: shaderInput5, opaqueFar: shaderInput6, opaqueInverseSize: shaderInput7, opaqueProjectionInverse: shaderInput8, opaqueCameraWorld: shaderInput9, particleAtlas: shaderInput10, particleAtlasReady: shaderInput11, particleSoftness: shaderInput12, particleCell: shaderInput13, particleAngle: shaderInput14, uv: shaderInput15, gl_FragCoord: shaderInput16, gl_PointCoord: shaderInput17 }) {
   const shaderOutput = property('vec4');
   const shaderFunction0_offlineOpaqueDepthUv = /*@__PURE__*/ Fn( ( [ shaderLocal0_coord ] ) => {
 
@@ -5040,119 +5209,315 @@ export function create_tsl1_d7031034e5e97c54_fragment({ tint: shaderInput0, opac
 
   }, 'vec2' );
 
-  const shaderFunction1_particleFallback = /*@__PURE__*/ Fn( () => {
+  const shaderFunction1_hash = /*@__PURE__*/ Fn( ( [ shaderLocal1_p ] ) => {
 
-    const shaderLocal1_r = length( shaderInput17.sub( .5 ) ).mul( 2. ).toVar();
+    return fract( sin( dot( shaderLocal1_p, vec3( 127.1, 311.7, 74.7 ) ) ).mul( 43758.5453 ) );
 
-    If( shaderLocal1_r.greaterThan( 1. ), () => {
+  }, 'float' );
+
+  const shaderFunction2_noise = /*@__PURE__*/ Fn( ( [ shaderLocal2_p ] ) => {
+
+    const shaderLocal3_i = floor( shaderLocal2_p ).toVar(), shaderLocal4_f = fract( shaderLocal2_p ).toVar();
+    shaderLocal4_f.assign( shaderLocal4_f.mul( shaderLocal4_f ).mul( sub( 3., mul( 2., shaderLocal4_f ) ) ) );
+
+    return mix( mix( mix( shaderFunction1_hash( shaderLocal3_i ), shaderFunction1_hash( shaderLocal3_i.add( vec3( 1, 0, 0 ) ) ), shaderLocal4_f.x ), mix( shaderFunction1_hash( shaderLocal3_i.add( vec3( 0, 1, 0 ) ) ), shaderFunction1_hash( shaderLocal3_i.add( vec3( 1, 1, 0 ) ) ), shaderLocal4_f.x ), shaderLocal4_f.y ), mix( mix( shaderFunction1_hash( shaderLocal3_i.add( vec3( 0, 0, 1 ) ) ), shaderFunction1_hash( shaderLocal3_i.add( vec3( 1, 0, 1 ) ) ), shaderLocal4_f.x ), mix( shaderFunction1_hash( shaderLocal3_i.add( vec3( 0, 1, 1 ) ) ), shaderFunction1_hash( shaderLocal3_i.add( vec3( 1, 1, 1 ) ) ), shaderLocal4_f.x ), shaderLocal4_f.y ), shaderLocal4_f.z );
+
+  }, 'float' );
+
+  const shaderFunction3_fbm = /*@__PURE__*/ Fn( ( [ shaderLocal5_p ] ) => {
+
+    return shaderFunction2_noise( shaderLocal5_p ).mul( .57 ).add( shaderFunction2_noise( shaderLocal5_p.mul( 2.03 ) ).mul( .28 ) ).add( shaderFunction2_noise( shaderLocal5_p.mul( 4.11 ) ).mul( .15 ) );
+
+  }, 'float' );
+
+  const shaderFunction4_particleFallback = /*@__PURE__*/ Fn( () => {
+
+    const shaderLocal6_p = shaderInput17.sub( .5 ).toVar();
+    const shaderLocal7_r = length( shaderLocal6_p ).mul( 2. ).toVar();
+
+    If( shaderLocal7_r.greaterThan( 1. ), () => {
 
       Discard();
 
     } );
 
-    shaderOutput.assign( vec4( mix( shaderInput0, shaderInput0.mul( vec3( 1.2, .55, .25 ) ), shaderInput2 ), pow( sub( 1., shaderLocal1_r ), 2. ).mul( shaderInput1 ) ) );
+    const shaderLocal8_a = sub( 1., smoothstep( .15, 1., shaderLocal7_r ) ).mul( shaderInput1 ).toVar();
+    shaderOutput.assign( vec4( shaderInput0, shaderLocal8_a ) );
 
   }, 'void' );
 
-  const shaderFunction2_opaqueWorldPoint = /*@__PURE__*/ Fn( ( [ shaderLocal2_uv, shaderLocal3_depth ] ) => {
+  const shaderFunction5_opaqueWorldPoint = /*@__PURE__*/ Fn( ( [ shaderLocal9_uv, shaderLocal10_depth ] ) => {
 
-    const shaderLocal4_view = shaderInput8.mul( vec4( shaderLocal2_uv.mul( 2. ).sub( 1. ), shaderLocal3_depth.mul( 2. ).sub( 1. ), 1. ) ).toVar();
+    const shaderLocal11_view = shaderInput8.mul( vec4( shaderLocal9_uv.mul( 2. ).sub( 1. ), shaderLocal10_depth.mul( 2. ).sub( 1. ), 1. ) ).toVar();
 
-    return shaderInput9.mul( vec4( shaderLocal4_view.xyz.div( shaderLocal4_view.w ), 1. ) ).xyz;
+    return shaderInput9.mul( vec4( shaderLocal11_view.xyz.div( shaderLocal11_view.w ), 1. ) ).xyz;
 
   }, 'vec3' );
 
-  const shaderFunction3_particleMask = /*@__PURE__*/ Fn( () => {
+  const shaderFunction6_particleMask = /*@__PURE__*/ Fn( () => {
 
-    const shaderLocal5_offlineDone5 = bool( false ).toVar();
-    const shaderLocal6_offlineResult5 = property( 'float' );
-    const shaderLocal7_p = shaderInput17.sub( .5 ).toVar();
-    const shaderLocal8_c = cos( shaderInput14 ).toVar(), shaderLocal9_s = sin( shaderInput14 ).toVar();
-    shaderLocal7_p.assign( mat2( shaderLocal8_c, shaderLocal9_s.negate(), shaderLocal9_s, shaderLocal8_c ).mul( shaderLocal7_p ).add( .5 ) );
+    const shaderLocal12_offlineDone12 = bool( false ).toVar();
+    const shaderLocal13_offlineResult12 = property( 'float' );
+    const shaderLocal14_p = shaderInput17.sub( .5 ).toVar();
+    const shaderLocal15_c = cos( shaderInput14 ).toVar(), shaderLocal16_s = sin( shaderInput14 ).toVar();
+    shaderLocal14_p.assign( mat2( shaderLocal15_c, shaderLocal16_s.negate(), shaderLocal16_s, shaderLocal15_c ).mul( shaderLocal14_p ).add( .5 ) );
+    const shaderLocal17_cell = vec2( mod( shaderInput13, 4. ), sub( 3., floor( shaderInput13.div( 4. ) ) ) ).toVar();
+    const shaderLocal18_uv = shaderLocal17_cell.mul( 256. ).add( vec2( .5 ) ).add( vec2( shaderLocal14_p.x, sub( 1., shaderLocal14_p.y ) ).mul( 255. ) ).div( 1024. ).toVar();
+    const shaderLocal19_mask = shaderInput10.sample( shaderLocal18_uv ).r.toVar();
 
-    If( any( lessThan( shaderLocal7_p, vec2( 0. ) ) ).or( any( greaterThan( shaderLocal7_p, vec2( 1. ) ) ) ), () => {
+    If( any( lessThan( shaderLocal14_p, vec2( 0. ) ) ).or( any( greaterThan( shaderLocal14_p, vec2( 1. ) ) ) ), () => {
 
-      shaderLocal6_offlineResult5.assign( 0. );
-      shaderLocal5_offlineDone5.assign( true );
-
-    } );
-
-    If( shaderLocal5_offlineDone5.not(), () => {
-
-      const shaderLocal10_cell = vec2( mod( shaderInput13, 4. ), sub( 3., floor( shaderInput13.div( 4. ) ) ) ).toVar();
-      const shaderLocal11_uv = shaderLocal10_cell.mul( 256. ).add( vec2( .5 ) ).add( vec2( shaderLocal7_p.x, sub( 1., shaderLocal7_p.y ) ).mul( 255. ) ).div( 1024. ).toVar();
-      shaderLocal6_offlineResult5.assign( shaderInput10.sample( shaderLocal11_uv ).r );
-      shaderLocal5_offlineDone5.assign( true );
+      shaderLocal13_offlineResult12.assign( 0. );
+      shaderLocal12_offlineDone12.assign( true );
 
     } );
 
-    return shaderLocal6_offlineResult5;
+    If( shaderLocal12_offlineDone12.not(), () => {
+
+      shaderLocal13_offlineResult12.assign( shaderLocal19_mask );
+      shaderLocal12_offlineDone12.assign( true );
+
+    } );
+
+    return shaderLocal13_offlineResult12;
 
   }, 'float' );
 
-  const shaderFunction4_particleViewDepth = /*@__PURE__*/ Fn( ( [ shaderLocal12_depth ] ) => {
+  const shaderFunction7_particleViewDepth = /*@__PURE__*/ Fn( ( [ shaderLocal20_depth ] ) => {
 
-    return shaderInput5.mul( shaderInput6 ).div( shaderInput6.sub( shaderLocal12_depth.mul( shaderInput6.sub( shaderInput5 ) ) ) );
+    return shaderInput5.mul( shaderInput6 ).div( shaderInput6.sub( shaderLocal20_depth.mul( shaderInput6.sub( shaderInput5 ) ) ) );
 
   }, 'float' );
 
-  const shaderFunction5_particleDepthFade = /*@__PURE__*/ Fn( () => {
+  const shaderFunction8_particleDepthFade = /*@__PURE__*/ Fn( () => {
 
-    const shaderLocal13_offlineDone13 = bool( false ).toVar();
-    const shaderLocal14_offlineResult13 = property( 'float' );
+    const shaderLocal21_offlineDone21 = bool( false ).toVar();
+    const shaderLocal22_offlineResult21 = property( 'float' );
 
     If( shaderInput4.lessThan( .5 ), () => {
 
-      shaderLocal14_offlineResult13.assign( 1. );
-      shaderLocal13_offlineDone13.assign( true );
+      shaderLocal22_offlineResult21.assign( 1. );
+      shaderLocal21_offlineDone21.assign( true );
 
     } );
 
-    If( shaderLocal13_offlineDone13.not(), () => {
+    If( shaderLocal21_offlineDone21.not(), () => {
 
-      const shaderLocal15_depth = shaderInput3.sample( shaderFunction0_offlineOpaqueDepthUv( shaderInput16.xy.mul( shaderInput7 ) ) ).x.toVar();
+      const shaderLocal23_depth = shaderInput3.sample( shaderFunction0_offlineOpaqueDepthUv( shaderInput16.xy.mul( shaderInput7 ) ) ).x.toVar();
 
-      If( shaderLocal15_depth.greaterThanEqual( 1. ), () => {
+      If( shaderLocal23_depth.greaterThanEqual( 1. ), () => {
 
-        shaderLocal14_offlineResult13.assign( 1. );
-        shaderLocal13_offlineDone13.assign( true );
+        shaderLocal22_offlineResult21.assign( 1. );
+        shaderLocal21_offlineDone21.assign( true );
 
       } );
 
-      If( shaderLocal13_offlineDone13.not(), () => {
+      If( shaderLocal21_offlineDone21.not(), () => {
 
-        shaderLocal14_offlineResult13.assign( smoothstep( 0., max( .001, shaderInput12 ), shaderFunction4_particleViewDepth( shaderLocal15_depth ).sub( shaderFunction4_particleViewDepth( shaderInput16.z ) ) ) );
-        shaderLocal13_offlineDone13.assign( true );
+        shaderLocal22_offlineResult21.assign( smoothstep( 0., max( .001, shaderInput12 ), shaderFunction7_particleViewDepth( shaderLocal23_depth ).sub( shaderFunction7_particleViewDepth( shaderInput16.z ) ) ) );
+        shaderLocal21_offlineDone21.assign( true );
 
       } );
 
     } );
 
-    return shaderLocal14_offlineResult13;
+    return shaderLocal22_offlineResult21;
 
   }, 'float' );
 
-  const shaderFunction6_main = /*@__PURE__*/ Fn( () => {
+  const shaderFunction9_main = /*@__PURE__*/ Fn( () => {
 
     shaderOutput.assign( vec4( 0. ) );
 
     If( shaderInput11.greaterThan( .5 ), () => {
 
-      shaderOutput.assign( vec4( mix( shaderInput0, shaderInput0.mul( vec3( 1.2, .55, .25 ) ), shaderInput2 ), shaderFunction3_particleMask().mul( shaderInput1 ) ) );
+      shaderOutput.assign( vec4( shaderInput0, shaderFunction6_particleMask().mul( shaderInput1 ) ) );
 
     } ).Else( () => {
 
-      shaderFunction1_particleFallback();
+      shaderFunction4_particleFallback();
 
     } );
 
-    shaderOutput.a.mulAssign( shaderFunction5_particleDepthFade() );
+    shaderOutput.a.mulAssign( shaderFunction8_particleDepthFade() );
 
     return shaderOutput;
 
   }, 'vec4' );
 
-  return { main: shaderFunction6_main };
+  return { main: shaderFunction9_main };
+}
+
+export function create_tsl1_d56a471d6fe42843_vertex({ seed: shaderInput0, time: shaderInput1, size: shaderInput2, pixelRatio: shaderInput3, origin: shaderInput4, opacity: shaderInput5, variation: shaderInput6, particleCell: shaderInput7, particleAngle: shaderInput8, modelViewMatrix: shaderInput9, projectionMatrix: shaderInput10, gl_PointSize: shaderInput11 }) {
+  const shaderOutput = property('vec4');
+  const shaderFunction0_main = /*@__PURE__*/ Fn( () => {
+
+    shaderOutput.assign( vec4( 0. ) );
+    const shaderLocal0_age = max( 0., shaderInput1.sub( shaderInput0.w.mul( 3. ) ) ).toVar();
+    const shaderLocal1_a = shaderInput0.x.mul( 6.283185 ).toVar();
+    const shaderLocal2_p = shaderInput4.toVar();
+    shaderInput6.assign( shaderInput0.z );
+    shaderLocal2_p.addAssign( vec3( sin( shaderLocal1_a ).mul( shaderLocal0_age ).mul( 3. ), shaderLocal0_age.mul( add( 2., shaderInput0.z.mul( 2. ) ) ), cos( shaderLocal1_a ).mul( shaderLocal0_age ).mul( 3. ) ) );
+    shaderInput5.assign( step( 0., shaderInput1.sub( shaderInput0.w.mul( 3. ) ) ).mul( smoothstep( 0., 2., shaderLocal0_age ) ).mul( sub( 1., smoothstep( 10., 20., shaderLocal0_age ) ) ).mul( .18 ) );
+    const shaderLocal3_mv = shaderInput9.mul( vec4( shaderLocal2_p, 1. ) ).toVar();
+    shaderOutput.assign( shaderInput10.mul( shaderLocal3_mv ) );
+    shaderInput11.assign( clamp( shaderInput2.mul( shaderInput3 ).mul( div( 300., max( 1., shaderLocal3_mv.z.negate() ) ) ).mul( add( 1., shaderLocal0_age.mul( .7 ) ) ), 1., 190. ) );
+    shaderInput7.assign( add( 0., floor( min( shaderInput0.w, .999999 ).mul( 4. ) ) ) );
+    shaderInput8.assign( shaderInput0.x.mul( 6.283185 ).add( shaderInput1.mul( shaderInput0.z.sub( .5 ) ).mul( .35 ) ) );
+
+    return shaderOutput;
+
+  }, 'vec4' );
+
+  return { main: shaderFunction0_main };
+}
+
+export function create_tsl1_d56a471d6fe42843_fragment({ tint: shaderInput0, opacity: shaderInput1, variation: shaderInput2, opaqueDepth: shaderInput3, opaqueDepthAvailable: shaderInput4, opaqueNear: shaderInput5, opaqueFar: shaderInput6, opaqueInverseSize: shaderInput7, opaqueProjectionInverse: shaderInput8, opaqueCameraWorld: shaderInput9, particleAtlas: shaderInput10, particleAtlasReady: shaderInput11, particleSoftness: shaderInput12, particleCell: shaderInput13, particleAngle: shaderInput14, uv: shaderInput15, gl_FragCoord: shaderInput16, gl_PointCoord: shaderInput17 }) {
+  const shaderOutput = property('vec4');
+  const shaderFunction0_offlineOpaqueDepthUv = /*@__PURE__*/ Fn( ( [ shaderLocal0_coord ] ) => {
+
+    return vec2( shaderLocal0_coord.x, sub( 1., shaderLocal0_coord.y ) );
+
+  }, 'vec2' );
+
+  const shaderFunction1_hash = /*@__PURE__*/ Fn( ( [ shaderLocal1_p ] ) => {
+
+    return fract( sin( dot( shaderLocal1_p, vec3( 127.1, 311.7, 74.7 ) ) ).mul( 43758.5453 ) );
+
+  }, 'float' );
+
+  const shaderFunction2_noise = /*@__PURE__*/ Fn( ( [ shaderLocal2_p ] ) => {
+
+    const shaderLocal3_i = floor( shaderLocal2_p ).toVar(), shaderLocal4_f = fract( shaderLocal2_p ).toVar();
+    shaderLocal4_f.assign( shaderLocal4_f.mul( shaderLocal4_f ).mul( sub( 3., mul( 2., shaderLocal4_f ) ) ) );
+
+    return mix( mix( mix( shaderFunction1_hash( shaderLocal3_i ), shaderFunction1_hash( shaderLocal3_i.add( vec3( 1, 0, 0 ) ) ), shaderLocal4_f.x ), mix( shaderFunction1_hash( shaderLocal3_i.add( vec3( 0, 1, 0 ) ) ), shaderFunction1_hash( shaderLocal3_i.add( vec3( 1, 1, 0 ) ) ), shaderLocal4_f.x ), shaderLocal4_f.y ), mix( mix( shaderFunction1_hash( shaderLocal3_i.add( vec3( 0, 0, 1 ) ) ), shaderFunction1_hash( shaderLocal3_i.add( vec3( 1, 0, 1 ) ) ), shaderLocal4_f.x ), mix( shaderFunction1_hash( shaderLocal3_i.add( vec3( 0, 1, 1 ) ) ), shaderFunction1_hash( shaderLocal3_i.add( vec3( 1, 1, 1 ) ) ), shaderLocal4_f.x ), shaderLocal4_f.y ), shaderLocal4_f.z );
+
+  }, 'float' );
+
+  const shaderFunction3_fbm = /*@__PURE__*/ Fn( ( [ shaderLocal5_p ] ) => {
+
+    return shaderFunction2_noise( shaderLocal5_p ).mul( .57 ).add( shaderFunction2_noise( shaderLocal5_p.mul( 2.03 ) ).mul( .28 ) ).add( shaderFunction2_noise( shaderLocal5_p.mul( 4.11 ) ).mul( .15 ) );
+
+  }, 'float' );
+
+  const shaderFunction4_particleFallback = /*@__PURE__*/ Fn( () => {
+
+    const shaderLocal6_p = shaderInput17.sub( .5 ).toVar();
+    const shaderLocal7_r = length( shaderLocal6_p ).mul( 2. ).toVar();
+
+    If( shaderLocal7_r.greaterThan( 1. ), () => {
+
+      Discard();
+
+    } );
+
+    const shaderLocal8_a = sub( 1., smoothstep( .15, 1., shaderLocal7_r ) ).mul( shaderInput1 ).toVar();
+    shaderLocal8_a.mulAssign( smoothstep( .15, .65, shaderFunction3_fbm( vec3( shaderLocal6_p.mul( 5. ), shaderInput2.mul( 10. ) ) ) ) );
+    shaderOutput.assign( vec4( shaderInput0, shaderLocal8_a ) );
+
+  }, 'void' );
+
+  const shaderFunction5_opaqueWorldPoint = /*@__PURE__*/ Fn( ( [ shaderLocal9_uv, shaderLocal10_depth ] ) => {
+
+    const shaderLocal11_view = shaderInput8.mul( vec4( shaderLocal9_uv.mul( 2. ).sub( 1. ), shaderLocal10_depth.mul( 2. ).sub( 1. ), 1. ) ).toVar();
+
+    return shaderInput9.mul( vec4( shaderLocal11_view.xyz.div( shaderLocal11_view.w ), 1. ) ).xyz;
+
+  }, 'vec3' );
+
+  const shaderFunction6_particleMask = /*@__PURE__*/ Fn( () => {
+
+    const shaderLocal12_offlineDone12 = bool( false ).toVar();
+    const shaderLocal13_offlineResult12 = property( 'float' );
+    const shaderLocal14_p = shaderInput17.sub( .5 ).toVar();
+    const shaderLocal15_c = cos( shaderInput14 ).toVar(), shaderLocal16_s = sin( shaderInput14 ).toVar();
+    shaderLocal14_p.assign( mat2( shaderLocal15_c, shaderLocal16_s.negate(), shaderLocal16_s, shaderLocal15_c ).mul( shaderLocal14_p ).add( .5 ) );
+    const shaderLocal17_cell = vec2( mod( shaderInput13, 4. ), sub( 3., floor( shaderInput13.div( 4. ) ) ) ).toVar();
+    const shaderLocal18_uv = shaderLocal17_cell.mul( 256. ).add( vec2( .5 ) ).add( vec2( shaderLocal14_p.x, sub( 1., shaderLocal14_p.y ) ).mul( 255. ) ).div( 1024. ).toVar();
+    const shaderLocal19_mask = shaderInput10.sample( shaderLocal18_uv ).r.toVar();
+
+    If( any( lessThan( shaderLocal14_p, vec2( 0. ) ) ).or( any( greaterThan( shaderLocal14_p, vec2( 1. ) ) ) ), () => {
+
+      shaderLocal13_offlineResult12.assign( 0. );
+      shaderLocal12_offlineDone12.assign( true );
+
+    } );
+
+    If( shaderLocal12_offlineDone12.not(), () => {
+
+      shaderLocal13_offlineResult12.assign( shaderLocal19_mask );
+      shaderLocal12_offlineDone12.assign( true );
+
+    } );
+
+    return shaderLocal13_offlineResult12;
+
+  }, 'float' );
+
+  const shaderFunction7_particleViewDepth = /*@__PURE__*/ Fn( ( [ shaderLocal20_depth ] ) => {
+
+    return shaderInput5.mul( shaderInput6 ).div( shaderInput6.sub( shaderLocal20_depth.mul( shaderInput6.sub( shaderInput5 ) ) ) );
+
+  }, 'float' );
+
+  const shaderFunction8_particleDepthFade = /*@__PURE__*/ Fn( () => {
+
+    const shaderLocal21_offlineDone21 = bool( false ).toVar();
+    const shaderLocal22_offlineResult21 = property( 'float' );
+
+    If( shaderInput4.lessThan( .5 ), () => {
+
+      shaderLocal22_offlineResult21.assign( 1. );
+      shaderLocal21_offlineDone21.assign( true );
+
+    } );
+
+    If( shaderLocal21_offlineDone21.not(), () => {
+
+      const shaderLocal23_depth = shaderInput3.sample( shaderFunction0_offlineOpaqueDepthUv( shaderInput16.xy.mul( shaderInput7 ) ) ).x.toVar();
+
+      If( shaderLocal23_depth.greaterThanEqual( 1. ), () => {
+
+        shaderLocal22_offlineResult21.assign( 1. );
+        shaderLocal21_offlineDone21.assign( true );
+
+      } );
+
+      If( shaderLocal21_offlineDone21.not(), () => {
+
+        shaderLocal22_offlineResult21.assign( smoothstep( 0., max( .001, shaderInput12 ), shaderFunction7_particleViewDepth( shaderLocal23_depth ).sub( shaderFunction7_particleViewDepth( shaderInput16.z ) ) ) );
+        shaderLocal21_offlineDone21.assign( true );
+
+      } );
+
+    } );
+
+    return shaderLocal22_offlineResult21;
+
+  }, 'float' );
+
+  const shaderFunction9_main = /*@__PURE__*/ Fn( () => {
+
+    shaderOutput.assign( vec4( 0. ) );
+
+    If( shaderInput11.greaterThan( .5 ), () => {
+
+      shaderOutput.assign( vec4( shaderInput0, shaderFunction6_particleMask().mul( shaderInput1 ) ) );
+
+    } ).Else( () => {
+
+      shaderFunction4_particleFallback();
+
+    } );
+
+    shaderOutput.a.mulAssign( shaderFunction8_particleDepthFade() );
+
+    return shaderOutput;
+
+  }, 'vec4' );
+
+  return { main: shaderFunction9_main };
 }
 
 export function create_tsl1_dc50b3ac4e5232f4_vertex({ mistUv: shaderInput0, variation: shaderInput1, position: shaderInput2, uv: shaderInput3, modelViewMatrix: shaderInput4, projectionMatrix: shaderInput5, instanceMatrix: shaderInput6 }) {
@@ -5590,177 +5955,6 @@ export function create_tsl1_e3521df7e6d7e88f_fragment({ time: shaderInput0, heat
   return { main: shaderFunction3_main };
 }
 
-export function create_tsl1_e53bb3c125b31581_vertex({ seed: shaderInput0, time: shaderInput1, size: shaderInput2, pixelRatio: shaderInput3, origin: shaderInput4, opacity: shaderInput5, variation: shaderInput6, particleCell: shaderInput7, particleAngle: shaderInput8, modelViewMatrix: shaderInput9, projectionMatrix: shaderInput10, gl_PointSize: shaderInput11 }) {
-  const shaderOutput = property('vec4');
-  const shaderFunction0_main = /*@__PURE__*/ Fn( () => {
-
-    shaderOutput.assign( vec4( 0. ) );
-    const shaderLocal0_age = max( 0., shaderInput1.sub( shaderInput0.w.mul( 3. ) ) ).toVar();
-    const shaderLocal1_a = shaderInput0.x.mul( 6.283185 ).toVar();
-    const shaderLocal2_p = shaderInput4.toVar();
-    shaderInput6.assign( shaderInput0.z );
-    shaderLocal2_p.addAssign( vec3( sin( shaderLocal1_a ), 0., cos( shaderLocal1_a ) ).mul( shaderLocal0_age ).mul( add( 5., shaderInput0.y.mul( 12. ) ) ) );
-    shaderLocal2_p.y.addAssign( shaderLocal0_age.mul( add( 10., shaderInput0.z.mul( 20. ) ) ).sub( shaderLocal0_age.mul( shaderLocal0_age ).mul( 1.9 ) ) );
-    shaderInput5.assign( step( 0., shaderInput1.sub( shaderInput0.w.mul( 3. ) ) ).mul( sub( 1., smoothstep( 2., 8., shaderLocal0_age ) ) ).mul( step( 0., shaderLocal2_p.y ) ) );
-    const shaderLocal3_mv = shaderInput9.mul( vec4( shaderLocal2_p, 1. ) ).toVar();
-    shaderOutput.assign( shaderInput10.mul( shaderLocal3_mv ) );
-    shaderInput11.assign( clamp( shaderInput2.mul( shaderInput3 ).mul( div( 300., max( 1., shaderLocal3_mv.z.negate() ) ) ), 1., 32. ) );
-    shaderInput7.assign( add( 4., floor( min( shaderInput0.w, .999999 ).mul( 4. ) ) ) );
-    shaderInput8.assign( shaderInput0.x.mul( 6.283185 ) );
-
-    return shaderOutput;
-
-  }, 'vec4' );
-
-  return { main: shaderFunction0_main };
-}
-
-export function create_tsl1_e53bb3c125b31581_fragment({ tint: shaderInput0, opacity: shaderInput1, variation: shaderInput2, opaqueDepth: shaderInput3, opaqueDepthAvailable: shaderInput4, opaqueNear: shaderInput5, opaqueFar: shaderInput6, opaqueInverseSize: shaderInput7, opaqueProjectionInverse: shaderInput8, opaqueCameraWorld: shaderInput9, particleAtlas: shaderInput10, particleAtlasReady: shaderInput11, particleSoftness: shaderInput12, particleCell: shaderInput13, particleAngle: shaderInput14, uv: shaderInput15, gl_FragCoord: shaderInput16, gl_PointCoord: shaderInput17 }) {
-  const shaderOutput = property('vec4');
-  const shaderFunction0_offlineOpaqueDepthUv = /*@__PURE__*/ Fn( ( [ shaderLocal0_coord ] ) => {
-
-    return vec2( shaderLocal0_coord.x, sub( 1., shaderLocal0_coord.y ) );
-
-  }, 'vec2' );
-
-  const shaderFunction1_hash = /*@__PURE__*/ Fn( ( [ shaderLocal1_p ] ) => {
-
-    return fract( sin( dot( shaderLocal1_p, vec3( 127.1, 311.7, 74.7 ) ) ).mul( 43758.5453 ) );
-
-  }, 'float' );
-
-  const shaderFunction2_noise = /*@__PURE__*/ Fn( ( [ shaderLocal2_p ] ) => {
-
-    const shaderLocal3_i = floor( shaderLocal2_p ).toVar(), shaderLocal4_f = fract( shaderLocal2_p ).toVar();
-    shaderLocal4_f.assign( shaderLocal4_f.mul( shaderLocal4_f ).mul( sub( 3., mul( 2., shaderLocal4_f ) ) ) );
-
-    return mix( mix( mix( shaderFunction1_hash( shaderLocal3_i ), shaderFunction1_hash( shaderLocal3_i.add( vec3( 1, 0, 0 ) ) ), shaderLocal4_f.x ), mix( shaderFunction1_hash( shaderLocal3_i.add( vec3( 0, 1, 0 ) ) ), shaderFunction1_hash( shaderLocal3_i.add( vec3( 1, 1, 0 ) ) ), shaderLocal4_f.x ), shaderLocal4_f.y ), mix( mix( shaderFunction1_hash( shaderLocal3_i.add( vec3( 0, 0, 1 ) ) ), shaderFunction1_hash( shaderLocal3_i.add( vec3( 1, 0, 1 ) ) ), shaderLocal4_f.x ), mix( shaderFunction1_hash( shaderLocal3_i.add( vec3( 0, 1, 1 ) ) ), shaderFunction1_hash( shaderLocal3_i.add( vec3( 1, 1, 1 ) ) ), shaderLocal4_f.x ), shaderLocal4_f.y ), shaderLocal4_f.z );
-
-  }, 'float' );
-
-  const shaderFunction3_fbm = /*@__PURE__*/ Fn( ( [ shaderLocal5_p ] ) => {
-
-    return shaderFunction2_noise( shaderLocal5_p ).mul( .57 ).add( shaderFunction2_noise( shaderLocal5_p.mul( 2.03 ) ).mul( .28 ) ).add( shaderFunction2_noise( shaderLocal5_p.mul( 4.11 ) ).mul( .15 ) );
-
-  }, 'float' );
-
-  const shaderFunction4_particleFallback = /*@__PURE__*/ Fn( () => {
-
-    const shaderLocal6_p = shaderInput17.sub( .5 ).toVar();
-    const shaderLocal7_r = length( shaderLocal6_p ).mul( 2. ).toVar();
-
-    If( shaderLocal7_r.greaterThan( 1. ), () => {
-
-      Discard();
-
-    } );
-
-    const shaderLocal8_a = sub( 1., smoothstep( .15, 1., shaderLocal7_r ) ).mul( shaderInput1 ).toVar();
-    shaderOutput.assign( vec4( shaderInput0, shaderLocal8_a ) );
-
-  }, 'void' );
-
-  const shaderFunction5_opaqueWorldPoint = /*@__PURE__*/ Fn( ( [ shaderLocal9_uv, shaderLocal10_depth ] ) => {
-
-    const shaderLocal11_view = shaderInput8.mul( vec4( shaderLocal9_uv.mul( 2. ).sub( 1. ), shaderLocal10_depth.mul( 2. ).sub( 1. ), 1. ) ).toVar();
-
-    return shaderInput9.mul( vec4( shaderLocal11_view.xyz.div( shaderLocal11_view.w ), 1. ) ).xyz;
-
-  }, 'vec3' );
-
-  const shaderFunction6_particleMask = /*@__PURE__*/ Fn( () => {
-
-    const shaderLocal12_offlineDone12 = bool( false ).toVar();
-    const shaderLocal13_offlineResult12 = property( 'float' );
-    const shaderLocal14_p = shaderInput17.sub( .5 ).toVar();
-    const shaderLocal15_c = cos( shaderInput14 ).toVar(), shaderLocal16_s = sin( shaderInput14 ).toVar();
-    shaderLocal14_p.assign( mat2( shaderLocal15_c, shaderLocal16_s.negate(), shaderLocal16_s, shaderLocal15_c ).mul( shaderLocal14_p ).add( .5 ) );
-
-    If( any( lessThan( shaderLocal14_p, vec2( 0. ) ) ).or( any( greaterThan( shaderLocal14_p, vec2( 1. ) ) ) ), () => {
-
-      shaderLocal13_offlineResult12.assign( 0. );
-      shaderLocal12_offlineDone12.assign( true );
-
-    } );
-
-    If( shaderLocal12_offlineDone12.not(), () => {
-
-      const shaderLocal17_cell = vec2( mod( shaderInput13, 4. ), sub( 3., floor( shaderInput13.div( 4. ) ) ) ).toVar();
-      const shaderLocal18_uv = shaderLocal17_cell.mul( 256. ).add( vec2( .5 ) ).add( vec2( shaderLocal14_p.x, sub( 1., shaderLocal14_p.y ) ).mul( 255. ) ).div( 1024. ).toVar();
-      shaderLocal13_offlineResult12.assign( shaderInput10.sample( shaderLocal18_uv ).r );
-      shaderLocal12_offlineDone12.assign( true );
-
-    } );
-
-    return shaderLocal13_offlineResult12;
-
-  }, 'float' );
-
-  const shaderFunction7_particleViewDepth = /*@__PURE__*/ Fn( ( [ shaderLocal19_depth ] ) => {
-
-    return shaderInput5.mul( shaderInput6 ).div( shaderInput6.sub( shaderLocal19_depth.mul( shaderInput6.sub( shaderInput5 ) ) ) );
-
-  }, 'float' );
-
-  const shaderFunction8_particleDepthFade = /*@__PURE__*/ Fn( () => {
-
-    const shaderLocal20_offlineDone20 = bool( false ).toVar();
-    const shaderLocal21_offlineResult20 = property( 'float' );
-
-    If( shaderInput4.lessThan( .5 ), () => {
-
-      shaderLocal21_offlineResult20.assign( 1. );
-      shaderLocal20_offlineDone20.assign( true );
-
-    } );
-
-    If( shaderLocal20_offlineDone20.not(), () => {
-
-      const shaderLocal22_depth = shaderInput3.sample( shaderFunction0_offlineOpaqueDepthUv( shaderInput16.xy.mul( shaderInput7 ) ) ).x.toVar();
-
-      If( shaderLocal22_depth.greaterThanEqual( 1. ), () => {
-
-        shaderLocal21_offlineResult20.assign( 1. );
-        shaderLocal20_offlineDone20.assign( true );
-
-      } );
-
-      If( shaderLocal20_offlineDone20.not(), () => {
-
-        shaderLocal21_offlineResult20.assign( smoothstep( 0., max( .001, shaderInput12 ), shaderFunction7_particleViewDepth( shaderLocal22_depth ).sub( shaderFunction7_particleViewDepth( shaderInput16.z ) ) ) );
-        shaderLocal20_offlineDone20.assign( true );
-
-      } );
-
-    } );
-
-    return shaderLocal21_offlineResult20;
-
-  }, 'float' );
-
-  const shaderFunction9_main = /*@__PURE__*/ Fn( () => {
-
-    shaderOutput.assign( vec4( 0. ) );
-
-    If( shaderInput11.greaterThan( .5 ), () => {
-
-      shaderOutput.assign( vec4( shaderInput0, shaderFunction6_particleMask().mul( shaderInput1 ) ) );
-
-    } ).Else( () => {
-
-      shaderFunction4_particleFallback();
-
-    } );
-
-    shaderOutput.a.mulAssign( shaderFunction8_particleDepthFade() );
-
-    return shaderOutput;
-
-  }, 'vec4' );
-
-  return { main: shaderFunction9_main };
-}
-
 export function create_tsl1_e68e3af6ca393a24_vertex({ hullPoint: shaderInput0, position: shaderInput1, modelMatrix: shaderInput2, projectionMatrix: shaderInput3, viewMatrix: shaderInput4 }) {
   const shaderOutput = property('vec4');
   const shaderFunction0_main = /*@__PURE__*/ Fn( () => {
@@ -5963,351 +6157,6 @@ export function create_tsl1_e68e3af6ca393a24_fragment({ time: shaderInput0, step
   return { main: shaderFunction7_main };
 }
 
-export function create_tsl1_ecc022c7d409cbc5_vertex({ seed: shaderInput0, time: shaderInput1, size: shaderInput2, ratio: shaderInput3, origin: shaderInput4, lean: shaderInput5, alpha: shaderInput6, variation: shaderInput7, particleCell: shaderInput8, particleAngle: shaderInput9, modelViewMatrix: shaderInput10, projectionMatrix: shaderInput11, gl_PointSize: shaderInput12 }) {
-  const shaderOutput = property('vec4');
-  const shaderFunction0_main = /*@__PURE__*/ Fn( () => {
-
-    shaderOutput.assign( vec4( 0. ) );
-    const shaderLocal0_a = shaderInput0.x.mul( 6.283185 ).toVar();
-    const shaderLocal1_p = vec3( 0. ).toVar();
-    shaderInput7.assign( shaderInput0.w );
-    const shaderLocal2_gust = add( 10., smoothstep( 6., 20., shaderInput1 ).mul( 46. ) ).toVar();
-    shaderLocal1_p.assign( vec3( mod( shaderInput0.x.mul( 340. ).add( shaderInput1.mul( shaderLocal2_gust ).mul( add( .8, shaderInput0.z.mul( .4 ) ) ) ), 340. ).sub( 170. ), add( -0.4, shaderInput0.y.mul( shaderInput0.y ).mul( 7.5 ) ).add( sin( shaderInput1.mul( 2.3 ).add( shaderInput0.w.mul( 8. ) ) ).mul( .6 ) ), mod( shaderInput0.z.mul( 300. ).add( shaderInput1.mul( shaderLocal2_gust ).mul( .3 ) ), 300. ).sub( 150. ) ) );
-    shaderInput6.assign( smoothstep( 8., 20., shaderInput1 ).mul( sub( 1., shaderInput0.y.mul( shaderInput0.y ) ) ).mul( .3 ) );
-    const shaderLocal3_mv = shaderInput10.mul( vec4( shaderLocal1_p, 1. ) ).toVar();
-    shaderOutput.assign( shaderInput11.mul( shaderLocal3_mv ) );
-    shaderInput12.assign( clamp( shaderInput2.mul( shaderInput3 ).mul( 240. ).div( max( 1., shaderLocal3_mv.z.negate() ) ), 1., 100. ) );
-    shaderInput8.assign( add( 0., floor( min( shaderInput0.w, .999999 ).mul( 4. ) ) ) );
-    shaderInput9.assign( shaderInput0.x.mul( 6.283185 ).add( shaderInput1.mul( shaderInput0.z.sub( .5 ) ).mul( .35 ) ) );
-
-    return shaderOutput;
-
-  }, 'vec4' );
-
-  return { main: shaderFunction0_main };
-}
-
-export function create_tsl1_ecc022c7d409cbc5_fragment({ tint: shaderInput0, alpha: shaderInput1, variation: shaderInput2, opaqueDepth: shaderInput3, opaqueDepthAvailable: shaderInput4, opaqueNear: shaderInput5, opaqueFar: shaderInput6, opaqueInverseSize: shaderInput7, opaqueProjectionInverse: shaderInput8, opaqueCameraWorld: shaderInput9, particleAtlas: shaderInput10, particleAtlasReady: shaderInput11, particleSoftness: shaderInput12, particleCell: shaderInput13, particleAngle: shaderInput14, uv: shaderInput15, gl_FragCoord: shaderInput16, gl_PointCoord: shaderInput17 }) {
-  const shaderOutput = property('vec4');
-  const shaderFunction0_offlineOpaqueDepthUv = /*@__PURE__*/ Fn( ( [ shaderLocal0_coord ] ) => {
-
-    return vec2( shaderLocal0_coord.x, sub( 1., shaderLocal0_coord.y ) );
-
-  }, 'vec2' );
-
-  const shaderFunction1_hash = /*@__PURE__*/ Fn( ( [ shaderLocal1_p ] ) => {
-
-    return fract( sin( dot( shaderLocal1_p, vec3( 127.1, 311.7, 74.7 ) ) ).mul( 43758.5453 ) );
-
-  }, 'float' );
-
-  const shaderFunction2_noise = /*@__PURE__*/ Fn( ( [ shaderLocal2_p ] ) => {
-
-    const shaderLocal3_i = floor( shaderLocal2_p ).toVar(), shaderLocal4_f = fract( shaderLocal2_p ).toVar();
-    shaderLocal4_f.assign( shaderLocal4_f.mul( shaderLocal4_f ).mul( sub( 3., mul( 2., shaderLocal4_f ) ) ) );
-
-    return mix( mix( mix( shaderFunction1_hash( shaderLocal3_i ), shaderFunction1_hash( shaderLocal3_i.add( vec3( 1, 0, 0 ) ) ), shaderLocal4_f.x ), mix( shaderFunction1_hash( shaderLocal3_i.add( vec3( 0, 1, 0 ) ) ), shaderFunction1_hash( shaderLocal3_i.add( vec3( 1, 1, 0 ) ) ), shaderLocal4_f.x ), shaderLocal4_f.y ), mix( mix( shaderFunction1_hash( shaderLocal3_i.add( vec3( 0, 0, 1 ) ) ), shaderFunction1_hash( shaderLocal3_i.add( vec3( 1, 0, 1 ) ) ), shaderLocal4_f.x ), mix( shaderFunction1_hash( shaderLocal3_i.add( vec3( 0, 1, 1 ) ) ), shaderFunction1_hash( shaderLocal3_i.add( vec3( 1, 1, 1 ) ) ), shaderLocal4_f.x ), shaderLocal4_f.y ), shaderLocal4_f.z );
-
-  }, 'float' );
-
-  const shaderFunction3_fbm = /*@__PURE__*/ Fn( ( [ shaderLocal5_p ] ) => {
-
-    return shaderFunction2_noise( shaderLocal5_p ).mul( .57 ).add( shaderFunction2_noise( shaderLocal5_p.mul( 2.03 ) ).mul( .28 ) ).add( shaderFunction2_noise( shaderLocal5_p.mul( 4.11 ) ).mul( .15 ) );
-
-  }, 'float' );
-
-  const shaderFunction4_particleFallback = /*@__PURE__*/ Fn( () => {
-
-    const shaderLocal6_p = shaderInput17.sub( .5 ).toVar();
-    const shaderLocal7_r = length( shaderLocal6_p ).mul( 2. ).toVar();
-
-    If( shaderLocal7_r.greaterThan( 1. ), () => {
-
-      Discard();
-
-    } );
-
-    const shaderLocal8_a = sub( 1., smoothstep( .05, 1., shaderLocal7_r ) ).mul( shaderInput1 ).toVar();
-    shaderLocal8_a.mulAssign( smoothstep( .18, .6, shaderFunction3_fbm( vec3( shaderLocal6_p.mul( 5. ), shaderInput2.mul( 13. ) ) ) ) );
-    shaderOutput.assign( vec4( shaderInput0, shaderLocal8_a ) );
-
-  }, 'void' );
-
-  const shaderFunction5_opaqueWorldPoint = /*@__PURE__*/ Fn( ( [ shaderLocal9_uv, shaderLocal10_depth ] ) => {
-
-    const shaderLocal11_view = shaderInput8.mul( vec4( shaderLocal9_uv.mul( 2. ).sub( 1. ), shaderLocal10_depth.mul( 2. ).sub( 1. ), 1. ) ).toVar();
-
-    return shaderInput9.mul( vec4( shaderLocal11_view.xyz.div( shaderLocal11_view.w ), 1. ) ).xyz;
-
-  }, 'vec3' );
-
-  const shaderFunction6_particleMask = /*@__PURE__*/ Fn( () => {
-
-    const shaderLocal12_offlineDone12 = bool( false ).toVar();
-    const shaderLocal13_offlineResult12 = property( 'float' );
-    const shaderLocal14_p = shaderInput17.sub( .5 ).toVar();
-    const shaderLocal15_c = cos( shaderInput14 ).toVar(), shaderLocal16_s = sin( shaderInput14 ).toVar();
-    shaderLocal14_p.assign( mat2( shaderLocal15_c, shaderLocal16_s.negate(), shaderLocal16_s, shaderLocal15_c ).mul( shaderLocal14_p ).add( .5 ) );
-
-    If( any( lessThan( shaderLocal14_p, vec2( 0. ) ) ).or( any( greaterThan( shaderLocal14_p, vec2( 1. ) ) ) ), () => {
-
-      shaderLocal13_offlineResult12.assign( 0. );
-      shaderLocal12_offlineDone12.assign( true );
-
-    } );
-
-    If( shaderLocal12_offlineDone12.not(), () => {
-
-      const shaderLocal17_cell = vec2( mod( shaderInput13, 4. ), sub( 3., floor( shaderInput13.div( 4. ) ) ) ).toVar();
-      const shaderLocal18_uv = shaderLocal17_cell.mul( 256. ).add( vec2( .5 ) ).add( vec2( shaderLocal14_p.x, sub( 1., shaderLocal14_p.y ) ).mul( 255. ) ).div( 1024. ).toVar();
-      shaderLocal13_offlineResult12.assign( shaderInput10.sample( shaderLocal18_uv ).r );
-      shaderLocal12_offlineDone12.assign( true );
-
-    } );
-
-    return shaderLocal13_offlineResult12;
-
-  }, 'float' );
-
-  const shaderFunction7_particleViewDepth = /*@__PURE__*/ Fn( ( [ shaderLocal19_depth ] ) => {
-
-    return shaderInput5.mul( shaderInput6 ).div( shaderInput6.sub( shaderLocal19_depth.mul( shaderInput6.sub( shaderInput5 ) ) ) );
-
-  }, 'float' );
-
-  const shaderFunction8_particleDepthFade = /*@__PURE__*/ Fn( () => {
-
-    const shaderLocal20_offlineDone20 = bool( false ).toVar();
-    const shaderLocal21_offlineResult20 = property( 'float' );
-
-    If( shaderInput4.lessThan( .5 ), () => {
-
-      shaderLocal21_offlineResult20.assign( 1. );
-      shaderLocal20_offlineDone20.assign( true );
-
-    } );
-
-    If( shaderLocal20_offlineDone20.not(), () => {
-
-      const shaderLocal22_depth = shaderInput3.sample( shaderFunction0_offlineOpaqueDepthUv( shaderInput16.xy.mul( shaderInput7 ) ) ).x.toVar();
-
-      If( shaderLocal22_depth.greaterThanEqual( 1. ), () => {
-
-        shaderLocal21_offlineResult20.assign( 1. );
-        shaderLocal20_offlineDone20.assign( true );
-
-      } );
-
-      If( shaderLocal20_offlineDone20.not(), () => {
-
-        shaderLocal21_offlineResult20.assign( smoothstep( 0., max( .001, shaderInput12 ), shaderFunction7_particleViewDepth( shaderLocal22_depth ).sub( shaderFunction7_particleViewDepth( shaderInput16.z ) ) ) );
-        shaderLocal20_offlineDone20.assign( true );
-
-      } );
-
-    } );
-
-    return shaderLocal21_offlineResult20;
-
-  }, 'float' );
-
-  const shaderFunction9_main = /*@__PURE__*/ Fn( () => {
-
-    shaderOutput.assign( vec4( 0. ) );
-
-    If( shaderInput11.greaterThan( .5 ), () => {
-
-      shaderOutput.assign( vec4( shaderInput0, shaderFunction6_particleMask().mul( shaderInput1 ) ) );
-
-    } ).Else( () => {
-
-      shaderFunction4_particleFallback();
-
-    } );
-
-    shaderOutput.a.mulAssign( shaderFunction8_particleDepthFade() );
-
-    return shaderOutput;
-
-  }, 'vec4' );
-
-  return { main: shaderFunction9_main };
-}
-
-export function create_tsl1_f2e4b34c26a06a42_vertex({ seed: shaderInput0, time: shaderInput1, size: shaderInput2, ratio: shaderInput3, origin: shaderInput4, lean: shaderInput5, alpha: shaderInput6, variation: shaderInput7, particleCell: shaderInput8, particleAngle: shaderInput9, modelViewMatrix: shaderInput10, projectionMatrix: shaderInput11, gl_PointSize: shaderInput12 }) {
-  const shaderOutput = property('vec4');
-  const shaderFunction0_main = /*@__PURE__*/ Fn( () => {
-
-    shaderOutput.assign( vec4( 0. ) );
-    const shaderLocal0_a = shaderInput0.x.mul( 6.283185 ).toVar();
-    const shaderLocal1_p = vec3( 0. ).toVar();
-    shaderInput7.assign( shaderInput0.w );
-    const shaderLocal2_spread = smoothstep( 19., 30., shaderInput1 ).toVar();
-    const shaderLocal3_hold = sub( 1., shaderLocal2_spread ).toVar();
-    const shaderLocal4_r = add( 1.2, shaderInput0.y.mul( 3.5 ) ).mul( shaderLocal3_hold ).add( shaderLocal2_spread.mul( add( 20., shaderInput0.y.mul( 250. ) ) ) ).toVar();
-    const shaderLocal5_angle = shaderLocal0_a.add( shaderInput1.mul( add( 2.2, shaderInput0.z.mul( 5. ) ) ).div( add( 1., shaderLocal4_r.mul( .04 ) ) ) ).toVar();
-    const shaderLocal6_h = shaderInput0.w.mul( shaderLocal3_hold.mul( 24. ).add( shaderLocal2_spread.mul( add( 2., shaderLocal4_r.mul( .09 ) ) ) ) ).add( sin( shaderInput1.mul( 4. ).add( shaderInput0.x.mul( 20. ) ) ).mul( add( .3, shaderLocal2_spread.mul( 1.5 ) ) ) ).toVar();
-    shaderLocal1_p.assign( vec3( shaderInput4.x.add( cos( shaderLocal5_angle ).mul( shaderLocal4_r ) ), max( .2, shaderInput4.y.add( shaderLocal6_h ) ), shaderInput4.z.add( sin( shaderLocal5_angle ).mul( shaderLocal4_r ) ) ) );
-    shaderInput6.assign( smoothstep( 17.5, 19.5, shaderInput1 ).mul( add( .4, mul( .5, shaderInput0.w ) ) ).mul( sub( 1., smoothstep( 150., 260., shaderLocal4_r ) ) ) );
-    const shaderLocal7_mv = shaderInput10.mul( vec4( shaderLocal1_p, 1. ) ).toVar();
-    shaderOutput.assign( shaderInput11.mul( shaderLocal7_mv ) );
-    shaderInput12.assign( clamp( shaderInput2.mul( shaderInput3 ).mul( 240. ).div( max( 1., shaderLocal7_mv.z.negate() ) ), 1., 5. ) );
-    shaderInput8.assign( add( 4., floor( min( shaderInput0.w, .999999 ).mul( 4. ) ) ) );
-    shaderInput9.assign( shaderInput0.x.mul( 6.283185 ) );
-
-    return shaderOutput;
-
-  }, 'vec4' );
-
-  return { main: shaderFunction0_main };
-}
-
-export function create_tsl1_f2e4b34c26a06a42_fragment({ tint: shaderInput0, alpha: shaderInput1, variation: shaderInput2, opaqueDepth: shaderInput3, opaqueDepthAvailable: shaderInput4, opaqueNear: shaderInput5, opaqueFar: shaderInput6, opaqueInverseSize: shaderInput7, opaqueProjectionInverse: shaderInput8, opaqueCameraWorld: shaderInput9, particleAtlas: shaderInput10, particleAtlasReady: shaderInput11, particleSoftness: shaderInput12, particleCell: shaderInput13, particleAngle: shaderInput14, uv: shaderInput15, gl_FragCoord: shaderInput16, gl_PointCoord: shaderInput17 }) {
-  const shaderOutput = property('vec4');
-  const shaderFunction0_offlineOpaqueDepthUv = /*@__PURE__*/ Fn( ( [ shaderLocal0_coord ] ) => {
-
-    return vec2( shaderLocal0_coord.x, sub( 1., shaderLocal0_coord.y ) );
-
-  }, 'vec2' );
-
-  const shaderFunction1_hash = /*@__PURE__*/ Fn( ( [ shaderLocal1_p ] ) => {
-
-    return fract( sin( dot( shaderLocal1_p, vec3( 127.1, 311.7, 74.7 ) ) ).mul( 43758.5453 ) );
-
-  }, 'float' );
-
-  const shaderFunction2_noise = /*@__PURE__*/ Fn( ( [ shaderLocal2_p ] ) => {
-
-    const shaderLocal3_i = floor( shaderLocal2_p ).toVar(), shaderLocal4_f = fract( shaderLocal2_p ).toVar();
-    shaderLocal4_f.assign( shaderLocal4_f.mul( shaderLocal4_f ).mul( sub( 3., mul( 2., shaderLocal4_f ) ) ) );
-
-    return mix( mix( mix( shaderFunction1_hash( shaderLocal3_i ), shaderFunction1_hash( shaderLocal3_i.add( vec3( 1, 0, 0 ) ) ), shaderLocal4_f.x ), mix( shaderFunction1_hash( shaderLocal3_i.add( vec3( 0, 1, 0 ) ) ), shaderFunction1_hash( shaderLocal3_i.add( vec3( 1, 1, 0 ) ) ), shaderLocal4_f.x ), shaderLocal4_f.y ), mix( mix( shaderFunction1_hash( shaderLocal3_i.add( vec3( 0, 0, 1 ) ) ), shaderFunction1_hash( shaderLocal3_i.add( vec3( 1, 0, 1 ) ) ), shaderLocal4_f.x ), mix( shaderFunction1_hash( shaderLocal3_i.add( vec3( 0, 1, 1 ) ) ), shaderFunction1_hash( shaderLocal3_i.add( vec3( 1, 1, 1 ) ) ), shaderLocal4_f.x ), shaderLocal4_f.y ), shaderLocal4_f.z );
-
-  }, 'float' );
-
-  const shaderFunction3_fbm = /*@__PURE__*/ Fn( ( [ shaderLocal5_p ] ) => {
-
-    return shaderFunction2_noise( shaderLocal5_p ).mul( .57 ).add( shaderFunction2_noise( shaderLocal5_p.mul( 2.03 ) ).mul( .28 ) ).add( shaderFunction2_noise( shaderLocal5_p.mul( 4.11 ) ).mul( .15 ) );
-
-  }, 'float' );
-
-  const shaderFunction4_particleFallback = /*@__PURE__*/ Fn( () => {
-
-    const shaderLocal6_p = shaderInput17.sub( .5 ).toVar();
-    const shaderLocal7_r = length( shaderLocal6_p ).mul( 2. ).toVar();
-
-    If( shaderLocal7_r.greaterThan( 1. ), () => {
-
-      Discard();
-
-    } );
-
-    const shaderLocal8_a = sub( 1., smoothstep( .05, 1., shaderLocal7_r ) ).mul( shaderInput1 ).toVar();
-    shaderOutput.assign( vec4( shaderInput0, shaderLocal8_a ) );
-
-  }, 'void' );
-
-  const shaderFunction5_opaqueWorldPoint = /*@__PURE__*/ Fn( ( [ shaderLocal9_uv, shaderLocal10_depth ] ) => {
-
-    const shaderLocal11_view = shaderInput8.mul( vec4( shaderLocal9_uv.mul( 2. ).sub( 1. ), shaderLocal10_depth.mul( 2. ).sub( 1. ), 1. ) ).toVar();
-
-    return shaderInput9.mul( vec4( shaderLocal11_view.xyz.div( shaderLocal11_view.w ), 1. ) ).xyz;
-
-  }, 'vec3' );
-
-  const shaderFunction6_particleMask = /*@__PURE__*/ Fn( () => {
-
-    const shaderLocal12_offlineDone12 = bool( false ).toVar();
-    const shaderLocal13_offlineResult12 = property( 'float' );
-    const shaderLocal14_p = shaderInput17.sub( .5 ).toVar();
-    const shaderLocal15_c = cos( shaderInput14 ).toVar(), shaderLocal16_s = sin( shaderInput14 ).toVar();
-    shaderLocal14_p.assign( mat2( shaderLocal15_c, shaderLocal16_s.negate(), shaderLocal16_s, shaderLocal15_c ).mul( shaderLocal14_p ).add( .5 ) );
-
-    If( any( lessThan( shaderLocal14_p, vec2( 0. ) ) ).or( any( greaterThan( shaderLocal14_p, vec2( 1. ) ) ) ), () => {
-
-      shaderLocal13_offlineResult12.assign( 0. );
-      shaderLocal12_offlineDone12.assign( true );
-
-    } );
-
-    If( shaderLocal12_offlineDone12.not(), () => {
-
-      const shaderLocal17_cell = vec2( mod( shaderInput13, 4. ), sub( 3., floor( shaderInput13.div( 4. ) ) ) ).toVar();
-      const shaderLocal18_uv = shaderLocal17_cell.mul( 256. ).add( vec2( .5 ) ).add( vec2( shaderLocal14_p.x, sub( 1., shaderLocal14_p.y ) ).mul( 255. ) ).div( 1024. ).toVar();
-      shaderLocal13_offlineResult12.assign( shaderInput10.sample( shaderLocal18_uv ).r );
-      shaderLocal12_offlineDone12.assign( true );
-
-    } );
-
-    return shaderLocal13_offlineResult12;
-
-  }, 'float' );
-
-  const shaderFunction7_particleViewDepth = /*@__PURE__*/ Fn( ( [ shaderLocal19_depth ] ) => {
-
-    return shaderInput5.mul( shaderInput6 ).div( shaderInput6.sub( shaderLocal19_depth.mul( shaderInput6.sub( shaderInput5 ) ) ) );
-
-  }, 'float' );
-
-  const shaderFunction8_particleDepthFade = /*@__PURE__*/ Fn( () => {
-
-    const shaderLocal20_offlineDone20 = bool( false ).toVar();
-    const shaderLocal21_offlineResult20 = property( 'float' );
-
-    If( shaderInput4.lessThan( .5 ), () => {
-
-      shaderLocal21_offlineResult20.assign( 1. );
-      shaderLocal20_offlineDone20.assign( true );
-
-    } );
-
-    If( shaderLocal20_offlineDone20.not(), () => {
-
-      const shaderLocal22_depth = shaderInput3.sample( shaderFunction0_offlineOpaqueDepthUv( shaderInput16.xy.mul( shaderInput7 ) ) ).x.toVar();
-
-      If( shaderLocal22_depth.greaterThanEqual( 1. ), () => {
-
-        shaderLocal21_offlineResult20.assign( 1. );
-        shaderLocal20_offlineDone20.assign( true );
-
-      } );
-
-      If( shaderLocal20_offlineDone20.not(), () => {
-
-        shaderLocal21_offlineResult20.assign( smoothstep( 0., max( .001, shaderInput12 ), shaderFunction7_particleViewDepth( shaderLocal22_depth ).sub( shaderFunction7_particleViewDepth( shaderInput16.z ) ) ) );
-        shaderLocal20_offlineDone20.assign( true );
-
-      } );
-
-    } );
-
-    return shaderLocal21_offlineResult20;
-
-  }, 'float' );
-
-  const shaderFunction9_main = /*@__PURE__*/ Fn( () => {
-
-    shaderOutput.assign( vec4( 0. ) );
-
-    If( shaderInput11.greaterThan( .5 ), () => {
-
-      shaderOutput.assign( vec4( shaderInput0, shaderFunction6_particleMask().mul( shaderInput1 ) ) );
-
-    } ).Else( () => {
-
-      shaderFunction4_particleFallback();
-
-    } );
-
-    shaderOutput.a.mulAssign( shaderFunction8_particleDepthFade() );
-
-    return shaderOutput;
-
-  }, 'vec4' );
-
-  return { main: shaderFunction9_main };
-}
-
 export function create_tsl1_fa79536ce000e706_vertex({ point: shaderInput0, viewNormal: shaderInput1, viewDirection: shaderInput2, worldNormal: shaderInput3, position: shaderInput4, normal: shaderInput5, modelMatrix: shaderInput6, modelViewMatrix: shaderInput7, projectionMatrix: shaderInput8, normalMatrix: shaderInput9 }) {
   const shaderOutput = property('vec4');
   const shaderFunction0_main = /*@__PURE__*/ Fn( () => {
@@ -6364,6 +6213,177 @@ export function create_tsl1_fa79536ce000e706_fragment({ time: shaderInput0, fron
   }, 'vec4' );
 
   return { main: shaderFunction3_main };
+}
+
+export function create_tsl1_fbb7c097b3c330e5_vertex({ seed: shaderInput0, time: shaderInput1, phase: shaderInput2, pixelRatio: shaderInput3, origin: shaderInput4, target: shaderInput5, opacity: shaderInput6, warmth: shaderInput7, particleCell: shaderInput8, particleAngle: shaderInput9, modelViewMatrix: shaderInput10, projectionMatrix: shaderInput11, gl_PointSize: shaderInput12 }) {
+  const shaderOutput = property('vec4');
+  const shaderFunction0_particleNext = /*@__PURE__*/ Fn( ( [ shaderLocal0_time ] ) => {
+
+    const shaderLocal1_a = shaderInput0.x.mul( 6.283185 ).toVar();
+    const shaderLocal2_p = vec3( 0. ).toVar();
+    const shaderLocal3_alpha = float( 0. ).toVar(), shaderLocal4_opacity = float( 0. ).toVar(), shaderLocal5_warmth = shaderInput0.z.toVar();
+    const shaderLocal6_run = fract( shaderInput0.y.add( shaderLocal0_time.mul( .07 ).mul( add( 1., shaderInput0.z.mul( .8 ) ) ) ) ).toVar();
+    shaderLocal5_warmth.assign( shaderInput0.z.mul( .3 ) );
+    shaderLocal2_p.assign( vec3( 0., 40., 0. ).add( vec3( -0.482, 0., -0.876 ).mul( shaderInput0.x.sub( .5 ) ).mul( 220. ) ).add( vec3( .137, .988, -0.075 ).mul( shaderInput0.w.sub( .5 ) ).mul( 150. ) ).add( vec3( .8655, -0.1558, -0.476 ).mul( shaderLocal6_run.mul( 640. ).sub( 320. ) ) ) );
+    shaderLocal4_opacity.assign( shaderInput2.mul( add( .08, mul( .35, sub( 1., abs( shaderLocal6_run.sub( .5 ) ).mul( 2. ) ) ) ) ) );
+
+    return shaderLocal2_p;
+
+  }, 'vec3' );
+
+  const shaderFunction1_main = /*@__PURE__*/ Fn( () => {
+
+    shaderOutput.assign( vec4( 0. ) );
+    const shaderLocal7_a = shaderInput0.x.mul( 6.283185 ).toVar();
+    const shaderLocal8_p = property( 'vec3' );
+    shaderInput7.assign( shaderInput0.z );
+    const shaderLocal9_run = fract( shaderInput0.y.add( shaderInput1.mul( .07 ).mul( add( 1., shaderInput0.z.mul( .8 ) ) ) ) ).toVar();
+    shaderInput7.assign( shaderInput0.z.mul( .3 ) );
+    shaderLocal8_p.assign( vec3( 0., 40., 0. ).add( vec3( -0.482, 0., -0.876 ).mul( shaderInput0.x.sub( .5 ) ).mul( 220. ) ).add( vec3( .137, .988, -0.075 ).mul( shaderInput0.w.sub( .5 ) ).mul( 150. ) ).add( vec3( .8655, -0.1558, -0.476 ).mul( shaderLocal9_run.mul( 640. ).sub( 320. ) ) ) );
+    shaderInput6.assign( shaderInput2.mul( add( .08, mul( .35, sub( 1., abs( shaderLocal9_run.sub( .5 ) ).mul( 2. ) ) ) ) ) );
+    const shaderLocal10_mv = shaderInput10.mul( vec4( shaderLocal8_p, 1. ) ).toVar();
+    shaderOutput.assign( shaderInput11.mul( shaderLocal10_mv ) );
+    shaderInput12.assign( clamp( add( 1.5, shaderInput0.w.mul( 3. ) ).mul( shaderInput3 ).mul( 230. ).div( max( 1., shaderLocal10_mv.z.negate() ) ), 1., 12. ) );
+    shaderInput8.assign( add( 8., floor( min( shaderInput0.w, .999999 ).mul( 4. ) ) ) );
+    shaderInput9.assign( shaderInput0.x.mul( 6.283185 ) );
+    const shaderLocal11_particleFuture = shaderInput10.mul( vec4( shaderFunction0_particleNext( shaderInput1.add( .04 ) ), 1. ) ).toVar();
+    const shaderLocal12_particleDirection = shaderLocal11_particleFuture.xy.div( max( .001, shaderLocal11_particleFuture.z.negate() ) ).sub( shaderLocal10_mv.xy.div( max( .001, shaderLocal10_mv.z.negate() ) ) ).toVar();
+
+    If( dot( shaderLocal12_particleDirection, shaderLocal12_particleDirection ).greaterThan( .00000001 ), () => {
+
+      shaderInput9.assign( atan( shaderLocal12_particleDirection.y.negate(), shaderLocal12_particleDirection.x ) );
+
+    } );
+
+    return shaderOutput;
+
+  }, 'vec4' );
+
+  return { main: shaderFunction1_main };
+}
+
+export function create_tsl1_fbb7c097b3c330e5_fragment({ tint: shaderInput0, opacity: shaderInput1, warmth: shaderInput2, opaqueDepth: shaderInput3, opaqueDepthAvailable: shaderInput4, opaqueNear: shaderInput5, opaqueFar: shaderInput6, opaqueInverseSize: shaderInput7, opaqueProjectionInverse: shaderInput8, opaqueCameraWorld: shaderInput9, particleAtlas: shaderInput10, particleAtlasReady: shaderInput11, particleSoftness: shaderInput12, particleCell: shaderInput13, particleAngle: shaderInput14, uv: shaderInput15, gl_FragCoord: shaderInput16, gl_PointCoord: shaderInput17 }) {
+  const shaderOutput = property('vec4');
+  const shaderFunction0_offlineOpaqueDepthUv = /*@__PURE__*/ Fn( ( [ shaderLocal0_coord ] ) => {
+
+    return vec2( shaderLocal0_coord.x, sub( 1., shaderLocal0_coord.y ) );
+
+  }, 'vec2' );
+
+  const shaderFunction1_particleFallback = /*@__PURE__*/ Fn( () => {
+
+    const shaderLocal1_r = length( shaderInput17.sub( .5 ) ).mul( 2. ).toVar();
+
+    If( shaderLocal1_r.greaterThan( 1. ), () => {
+
+      Discard();
+
+    } );
+
+    shaderOutput.assign( vec4( mix( shaderInput0, shaderInput0.mul( vec3( 1.2, .55, .25 ) ), shaderInput2 ), pow( sub( 1., shaderLocal1_r ), 2. ).mul( shaderInput1 ) ) );
+
+  }, 'void' );
+
+  const shaderFunction2_opaqueWorldPoint = /*@__PURE__*/ Fn( ( [ shaderLocal2_uv, shaderLocal3_depth ] ) => {
+
+    const shaderLocal4_view = shaderInput8.mul( vec4( shaderLocal2_uv.mul( 2. ).sub( 1. ), shaderLocal3_depth.mul( 2. ).sub( 1. ), 1. ) ).toVar();
+
+    return shaderInput9.mul( vec4( shaderLocal4_view.xyz.div( shaderLocal4_view.w ), 1. ) ).xyz;
+
+  }, 'vec3' );
+
+  const shaderFunction3_particleMask = /*@__PURE__*/ Fn( () => {
+
+    const shaderLocal5_offlineDone5 = bool( false ).toVar();
+    const shaderLocal6_offlineResult5 = property( 'float' );
+    const shaderLocal7_p = shaderInput17.sub( .5 ).toVar();
+    const shaderLocal8_c = cos( shaderInput14 ).toVar(), shaderLocal9_s = sin( shaderInput14 ).toVar();
+    shaderLocal7_p.assign( mat2( shaderLocal8_c, shaderLocal9_s.negate(), shaderLocal9_s, shaderLocal8_c ).mul( shaderLocal7_p ).add( .5 ) );
+    const shaderLocal10_cell = vec2( mod( shaderInput13, 4. ), sub( 3., floor( shaderInput13.div( 4. ) ) ) ).toVar();
+    const shaderLocal11_uv = shaderLocal10_cell.mul( 256. ).add( vec2( .5 ) ).add( vec2( shaderLocal7_p.x, sub( 1., shaderLocal7_p.y ) ).mul( 255. ) ).div( 1024. ).toVar();
+    const shaderLocal12_mask = shaderInput10.sample( shaderLocal11_uv ).r.toVar();
+
+    If( any( lessThan( shaderLocal7_p, vec2( 0. ) ) ).or( any( greaterThan( shaderLocal7_p, vec2( 1. ) ) ) ), () => {
+
+      shaderLocal6_offlineResult5.assign( 0. );
+      shaderLocal5_offlineDone5.assign( true );
+
+    } );
+
+    If( shaderLocal5_offlineDone5.not(), () => {
+
+      shaderLocal6_offlineResult5.assign( shaderLocal12_mask );
+      shaderLocal5_offlineDone5.assign( true );
+
+    } );
+
+    return shaderLocal6_offlineResult5;
+
+  }, 'float' );
+
+  const shaderFunction4_particleViewDepth = /*@__PURE__*/ Fn( ( [ shaderLocal13_depth ] ) => {
+
+    return shaderInput5.mul( shaderInput6 ).div( shaderInput6.sub( shaderLocal13_depth.mul( shaderInput6.sub( shaderInput5 ) ) ) );
+
+  }, 'float' );
+
+  const shaderFunction5_particleDepthFade = /*@__PURE__*/ Fn( () => {
+
+    const shaderLocal14_offlineDone14 = bool( false ).toVar();
+    const shaderLocal15_offlineResult14 = property( 'float' );
+
+    If( shaderInput4.lessThan( .5 ), () => {
+
+      shaderLocal15_offlineResult14.assign( 1. );
+      shaderLocal14_offlineDone14.assign( true );
+
+    } );
+
+    If( shaderLocal14_offlineDone14.not(), () => {
+
+      const shaderLocal16_depth = shaderInput3.sample( shaderFunction0_offlineOpaqueDepthUv( shaderInput16.xy.mul( shaderInput7 ) ) ).x.toVar();
+
+      If( shaderLocal16_depth.greaterThanEqual( 1. ), () => {
+
+        shaderLocal15_offlineResult14.assign( 1. );
+        shaderLocal14_offlineDone14.assign( true );
+
+      } );
+
+      If( shaderLocal14_offlineDone14.not(), () => {
+
+        shaderLocal15_offlineResult14.assign( smoothstep( 0., max( .001, shaderInput12 ), shaderFunction4_particleViewDepth( shaderLocal16_depth ).sub( shaderFunction4_particleViewDepth( shaderInput16.z ) ) ) );
+        shaderLocal14_offlineDone14.assign( true );
+
+      } );
+
+    } );
+
+    return shaderLocal15_offlineResult14;
+
+  }, 'float' );
+
+  const shaderFunction6_main = /*@__PURE__*/ Fn( () => {
+
+    shaderOutput.assign( vec4( 0. ) );
+
+    If( shaderInput11.greaterThan( .5 ), () => {
+
+      shaderOutput.assign( vec4( mix( shaderInput0, shaderInput0.mul( vec3( 1.2, .55, .25 ) ), shaderInput2 ), shaderFunction3_particleMask().mul( shaderInput1 ) ) );
+
+    } ).Else( () => {
+
+      shaderFunction1_particleFallback();
+
+    } );
+
+    shaderOutput.a.mulAssign( shaderFunction5_particleDepthFade() );
+
+    return shaderOutput;
+
+  }, 'vec4' );
+
+  return { main: shaderFunction6_main };
 }
 
 export function create_tsl1_fe5f666ba2e4ae89_vertex({ hullPoint: shaderInput0, position: shaderInput1, modelMatrix: shaderInput2, projectionMatrix: shaderInput3, viewMatrix: shaderInput4 }) {
@@ -6654,14 +6674,6 @@ function shaderBindings(contract, bindings) {
 }
 
 export const nodePrograms = {
-  "tsl1_02b584b123768269": {
-    interface: {"vertex":{"uniforms":{"time":"float","size":"float","ratio":"float","origin":"vec3","lean":"vec2"},"attributes":{"seed":"vec4"},"varyings":{"alpha":"float","variation":"float","particleCell":"float","particleAngle":"float"},"builtins":{"modelViewMatrix":"mat4","projectionMatrix":"mat4","gl_PointSize":"float"}},"fragment":{"uniforms":{"tint":"vec3","opaqueDepth":"sampler2D","opaqueDepthAvailable":"float","opaqueNear":"float","opaqueFar":"float","opaqueInverseSize":"vec2","opaqueProjectionInverse":"mat4","opaqueCameraWorld":"mat4","particleAtlas":"sampler2D","particleAtlasReady":"float","particleSoftness":"float"},"attributes":{"uv":"vec2"},"varyings":{"alpha":"float","variation":"float","particleCell":"float","particleAngle":"float"},"builtins":{"gl_FragCoord":"vec4","gl_PointCoord":"vec2"}},"outputChunks":[],"opaqueDepthUv":"bottom-left-to-top-left"},
-    createProgram(bindings) {
-      const vertex = create_tsl1_02b584b123768269_vertex(shaderBindings(this.interface.vertex, bindings));
-      const fragment = create_tsl1_02b584b123768269_fragment(shaderBindings(this.interface.fragment, bindings));
-      return { vertex: vertex.main, fragment: fragment.main };
-    }
-  },
   "tsl1_04533a5b2593a519": {
     interface: {"vertex":{"uniforms":{},"attributes":{"position":"vec3","normal":"vec3"},"varyings":{"point":"vec3","viewNormal":"vec3","viewDirection":"vec3","worldNormal":"vec3"},"builtins":{"modelMatrix":"mat4","modelViewMatrix":"mat4","projectionMatrix":"mat4","normalMatrix":"mat3"}},"fragment":{"uniforms":{"time":"float"},"attributes":{},"varyings":{"point":"vec3"},"builtins":{}},"outputChunks":["tonemapping_fragment","colorspace_fragment"],"opaqueDepthUv":"bottom-left-to-top-left"},
     createProgram(bindings) {
@@ -6670,19 +6682,27 @@ export const nodePrograms = {
       return { vertex: vertex.main, fragment: fragment.main };
     }
   },
+  "tsl1_05c104f93ff693f9": {
+    interface: {"vertex":{"uniforms":{"time":"float","size":"float","ratio":"float","origin":"vec3","lean":"vec2"},"attributes":{"seed":"vec4"},"varyings":{"alpha":"float","variation":"float","particleCell":"float","particleAngle":"float"},"builtins":{"modelViewMatrix":"mat4","projectionMatrix":"mat4","gl_PointSize":"float"}},"fragment":{"uniforms":{"tint":"vec3","opaqueDepth":"sampler2D","opaqueDepthAvailable":"float","opaqueNear":"float","opaqueFar":"float","opaqueInverseSize":"vec2","opaqueProjectionInverse":"mat4","opaqueCameraWorld":"mat4","particleAtlas":"sampler2D","particleAtlasReady":"float","particleSoftness":"float"},"attributes":{"uv":"vec2"},"varyings":{"alpha":"float","variation":"float","particleCell":"float","particleAngle":"float"},"builtins":{"gl_FragCoord":"vec4","gl_PointCoord":"vec2"}},"outputChunks":[],"opaqueDepthUv":"bottom-left-to-top-left"},
+    createProgram(bindings) {
+      const vertex = create_tsl1_05c104f93ff693f9_vertex(shaderBindings(this.interface.vertex, bindings));
+      const fragment = create_tsl1_05c104f93ff693f9_fragment(shaderBindings(this.interface.fragment, bindings));
+      return { vertex: vertex.main, fragment: fragment.main };
+    }
+  },
+  "tsl1_077418979224bdc3": {
+    interface: {"vertex":{"uniforms":{"time":"float","phase":"float","pixelRatio":"float","origin":"vec3","target":"vec3"},"attributes":{"seed":"vec4"},"varyings":{"opacity":"float","warmth":"float","particleCell":"float","particleAngle":"float"},"builtins":{"modelViewMatrix":"mat4","projectionMatrix":"mat4","gl_PointSize":"float"}},"fragment":{"uniforms":{"tint":"vec3","opaqueDepth":"sampler2D","opaqueDepthAvailable":"float","opaqueNear":"float","opaqueFar":"float","opaqueInverseSize":"vec2","opaqueProjectionInverse":"mat4","opaqueCameraWorld":"mat4","particleAtlas":"sampler2D","particleAtlasReady":"float","particleSoftness":"float"},"attributes":{"uv":"vec2"},"varyings":{"opacity":"float","warmth":"float","particleCell":"float","particleAngle":"float"},"builtins":{"gl_FragCoord":"vec4","gl_PointCoord":"vec2"}},"outputChunks":["tonemapping_fragment","colorspace_fragment","tonemapping_fragment","colorspace_fragment"],"opaqueDepthUv":"bottom-left-to-top-left"},
+    createProgram(bindings) {
+      const vertex = create_tsl1_077418979224bdc3_vertex(shaderBindings(this.interface.vertex, bindings));
+      const fragment = create_tsl1_077418979224bdc3_fragment(shaderBindings(this.interface.fragment, bindings));
+      return { vertex: vertex.main, fragment: fragment.main };
+    }
+  },
   "tsl1_096a18086c615958": {
     interface: {"vertex":{"uniforms":{},"attributes":{"position":"vec3","normal":"vec3"},"varyings":{"point":"vec3","viewNormal":"vec3","viewDirection":"vec3","worldNormal":"vec3"},"builtins":{"modelMatrix":"mat4","modelViewMatrix":"mat4","projectionMatrix":"mat4","normalMatrix":"mat3"}},"fragment":{"uniforms":{"time":"float"},"attributes":{"color":"vec3"},"varyings":{"point":"vec3"},"builtins":{}},"outputChunks":["tonemapping_fragment","colorspace_fragment"],"opaqueDepthUv":"bottom-left-to-top-left"},
     createProgram(bindings) {
       const vertex = create_tsl1_096a18086c615958_vertex(shaderBindings(this.interface.vertex, bindings));
       const fragment = create_tsl1_096a18086c615958_fragment(shaderBindings(this.interface.fragment, bindings));
-      return { vertex: vertex.main, fragment: fragment.main };
-    }
-  },
-  "tsl1_0a8e6ac041f25f38": {
-    interface: {"vertex":{"uniforms":{"time":"float","size":"float","pixelRatio":"float","origin":"vec3"},"attributes":{"seed":"vec4"},"varyings":{"opacity":"float","variation":"float","particleCell":"float","particleAngle":"float"},"builtins":{"modelViewMatrix":"mat4","projectionMatrix":"mat4","gl_PointSize":"float"}},"fragment":{"uniforms":{"tint":"vec3","opaqueDepth":"sampler2D","opaqueDepthAvailable":"float","opaqueNear":"float","opaqueFar":"float","opaqueInverseSize":"vec2","opaqueProjectionInverse":"mat4","opaqueCameraWorld":"mat4","particleAtlas":"sampler2D","particleAtlasReady":"float","particleSoftness":"float"},"attributes":{"uv":"vec2"},"varyings":{"opacity":"float","variation":"float","particleCell":"float","particleAngle":"float"},"builtins":{"gl_FragCoord":"vec4","gl_PointCoord":"vec2"}},"outputChunks":[],"opaqueDepthUv":"bottom-left-to-top-left"},
-    createProgram(bindings) {
-      const vertex = create_tsl1_0a8e6ac041f25f38_vertex(shaderBindings(this.interface.vertex, bindings));
-      const fragment = create_tsl1_0a8e6ac041f25f38_fragment(shaderBindings(this.interface.fragment, bindings));
       return { vertex: vertex.main, fragment: fragment.main };
     }
   },
@@ -6702,14 +6722,6 @@ export const nodePrograms = {
       return { vertex: vertex.main, fragment: fragment.main };
     }
   },
-  "tsl1_16744313dabd8abd": {
-    interface: {"vertex":{"uniforms":{"time":"float","size":"float","ratio":"float","origin":"vec3","lean":"vec2"},"attributes":{"seed":"vec4"},"varyings":{"alpha":"float","variation":"float","particleCell":"float","particleAngle":"float"},"builtins":{"modelViewMatrix":"mat4","projectionMatrix":"mat4","gl_PointSize":"float"}},"fragment":{"uniforms":{"tint":"vec3","opaqueDepth":"sampler2D","opaqueDepthAvailable":"float","opaqueNear":"float","opaqueFar":"float","opaqueInverseSize":"vec2","opaqueProjectionInverse":"mat4","opaqueCameraWorld":"mat4","particleAtlas":"sampler2D","particleAtlasReady":"float","particleSoftness":"float"},"attributes":{"uv":"vec2"},"varyings":{"alpha":"float","variation":"float","particleCell":"float","particleAngle":"float"},"builtins":{"gl_FragCoord":"vec4","gl_PointCoord":"vec2"}},"outputChunks":[],"opaqueDepthUv":"bottom-left-to-top-left"},
-    createProgram(bindings) {
-      const vertex = create_tsl1_16744313dabd8abd_vertex(shaderBindings(this.interface.vertex, bindings));
-      const fragment = create_tsl1_16744313dabd8abd_fragment(shaderBindings(this.interface.fragment, bindings));
-      return { vertex: vertex.main, fragment: fragment.main };
-    }
-  },
   "tsl1_178456f57818c7eb": {
     interface: {"vertex":{"uniforms":{},"attributes":{"position":"vec3"},"varyings":{"hullPoint":"vec3"},"builtins":{"modelMatrix":"mat4","projectionMatrix":"mat4","viewMatrix":"mat4"}},"fragment":{"uniforms":{"time":"float","steps":"float","inside":"float","flash":"float","fogDensity":"float","origin":"vec3","sunDirection":"vec3","sunColor":"vec3","skyColor":"vec3","fogColor":"vec3","flashPoint":"vec3","opaqueDepth":"sampler2D","opaqueDepthAvailable":"float","opaqueNear":"float","opaqueFar":"float","opaqueInverseSize":"vec2","opaqueProjectionInverse":"mat4","opaqueCameraWorld":"mat4","height":"float","flare":"float","heat":"float","fade":"float","radius":"float","base":"float"},"attributes":{"uv":"vec2"},"varyings":{"hullPoint":"vec3"},"builtins":{"cameraPosition":"vec3","gl_FragCoord":"vec4"}},"outputChunks":["tonemapping_fragment","colorspace_fragment"],"opaqueDepthUv":"bottom-left-to-top-left"},
     createProgram(bindings) {
@@ -6718,35 +6730,19 @@ export const nodePrograms = {
       return { vertex: vertex.main, fragment: fragment.main };
     }
   },
-  "tsl1_1ff3178ac10d3d40": {
-    interface: {"vertex":{"uniforms":{"time":"float","phase":"float","pixelRatio":"float","origin":"vec3","target":"vec3"},"attributes":{"seed":"vec4"},"varyings":{"opacity":"float","warmth":"float","particleCell":"float","particleAngle":"float"},"builtins":{"modelViewMatrix":"mat4","projectionMatrix":"mat4","gl_PointSize":"float"}},"fragment":{"uniforms":{"tint":"vec3","opaqueDepth":"sampler2D","opaqueDepthAvailable":"float","opaqueNear":"float","opaqueFar":"float","opaqueInverseSize":"vec2","opaqueProjectionInverse":"mat4","opaqueCameraWorld":"mat4","particleAtlas":"sampler2D","particleAtlasReady":"float","particleSoftness":"float"},"attributes":{"uv":"vec2"},"varyings":{"opacity":"float","warmth":"float","particleCell":"float","particleAngle":"float"},"builtins":{"gl_FragCoord":"vec4","gl_PointCoord":"vec2"}},"outputChunks":["tonemapping_fragment","colorspace_fragment","tonemapping_fragment","colorspace_fragment"],"opaqueDepthUv":"bottom-left-to-top-left"},
-    createProgram(bindings) {
-      const vertex = create_tsl1_1ff3178ac10d3d40_vertex(shaderBindings(this.interface.vertex, bindings));
-      const fragment = create_tsl1_1ff3178ac10d3d40_fragment(shaderBindings(this.interface.fragment, bindings));
-      return { vertex: vertex.main, fragment: fragment.main };
-    }
-  },
-  "tsl1_251829828cde7940": {
-    interface: {"vertex":{"uniforms":{"time":"float","phase":"float","pixelRatio":"float","origin":"vec3","target":"vec3"},"attributes":{"seed":"vec4"},"varyings":{"opacity":"float","warmth":"float","particleCell":"float","particleAngle":"float"},"builtins":{"modelViewMatrix":"mat4","projectionMatrix":"mat4","gl_PointSize":"float"}},"fragment":{"uniforms":{"tint":"vec3","opaqueDepth":"sampler2D","opaqueDepthAvailable":"float","opaqueNear":"float","opaqueFar":"float","opaqueInverseSize":"vec2","opaqueProjectionInverse":"mat4","opaqueCameraWorld":"mat4","particleAtlas":"sampler2D","particleAtlasReady":"float","particleSoftness":"float"},"attributes":{"uv":"vec2"},"varyings":{"opacity":"float","warmth":"float","particleCell":"float","particleAngle":"float"},"builtins":{"gl_FragCoord":"vec4","gl_PointCoord":"vec2"}},"outputChunks":["tonemapping_fragment","colorspace_fragment","tonemapping_fragment","colorspace_fragment"],"opaqueDepthUv":"bottom-left-to-top-left"},
-    createProgram(bindings) {
-      const vertex = create_tsl1_251829828cde7940_vertex(shaderBindings(this.interface.vertex, bindings));
-      const fragment = create_tsl1_251829828cde7940_fragment(shaderBindings(this.interface.fragment, bindings));
-      return { vertex: vertex.main, fragment: fragment.main };
-    }
-  },
-  "tsl1_2cec6dfcd7c3e174": {
-    interface: {"vertex":{"uniforms":{"time":"float","phase":"float","pixelRatio":"float","origin":"vec3","target":"vec3"},"attributes":{"seed":"vec4"},"varyings":{"opacity":"float","warmth":"float","particleCell":"float","particleAngle":"float"},"builtins":{"modelViewMatrix":"mat4","projectionMatrix":"mat4","gl_PointSize":"float"}},"fragment":{"uniforms":{"tint":"vec3","opaqueDepth":"sampler2D","opaqueDepthAvailable":"float","opaqueNear":"float","opaqueFar":"float","opaqueInverseSize":"vec2","opaqueProjectionInverse":"mat4","opaqueCameraWorld":"mat4","particleAtlas":"sampler2D","particleAtlasReady":"float","particleSoftness":"float"},"attributes":{"uv":"vec2"},"varyings":{"opacity":"float","warmth":"float","particleCell":"float","particleAngle":"float"},"builtins":{"gl_FragCoord":"vec4","gl_PointCoord":"vec2"}},"outputChunks":["tonemapping_fragment","colorspace_fragment","tonemapping_fragment","colorspace_fragment"],"opaqueDepthUv":"bottom-left-to-top-left"},
-    createProgram(bindings) {
-      const vertex = create_tsl1_2cec6dfcd7c3e174_vertex(shaderBindings(this.interface.vertex, bindings));
-      const fragment = create_tsl1_2cec6dfcd7c3e174_fragment(shaderBindings(this.interface.fragment, bindings));
-      return { vertex: vertex.main, fragment: fragment.main };
-    }
-  },
   "tsl1_3097f9b6c5206e26": {
     interface: {"vertex":{"uniforms":{},"attributes":{"position":"vec3","normal":"vec3"},"varyings":{"sphereNormal":"vec3","spherePoint":"vec3","sphereView":"vec3"},"builtins":{"modelViewMatrix":"mat4","projectionMatrix":"mat4","normalMatrix":"mat3"}},"fragment":{"uniforms":{"time":"float","glow":"float"},"attributes":{"color":"vec3"},"varyings":{"sphereNormal":"vec3","spherePoint":"vec3","sphereView":"vec3"},"builtins":{}},"outputChunks":["tonemapping_fragment","colorspace_fragment"],"opaqueDepthUv":"bottom-left-to-top-left"},
     createProgram(bindings) {
       const vertex = create_tsl1_3097f9b6c5206e26_vertex(shaderBindings(this.interface.vertex, bindings));
       const fragment = create_tsl1_3097f9b6c5206e26_fragment(shaderBindings(this.interface.fragment, bindings));
+      return { vertex: vertex.main, fragment: fragment.main };
+    }
+  },
+  "tsl1_34e706255a2952b5": {
+    interface: {"vertex":{"uniforms":{"time":"float","size":"float","pixelRatio":"float","origin":"vec3"},"attributes":{"seed":"vec4"},"varyings":{"opacity":"float","variation":"float","particleCell":"float","particleAngle":"float"},"builtins":{"modelViewMatrix":"mat4","projectionMatrix":"mat4","gl_PointSize":"float"}},"fragment":{"uniforms":{"tint":"vec3","opaqueDepth":"sampler2D","opaqueDepthAvailable":"float","opaqueNear":"float","opaqueFar":"float","opaqueInverseSize":"vec2","opaqueProjectionInverse":"mat4","opaqueCameraWorld":"mat4","particleAtlas":"sampler2D","particleAtlasReady":"float","particleSoftness":"float"},"attributes":{"uv":"vec2"},"varyings":{"opacity":"float","variation":"float","particleCell":"float","particleAngle":"float"},"builtins":{"gl_FragCoord":"vec4","gl_PointCoord":"vec2"}},"outputChunks":[],"opaqueDepthUv":"bottom-left-to-top-left"},
+    createProgram(bindings) {
+      const vertex = create_tsl1_34e706255a2952b5_vertex(shaderBindings(this.interface.vertex, bindings));
+      const fragment = create_tsl1_34e706255a2952b5_fragment(shaderBindings(this.interface.fragment, bindings));
       return { vertex: vertex.main, fragment: fragment.main };
     }
   },
@@ -6790,14 +6786,6 @@ export const nodePrograms = {
       return { vertex: vertex.main, fragment: fragment.main };
     }
   },
-  "tsl1_53d79d18fbc39da4": {
-    interface: {"vertex":{"uniforms":{"time":"float","size":"float","ratio":"float","origin":"vec3","lean":"vec2"},"attributes":{"seed":"vec4"},"varyings":{"alpha":"float","variation":"float","particleCell":"float","particleAngle":"float"},"builtins":{"modelViewMatrix":"mat4","projectionMatrix":"mat4","gl_PointSize":"float"}},"fragment":{"uniforms":{"tint":"vec3","opaqueDepth":"sampler2D","opaqueDepthAvailable":"float","opaqueNear":"float","opaqueFar":"float","opaqueInverseSize":"vec2","opaqueProjectionInverse":"mat4","opaqueCameraWorld":"mat4","particleAtlas":"sampler2D","particleAtlasReady":"float","particleSoftness":"float"},"attributes":{"uv":"vec2"},"varyings":{"alpha":"float","variation":"float","particleCell":"float","particleAngle":"float"},"builtins":{"gl_FragCoord":"vec4","gl_PointCoord":"vec2"}},"outputChunks":[],"opaqueDepthUv":"bottom-left-to-top-left"},
-    createProgram(bindings) {
-      const vertex = create_tsl1_53d79d18fbc39da4_vertex(shaderBindings(this.interface.vertex, bindings));
-      const fragment = create_tsl1_53d79d18fbc39da4_fragment(shaderBindings(this.interface.fragment, bindings));
-      return { vertex: vertex.main, fragment: fragment.main };
-    }
-  },
   "tsl1_5edf4e9837245752": {
     interface: {"vertex":{"uniforms":{},"attributes":{"position":"vec3","normal":"vec3"},"varyings":{"point":"vec3","viewNormal":"vec3","viewDirection":"vec3","worldNormal":"vec3"},"builtins":{"modelMatrix":"mat4","modelViewMatrix":"mat4","projectionMatrix":"mat4","normalMatrix":"mat3"}},"fragment":{"uniforms":{"time":"float","fade":"float"},"attributes":{},"varyings":{"point":"vec3"},"builtins":{}},"outputChunks":["tonemapping_fragment","colorspace_fragment"],"opaqueDepthUv":"bottom-left-to-top-left"},
     createProgram(bindings) {
@@ -6814,19 +6802,27 @@ export const nodePrograms = {
       return { vertex: vertex.main, fragment: fragment.main };
     }
   },
-  "tsl1_6f77a455d04aa50b": {
-    interface: {"vertex":{"uniforms":{"time":"float","size":"float","ratio":"float","origin":"vec3","lean":"vec2"},"attributes":{"seed":"vec4"},"varyings":{"alpha":"float","variation":"float","particleCell":"float","particleAngle":"float"},"builtins":{"modelViewMatrix":"mat4","projectionMatrix":"mat4","gl_PointSize":"float"}},"fragment":{"uniforms":{"tint":"vec3","opaqueDepth":"sampler2D","opaqueDepthAvailable":"float","opaqueNear":"float","opaqueFar":"float","opaqueInverseSize":"vec2","opaqueProjectionInverse":"mat4","opaqueCameraWorld":"mat4","particleAtlas":"sampler2D","particleAtlasReady":"float","particleSoftness":"float"},"attributes":{"uv":"vec2"},"varyings":{"alpha":"float","variation":"float","particleCell":"float","particleAngle":"float"},"builtins":{"gl_FragCoord":"vec4","gl_PointCoord":"vec2"}},"outputChunks":[],"opaqueDepthUv":"bottom-left-to-top-left"},
-    createProgram(bindings) {
-      const vertex = create_tsl1_6f77a455d04aa50b_vertex(shaderBindings(this.interface.vertex, bindings));
-      const fragment = create_tsl1_6f77a455d04aa50b_fragment(shaderBindings(this.interface.fragment, bindings));
-      return { vertex: vertex.main, fragment: fragment.main };
-    }
-  },
   "tsl1_72e67f978d1f3d47": {
     interface: {"vertex":{"uniforms":{},"attributes":{"position":"vec3"},"varyings":{"direction":"vec3"},"builtins":{"modelViewMatrix":"mat4","projectionMatrix":"mat4"}},"fragment":{"uniforms":{"panorama":"sampler2D","ready":"float","strength":"float"},"attributes":{"uv":"vec2","color":"vec3"},"varyings":{"direction":"vec3"},"builtins":{}},"outputChunks":["tonemapping_fragment","colorspace_fragment"],"opaqueDepthUv":"bottom-left-to-top-left"},
     createProgram(bindings) {
       const vertex = create_tsl1_72e67f978d1f3d47_vertex(shaderBindings(this.interface.vertex, bindings));
       const fragment = create_tsl1_72e67f978d1f3d47_fragment(shaderBindings(this.interface.fragment, bindings));
+      return { vertex: vertex.main, fragment: fragment.main };
+    }
+  },
+  "tsl1_7c1d515f59cb04e5": {
+    interface: {"vertex":{"uniforms":{"time":"float","phase":"float","pixelRatio":"float","origin":"vec3","target":"vec3"},"attributes":{"seed":"vec4"},"varyings":{"opacity":"float","warmth":"float","particleCell":"float","particleAngle":"float"},"builtins":{"modelViewMatrix":"mat4","projectionMatrix":"mat4","gl_PointSize":"float"}},"fragment":{"uniforms":{"tint":"vec3","opaqueDepth":"sampler2D","opaqueDepthAvailable":"float","opaqueNear":"float","opaqueFar":"float","opaqueInverseSize":"vec2","opaqueProjectionInverse":"mat4","opaqueCameraWorld":"mat4","particleAtlas":"sampler2D","particleAtlasReady":"float","particleSoftness":"float"},"attributes":{"uv":"vec2"},"varyings":{"opacity":"float","warmth":"float","particleCell":"float","particleAngle":"float"},"builtins":{"gl_FragCoord":"vec4","gl_PointCoord":"vec2"}},"outputChunks":["tonemapping_fragment","colorspace_fragment","tonemapping_fragment","colorspace_fragment"],"opaqueDepthUv":"bottom-left-to-top-left"},
+    createProgram(bindings) {
+      const vertex = create_tsl1_7c1d515f59cb04e5_vertex(shaderBindings(this.interface.vertex, bindings));
+      const fragment = create_tsl1_7c1d515f59cb04e5_fragment(shaderBindings(this.interface.fragment, bindings));
+      return { vertex: vertex.main, fragment: fragment.main };
+    }
+  },
+  "tsl1_7d0c5125d6fe4ab1": {
+    interface: {"vertex":{"uniforms":{"time":"float","phase":"float","pixelRatio":"float","origin":"vec3","target":"vec3"},"attributes":{"seed":"vec4"},"varyings":{"opacity":"float","warmth":"float","particleCell":"float","particleAngle":"float"},"builtins":{"modelViewMatrix":"mat4","projectionMatrix":"mat4","gl_PointSize":"float"}},"fragment":{"uniforms":{"tint":"vec3","opaqueDepth":"sampler2D","opaqueDepthAvailable":"float","opaqueNear":"float","opaqueFar":"float","opaqueInverseSize":"vec2","opaqueProjectionInverse":"mat4","opaqueCameraWorld":"mat4","particleAtlas":"sampler2D","particleAtlasReady":"float","particleSoftness":"float"},"attributes":{"uv":"vec2"},"varyings":{"opacity":"float","warmth":"float","particleCell":"float","particleAngle":"float"},"builtins":{"gl_FragCoord":"vec4","gl_PointCoord":"vec2"}},"outputChunks":["tonemapping_fragment","colorspace_fragment","tonemapping_fragment","colorspace_fragment"],"opaqueDepthUv":"bottom-left-to-top-left"},
+    createProgram(bindings) {
+      const vertex = create_tsl1_7d0c5125d6fe4ab1_vertex(shaderBindings(this.interface.vertex, bindings));
+      const fragment = create_tsl1_7d0c5125d6fe4ab1_fragment(shaderBindings(this.interface.fragment, bindings));
       return { vertex: vertex.main, fragment: fragment.main };
     }
   },
@@ -6838,22 +6834,6 @@ export const nodePrograms = {
       return { vertex: vertex.main, fragment: fragment.main };
     }
   },
-  "tsl1_7e651529a123a669": {
-    interface: {"vertex":{"uniforms":{"time":"float","size":"float","ratio":"float","origin":"vec3","lean":"vec2"},"attributes":{"seed":"vec4"},"varyings":{"alpha":"float","variation":"float","particleCell":"float","particleAngle":"float"},"builtins":{"modelViewMatrix":"mat4","projectionMatrix":"mat4","gl_PointSize":"float"}},"fragment":{"uniforms":{"tint":"vec3","opaqueDepth":"sampler2D","opaqueDepthAvailable":"float","opaqueNear":"float","opaqueFar":"float","opaqueInverseSize":"vec2","opaqueProjectionInverse":"mat4","opaqueCameraWorld":"mat4","particleAtlas":"sampler2D","particleAtlasReady":"float","particleSoftness":"float"},"attributes":{"uv":"vec2"},"varyings":{"alpha":"float","variation":"float","particleCell":"float","particleAngle":"float"},"builtins":{"gl_FragCoord":"vec4","gl_PointCoord":"vec2"}},"outputChunks":[],"opaqueDepthUv":"bottom-left-to-top-left"},
-    createProgram(bindings) {
-      const vertex = create_tsl1_7e651529a123a669_vertex(shaderBindings(this.interface.vertex, bindings));
-      const fragment = create_tsl1_7e651529a123a669_fragment(shaderBindings(this.interface.fragment, bindings));
-      return { vertex: vertex.main, fragment: fragment.main };
-    }
-  },
-  "tsl1_81bff182cb4fc5ee": {
-    interface: {"vertex":{"uniforms":{"time":"float","phase":"float","pixelRatio":"float","origin":"vec3","target":"vec3"},"attributes":{"seed":"vec4"},"varyings":{"opacity":"float","warmth":"float","particleCell":"float","particleAngle":"float"},"builtins":{"modelViewMatrix":"mat4","projectionMatrix":"mat4","gl_PointSize":"float"}},"fragment":{"uniforms":{"tint":"vec3","opaqueDepth":"sampler2D","opaqueDepthAvailable":"float","opaqueNear":"float","opaqueFar":"float","opaqueInverseSize":"vec2","opaqueProjectionInverse":"mat4","opaqueCameraWorld":"mat4","particleAtlas":"sampler2D","particleAtlasReady":"float","particleSoftness":"float"},"attributes":{"uv":"vec2"},"varyings":{"opacity":"float","warmth":"float","particleCell":"float","particleAngle":"float"},"builtins":{"gl_FragCoord":"vec4","gl_PointCoord":"vec2"}},"outputChunks":["tonemapping_fragment","colorspace_fragment","tonemapping_fragment","colorspace_fragment"],"opaqueDepthUv":"bottom-left-to-top-left"},
-    createProgram(bindings) {
-      const vertex = create_tsl1_81bff182cb4fc5ee_vertex(shaderBindings(this.interface.vertex, bindings));
-      const fragment = create_tsl1_81bff182cb4fc5ee_fragment(shaderBindings(this.interface.fragment, bindings));
-      return { vertex: vertex.main, fragment: fragment.main };
-    }
-  },
   "tsl1_81d8e5149cd1bb9c": {
     interface: {"vertex":{"uniforms":{},"attributes":{"position":"vec3","uv":"vec2"},"varyings":{"puffUv":"vec2"},"builtins":{"modelViewMatrix":"mat4","projectionMatrix":"mat4","instanceMatrix":"mat4"}},"fragment":{"uniforms":{"atlas":"sampler2D","frame":"float","opacity":"float","cell":"float"},"attributes":{"uv":"vec2"},"varyings":{"puffUv":"vec2"},"builtins":{}},"outputChunks":["tonemapping_fragment","colorspace_fragment"],"opaqueDepthUv":"bottom-left-to-top-left"},
     createProgram(bindings) {
@@ -6862,11 +6842,43 @@ export const nodePrograms = {
       return { vertex: vertex.main, fragment: fragment.main };
     }
   },
-  "tsl1_844b9f685a231a2c": {
+  "tsl1_83ee5653120e7975": {
     interface: {"vertex":{"uniforms":{"time":"float","size":"float","ratio":"float","origin":"vec3","lean":"vec2"},"attributes":{"seed":"vec4"},"varyings":{"alpha":"float","variation":"float","particleCell":"float","particleAngle":"float"},"builtins":{"modelViewMatrix":"mat4","projectionMatrix":"mat4","gl_PointSize":"float"}},"fragment":{"uniforms":{"tint":"vec3","opaqueDepth":"sampler2D","opaqueDepthAvailable":"float","opaqueNear":"float","opaqueFar":"float","opaqueInverseSize":"vec2","opaqueProjectionInverse":"mat4","opaqueCameraWorld":"mat4","particleAtlas":"sampler2D","particleAtlasReady":"float","particleSoftness":"float"},"attributes":{"uv":"vec2"},"varyings":{"alpha":"float","variation":"float","particleCell":"float","particleAngle":"float"},"builtins":{"gl_FragCoord":"vec4","gl_PointCoord":"vec2"}},"outputChunks":[],"opaqueDepthUv":"bottom-left-to-top-left"},
     createProgram(bindings) {
-      const vertex = create_tsl1_844b9f685a231a2c_vertex(shaderBindings(this.interface.vertex, bindings));
-      const fragment = create_tsl1_844b9f685a231a2c_fragment(shaderBindings(this.interface.fragment, bindings));
+      const vertex = create_tsl1_83ee5653120e7975_vertex(shaderBindings(this.interface.vertex, bindings));
+      const fragment = create_tsl1_83ee5653120e7975_fragment(shaderBindings(this.interface.fragment, bindings));
+      return { vertex: vertex.main, fragment: fragment.main };
+    }
+  },
+  "tsl1_8bb0acd4a8f6f1ae": {
+    interface: {"vertex":{"uniforms":{"time":"float","size":"float","ratio":"float","origin":"vec3","lean":"vec2"},"attributes":{"seed":"vec4"},"varyings":{"alpha":"float","variation":"float","particleCell":"float","particleAngle":"float"},"builtins":{"modelViewMatrix":"mat4","projectionMatrix":"mat4","gl_PointSize":"float"}},"fragment":{"uniforms":{"tint":"vec3","opaqueDepth":"sampler2D","opaqueDepthAvailable":"float","opaqueNear":"float","opaqueFar":"float","opaqueInverseSize":"vec2","opaqueProjectionInverse":"mat4","opaqueCameraWorld":"mat4","particleAtlas":"sampler2D","particleAtlasReady":"float","particleSoftness":"float"},"attributes":{"uv":"vec2"},"varyings":{"alpha":"float","variation":"float","particleCell":"float","particleAngle":"float"},"builtins":{"gl_FragCoord":"vec4","gl_PointCoord":"vec2"}},"outputChunks":[],"opaqueDepthUv":"bottom-left-to-top-left"},
+    createProgram(bindings) {
+      const vertex = create_tsl1_8bb0acd4a8f6f1ae_vertex(shaderBindings(this.interface.vertex, bindings));
+      const fragment = create_tsl1_8bb0acd4a8f6f1ae_fragment(shaderBindings(this.interface.fragment, bindings));
+      return { vertex: vertex.main, fragment: fragment.main };
+    }
+  },
+  "tsl1_8bfb51e70f696ed3": {
+    interface: {"vertex":{"uniforms":{"time":"float","size":"float","ratio":"float","origin":"vec3","lean":"vec2"},"attributes":{"seed":"vec4"},"varyings":{"alpha":"float","variation":"float","particleCell":"float","particleAngle":"float"},"builtins":{"modelViewMatrix":"mat4","projectionMatrix":"mat4","gl_PointSize":"float"}},"fragment":{"uniforms":{"tint":"vec3","opaqueDepth":"sampler2D","opaqueDepthAvailable":"float","opaqueNear":"float","opaqueFar":"float","opaqueInverseSize":"vec2","opaqueProjectionInverse":"mat4","opaqueCameraWorld":"mat4","particleAtlas":"sampler2D","particleAtlasReady":"float","particleSoftness":"float"},"attributes":{"uv":"vec2"},"varyings":{"alpha":"float","variation":"float","particleCell":"float","particleAngle":"float"},"builtins":{"gl_FragCoord":"vec4","gl_PointCoord":"vec2"}},"outputChunks":[],"opaqueDepthUv":"bottom-left-to-top-left"},
+    createProgram(bindings) {
+      const vertex = create_tsl1_8bfb51e70f696ed3_vertex(shaderBindings(this.interface.vertex, bindings));
+      const fragment = create_tsl1_8bfb51e70f696ed3_fragment(shaderBindings(this.interface.fragment, bindings));
+      return { vertex: vertex.main, fragment: fragment.main };
+    }
+  },
+  "tsl1_947bb76da7185ad1": {
+    interface: {"vertex":{"uniforms":{"time":"float","phase":"float","pixelRatio":"float","origin":"vec3","target":"vec3"},"attributes":{"seed":"vec4"},"varyings":{"opacity":"float","warmth":"float","particleCell":"float","particleAngle":"float"},"builtins":{"modelViewMatrix":"mat4","projectionMatrix":"mat4","gl_PointSize":"float"}},"fragment":{"uniforms":{"tint":"vec3","opaqueDepth":"sampler2D","opaqueDepthAvailable":"float","opaqueNear":"float","opaqueFar":"float","opaqueInverseSize":"vec2","opaqueProjectionInverse":"mat4","opaqueCameraWorld":"mat4","particleAtlas":"sampler2D","particleAtlasReady":"float","particleSoftness":"float"},"attributes":{"uv":"vec2"},"varyings":{"opacity":"float","warmth":"float","particleCell":"float","particleAngle":"float"},"builtins":{"gl_FragCoord":"vec4","gl_PointCoord":"vec2"}},"outputChunks":["tonemapping_fragment","colorspace_fragment","tonemapping_fragment","colorspace_fragment"],"opaqueDepthUv":"bottom-left-to-top-left"},
+    createProgram(bindings) {
+      const vertex = create_tsl1_947bb76da7185ad1_vertex(shaderBindings(this.interface.vertex, bindings));
+      const fragment = create_tsl1_947bb76da7185ad1_fragment(shaderBindings(this.interface.fragment, bindings));
+      return { vertex: vertex.main, fragment: fragment.main };
+    }
+  },
+  "tsl1_9aa5005ca1d80d7e": {
+    interface: {"vertex":{"uniforms":{"time":"float","size":"float","ratio":"float","origin":"vec3","lean":"vec2"},"attributes":{"seed":"vec4"},"varyings":{"alpha":"float","variation":"float","particleCell":"float","particleAngle":"float"},"builtins":{"modelViewMatrix":"mat4","projectionMatrix":"mat4","gl_PointSize":"float"}},"fragment":{"uniforms":{"tint":"vec3","opaqueDepth":"sampler2D","opaqueDepthAvailable":"float","opaqueNear":"float","opaqueFar":"float","opaqueInverseSize":"vec2","opaqueProjectionInverse":"mat4","opaqueCameraWorld":"mat4","particleAtlas":"sampler2D","particleAtlasReady":"float","particleSoftness":"float"},"attributes":{"uv":"vec2"},"varyings":{"alpha":"float","variation":"float","particleCell":"float","particleAngle":"float"},"builtins":{"gl_FragCoord":"vec4","gl_PointCoord":"vec2"}},"outputChunks":[],"opaqueDepthUv":"bottom-left-to-top-left"},
+    createProgram(bindings) {
+      const vertex = create_tsl1_9aa5005ca1d80d7e_vertex(shaderBindings(this.interface.vertex, bindings));
+      const fragment = create_tsl1_9aa5005ca1d80d7e_fragment(shaderBindings(this.interface.fragment, bindings));
       return { vertex: vertex.main, fragment: fragment.main };
     }
   },
@@ -6878,19 +6890,19 @@ export const nodePrograms = {
       return { vertex: vertex.main, fragment: fragment.main };
     }
   },
+  "tsl1_a1804a7019977f44": {
+    interface: {"vertex":{"uniforms":{"time":"float","size":"float","ratio":"float","origin":"vec3","lean":"vec2"},"attributes":{"seed":"vec4"},"varyings":{"alpha":"float","variation":"float","particleCell":"float","particleAngle":"float"},"builtins":{"modelViewMatrix":"mat4","projectionMatrix":"mat4","gl_PointSize":"float"}},"fragment":{"uniforms":{"tint":"vec3","opaqueDepth":"sampler2D","opaqueDepthAvailable":"float","opaqueNear":"float","opaqueFar":"float","opaqueInverseSize":"vec2","opaqueProjectionInverse":"mat4","opaqueCameraWorld":"mat4","particleAtlas":"sampler2D","particleAtlasReady":"float","particleSoftness":"float"},"attributes":{"uv":"vec2"},"varyings":{"alpha":"float","variation":"float","particleCell":"float","particleAngle":"float"},"builtins":{"gl_FragCoord":"vec4","gl_PointCoord":"vec2"}},"outputChunks":[],"opaqueDepthUv":"bottom-left-to-top-left"},
+    createProgram(bindings) {
+      const vertex = create_tsl1_a1804a7019977f44_vertex(shaderBindings(this.interface.vertex, bindings));
+      const fragment = create_tsl1_a1804a7019977f44_fragment(shaderBindings(this.interface.fragment, bindings));
+      return { vertex: vertex.main, fragment: fragment.main };
+    }
+  },
   "tsl1_a19fdce44a244ea0": {
     interface: {"vertex":{"uniforms":{},"attributes":{"position":"vec3"},"varyings":{"hullPoint":"vec3"},"builtins":{"modelMatrix":"mat4","projectionMatrix":"mat4","viewMatrix":"mat4"}},"fragment":{"uniforms":{"time":"float","steps":"float","inside":"float","flash":"float","fogDensity":"float","origin":"vec3","sunDirection":"vec3","sunColor":"vec3","skyColor":"vec3","fogColor":"vec3","flashPoint":"vec3","opaqueDepth":"sampler2D","opaqueDepthAvailable":"float","opaqueNear":"float","opaqueFar":"float","opaqueInverseSize":"vec2","opaqueProjectionInverse":"mat4","opaqueCameraWorld":"mat4","radius":"float","thickness":"float"},"attributes":{"uv":"vec2"},"varyings":{"hullPoint":"vec3"},"builtins":{"cameraPosition":"vec3","gl_FragCoord":"vec4"}},"outputChunks":["tonemapping_fragment","colorspace_fragment"],"opaqueDepthUv":"bottom-left-to-top-left"},
     createProgram(bindings) {
       const vertex = create_tsl1_a19fdce44a244ea0_vertex(shaderBindings(this.interface.vertex, bindings));
       const fragment = create_tsl1_a19fdce44a244ea0_fragment(shaderBindings(this.interface.fragment, bindings));
-      return { vertex: vertex.main, fragment: fragment.main };
-    }
-  },
-  "tsl1_a2e644aa7e6056c0": {
-    interface: {"vertex":{"uniforms":{"time":"float","size":"float","ratio":"float","origin":"vec3","lean":"vec2"},"attributes":{"seed":"vec4"},"varyings":{"alpha":"float","variation":"float","particleCell":"float","particleAngle":"float"},"builtins":{"modelViewMatrix":"mat4","projectionMatrix":"mat4","gl_PointSize":"float"}},"fragment":{"uniforms":{"tint":"vec3","opaqueDepth":"sampler2D","opaqueDepthAvailable":"float","opaqueNear":"float","opaqueFar":"float","opaqueInverseSize":"vec2","opaqueProjectionInverse":"mat4","opaqueCameraWorld":"mat4","particleAtlas":"sampler2D","particleAtlasReady":"float","particleSoftness":"float"},"attributes":{"uv":"vec2"},"varyings":{"alpha":"float","variation":"float","particleCell":"float","particleAngle":"float"},"builtins":{"gl_FragCoord":"vec4","gl_PointCoord":"vec2"}},"outputChunks":[],"opaqueDepthUv":"bottom-left-to-top-left"},
-    createProgram(bindings) {
-      const vertex = create_tsl1_a2e644aa7e6056c0_vertex(shaderBindings(this.interface.vertex, bindings));
-      const fragment = create_tsl1_a2e644aa7e6056c0_fragment(shaderBindings(this.interface.fragment, bindings));
       return { vertex: vertex.main, fragment: fragment.main };
     }
   },
@@ -6902,27 +6914,51 @@ export const nodePrograms = {
       return { vertex: vertex.main, fragment: fragment.main };
     }
   },
-  "tsl1_a666c9adc3fa4adb": {
+  "tsl1_aa6ff42a3d810e28": {
     interface: {"vertex":{"uniforms":{"time":"float","size":"float","ratio":"float","origin":"vec3","lean":"vec2"},"attributes":{"seed":"vec4"},"varyings":{"alpha":"float","variation":"float","particleCell":"float","particleAngle":"float"},"builtins":{"modelViewMatrix":"mat4","projectionMatrix":"mat4","gl_PointSize":"float"}},"fragment":{"uniforms":{"tint":"vec3","opaqueDepth":"sampler2D","opaqueDepthAvailable":"float","opaqueNear":"float","opaqueFar":"float","opaqueInverseSize":"vec2","opaqueProjectionInverse":"mat4","opaqueCameraWorld":"mat4","particleAtlas":"sampler2D","particleAtlasReady":"float","particleSoftness":"float"},"attributes":{"uv":"vec2"},"varyings":{"alpha":"float","variation":"float","particleCell":"float","particleAngle":"float"},"builtins":{"gl_FragCoord":"vec4","gl_PointCoord":"vec2"}},"outputChunks":[],"opaqueDepthUv":"bottom-left-to-top-left"},
     createProgram(bindings) {
-      const vertex = create_tsl1_a666c9adc3fa4adb_vertex(shaderBindings(this.interface.vertex, bindings));
-      const fragment = create_tsl1_a666c9adc3fa4adb_fragment(shaderBindings(this.interface.fragment, bindings));
+      const vertex = create_tsl1_aa6ff42a3d810e28_vertex(shaderBindings(this.interface.vertex, bindings));
+      const fragment = create_tsl1_aa6ff42a3d810e28_fragment(shaderBindings(this.interface.fragment, bindings));
       return { vertex: vertex.main, fragment: fragment.main };
     }
   },
-  "tsl1_b6e2b2d8b02fb7f6": {
-    interface: {"vertex":{"uniforms":{"time":"float","size":"float","pixelRatio":"float","origin":"vec3"},"attributes":{"seed":"vec4"},"varyings":{"opacity":"float","variation":"float","particleCell":"float","particleAngle":"float"},"builtins":{"modelViewMatrix":"mat4","projectionMatrix":"mat4","gl_PointSize":"float"}},"fragment":{"uniforms":{"tint":"vec3","opaqueDepth":"sampler2D","opaqueDepthAvailable":"float","opaqueNear":"float","opaqueFar":"float","opaqueInverseSize":"vec2","opaqueProjectionInverse":"mat4","opaqueCameraWorld":"mat4","particleAtlas":"sampler2D","particleAtlasReady":"float","particleSoftness":"float"},"attributes":{"uv":"vec2"},"varyings":{"opacity":"float","variation":"float","particleCell":"float","particleAngle":"float"},"builtins":{"gl_FragCoord":"vec4","gl_PointCoord":"vec2"}},"outputChunks":[],"opaqueDepthUv":"bottom-left-to-top-left"},
+  "tsl1_ad912ae43283011c": {
+    interface: {"vertex":{"uniforms":{"time":"float","size":"float","ratio":"float","origin":"vec3","lean":"vec2"},"attributes":{"seed":"vec4"},"varyings":{"alpha":"float","variation":"float","particleCell":"float","particleAngle":"float"},"builtins":{"modelViewMatrix":"mat4","projectionMatrix":"mat4","gl_PointSize":"float"}},"fragment":{"uniforms":{"tint":"vec3","opaqueDepth":"sampler2D","opaqueDepthAvailable":"float","opaqueNear":"float","opaqueFar":"float","opaqueInverseSize":"vec2","opaqueProjectionInverse":"mat4","opaqueCameraWorld":"mat4","particleAtlas":"sampler2D","particleAtlasReady":"float","particleSoftness":"float"},"attributes":{"uv":"vec2"},"varyings":{"alpha":"float","variation":"float","particleCell":"float","particleAngle":"float"},"builtins":{"gl_FragCoord":"vec4","gl_PointCoord":"vec2"}},"outputChunks":[],"opaqueDepthUv":"bottom-left-to-top-left"},
     createProgram(bindings) {
-      const vertex = create_tsl1_b6e2b2d8b02fb7f6_vertex(shaderBindings(this.interface.vertex, bindings));
-      const fragment = create_tsl1_b6e2b2d8b02fb7f6_fragment(shaderBindings(this.interface.fragment, bindings));
+      const vertex = create_tsl1_ad912ae43283011c_vertex(shaderBindings(this.interface.vertex, bindings));
+      const fragment = create_tsl1_ad912ae43283011c_fragment(shaderBindings(this.interface.fragment, bindings));
       return { vertex: vertex.main, fragment: fragment.main };
     }
   },
-  "tsl1_b9aa1a875314d0cd": {
+  "tsl1_aec863a0aec0b3ec": {
     interface: {"vertex":{"uniforms":{"time":"float","phase":"float","pixelRatio":"float","origin":"vec3","target":"vec3"},"attributes":{"seed":"vec4"},"varyings":{"opacity":"float","warmth":"float","particleCell":"float","particleAngle":"float"},"builtins":{"modelViewMatrix":"mat4","projectionMatrix":"mat4","gl_PointSize":"float"}},"fragment":{"uniforms":{"tint":"vec3","opaqueDepth":"sampler2D","opaqueDepthAvailable":"float","opaqueNear":"float","opaqueFar":"float","opaqueInverseSize":"vec2","opaqueProjectionInverse":"mat4","opaqueCameraWorld":"mat4","particleAtlas":"sampler2D","particleAtlasReady":"float","particleSoftness":"float"},"attributes":{"uv":"vec2"},"varyings":{"opacity":"float","warmth":"float","particleCell":"float","particleAngle":"float"},"builtins":{"gl_FragCoord":"vec4","gl_PointCoord":"vec2"}},"outputChunks":["tonemapping_fragment","colorspace_fragment","tonemapping_fragment","colorspace_fragment"],"opaqueDepthUv":"bottom-left-to-top-left"},
     createProgram(bindings) {
-      const vertex = create_tsl1_b9aa1a875314d0cd_vertex(shaderBindings(this.interface.vertex, bindings));
-      const fragment = create_tsl1_b9aa1a875314d0cd_fragment(shaderBindings(this.interface.fragment, bindings));
+      const vertex = create_tsl1_aec863a0aec0b3ec_vertex(shaderBindings(this.interface.vertex, bindings));
+      const fragment = create_tsl1_aec863a0aec0b3ec_fragment(shaderBindings(this.interface.fragment, bindings));
+      return { vertex: vertex.main, fragment: fragment.main };
+    }
+  },
+  "tsl1_b89aec637c37e56d": {
+    interface: {"vertex":{"uniforms":{"time":"float","size":"float","ratio":"float","origin":"vec3","lean":"vec2"},"attributes":{"seed":"vec4"},"varyings":{"alpha":"float","variation":"float","particleCell":"float","particleAngle":"float"},"builtins":{"modelViewMatrix":"mat4","projectionMatrix":"mat4","gl_PointSize":"float"}},"fragment":{"uniforms":{"tint":"vec3","opaqueDepth":"sampler2D","opaqueDepthAvailable":"float","opaqueNear":"float","opaqueFar":"float","opaqueInverseSize":"vec2","opaqueProjectionInverse":"mat4","opaqueCameraWorld":"mat4","particleAtlas":"sampler2D","particleAtlasReady":"float","particleSoftness":"float"},"attributes":{"uv":"vec2"},"varyings":{"alpha":"float","variation":"float","particleCell":"float","particleAngle":"float"},"builtins":{"gl_FragCoord":"vec4","gl_PointCoord":"vec2"}},"outputChunks":[],"opaqueDepthUv":"bottom-left-to-top-left"},
+    createProgram(bindings) {
+      const vertex = create_tsl1_b89aec637c37e56d_vertex(shaderBindings(this.interface.vertex, bindings));
+      const fragment = create_tsl1_b89aec637c37e56d_fragment(shaderBindings(this.interface.fragment, bindings));
+      return { vertex: vertex.main, fragment: fragment.main };
+    }
+  },
+  "tsl1_c0d580d8f747cb44": {
+    interface: {"vertex":{"uniforms":{"time":"float","size":"float","ratio":"float","origin":"vec3","lean":"vec2"},"attributes":{"seed":"vec4"},"varyings":{"alpha":"float","variation":"float","particleCell":"float","particleAngle":"float"},"builtins":{"modelViewMatrix":"mat4","projectionMatrix":"mat4","gl_PointSize":"float"}},"fragment":{"uniforms":{"tint":"vec3","opaqueDepth":"sampler2D","opaqueDepthAvailable":"float","opaqueNear":"float","opaqueFar":"float","opaqueInverseSize":"vec2","opaqueProjectionInverse":"mat4","opaqueCameraWorld":"mat4","particleAtlas":"sampler2D","particleAtlasReady":"float","particleSoftness":"float"},"attributes":{"uv":"vec2"},"varyings":{"alpha":"float","variation":"float","particleCell":"float","particleAngle":"float"},"builtins":{"gl_FragCoord":"vec4","gl_PointCoord":"vec2"}},"outputChunks":[],"opaqueDepthUv":"bottom-left-to-top-left"},
+    createProgram(bindings) {
+      const vertex = create_tsl1_c0d580d8f747cb44_vertex(shaderBindings(this.interface.vertex, bindings));
+      const fragment = create_tsl1_c0d580d8f747cb44_fragment(shaderBindings(this.interface.fragment, bindings));
+      return { vertex: vertex.main, fragment: fragment.main };
+    }
+  },
+  "tsl1_c34ee2262bdd7ad0": {
+    interface: {"vertex":{"uniforms":{"time":"float","size":"float","ratio":"float","origin":"vec3","lean":"vec2"},"attributes":{"seed":"vec4"},"varyings":{"alpha":"float","variation":"float","particleCell":"float","particleAngle":"float"},"builtins":{"modelViewMatrix":"mat4","projectionMatrix":"mat4","gl_PointSize":"float"}},"fragment":{"uniforms":{"tint":"vec3","opaqueDepth":"sampler2D","opaqueDepthAvailable":"float","opaqueNear":"float","opaqueFar":"float","opaqueInverseSize":"vec2","opaqueProjectionInverse":"mat4","opaqueCameraWorld":"mat4","particleAtlas":"sampler2D","particleAtlasReady":"float","particleSoftness":"float"},"attributes":{"uv":"vec2"},"varyings":{"alpha":"float","variation":"float","particleCell":"float","particleAngle":"float"},"builtins":{"gl_FragCoord":"vec4","gl_PointCoord":"vec2"}},"outputChunks":[],"opaqueDepthUv":"bottom-left-to-top-left"},
+    createProgram(bindings) {
+      const vertex = create_tsl1_c34ee2262bdd7ad0_vertex(shaderBindings(this.interface.vertex, bindings));
+      const fragment = create_tsl1_c34ee2262bdd7ad0_fragment(shaderBindings(this.interface.fragment, bindings));
       return { vertex: vertex.main, fragment: fragment.main };
     }
   },
@@ -6942,14 +6978,6 @@ export const nodePrograms = {
       return { vertex: vertex.main, fragment: fragment.main };
     }
   },
-  "tsl1_d010b5bd0c946771": {
-    interface: {"vertex":{"uniforms":{"time":"float","size":"float","ratio":"float","origin":"vec3","lean":"vec2"},"attributes":{"seed":"vec4"},"varyings":{"alpha":"float","variation":"float","particleCell":"float","particleAngle":"float"},"builtins":{"modelViewMatrix":"mat4","projectionMatrix":"mat4","gl_PointSize":"float"}},"fragment":{"uniforms":{"tint":"vec3","opaqueDepth":"sampler2D","opaqueDepthAvailable":"float","opaqueNear":"float","opaqueFar":"float","opaqueInverseSize":"vec2","opaqueProjectionInverse":"mat4","opaqueCameraWorld":"mat4","particleAtlas":"sampler2D","particleAtlasReady":"float","particleSoftness":"float"},"attributes":{"uv":"vec2"},"varyings":{"alpha":"float","variation":"float","particleCell":"float","particleAngle":"float"},"builtins":{"gl_FragCoord":"vec4","gl_PointCoord":"vec2"}},"outputChunks":[],"opaqueDepthUv":"bottom-left-to-top-left"},
-    createProgram(bindings) {
-      const vertex = create_tsl1_d010b5bd0c946771_vertex(shaderBindings(this.interface.vertex, bindings));
-      const fragment = create_tsl1_d010b5bd0c946771_fragment(shaderBindings(this.interface.fragment, bindings));
-      return { vertex: vertex.main, fragment: fragment.main };
-    }
-  },
   "tsl1_d277a2cac50ef6b2": {
     interface: {"vertex":{"uniforms":{},"attributes":{"position":"vec3","normal":"vec3"},"varyings":{"bodyNormal":"vec3","bodyPoint":"vec3","bodyView":"vec3"},"builtins":{"modelViewMatrix":"mat4","projectionMatrix":"mat4","normalMatrix":"mat3"}},"fragment":{"uniforms":{"time":"float","glow":"float"},"attributes":{"color":"vec3"},"varyings":{"bodyNormal":"vec3","bodyPoint":"vec3","bodyView":"vec3"},"builtins":{}},"outputChunks":["tonemapping_fragment","colorspace_fragment"],"opaqueDepthUv":"bottom-left-to-top-left"},
     createProgram(bindings) {
@@ -6958,11 +6986,19 @@ export const nodePrograms = {
       return { vertex: vertex.main, fragment: fragment.main };
     }
   },
-  "tsl1_d7031034e5e97c54": {
-    interface: {"vertex":{"uniforms":{"time":"float","phase":"float","pixelRatio":"float","origin":"vec3","target":"vec3"},"attributes":{"seed":"vec4"},"varyings":{"opacity":"float","warmth":"float","particleCell":"float","particleAngle":"float"},"builtins":{"modelViewMatrix":"mat4","projectionMatrix":"mat4","gl_PointSize":"float"}},"fragment":{"uniforms":{"tint":"vec3","opaqueDepth":"sampler2D","opaqueDepthAvailable":"float","opaqueNear":"float","opaqueFar":"float","opaqueInverseSize":"vec2","opaqueProjectionInverse":"mat4","opaqueCameraWorld":"mat4","particleAtlas":"sampler2D","particleAtlasReady":"float","particleSoftness":"float"},"attributes":{"uv":"vec2"},"varyings":{"opacity":"float","warmth":"float","particleCell":"float","particleAngle":"float"},"builtins":{"gl_FragCoord":"vec4","gl_PointCoord":"vec2"}},"outputChunks":["tonemapping_fragment","colorspace_fragment","tonemapping_fragment","colorspace_fragment"],"opaqueDepthUv":"bottom-left-to-top-left"},
+  "tsl1_d46172f6a4f8a250": {
+    interface: {"vertex":{"uniforms":{"time":"float","size":"float","pixelRatio":"float","origin":"vec3"},"attributes":{"seed":"vec4"},"varyings":{"opacity":"float","variation":"float","particleCell":"float","particleAngle":"float"},"builtins":{"modelViewMatrix":"mat4","projectionMatrix":"mat4","gl_PointSize":"float"}},"fragment":{"uniforms":{"tint":"vec3","opaqueDepth":"sampler2D","opaqueDepthAvailable":"float","opaqueNear":"float","opaqueFar":"float","opaqueInverseSize":"vec2","opaqueProjectionInverse":"mat4","opaqueCameraWorld":"mat4","particleAtlas":"sampler2D","particleAtlasReady":"float","particleSoftness":"float"},"attributes":{"uv":"vec2"},"varyings":{"opacity":"float","variation":"float","particleCell":"float","particleAngle":"float"},"builtins":{"gl_FragCoord":"vec4","gl_PointCoord":"vec2"}},"outputChunks":[],"opaqueDepthUv":"bottom-left-to-top-left"},
     createProgram(bindings) {
-      const vertex = create_tsl1_d7031034e5e97c54_vertex(shaderBindings(this.interface.vertex, bindings));
-      const fragment = create_tsl1_d7031034e5e97c54_fragment(shaderBindings(this.interface.fragment, bindings));
+      const vertex = create_tsl1_d46172f6a4f8a250_vertex(shaderBindings(this.interface.vertex, bindings));
+      const fragment = create_tsl1_d46172f6a4f8a250_fragment(shaderBindings(this.interface.fragment, bindings));
+      return { vertex: vertex.main, fragment: fragment.main };
+    }
+  },
+  "tsl1_d56a471d6fe42843": {
+    interface: {"vertex":{"uniforms":{"time":"float","size":"float","pixelRatio":"float","origin":"vec3"},"attributes":{"seed":"vec4"},"varyings":{"opacity":"float","variation":"float","particleCell":"float","particleAngle":"float"},"builtins":{"modelViewMatrix":"mat4","projectionMatrix":"mat4","gl_PointSize":"float"}},"fragment":{"uniforms":{"tint":"vec3","opaqueDepth":"sampler2D","opaqueDepthAvailable":"float","opaqueNear":"float","opaqueFar":"float","opaqueInverseSize":"vec2","opaqueProjectionInverse":"mat4","opaqueCameraWorld":"mat4","particleAtlas":"sampler2D","particleAtlasReady":"float","particleSoftness":"float"},"attributes":{"uv":"vec2"},"varyings":{"opacity":"float","variation":"float","particleCell":"float","particleAngle":"float"},"builtins":{"gl_FragCoord":"vec4","gl_PointCoord":"vec2"}},"outputChunks":[],"opaqueDepthUv":"bottom-left-to-top-left"},
+    createProgram(bindings) {
+      const vertex = create_tsl1_d56a471d6fe42843_vertex(shaderBindings(this.interface.vertex, bindings));
+      const fragment = create_tsl1_d56a471d6fe42843_fragment(shaderBindings(this.interface.fragment, bindings));
       return { vertex: vertex.main, fragment: fragment.main };
     }
   },
@@ -7006,14 +7042,6 @@ export const nodePrograms = {
       return { vertex: vertex.main, fragment: fragment.main };
     }
   },
-  "tsl1_e53bb3c125b31581": {
-    interface: {"vertex":{"uniforms":{"time":"float","size":"float","pixelRatio":"float","origin":"vec3"},"attributes":{"seed":"vec4"},"varyings":{"opacity":"float","variation":"float","particleCell":"float","particleAngle":"float"},"builtins":{"modelViewMatrix":"mat4","projectionMatrix":"mat4","gl_PointSize":"float"}},"fragment":{"uniforms":{"tint":"vec3","opaqueDepth":"sampler2D","opaqueDepthAvailable":"float","opaqueNear":"float","opaqueFar":"float","opaqueInverseSize":"vec2","opaqueProjectionInverse":"mat4","opaqueCameraWorld":"mat4","particleAtlas":"sampler2D","particleAtlasReady":"float","particleSoftness":"float"},"attributes":{"uv":"vec2"},"varyings":{"opacity":"float","variation":"float","particleCell":"float","particleAngle":"float"},"builtins":{"gl_FragCoord":"vec4","gl_PointCoord":"vec2"}},"outputChunks":[],"opaqueDepthUv":"bottom-left-to-top-left"},
-    createProgram(bindings) {
-      const vertex = create_tsl1_e53bb3c125b31581_vertex(shaderBindings(this.interface.vertex, bindings));
-      const fragment = create_tsl1_e53bb3c125b31581_fragment(shaderBindings(this.interface.fragment, bindings));
-      return { vertex: vertex.main, fragment: fragment.main };
-    }
-  },
   "tsl1_e68e3af6ca393a24": {
     interface: {"vertex":{"uniforms":{},"attributes":{"position":"vec3"},"varyings":{"hullPoint":"vec3"},"builtins":{"modelMatrix":"mat4","projectionMatrix":"mat4","viewMatrix":"mat4"}},"fragment":{"uniforms":{"time":"float","steps":"float","inside":"float","flash":"float","fogDensity":"float","origin":"vec3","sunDirection":"vec3","sunColor":"vec3","skyColor":"vec3","fogColor":"vec3","flashPoint":"vec3","opaqueDepth":"sampler2D","opaqueDepthAvailable":"float","opaqueNear":"float","opaqueFar":"float","opaqueInverseSize":"vec2","opaqueProjectionInverse":"mat4","opaqueCameraWorld":"mat4","phase":"float","activity":"float","site":"vec3"},"attributes":{"uv":"vec2"},"varyings":{"hullPoint":"vec3"},"builtins":{"cameraPosition":"vec3","gl_FragCoord":"vec4"}},"outputChunks":["tonemapping_fragment","colorspace_fragment"],"opaqueDepthUv":"bottom-left-to-top-left"},
     createProgram(bindings) {
@@ -7022,27 +7050,19 @@ export const nodePrograms = {
       return { vertex: vertex.main, fragment: fragment.main };
     }
   },
-  "tsl1_ecc022c7d409cbc5": {
-    interface: {"vertex":{"uniforms":{"time":"float","size":"float","ratio":"float","origin":"vec3","lean":"vec2"},"attributes":{"seed":"vec4"},"varyings":{"alpha":"float","variation":"float","particleCell":"float","particleAngle":"float"},"builtins":{"modelViewMatrix":"mat4","projectionMatrix":"mat4","gl_PointSize":"float"}},"fragment":{"uniforms":{"tint":"vec3","opaqueDepth":"sampler2D","opaqueDepthAvailable":"float","opaqueNear":"float","opaqueFar":"float","opaqueInverseSize":"vec2","opaqueProjectionInverse":"mat4","opaqueCameraWorld":"mat4","particleAtlas":"sampler2D","particleAtlasReady":"float","particleSoftness":"float"},"attributes":{"uv":"vec2"},"varyings":{"alpha":"float","variation":"float","particleCell":"float","particleAngle":"float"},"builtins":{"gl_FragCoord":"vec4","gl_PointCoord":"vec2"}},"outputChunks":[],"opaqueDepthUv":"bottom-left-to-top-left"},
-    createProgram(bindings) {
-      const vertex = create_tsl1_ecc022c7d409cbc5_vertex(shaderBindings(this.interface.vertex, bindings));
-      const fragment = create_tsl1_ecc022c7d409cbc5_fragment(shaderBindings(this.interface.fragment, bindings));
-      return { vertex: vertex.main, fragment: fragment.main };
-    }
-  },
-  "tsl1_f2e4b34c26a06a42": {
-    interface: {"vertex":{"uniforms":{"time":"float","size":"float","ratio":"float","origin":"vec3","lean":"vec2"},"attributes":{"seed":"vec4"},"varyings":{"alpha":"float","variation":"float","particleCell":"float","particleAngle":"float"},"builtins":{"modelViewMatrix":"mat4","projectionMatrix":"mat4","gl_PointSize":"float"}},"fragment":{"uniforms":{"tint":"vec3","opaqueDepth":"sampler2D","opaqueDepthAvailable":"float","opaqueNear":"float","opaqueFar":"float","opaqueInverseSize":"vec2","opaqueProjectionInverse":"mat4","opaqueCameraWorld":"mat4","particleAtlas":"sampler2D","particleAtlasReady":"float","particleSoftness":"float"},"attributes":{"uv":"vec2"},"varyings":{"alpha":"float","variation":"float","particleCell":"float","particleAngle":"float"},"builtins":{"gl_FragCoord":"vec4","gl_PointCoord":"vec2"}},"outputChunks":[],"opaqueDepthUv":"bottom-left-to-top-left"},
-    createProgram(bindings) {
-      const vertex = create_tsl1_f2e4b34c26a06a42_vertex(shaderBindings(this.interface.vertex, bindings));
-      const fragment = create_tsl1_f2e4b34c26a06a42_fragment(shaderBindings(this.interface.fragment, bindings));
-      return { vertex: vertex.main, fragment: fragment.main };
-    }
-  },
   "tsl1_fa79536ce000e706": {
     interface: {"vertex":{"uniforms":{},"attributes":{"position":"vec3","normal":"vec3"},"varyings":{"point":"vec3","viewNormal":"vec3","viewDirection":"vec3","worldNormal":"vec3"},"builtins":{"modelMatrix":"mat4","modelViewMatrix":"mat4","projectionMatrix":"mat4","normalMatrix":"mat3"}},"fragment":{"uniforms":{"time":"float","front":"float"},"attributes":{"color":"vec3"},"varyings":{"point":"vec3","viewNormal":"vec3","viewDirection":"vec3"},"builtins":{}},"outputChunks":["tonemapping_fragment","colorspace_fragment"],"opaqueDepthUv":"bottom-left-to-top-left"},
     createProgram(bindings) {
       const vertex = create_tsl1_fa79536ce000e706_vertex(shaderBindings(this.interface.vertex, bindings));
       const fragment = create_tsl1_fa79536ce000e706_fragment(shaderBindings(this.interface.fragment, bindings));
+      return { vertex: vertex.main, fragment: fragment.main };
+    }
+  },
+  "tsl1_fbb7c097b3c330e5": {
+    interface: {"vertex":{"uniforms":{"time":"float","phase":"float","pixelRatio":"float","origin":"vec3","target":"vec3"},"attributes":{"seed":"vec4"},"varyings":{"opacity":"float","warmth":"float","particleCell":"float","particleAngle":"float"},"builtins":{"modelViewMatrix":"mat4","projectionMatrix":"mat4","gl_PointSize":"float"}},"fragment":{"uniforms":{"tint":"vec3","opaqueDepth":"sampler2D","opaqueDepthAvailable":"float","opaqueNear":"float","opaqueFar":"float","opaqueInverseSize":"vec2","opaqueProjectionInverse":"mat4","opaqueCameraWorld":"mat4","particleAtlas":"sampler2D","particleAtlasReady":"float","particleSoftness":"float"},"attributes":{"uv":"vec2"},"varyings":{"opacity":"float","warmth":"float","particleCell":"float","particleAngle":"float"},"builtins":{"gl_FragCoord":"vec4","gl_PointCoord":"vec2"}},"outputChunks":["tonemapping_fragment","colorspace_fragment","tonemapping_fragment","colorspace_fragment"],"opaqueDepthUv":"bottom-left-to-top-left"},
+    createProgram(bindings) {
+      const vertex = create_tsl1_fbb7c097b3c330e5_vertex(shaderBindings(this.interface.vertex, bindings));
+      const fragment = create_tsl1_fbb7c097b3c330e5_fragment(shaderBindings(this.interface.fragment, bindings));
       return { vertex: vertex.main, fragment: fragment.main };
     }
   },
