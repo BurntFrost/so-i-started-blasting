@@ -222,6 +222,8 @@ for (const forceWebGL of [false, true]) test(`complete native graph builds on th
     f.pipeline.update(16, {...defaultGrade, ssr: true}, new Vector3(.4, .7, .9), .2);
     assert.equal(uniforms.cinema_frame.value, 384);
     assert.ok(codes.length > 8, 'build intermediate materials as well as the final film pass');
+    assert.match(codes[0], /mix\(\s*vec3(?:<f32>)?\(\s*dot\(/,
+      'film mixes grayscale toward color, with saturation as the factor');
     const targets = new Set([...nodes].map(node => node.renderTarget).filter(Boolean));
     const disposals = new Map([...targets].map(target => [target, 0]));
     for (const target of targets) target.addEventListener('dispose', () => disposals.set(target, disposals.get(target) + 1));
@@ -314,7 +316,7 @@ test('native and forceWebGL pipeline pixels, flags, resize and disposal', { skip
       await page.goto(`http://127.0.0.1:${server.address().port}`);
       const result = await page.evaluate(async forceWebGL => {
         const T = await import('three/webgpu');
-        const { createNodePipeline } = await import('/dist/node-pipeline.js');
+        const { createNodePipeline, fogAwareAO } = await import('/dist/node-pipeline.js');
         const { opaqueDepthUniforms } = await import('/dist/render-kit.js');
         const canvas = document.createElement('canvas'); document.body.append(canvas);
         const renderer = new T.WebGPURenderer({ canvas, forceWebGL });
@@ -341,6 +343,57 @@ test('native and forceWebGL pipeline pixels, flags, resize and disposal', { skip
           await renderer.init(); renderer.setSize(320,240); renderer.setPixelRatio(1);
           check(Boolean(renderer.backend.isWebGPUBackend) === !forceWebGL, 'requested backend active');
           renderer.backend.device?.addEventListener('uncapturederror', e => gpuErrors.push(e.error.message));
+          // Compare output against the actual classic OutputPass + film shader,
+          // not against native intermediates that can share the same mistake.
+          const C = await import('three'), tsl = await import('three/tsl');
+          const {EffectComposer} = await import('three/addons/postprocessing/EffectComposer.js');
+          const {RenderPass} = await import('three/addons/postprocessing/RenderPass.js');
+          const {OutputPass} = await import('three/addons/postprocessing/OutputPass.js');
+          const {ShaderPass} = await import('three/addons/postprocessing/ShaderPass.js');
+          const {filmShader, applyFilmGrade} = await import('/dist/cinema.js');
+          const classic = new C.WebGLRenderer(); classic.setSize(64,64);
+          classic.toneMapping=C.AgXToneMapping; classic.toneMappingExposure=1.6;
+          const flatScene=new C.Scene(), flatCamera=new C.OrthographicCamera(-1,1,1,-1,.1,10);
+          flatCamera.position.z=2;
+          const flatGeometry=new C.PlaneGeometry(2,2), rgb=tsl.uniform(new T.Vector3());
+          const nativeFlat=new T.NodeMaterial(); nativeFlat.fragmentNode=tsl.vec4(rgb,1);
+          const classicFlat=new C.ShaderMaterial({uniforms:{rgb:{value:new C.Vector3()}},
+            vertexShader:'void main(){gl_Position=projectionMatrix*modelViewMatrix*vec4(position,1.);}',
+            fragmentShader:'uniform vec3 rgb;void main(){gl_FragColor=vec4(rgb,1.);}'});
+          const flatMesh=new C.Mesh(flatGeometry,nativeFlat); flatScene.add(flatMesh);
+          const classicPipeline=new EffectComposer(classic), classicFilm=new ShaderPass(filmShader);
+          classicPipeline.addPass(new RenderPass(flatScene,flatCamera));
+          classicPipeline.addPass(new OutputPass()); classicPipeline.addPass(classicFilm); classicPipeline.renderToScreen=false;
+          renderer.setSize(64,64);
+          const flatTarget=new T.RenderTarget(64,64,{depthBuffer:false});renderer.setRenderTarget(flatTarget);
+          const nativePipeline=createNodePipeline({renderer,scene:flatScene,camera:flatCamera,canvas});
+          nativePipeline.setQuality({name:'HIGH',ao:false,bloom:false,film:true});
+          try {
+            for(const saturation of [0,.94,1]) for(const color of [[.001,.001,.001],[.018,.018,.018],[.18,.18,.18],[.5,.5,.5],[1,1,1],[4,4,4],[16,16,16],[.8,.12,.025]]) {
+              const grade={...((await import('/dist/scene-config.js')).defaultGrade),saturation,grain:0,aberration:0};
+              await new Promise(requestAnimationFrame);
+              rgb.value.fromArray(color);classicFlat.uniforms.rgb.value.fromArray(color);
+              nativePipeline.update(0,grade);flatMesh.material=nativeFlat;nativePipeline.render();
+              const actual=await renderer.readRenderTargetPixelsAsync(flatTarget,32,32,1,1);
+              flatMesh.material=classicFlat;applyFilmGrade(classicFilm.uniforms,0,grade);classicPipeline.render();
+              const expected=new Uint16Array(4);classic.readRenderTargetPixels(classicPipeline.readBuffer,32,32,1,1,expected);
+              check([0,1,2,3].every(i=>Math.abs(actual[i]-Math.round(C.DataUtils.fromHalfFloat(expected[i])*255))<=1),`classic color parity ${color} saturation ${saturation}`);
+            }
+            const fog={mode:tsl.uniform(0),density:tsl.uniform(0),near:tsl.uniform(10),far:tsl.uniform(90)};
+            const fogMaterial=new T.NodeMaterial();fogMaterial.fragmentNode=tsl.vec4(tsl.vec3(fogAwareAO(tsl.float(.25),tsl.float(100),fog)),1);
+            const fogQuad=new T.QuadMesh(fogMaterial);
+            renderer.toneMapping=T.NoToneMapping;renderer.outputColorSpace=T.LinearSRGBColorSpace;
+            try {
+              for(const [mode,density,expected] of [[0,0,.25],[1,0,.25],[1,.01,1-.75*Math.exp(-1)],[1,.1,1],[2,0,1]]) {
+                fog.mode.value=mode;fog.density.value=density;await new Promise(requestAnimationFrame);fogQuad.render(renderer);
+                const actual=await renderer.readRenderTargetPixelsAsync(flatTarget,32,32,1,1);
+                check(Math.abs(actual[0]-Math.round(expected*255))<=1,`AO fog visibility mode ${mode} density ${density}`);
+              }
+            } finally {fogMaterial.dispose();}
+          } finally {
+            nativePipeline.dispose();classicPipeline.dispose();classicFlat.dispose();nativeFlat.dispose();flatGeometry.dispose();flatTarget.dispose();classic.dispose();
+            renderer.setRenderTarget(null);renderer.setSize(320,240);
+          }
           output = new T.RenderTarget(320,240,{ depthBuffer:false }); renderer.setRenderTarget(output);
           const originalRender = renderer.render.bind(renderer);
           renderer.render = (object, camera) => {

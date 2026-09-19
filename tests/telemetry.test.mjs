@@ -176,7 +176,7 @@ test('failure stages are allowlisted, deduplicated per scene, and capped per pag
     { name: 'Scene Load Failed', data: { scene: 'startup', stage: 'module-load' } },
     { name: 'Scene Load Failed', data: { scene: 'startup', stage: 'context-lost' } },
   ]);
-  for (const scene of scenes) for (const stage of ['module-load', 'webgl-init', 'authored-assets', 'context-lost']) report(stage, scene.id);
+  for (const scene of scenes) for (const stage of ['module-load', 'webgl-init', 'device-init', 'authored-assets', 'context-lost']) report(stage, scene.id);
   assert.equal(events.length, 40);
   assert.ok(events.every(event => Object.keys(event.data).length === 2));
 });
@@ -186,6 +186,7 @@ test('marked initialization errors preserve their stage for the bootstrap catch'
   const error = markGraphicsFailure(cause, 'webgl-init');
   assert.equal(error.cause, cause);
   assert.equal(graphicsFailureStage(error), 'webgl-init');
+  assert.equal(graphicsFailureStage(markGraphicsFailure(cause, 'device-init')), 'device-init');
   assert.equal(graphicsFailureStage(cause), 'module-load');
   assert.equal(graphicsFailureStage({ graphicsStage: 'unknown-stage' }), 'module-load');
 });

@@ -5,7 +5,7 @@ import {
   Vector2, Vector3, Vector4
 } from 'three/webgpu';
 import {
-  Fn, If, Loop, float, vec2, vec3, vec4, uniform, reference, texture, uv,
+  Fn, If, Loop, float, vec2, vec3, vec4, mix, uniform, reference, texture, uv,
   normalView, getViewPosition, pass, rtt, renderOutput, screenCoordinate
 } from 'three/tsl';
 import { ao } from 'three/addons/tsl/display/GTAONode.js';
@@ -49,7 +49,7 @@ function filmNode(source, u) {
     const base = source.sample(p);
     const color = vec3(source.sample(p.add(offset).clamp(0, 1)).r, base.g, source.sample(p.sub(offset).clamp(0, 1)).b).toVar();
     const luma = color.dot(vec3(.2126, .7152, .0722));
-    color.assign(vec3(luma).mix(color, u.saturation).mul(u.tint));
+    color.assign(mix(vec3(luma), color, u.saturation).mul(u.tint));
     color.mulAssign(float(1).sub(p.sub(.5).dot(p.sub(.5)).smoothstep(.12, .65).mul(.12)));
     // Match the existing bottom-left gl_FragCoord hash on either backend.
     const pixel = vec2(screenCoordinate.x, u.size.y.sub(screenCoordinate.y));
@@ -84,6 +84,20 @@ function filteredAO(source, depth, normals, inverseProjection, size) {
       result.assign(total.div(weightSum.max(.00001)));
     });
     return result;
+  })();
+}
+
+// Beauty already includes fog. Fade post AO with the same view-depth fog factor
+// so occlusion cannot draw dark roof silhouettes over fully fogged surfaces.
+export function fogAwareAO(occlusion, viewDepth, fog) {
+  return Fn(() => {
+    const visibility = float(1).toVar();
+    If(fog.mode.equal(1), () => {
+      visibility.assign(viewDepth.mul(fog.density).pow(2).negate().exp());
+    }).ElseIf(fog.mode.equal(2), () => {
+      visibility.assign(viewDepth.smoothstep(fog.near, fog.far).oneMinus());
+    });
+    return mix(float(1), occlusion, visibility);
   })();
 }
 
@@ -136,6 +150,7 @@ export function createNodePipeline({ renderer, scene, camera, canvas, depth = op
     bloomStrength: uniform(.48), bloomRadius: uniform(.65), bloomThreshold: uniform(1.1)
   };
   for (const [name, node] of Object.entries(u)) node.setName(`cinema_${name}`);
+  const fog = { mode: uniform(0), density: uniform(0), near: uniform(1), far: uniform(1000) };
   const receiver = uniform(0).onObjectUpdate(({ object }) => object.userData.ssrReceiver === true ? 1 : 0);
   const normalMaterials = new Map();
   function renderOpaque(object, sceneArg, cameraArg, geometry, material, ...rest) {
@@ -193,7 +208,8 @@ export function createNodePipeline({ renderer, scene, camera, canvas, depth = op
       gtao.samples.value = 16; gtao.useTemporalFiltering = false;
       gtao.resolutionScale = tier.aoScale;
       const occlusion = filteredAO(gtao.getTextureNode(), depthTexture, normals, inverseProjection, u.size);
-      current = toTexture(vec4(color.rgb.mul(occlusion), color.a), 'Cinema_GTAO');
+      const viewDepth = getViewPosition(uv(), depthTexture.sample(uv()).r, inverseProjection).z.negate().max(0);
+      current = toTexture(vec4(color.rgb.mul(fogAwareAO(occlusion, viewDepth, fog)), color.a), 'Cinema_GTAO');
     }
     if (tier.ao && grade.ssr === true) {
       reflection = own(ssr(current, depthTexture, normals, {
@@ -290,6 +306,10 @@ export function createNodePipeline({ renderer, scene, camera, canvas, depth = op
     renderer.getViewport(viewport); renderer.getScissor(scissor);
     depth.opaqueDepthAvailable.value = 0;
     try {
+      fog.mode.value = scene.fog?.isFogExp2 ? 1 : scene.fog?.isFog ? 2 : 0;
+      fog.density.value = scene.fog?.density ?? 0;
+      fog.near.value = scene.fog?.near ?? 1;
+      fog.far.value = scene.fog?.far ?? 1000;
       // Set coordinate system before updating the matrices published to effects.
       if (camera.coordinateSystem !== renderer.coordinateSystem) {
         camera.coordinateSystem = renderer.coordinateSystem; camera.updateProjectionMatrix();

@@ -55,7 +55,19 @@ are outside this worktree and remain untouched.
 - Latest unit run: 143 passed, three opt-in GPU tests skipped (includes initial C2 shadow
   tests under active development); 78 asset checksums and ten certificate tests passed.
 - WebKit remains unverified because both download attempts failed. Five heavy-scene
-  probes are being recorded before C2 activation.
+  C1 probes completed without renderer errors: Independence Day 50/59 FPS, Deep Impact
+  42/48, Twister 48/44 and Evangelion 46/46 at ULTRA; Knowing stepped to HIGH at 36/60.
+
+## C2 validation findings
+
+- The initial per-scene hash checks passed both backends, but the visual sheet exposed
+  black output. Film grain alone supplied changing, reversible pixels, so hash checks
+  were insufficient. The suite now also requires visible scene pixels above the grain
+  range. Those earlier passes are not treated as visual evidence.
+- Native raw-uniform binding must distinguish `Color` from `Vector3` even when the GLSL
+  declaration is `vec3`: the native uploaders read `rgb` and `xyz` respectively. Using
+  the vector uploader for a Color produced NaNs that propagated through compositing.
+  The adapter now preserves the shared holder using a native `color` reference.
 
 ## Decisions
 

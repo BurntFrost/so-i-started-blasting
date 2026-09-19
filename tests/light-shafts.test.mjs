@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 import * as THREE from 'three';
 import { LightShaftsPass, emitterEnvelope, projectEmitter, emitterScreenFade } from '../dist/light-shafts.js';
 import { heroEmitters, sceneConfigs } from '../dist/scene-config.js';
+import { prepareSunForRender } from '../dist/cinema.js';
 
 test('every emitter is registered and its light and shaft envelope is bounded and reversible',()=>{
   for(const [id,emitter] of Object.entries(heroEmitters)){
@@ -39,4 +40,25 @@ test('orbit fades rays to zero before the projected mask leaves the viewport',()
   assert.ok(emitterScreenFade(new THREE.Vector3(1.1,.5,0))>0);
   assert.equal(emitterScreenFade(new THREE.Vector3(1.35,.5,0)),0);
   assert.equal(emitterScreenFade(new THREE.Vector3(-.35,.5,0)),0);
+});
+
+test('space sun position, target and direction are independent of world visit order',()=>{
+  const keyDirection=new THREE.Vector3(-90,85,-110);
+  const expectedDirection=keyDirection.clone().normalize().toArray();
+  for(const visits of [[],['city'],['landscape'],['city','landscape']]){
+    const scene=new THREE.Scene(),sun=new THREE.DirectionalLight();
+    scene.add(sun,sun.target);
+    for(const world of [...visits,'space','space']){
+      // applyEnvironment runs after scene updates and resets only the light position.
+      sun.position.copy(keyDirection);
+      prepareSunForRender(sun,world,keyDirection);
+      if(world!=='space')continue;
+      const label=`${visits.join(' -> ') || 'fresh'} -> space`;
+      const position=sun.getWorldPosition(new THREE.Vector3());
+      const target=sun.target.getWorldPosition(new THREE.Vector3());
+      assert.deepEqual(position.toArray(),keyDirection.toArray(),`${label}: light position`);
+      assert.deepEqual(target.toArray(),[0,0,0],`${label}: target position`);
+      assert.deepEqual(position.sub(target).normalize().toArray(),expectedDirection,`${label}: light direction`);
+    }
+  }
 });

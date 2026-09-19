@@ -87,6 +87,7 @@ export function applyParticlePoints(points, canvas, kind) {
   for (let i = 0; i < values.length; i++) values[i] = ((i * 1664525 + 1013904223) >>> 0) / 4294967296;
   points.geometry.setAttribute('particleSeed', new THREE.BufferAttribute(values, 1));
   const uniforms = particleAtlasUniforms(canvas), material = points.material;
+  Object.defineProperty(material, 'nodeParticle', {value:{kind,uniforms},configurable:true});
   material.depthWrite = false;
   const previous = material.onBeforeCompile, cacheKey = material.customProgramCacheKey();
   const fallback = kind === 'stars' ? '1.-smoothstep(.05,.5,length(gl_PointCoord-.5))' : '1.-smoothstep(.1,1.,length(gl_PointCoord-.5)*2.)';

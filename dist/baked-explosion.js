@@ -1,4 +1,5 @@
 import * as THREE from 'three';
+import { createShaderMaterial } from './shader-program.js';
 import { markEffect } from './render-kit.js';
 
 // 32 Blender volume renders, packed left-to-right in eight columns.
@@ -8,7 +9,7 @@ export function createBakedExplosion({ canvas, cloud, core }) {
   // ULTRA-capable displays receive the 512-pixel bake; the 256-pixel atlas remains the default.
   const cell = canvas.dataset.qualityCeiling === 'ultra' ? 512 : 256;
   const uniforms = { atlas: { value: null }, frame: { value: 0 }, opacity: { value: 1 }, cell: { value: cell } };
-  const material = new THREE.ShaderMaterial({
+  const material = createShaderMaterial({
     uniforms, transparent: true, depthWrite: false,
     vertexShader: `varying vec2 puffUv;
     void main(){

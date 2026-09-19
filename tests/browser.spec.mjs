@@ -34,8 +34,8 @@ async function observe(page) {
   });
   return errors;
 }
-async function load(page) {
-  await page.goto('/', { waitUntil: 'domcontentloaded' });
+async function load(page, url = '/') {
+  await page.goto(url, { waitUntil: 'domcontentloaded' });
   await expect(page.locator('#world')).toHaveAttribute('data-draw-calls', /^[1-9]\d*$/);
   await expect(page.locator('#loading')).toBeHidden();
   await expect(page.locator('#world')).toHaveAttribute('data-particle-atlas', /ready|fallback/);
@@ -242,21 +242,31 @@ test('module download failure reports a bounded startup category and disables pl
   await expectFailure(page, 'module-load');
 });
 
-test('unavailable WebGL is reported distinctly', async ({ page }) => {
+test('unavailable graphics devices are reported distinctly', async ({ page }) => {
   await observe(page);
   await page.addInitScript(() => {
+    Object.defineProperty(navigator, 'gpu', { configurable: true, value: undefined });
     const original = HTMLCanvasElement.prototype.getContext;
     HTMLCanvasElement.prototype.getContext = function (kind, ...args) {
       return /webgl/i.test(kind) ? null : original.call(this, kind, ...args);
     };
   });
-  await page.goto('/', { waitUntil: 'domcontentloaded' });
-  await expectFailure(page, 'webgl-init');
+  await page.goto('/?renderer=webgpu', { waitUntil: 'domcontentloaded' });
+  await expectFailure(page, 'device-init');
+});
+
+test('native renderer automatically falls back when WebGPU is unavailable', async ({ page }) => {
+  const errors = await observe(page);
+  await page.addInitScript(() => Object.defineProperty(navigator, 'gpu', { configurable: true, value: undefined }));
+  await load(page, '/?renderer=webgpu');
+  await expect(page.locator('#world')).toHaveAttribute('data-backend', 'webgl');
+  await expect(page.locator('#error')).toBeHidden();
+  expect(errors).toEqual([]);
 });
 
 test('a real WebGL context loss stops playback but keeps fullscreen exit usable', async ({ page }) => {
   await observe(page);
-  await load(page);
+  await load(page, '/?renderer=webgl');
   await page.locator('#fullscreen').click();
   await expect.poll(() => page.evaluate(() => document.fullscreenElement?.id)).toBe('player');
   await page.locator('#world').evaluate(canvas => {

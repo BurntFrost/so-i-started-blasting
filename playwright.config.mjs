@@ -18,6 +18,12 @@ export default defineConfig({
     trace: 'retain-on-failure',
   },
   projects: [
+    ...['webgl','webgpu'].map(backend=>({
+      name:`node-${backend}`,metadata:{backend},testMatch:'node-browser.spec.mjs',
+      use:{browserName:'chromium',hasTouch:false,viewport:{width:1280,height:800},
+        launchOptions:{...(process.env.PLAYWRIGHT_CHANNEL?{channel:process.env.PLAYWRIGHT_CHANNEL}:{}),
+          args:['--enable-webgl','--ignore-gpu-blocklist',...(process.env.CI?['--use-angle=swiftshader','--enable-unsafe-swiftshader']:[])]}}
+    })),
     {
       name: 'chromium',
       testMatch: 'browser.spec.mjs',
