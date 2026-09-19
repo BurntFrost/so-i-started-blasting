@@ -13,6 +13,7 @@ import { defaultGrade, sceneConfigs } from './scene-config.js';
 import { createAdaptiveQuality } from './adaptive-quality.js';
 import { LightShaftsPass, emitterEnvelope, projectEmitter, emitterScreenFade } from './light-shafts.js';
 import { installSoftSunShadows } from './soft-shadows.js';
+import { applyParticleAtlas, applyParticlePoints } from './particle-atlas.js';
 
 export const qualityTiers=[{name:'LITE',ao:false,shafts:false,aoScale:1,dpr:1,particles:.3,spray:.3,shadows:false,bloom:false,film:false,shadowMap:2048},{name:'BALANCED',ao:false,shafts:false,aoScale:1,dpr:1.25,particles:.6,spray:.6,shadows:false,bloom:true,film:true,shadowMap:2048},{name:'HIGH',ao:true,shafts:true,aoScale:1,dpr:1.7,particles:1,spray:.45,shadows:true,bloom:true,film:true,shadowMap:2048},{name:'ULTRA',ao:true,shafts:true,aoScale:.7,dpr:2,particles:1,spray:.45,shadows:true,bloom:true,film:true,shadowMap:4096}];
 
@@ -172,16 +173,14 @@ export function createCinema(world) {
       void main(){vec2 p=gl_PointCoord-.5;float r=length(p)*2.;if(r>1.)discard;float a=(1.-smoothstep(.15,1.,r))*opacity;
       ${kind===1?'a*=smoothstep(.15,.65,fbm(vec3(p*5.,variation*10.)));':''}
       gl_FragColor=vec4(tint,a);}`});
+    applyParticleAtlas(mat,{canvas,kind:['sparks','smoke','spray'][kind]});
     const points=new THREE.Points(geometry,mat);points.frustumCulled=false;scene.add(points);return points;
   }
   const sparks=particles(8500,0,1.5,'#ffad44');sparks.material.uniforms.tint.value.multiplyScalar(2);
   const smoke=particles(340,1,65,'#4b4948');
   const spray=particles(4800,2,1.5,'#d7f4ff');
   snow.material.size=.75;
-  // Soft circular snowflakes instead of square point sprites.
-  snow.material.onBeforeCompile=shader=>{shader.fragmentShader=shader.fragmentShader.replace('#include <color_fragment>','#include <color_fragment>\nfloat r=length(gl_PointCoord-0.5)*2.;diffuseColor.a*=1.-smoothstep(.1,1.,r);');};
-  snow.material.needsUpdate=true;
-  foam.material.onBeforeCompile=snow.material.onBeforeCompile;foam.material.needsUpdate=true;
+  applyParticlePoints(snow,canvas,'snow');applyParticlePoints(foam,canvas,'foam');applyParticlePoints(windows,canvas,'windows');
   for(const object of [snow,foam,debris])object.frustumCulled=false;
 
   const waterTime={value:0};
@@ -281,6 +280,7 @@ export function createCinema(world) {
     for(const p of [sparks,smoke,spray]){p.geometry.setDrawRange(0,Math.floor(p.geometry.attributes.position.count*(p===spray?tier.spray:tier.particles)));p.material.uniforms.pixelRatio.value=renderer.getPixelRatio();}
     snow.geometry.setDrawRange(0,Math.floor(snow.geometry.attributes.position.count*tier.particles));debris.count=Math.floor(300*tier.particles);
     canvas.dataset.quality=tier.name.toLowerCase();canvas.dataset.pixelRatio=String(renderer.getPixelRatio());canvas.dataset.resolutionScale=String(resolutionScale);
+    canvas.dataset.softParticles=tier.ao?'depth-fade':'atlas';
     telemetry.setQuality(canvas.dataset.quality,reason);
     if(badge)badge.textContent=`AUTO / ${tier.name}`;
     resize();

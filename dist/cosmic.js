@@ -1,4 +1,5 @@
 import * as THREE from 'three';
+import { applyParticleAtlas, applyParticlePoints } from './particle-atlas.js';
 import { marchedVolume, setInside, volumeUniforms as sharedVolumeUniforms, markEffects, markEffect } from './render-kit.js';
 
 const TAU = Math.PI * 2;
@@ -124,6 +125,7 @@ export function createCosmic({ scene, canvas, camera }) {
       fragmentShader: `uniform vec3 tint;varying float opacity;varying float warmth;void main(){float r=length(gl_PointCoord-.5)*2.;if(r>1.)discard;gl_FragColor=vec4(mix(tint,tint*vec3(1.2,.55,.25),warmth),pow(1.-r,2.)*opacity);${output}}`,
       transparent: true, depthWrite: false, blending: THREE.AdditiveBlending
     });
+    applyParticleAtlas(material, { canvas, kind, motion: motion[kind], color: 'mix(tint,tint*vec3(1.2,.55,.25),warmth)', output });
     const cloud = new THREE.Points(geometry, material); cloud.frustumCulled = false; group.add(cloud); cloud.userData.particleCount = count; return cloud;
   }
 
@@ -141,9 +143,7 @@ export function createCosmic({ scene, canvas, camera }) {
   starsGeometry.setAttribute('position', new THREE.Float32BufferAttribute(starPositions, 3));
   starsGeometry.setAttribute('color', new THREE.Float32BufferAttribute(starColors, 3));
   const stars = new THREE.Points(starsGeometry, new THREE.PointsMaterial({ vertexColors: true, size: 1.15, transparent: true, opacity: .86, sizeAttenuation: true, depthWrite: false, fog: false }));
-  stars.material.onBeforeCompile = shader => {
-    shader.fragmentShader = shader.fragmentShader.replace('#include <color_fragment>', '#include <color_fragment>\ndiffuseColor.a*=1.-smoothstep(.05,.5,length(gl_PointCoord-.5));');
-  };
+  applyParticlePoints(stars, canvas, 'stars');
   stars.visible = false; markEffect(stars); scene.add(stars);
 
     return stars;
