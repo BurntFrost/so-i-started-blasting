@@ -31,12 +31,15 @@ test('the first-scene module chain and its models are preloaded with matching UR
     assert.ok(modulepreloads.includes(expected), `expected modulepreload ${expected}, got ${modulepreloads}`);
   }
   assert.ok(modulepreloads.includes('/vendor/three/build/three.module.js'));
-  // Models load only after the first procedural frame, so they prefetch at low priority
-  // instead of competing with the engine download before that frame.
-  const fetches = links(html).filter(link => link.rel === 'prefetch' && link.as === 'fetch');
+  // Models load only after the first procedural frame, so they preload at low priority
+  // instead of competing with the engine download before that frame. rel=prefetch is the
+  // wrong hint twice over: it announces a future navigation rather than this one, and a
+  // CDN speculation gate refuses any Sec-Purpose: prefetch it has not cached, with a 503.
+  const fetches = links(html).filter(link => link.rel === 'preload' && link.as === 'fetch');
   for (const model of ['/assets/city-kit.glb', '/assets/mothership.glb']) {
     const hint = fetches.find(link => link.href === model);
-    assert.ok(hint, `expected fetch prefetch for ${model}`);
+    assert.ok(hint, `expected fetch preload for ${model}`);
+    assert.equal(hint.fetchpriority, 'low', `${model} must not outrank the engine download`);
     // Three's FileLoader fetches in CORS mode; an uncredentialed hint would be discarded.
     assert.equal(hint.crossorigin, true);
     await access(path.join(dist, model.slice(1)));
@@ -50,9 +53,8 @@ test('preload hints are fingerprinted and resolve inside the built output', asyn
   t.after(() => rm(path.dirname(outDir), { recursive: true, force: true }));
   const manifest = await build({ outDir });
   const html = await readFile(path.join(outDir, 'index.html'), 'utf8');
-  const hints = links(html).filter(link => ['modulepreload', 'prefetch'].includes(link.rel));
-  assert.ok(hints.length >= 5);
-  assert.ok(!hints.some(link => link.href.includes('/vendor/')), 'bundled engine is discovered through app modules');
+  const hints = links(html).filter(link => ['modulepreload', 'preload'].includes(link.rel));
+  assert.ok(hints.length >= 6);
   for (const { href } of hints) {
     const [pathname, suffix = ''] = href.split(/(?=\?)/);
     assert.match(pathname, /^\/immutable\//, `${href} should be fingerprinted`);
