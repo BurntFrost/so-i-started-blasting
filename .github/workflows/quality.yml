@@ -25,14 +25,34 @@ jobs:
         run: npm test && npm run test:certificates && npm run assets:verify
       - name: Build production site
         run: npm run build
-      - name: Install Chromium headless shell
-        run: npx playwright install --with-deps --only-shell chromium
-      - name: Browser regressions
-        run: npx playwright test --project=chromium --max-failures=1
+  chromium:
+    name: chromium-${{ matrix.shard }}
+    concurrency:
+      group: chromium-${{ matrix.shard }}-${{ github.workflow }}-${{ github.ref }}
+      cancel-in-progress: true
+    strategy:
+      fail-fast: false
+      matrix:
+        shard: [1, 2, 3, 4]
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version-file: .node-version
+          cache: npm
+      - run: npm ci
+      - run: npm run build
+      - run: npx playwright install --with-deps --only-shell chromium
+      # Sharded because the suite shares one browser process (workers: 1), and swiftshader
+      # does not return a destroyed context's host allocations. The ULTRA 4K test runs last
+      # and used to inherit the whole file's arenas, which killed the renderer mid-screenshot.
+      - run: npx playwright test --project=chromium --fully-parallel --workers=1 --shard=${{ matrix.shard }}/4 --max-failures=1
       - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         if: failure()
         with:
-          name: browser-failure-evidence
+          name: chromium-${{ matrix.shard }}-failure-evidence
           path: |
             playwright-report/
             test-results/
@@ -69,15 +89,16 @@ jobs:
   quality:
     name: quality
     if: always()
-    needs: [quality-core, native-webgl]
+    needs: [quality-core, chromium, native-webgl]
     runs-on: ubuntu-24.04
     timeout-minutes: 1
     steps:
-      - name: Require core and all native fallback checks
+      - name: Require core, all chromium and all native fallback checks
         env:
           CORE_RESULT: ${{ needs.quality-core.result }}
+          CHROMIUM_RESULT: ${{ needs.chromium.result }}
           NATIVE_RESULT: ${{ needs.native-webgl.result }}
-        run: test "$CORE_RESULT" = success && test "$NATIVE_RESULT" = success
+        run: test "$CORE_RESULT" = success && test "$CHROMIUM_RESULT" = success && test "$NATIVE_RESULT" = success
   webkit:
     name: webkit
     runs-on: ubuntu-24.04
