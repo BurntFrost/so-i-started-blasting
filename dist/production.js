@@ -6,6 +6,7 @@ import { HDRLoader } from 'three/addons/loaders/HDRLoader.js';
 import { MeshoptDecoder } from 'three/addons/libs/meshopt_decoder.module.js';
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
 import { disposeAsset, loadOptionalAssets } from './asset-loading.js';
+import { shouldUpgradeSky } from './sky-loading.js';
 
 const clamp = n => Math.max(0, Math.min(1, n));
 const smooth = n => { n=clamp(n); return n*n*(3-2*n); };
@@ -13,39 +14,20 @@ const noise = `float hash(vec3 p){return fract(sin(dot(p,vec3(127.1,311.7,74.7))
 float noise(vec3 p){vec3 i=floor(p),f=fract(p);f=f*f*(3.-2.*f);return mix(mix(mix(hash(i),hash(i+vec3(1,0,0)),f.x),mix(hash(i+vec3(0,1,0)),hash(i+vec3(1,1,0)),f.x),f.y),mix(mix(hash(i+vec3(0,0,1)),hash(i+vec3(1,0,1)),f.x),mix(hash(i+vec3(0,1,1)),hash(i+vec3(1,1,1)),f.x),f.y),f.z);}
 float fbm(vec3 p){return noise(p)*.53+noise(p*2.03)*.27+noise(p*4.07)*.13+noise(p*8.11)*.07;}`;
 
-export async function createProduction(world) {
+export function createProduction(world) {
   const {renderer,scene,camera,canvas,city,buildings,ground,ship,core,tower,blast,
     wave,foam,landscape,beam,meteor,tail} = world;
   const waveBase=wave.geometry.attributes.position.array.slice();
   const loader=new GLTFLoader().setMeshoptDecoder(MeshoptDecoder);
   const textureLoader=new THREE.TextureLoader();
-  const assetStatus = {};
-  const assets = [
-    ['city-model', () => loader.loadAsync('/assets/city-kit.glb')],
-    ['ship-model', () => loader.loadAsync('/assets/mothership.glb')],
-    // The 2K panorama is the visible sky, so it downloads only where ULTRA can show it.
-    ['sky-hdr', () => new HDRLoader().loadAsync(canvas.dataset.qualityCeiling==='ultra'?'/assets/dusk-2k.hdr':'/assets/dusk.hdr')],
-    ...[['concrete-albedo','/assets/concrete-albedo.webp'],['concrete-normal','/assets/concrete-normal.webp'],
-      ['concrete-roughness','/assets/concrete-roughness.webp'],['asphalt-albedo','/assets/asphalt-albedo.webp'],
-      ['asphalt-normal','/assets/asphalt-normal.webp'],['asphalt-roughness','/assets/asphalt-roughness.webp']]
-      .map(([stage, url]) => [stage, () => textureLoader.loadAsync(url)])
-  ];
-  const results = await loadOptionalAssets(assets.map(([, load]) => load), { signal: world.assetSignal });
-  const values = results.map((result, i) => {
-    if (result.status === 'fulfilled') { assetStatus[assets[i][0]] = 'ready'; return result.value; }
-    const stage = assets[i][0]; assetStatus[stage] = 'failed'; world.onAssetError?.(stage); return null;
-  });
-  let [kit, craft, hdr, ...maps] = values;
+  const assetStatus = {}, maps = [];
+  let kit = null, authoredShip = null;
   const templateNames = ['Tower_A','Tower_B','Tower_C','Tower_D','Tower_E'];
-  if (kit && templateNames.some(name => !kit.scene.getObjectByName(name))) {
-    assetStatus['city-model'] = 'failed'; world.onAssetError?.('city-model'); disposeAsset(kit); kit = null;
-  }
   const anisotropy=Math.min(8,renderer.getMaxAnisotropy?.() ?? renderer.capabilities.getMaxAnisotropy());
-  maps.forEach((map,i)=>{if(!map)return;map.colorSpace=i%3===0?THREE.SRGBColorSpace:THREE.NoColorSpace;map.wrapS=map.wrapT=THREE.RepeatWrapping;map.anisotropy=anisotropy;});
   let environment = null, sky = null, skyMaterial = null;
-  if (hdr) {
+  function installSky(hdr) {
   const pmrem=new (world.nodeRuntime?.PMREMGenerator || THREE.PMREMGenerator)(renderer);
-  environment=pmrem.fromEquirectangular(hdr);pmrem.dispose();
+  try { environment=pmrem.fromEquirectangular(hdr); } finally { pmrem.dispose(); }
   hdr.mapping=THREE.EquirectangularReflectionMapping;
   skyMaterial=createShaderMaterial({side:THREE.BackSide,depthWrite:false,
     uniforms:{panorama:{value:hdr},tint:{value:new THREE.Color()},air:{value:new THREE.Color()},exposure:{value:1},storm:{value:0}},
@@ -62,8 +44,7 @@ export async function createProduction(world) {
   sky.onBeforeRender=()=>{sky.position.copy(camera.position);sky.updateMatrixWorld();scene.fog.color.getRGB(skyMaterial.uniforms.air.value,renderer.getRenderTarget()?THREE.LinearSRGBColorSpace:renderer.outputColorSpace);};
 
   }
-  const asphalt=new THREE.MeshStandardMaterial({color:'#77848a',map:maps[3],normalMap:maps[4],roughnessMap:maps[5],roughness:.75,metalness:.15});
-  maps.slice(3).forEach(m=>m?.repeat.set(45,45));
+  const asphalt=new THREE.MeshStandardMaterial({color:'#77848a',roughness:.75,metalness:.15});
   ground.material=asphalt;
   let seed=7459;const random=()=>{seed=(1664525*seed+1013904223)>>>0;return seed/4294967296;};
   const cityDetails=new THREE.Group();city.add(cityDetails);
@@ -87,7 +68,16 @@ export async function createProduction(world) {
   const skyline=new THREE.Group();cityDetails.add(skyline);
   const landmark=new THREE.Group();landmark.position.copy(tower.position);city.add(landmark);
   const mediumParts = [];
-  if (kit) {
+  // Reserve the skyline's random sequence now so arrival order cannot change geometry.
+  const backgroundBuildings=[];
+  for(let x=-13;x<=13;x++)for(let z=-13;z<=5;z++){
+    if(Math.abs(x)<5&&Math.abs(z)<5)continue;
+    const b=new THREE.Object3D();b.position.set(x*17+random()*5,-1,z*17+random()*5);b.scale.set(5+random()*6,8+random()*30,5+random()*6);b.updateMatrix();backgroundBuildings.push(b);
+  }
+  const trees=[];
+  function installCity(asset) {
+  if (templateNames.some(name => !asset.scene.getObjectByName(name))) throw new Error('City kit is missing a tower template');
+  kit = asset;
   kit.scene.updateMatrixWorld(true);
   for(const name of templateNames){
     const root=kit.scene.getObjectByName(name);
@@ -99,10 +89,10 @@ export async function createProduction(world) {
       for(const name of ['position','normal','tangent']){const attribute=geometry.getAttribute(name);if(!attribute)continue;const values=new Float32Array(attribute.count*attribute.itemSize);for(let i=0;i<attribute.count;i++)for(let c=0;c<attribute.itemSize;c++)values[i*attribute.itemSize+c]=attribute.getComponent(i,c);geometry.setAttribute(name,new THREE.BufferAttribute(values,attribute.itemSize));}
       geometry.applyMatrix4(part.matrixWorld);geometry.translate(-center.x,-bounds.min.y,-center.z);geometry.scale(1/size.x,1/size.y,1/size.z);
       const mat=part.material.clone();mat.envMapIntensity=1.1;
-      if(/stone|concrete|brick/i.test(mat.name)){mat.map=maps[0];mat.normalMap=maps[1];mat.roughnessMap=maps[2];mat.normalScale.set(.35,.35);}
+      if(/stone|concrete|brick/i.test(mat.name)){mat.userData.concreteMaps=true;mat.map=maps[0]||null;mat.normalMap=maps[1]||null;mat.roughnessMap=maps[2]||null;mat.normalScale.set(.35,.35);}
       // Some kit surfaces have no UVs. Preserve WebGL's implicit zero coordinate
       // explicitly so native node materials and the normal prepass agree.
-      if((mat.map||mat.normalMap||mat.roughnessMap)&&!geometry.getAttribute('uv'))geometry.setAttribute('uv',new THREE.BufferAttribute(new Float32Array(geometry.getAttribute('position').count*2),2));
+      if((mat.userData.concreteMaps||mat.map||mat.normalMap||mat.roughnessMap)&&!geometry.getAttribute('uv'))geometry.setAttribute('uv',new THREE.BufferAttribute(new Float32Array(geometry.getAttribute('position').count*2),2));
       mat.userData.baseColor=mat.color.clone();mat.userData.baseEmission=mat.emissiveIntensity;mat.userData.baseRoughness=mat.roughness;
       materials.push(mat);parts.push({geometry,material:mat});
     });templateParts.push(parts);
@@ -131,11 +121,6 @@ export async function createProduction(world) {
     const lowMesh=new THREE.InstancedMesh(buildings[0].geometry,lowMaterial,members.length);lowMesh.frustumCulled=false;lowMesh.visible=false;city.add(lowMesh);batches.push({mesh:lowMesh,members,tier:'lite'});
   }
   // A receding skyline removes the isolated tabletop silhouette.
-  const backgroundBuildings=[];
-  for(let x=-13;x<=13;x++)for(let z=-13;z<=5;z++){
-    if(Math.abs(x)<5&&Math.abs(z)<5)continue;
-    const b=new THREE.Object3D();b.position.set(x*17+random()*5,-1,z*17+random()*5);b.scale.set(5+random()*6,8+random()*30,5+random()*6);b.updateMatrix();backgroundBuildings.push(b);
-  }
   for(let variant=0;variant<5;variant++)for(const part of templateParts[variant]){
     const members=backgroundBuildings.filter((_,i)=>i%5===variant),mesh=new THREE.InstancedMesh(part.geometry,part.material,members.length);
     members.forEach((b,i)=>mesh.setMatrixAt(i,b.matrix));mesh.receiveShadow=true;mesh.computeBoundingSphere();skyline.add(mesh);skylineTiers.push({mesh,tier:'high'});
@@ -148,12 +133,16 @@ export async function createProduction(world) {
   tower.visible=false;
   templateParts[4].forEach(part=>{const mesh=new THREE.Mesh(part.geometry,part.material);mesh.scale.set(10,72,10);mesh.castShadow=true;mesh.receiveShadow=true;mesh.userData.tier='high';landmark.add(mesh);});
   const mediumLandmark=new THREE.Mesh(mediumParts[4].geometry,mediumParts[4].material);mediumLandmark.scale.set(10,72,10);mediumLandmark.userData.tier='balanced';landmark.add(mediumLandmark);
+  installTrees(kit.scene.getObjectByName('Tree_A'));
+  markEffects(cityDetails);
+  lastQuality=undefined;
   }
 
   const previousShipChildren=[...ship.children];
-  const authoredShip=craft?.scene;
-  if (authoredShip) {authoredShip.scale.setScalar(1.45);ship.add(authoredShip);
+  function installShip(craft) {
+  authoredShip=craft.scene;authoredShip.scale.setScalar(1.45);ship.add(authoredShip);
   authoredShip.traverse(part=>{if(part.isMesh){part.castShadow=true;part.receiveShadow=true;part.material.envMapIntensity=1.5;}});
+  markEffects(ship);
   core.visible=true;
   }
 
@@ -169,14 +158,15 @@ export async function createProduction(world) {
     #include <colorspace_fragment>
     }`});
   const fire=new THREE.Mesh(new THREE.SphereGeometry(1,80,48),fireMaterial);markEffect(fire);scene.add(fire);
-  const cloudRoot=kit?.scene.getObjectByName('Tree_A');
   const terrainHeight=(x,z)=>-.5+(Math.sin(x*.022)*Math.cos(z*.027)*5-Math.sin(z*.06)*1.5)*clamp((Math.hypot(x,z)-25)/80);
   // The authored tree is HIGH-tier geometry (about 5,200 triangles each); lower tiers keep the procedural crowns.
-  const trees=[];
+  const proceduralTrees=landscape.children.slice(1);
+  function installTrees(cloudRoot) {
   if(cloudRoot){
     cloudRoot.updateWorldMatrix(true,true);
     const treeBounds=new THREE.Box3().setFromObject(cloudRoot),treeHeight=treeBounds.max.y-treeBounds.min.y;
-    landscape.children.slice(1).forEach((tree,i)=>{const procedural=tree.children.filter(c=>c.visible);const clone=cloudRoot.clone(true);clone.scale.setScalar((15+i%5*1.3)/treeHeight);clone.traverse(part=>{if(part.isMesh){part.castShadow=true;part.receiveShadow=true;}});tree.position.y=terrainHeight(tree.position.x,tree.position.z);tree.add(clone);trees.push({procedural,authored:clone});});
+    proceduralTrees.forEach((tree,i)=>{const procedural=tree.children.filter(c=>c.visible);const clone=cloudRoot.clone(true);clone.scale.setScalar((15+i%5*1.3)/treeHeight);clone.traverse(part=>{if(part.isMesh){part.castShadow=true;part.receiveShadow=true;}});tree.position.y=terrainHeight(tree.position.x,tree.position.z);tree.add(clone);trees.push({procedural,authored:clone});});
+  }
   }
   const grass=new THREE.InstancedMesh(new THREE.ConeGeometry(.09,1.3,3),new THREE.MeshStandardMaterial({color:'#6b8057',roughness:1}),9000);
   for(let i=0;i<9000;i++){const x=random()*250-125,z=random()*230-100,scale=.4+random()*1.2;dummy.position.set(x,terrainHeight(x,z)+scale*.65,z);dummy.rotation.set((random()-.5)*.5,random()*6.28,(random()-.5)*.5);dummy.scale.setScalar(scale);dummy.updateMatrix();grass.setMatrixAt(i,dummy.matrix);}landscape.add(grass);
@@ -241,8 +231,49 @@ export async function createProduction(world) {
       for(let i=0;i<positions.count;i++){const x=waveBase[i*3]*1.65,v=(waveBase[i*3+1]+37.5)/75,p=waveProfile(v,height,x,t);positions.setXYZ(i,x,p.y,p.z);}positions.needsUpdate=true;wave.geometry.computeVertexNormals();
       const p=foam.geometry.attributes.position;for(let i=0;i<p.count;i++){const x=((i%130)/130*220-110)*1.65,c=waveProfile(1,height,x,t);p.setXYZ(i,x,c.y+Math.sin(i*21+t)*2-(i%5)*.6,wave.position.z+c.z+Math.cos(i*3+t)*3);}p.needsUpdate=true;
     }
-    canvas.dataset.authoredAssets=Object.values(assetStatus).includes('failed')?'degraded':'ready';
   }
   markEffects(cityDetails); markEffects(ship);
-  return {update,environment:environment?.texture || null,assetStatus};
+  function installMap(map, index) {
+    maps[index]=map;map.colorSpace=index%3===0?THREE.SRGBColorSpace:THREE.NoColorSpace;
+    map.wrapS=map.wrapT=THREE.RepeatWrapping;map.anisotropy=anisotropy;
+    if(index>=3)map.repeat.set(45,45);
+    const property=['map','normalMap','roughnessMap'][index%3];
+    for(const material of index>=3?[asphalt]:materials.filter(m=>m.userData.concreteMaps)){
+      material[property]=map;material.needsUpdate=true;
+    }
+  }
+  async function loadAsset(stage, load, install) {
+    assetStatus[stage]='loading';
+    const [result]=await loadOptionalAssets([load],{signal:world.assetSignal});
+    if(world.assetSignal?.aborted){if(result.status==='fulfilled')disposeAsset(result.value);return;}
+    if(result.status==='fulfilled'){
+      try { install(result.value);assetStatus[stage]='ready'; }
+      catch { disposeAsset(result.value);assetStatus[stage]='failed'; }
+    } else assetStatus[stage]='failed';
+    if(assetStatus[stage]==='failed'&&stage!=='sky-upgrade')world.onAssetError?.(stage);
+    const attribute={'city-model':'cityAsset','ship-model':'shipAsset','sky-hdr':'skyAsset'}[stage];
+    if(attribute)canvas.dataset[attribute]=assetStatus[stage];
+    world.onAssetReady?.(stage);
+  }
+  const ready=Promise.all([
+    loadAsset('city-model',()=>loader.loadAsync('/assets/city-kit.glb'),installCity),
+    loadAsset('ship-model',()=>loader.loadAsync('/assets/mothership.glb'),installShip),
+    loadAsset('sky-hdr',()=>new HDRLoader().loadAsync('/assets/dusk.hdr'),installSky),
+    ...['/assets/concrete-albedo.webp','/assets/concrete-normal.webp','/assets/concrete-roughness.webp',
+      '/assets/asphalt-albedo.webp','/assets/asphalt-normal.webp','/assets/asphalt-roughness.webp']
+      .map((url,i)=>loadAsset(['concrete-albedo','concrete-normal','concrete-roughness','asphalt-albedo','asphalt-normal','asphalt-roughness'][i],()=>textureLoader.loadAsync(url),map=>installMap(map,i)))
+  ]);
+  // Reflections keep the smaller HDR; only the visible panorama needs the extra detail.
+  const skyReady=ready.then(async()=>{
+    if(!skyMaterial||world.assetSignal?.aborted||!shouldUpgradeSky({quality:canvas.dataset.quality,ceiling:canvas.dataset.qualityCeiling,connection:navigator.connection}))return;
+    canvas.dataset.skyUpgrade='loading';
+    await loadAsset('sky-upgrade',()=>new HDRLoader().loadAsync('/assets/dusk-2k.hdr'),hdr=>{
+      const previous=skyMaterial.uniforms.panorama.value;
+      skyMaterial.uniforms.panorama.value=hdr;previous.dispose();
+    });
+    canvas.dataset.skyUpgrade=assetStatus['sky-upgrade']==='ready'?'ready':'fallback';
+  });
+  // Upgrade failure never prevents a usable base scene or becomes an unhandled rejection.
+  skyReady.catch(()=>{});
+  return {update,ready,skyReady,get environment(){return environment?.texture || null;},assetStatus};
 }

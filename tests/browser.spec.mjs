@@ -278,6 +278,26 @@ test('missing audio and atmosphere textures retain working graphics and controls
   expect(errors).toEqual([]);
 });
 
+test('models become usable while the base sky is still downloading', async ({ page }) => {
+  const errors = await observe(page);
+  let releaseSky;
+  const pendingSky = new Promise(resolve => { releaseSky = resolve; });
+  await page.route(/\/dusk\.[a-f0-9]+\.hdr$/, async route => { await pendingSky; await route.continue(); });
+  try {
+    await load(page);
+    const canvas = page.locator('#world');
+    await expect(canvas).toHaveAttribute('data-city-asset', 'ready');
+    await expect(canvas).toHaveAttribute('data-ship-asset', 'ready');
+    await expect(canvas).toHaveAttribute('data-authored-assets', 'loading');
+    await expect(canvas).not.toHaveAttribute('data-sky-asset', 'ready');
+    releaseSky();
+    await expect(canvas).toHaveAttribute('data-authored-assets', 'ready');
+    await expect(canvas).toHaveAttribute('data-sky-asset', 'ready');
+    await seek(page, 18);
+    expect(errors).toEqual([]);
+  } finally { releaseSky(); }
+});
+
 test('one optional authored asset failure retains usable procedural scenes', async ({ page }) => {
   const errors = await observe(page);
   await page.route('**/*city-kit*.glb', route => route.abort());
@@ -355,6 +375,33 @@ const SOFTWARE_RENDER_REACTION = process.env.CI ? 120000 : 20000;
 
 test.describe('desktop ULTRA rendering', () => {
   test.use(QUALITY.ultra);
+  test('Save-Data keeps the smaller sky even on an ULTRA display', async ({ page }) => {
+    const errors = await observe(page), skies = [];
+    await page.addInitScript(() => Object.defineProperty(navigator, 'connection', { value: { saveData: true, effectiveType: '4g' } }));
+    page.on('request', request => { if (/dusk.*\.hdr/.test(request.url())) skies.push(request.url()); });
+    await load(page);
+    const canvas = page.locator('#world');
+    await expect(canvas).toHaveAttribute('data-authored-assets', 'ready');
+    await expect(canvas).toHaveAttribute('data-quality-ceiling', 'ultra');
+    await seek(page, 18);
+    expect(skies).toHaveLength(1);
+    expect(skies[0]).not.toContain('dusk-2k');
+    expect(errors).toEqual([]);
+  });
+
+  test('a failed sharper sky retains the base sky and a ready scene', async ({ page }) => {
+    const errors = await observe(page);
+    await page.route('**/*dusk-2k*.hdr', route => route.abort());
+    await load(page);
+    const canvas = page.locator('#world');
+    await expect(canvas).toHaveAttribute('data-sky-upgrade', 'fallback');
+    await expect(canvas).toHaveAttribute('data-sky-asset', 'ready');
+    await expect(canvas).toHaveAttribute('data-authored-assets', 'ready');
+    await seek(page, 18);
+    await expect(page.locator('#error')).toBeHidden();
+    expect(errors).toEqual([]);
+  });
+
   test('dense desktop displays render native pixels with the 4K assets and stay reversible', async ({ page }) => {
     const errors = await observe(page);
     const assets = [];
@@ -367,6 +414,7 @@ test.describe('desktop ULTRA rendering', () => {
     await expect(canvas).toHaveAttribute('data-antialias', 'fxaa');
     await expect(canvas).toHaveAttribute('data-ambient-occlusion', 'gtao');
     await expect(canvas).toHaveAttribute('data-authored-assets', 'ready');
+    await expect(canvas).toHaveAttribute('data-sky-upgrade', 'ready');
     await seek(page, 18);
     expect(Number(await canvas.getAttribute('data-triangles')), 'ULTRA keeps the detailed HIGH city').toBeGreaterThan(150000);
     expect(await canvas.evaluate(element => element.width === Math.floor(element.clientWidth * 2) && element.height === Math.floor(element.clientHeight * 2))).toBe(true);

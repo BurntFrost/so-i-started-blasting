@@ -17,7 +17,7 @@ async function fixture(t) {
   await writeFile(path.join(sourceDir, 'style.css'), '.city { background: url(/assets/sky.webp) }');
   await writeFile(path.join(sourceDir, 'assets/city.glb'), 'model version one');
   await writeFile(path.join(sourceDir, 'assets/sky.webp'), 'sky texture');
-  return { sourceDir, outDir };
+  return { sourceDir, outDir, optimize: false };
 }
 
 test('clean builds are deterministic and all rewritten output URLs resolve', async t => {
