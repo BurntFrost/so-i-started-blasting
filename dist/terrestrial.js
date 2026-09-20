@@ -7,16 +7,6 @@ import { marchedVolume, setInside, volumeFrame, volumeUniforms as sharedVolumeUn
 const clamp = value => Math.max(0, Math.min(1, value));
 const ease = value => { const t = clamp(value); return t * t * (3 - 2 * t); };
 const tau = Math.PI * 2;
-// A light that leaves the visible set changes the scene's light signature, and the node
-// renderer regenerates every material's shader when it does, freezing playback for a third
-// of a second. Hero lights therefore hang off the always-visible scene group and mirror
-// their host's world pose, staying dark through intensity while the host is hidden.
-const hostedPoint = new THREE.Vector3();
-function hostLight(light, host, x, y, z) {
-  host.updateWorldMatrix(true, false);
-  hostedPoint.set(x, y, z).applyMatrix4(host.matrixWorld);
-  light.position.copy(light.parent.worldToLocal(hostedPoint));
-}
 const noise = `
 float hash(vec3 p){return fract(sin(dot(p,vec3(127.1,311.7,74.7)))*43758.5453);}
 float noise(vec3 p){vec3 i=floor(p),f=fract(p);f=f*f*(3.-2.*f);
@@ -376,7 +366,7 @@ export function createTerrestrial({ scene, canvas, camera, buildings = [], lands
     const ray = new THREE.Mesh(cylinder, glow(new THREE.Color(.45, 1.25, 3.6), .6)); walker.add(ray);
     const rayHalo = new THREE.Mesh(cylinder, glow('#899dff', .1)); walker.add(rayHalo);
     const scorch = new THREE.Mesh(new THREE.CircleGeometry(3, 24), glow('#bbd5ff', .8)); scorch.rotation.x = -Math.PI / 2; walker.add(scorch);
-    const rayLight = new THREE.PointLight('#9ebdff', 0, 55, 1.6); invasion.add(rayLight);
+    const rayLight = new THREE.PointLight('#9ebdff', 0, 55, 1.6); walker.add(rayLight);
     const positions = Array.from({ length: 12 }, () => new THREE.Vector3());
     walkers.push({ walker, head, limbs, joints, cables, plating, ray, rayHalo, scorch, rayLight, positions, x, z, scale, index });
   });
@@ -390,7 +380,7 @@ export function createTerrestrial({ scene, canvas, camera, buildings = [], lands
     const waking = ease(t / 5), assault = ease((t - 7) / 4);
     walkers.forEach(w => {
       w.walker.visible = detail > 0 || w.index < 2;
-      if (!w.walker.visible) { w.rayLight.intensity = 0; return; }
+      if (!w.walker.visible) return;
       const stride = t * .55 + w.index * 2;
       w.walker.position.set(w.x + Math.sin(stride * .3) * 5, 0, w.z + t * .42);
       w.walker.rotation.y = -.22 + Math.sin(t * .12 + w.index) * .2;
@@ -437,7 +427,7 @@ export function createTerrestrial({ scene, canvas, camera, buildings = [], lands
         beam.visible = beamPower > .02; beam.material.opacity = beamPower * (beam === w.ray ? .7 : .13);
       }
       w.scorch.position.copy(target); w.scorch.scale.setScalar(1 + beamPower * .7); w.scorch.material.opacity = beamPower * .8;
-      hostLight(w.rayLight, w.walker, target.x, target.y + 2, target.z); w.rayLight.intensity = detail === 0 ? 0 : beamPower * 130;
+      w.rayLight.position.copy(target).y += 2; w.rayLight.intensity = detail === 0 ? 0 : beamPower * 130;
     });
     weed.count = detail === 0 ? 120 : detail === 1 ? 220 : 360;
     for (let i = 0; i < weed.count; i++) {
@@ -936,7 +926,7 @@ export function createTerrestrial({ scene, canvas, camera, buildings = [], lands
   const visor = new THREE.Mesh(box, glow(new THREE.Color(1.2, 3, 2.6), 0)); visor.scale.set(2.4, .35, .6); visor.position.set(0, 26.2, 1.4); gort.add(visor);
   const beam = new THREE.Mesh(cylinder, glow(new THREE.Color(.8, 2.6, 2.2), 0)); beam.visible = false; gort.add(beam);
   const scorch = new THREE.Mesh(new THREE.CircleGeometry(2.2, 20), glow('#bafff0', 0)); scorch.rotation.x = -Math.PI / 2; scorch.visible = false; gort.add(scorch);
-  const beamLight = new THREE.PointLight('#a5fff0', 0, 90, 1.6); visitation.add(beamLight);
+  const beamLight = new THREE.PointLight('#a5fff0', 0, 90, 1.6); gort.add(beamLight);
   for (const mesh of [limbs, joints, plates]) mesh.castShadow = true;
   const hip = [new THREE.Vector3(), new THREE.Vector3()], knee = [new THREE.Vector3(), new THREE.Vector3()], foot = [new THREE.Vector3(), new THREE.Vector3()];
   const shoulder = [new THREE.Vector3(), new THREE.Vector3()], elbow = [new THREE.Vector3(), new THREE.Vector3()], wrist = [new THREE.Vector3(), new THREE.Vector3()];
@@ -983,18 +973,14 @@ export function createTerrestrial({ scene, canvas, camera, buildings = [], lands
     const beamPower = ease((t - 14.5) / 1) * (1 - ease((t - 19) / .8)) * (.6 + .4 * Math.abs(Math.sin(t * 3)));
     visor.material.opacity = ease((t - 13) / 1.5) * (1 - gone) * (.6 + beamPower * .4);
     beam.visible = beamPower > .02; scorch.visible = beam.visible;
-    // The visor beam sweeps the meadow in front of GORT; positions are in his local frame.
-    // Pose the light on every frame its intensity is written, not only while the beam mesh
-    // shows: it hangs off the always-visible group now, so a value left over from an earlier
-    // frame would freeze in world space instead of riding GORT.
-    segmentEnd.set(Math.sin(t * 1.3) * 40, .5, 30 + Math.cos(t * .9) * 25);
-    hostLight(beamLight, gort, segmentEnd.x, segmentEnd.y + 2, segmentEnd.z);
     if (beam.visible) {
-      segmentStart.set(0, 26.2, 1.4);
+      // The visor beam sweeps the meadow in front of GORT; positions are in his local frame.
+      segmentStart.set(0, 26.2, 1.4); segmentEnd.set(Math.sin(t * 1.3) * 40, .5, 30 + Math.cos(t * .9) * 25);
       delta.subVectors(segmentEnd, segmentStart); const length = delta.length();
       beam.position.copy(segmentStart).addScaledVector(delta, .5); beam.quaternion.setFromUnitVectors(up, delta.normalize()); beam.scale.set(.3, length, .3);
       beam.material.opacity = beamPower * .7;
       scorch.position.copy(segmentEnd); scorch.scale.setScalar(1 + beamPower); scorch.material.opacity = beamPower * .8;
+      beamLight.position.copy(segmentEnd).y += 2;
     }
     beamLight.intensity = detail === 0 ? 0 : beamPower * 160;
     // The swarm front spreads from GORT's last position; trees crumble to nothing as it passes.
@@ -1098,7 +1084,7 @@ export function createTerrestrial({ scene, canvas, camera, buildings = [], lands
   const haloMaterial = glow(new THREE.Color(1.6, 1.2, .8), 0);
   const halo = new THREE.Mesh(new THREE.TorusGeometry(1, .05, 8, 96 * fine), haloMaterial); halo.name = 'Halo';
   halo.position.set(0, 246, 0); halo.rotation.x = Math.PI / 2 - .3; halo.scale.setScalar(30); giant.add(halo);
-  const giantLight = new THREE.PointLight('#ffb890', 0, 420, 1.4); impact.add(giantLight);
+  const giantLight = new THREE.PointLight('#ffb890', 0, 420, 1.4); giantLight.position.set(0, 150, 34); giant.add(giantLight);
   const ascension = particles(impact, 'ascension', 4000, '#ffb27a', 2.2);
 
   function updateInstrumentality(t, detail) {
@@ -1152,7 +1138,6 @@ export function createTerrestrial({ scene, canvas, camera, buildings = [], lands
     const rise = ease((t - 19) / 7), embrace = ease((t - 24) / 5);
     giant.visible = t > 19;
     giant.position.set(origin.x, -262 + rise * 262, origin.z); giant.rotation.set(0, .53, Math.sin(t * .3) * .012);
-    hostLight(giantLight, giant, 0, 150, 34);
     for (const [pivot, sign] of arms) pivot.rotation.z = sign * (.14 + embrace * 1.3);
     bodyMaterial.uniforms.glow.value = 1 + embrace * .25 + Math.sin(t * 2) * .03;
     haloMaterial.opacity = ease((t - 22) / 3) * .9; halo.rotation.z = t * .1; halo.scale.setScalar(30 * (1 + embrace * .35));
