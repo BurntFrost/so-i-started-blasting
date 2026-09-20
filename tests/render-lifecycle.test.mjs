@@ -271,7 +271,7 @@ test('failed optional models and maps preserve baseline city and ship and do not
   });
 });
 
-test('stalled optional models settle after 15 seconds and keep procedural fallback usable', async t => {
+test('stalled optional models settle after 60 seconds and keep procedural fallback usable', async t => {
   t.mock.timers.enable({ apis: ['setTimeout'] });
   await withAssets(['concrete', 'asphalt'], async () => {
     GLTFLoader.prototype.loadAsync = () => new Promise(() => {});
@@ -280,7 +280,7 @@ test('stalled optional models settle after 15 seconds and keep procedural fallba
     let ready = false;
     const pending = production.ready.then(() => { ready = true; });
     await new Promise(setImmediate);
-    t.mock.timers.tick(15_000);
+    t.mock.timers.tick(60_000);
     await new Promise(setImmediate);
     assert.ok(ready, 'a stalled optional asset must not keep authored readiness pending');
     await pending;
@@ -339,6 +339,28 @@ test('material maps attach correctly whether the model or textures arrive first'
       assert.ok(mesh.material.map?.isTexture && mesh.material.normalMap?.isTexture && mesh.material.roughnessMap?.isTexture);
       assert.ok(mesh.geometry.getAttribute('uv'), 'late texture adoption still has UVs');
     }
+  });
+});
+
+test('shader work delaying the HDR beyond 15 seconds does not discard the downloaded sky', async t => {
+  t.mock.timers.enable({ apis: ['setTimeout'] });
+  await withAssets([], async () => {
+    let resolveSky;
+    HDRLoader.prototype.loadAsync = () => new Promise(resolve => { resolveSky = resolve; });
+    const world = productionWorld();
+    world.nodeRuntime = { PMREMGenerator: class {
+      fromEquirectangular() { return { texture: new THREE.Texture() }; }
+      dispose() {}
+    } };
+    const production = createProduction(world);
+    await new Promise(setImmediate);
+    t.mock.timers.tick(20_000);
+    await new Promise(setImmediate);
+    assert.equal(production.assetStatus['sky-hdr'], 'loading');
+    resolveSky(new THREE.Texture());
+    await production.ready;
+    assert.equal(production.assetStatus['sky-hdr'], 'ready');
+    assert.ok(production.environment);
   });
 });
 

@@ -244,7 +244,9 @@ export function createProduction(world) {
   }
   async function loadAsset(stage, load, install) {
     assetStatus[stage]='loading';
-    const [result]=await loadOptionalAssets([load],{signal:world.assetSignal});
+    // Progressive model adoption can compile shaders before queued HDR callbacks
+    // run on a software GPU. The procedural scene is already usable meanwhile.
+    const [result]=await loadOptionalAssets([load],{timeoutMs:60_000,signal:world.assetSignal});
     if(world.assetSignal?.aborted){if(result.status==='fulfilled')disposeAsset(result.value);return;}
     if(result.status==='fulfilled'){
       try { install(result.value);assetStatus[stage]='ready'; }
