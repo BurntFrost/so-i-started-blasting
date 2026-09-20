@@ -11,7 +11,8 @@ test('profiling and prototype packages are fully excluded from the production bu
   const production=await build({outDir});
   assert.ok(!Object.keys(production).some(name=>/stats-gl|postprocessing-prototype|vendor\/postprocessing/.test(name)));
   const stub=await readFile(path.join(outDir,production['/development.js']),'utf8');
-  assert.match(stub,/export const development = null/);
+  assert.match(stub,/as development/);
+  assert.doesNotMatch(stub,/stats-gl|postprocessing/);
   const development=await build({outDir,development:true});
   for(const name of ['/vendor/stats-gl/dist/main.js','/vendor/postprocessing/build/index.js','/postprocessing-prototype.js'])assert.ok(development[name],name);
   for(const name of ['/development.js','/postprocessing-prototype.js','/vendor/stats-gl/dist/main.js','/vendor/postprocessing/build/index.js']){
