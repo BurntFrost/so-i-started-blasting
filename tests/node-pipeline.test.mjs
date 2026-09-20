@@ -183,7 +183,7 @@ for (const forceWebGL of [false, true]) test(`complete native graph builds on th
   const f = fixture(forceWebGL);
   try {
     f.pipeline.setQuality({name: 'ULTRA', ao: true, aoScale: .7, bloom: true, film: true});
-    f.pipeline.update(16, {...defaultGrade, ssr: true}, new Vector3(.4, .7, .9), .2);
+    f.pipeline.update(16, {...defaultGrade, ssr: true, emitter: {id: 'beam'}}, new Vector3(.4, .7, .9), .2);
     f.pipeline.render();
     const final = f.draws.at(-1).object;
     const queue = [final.material], visited = new Set(), nodes = new Set(), codes = [];
@@ -217,9 +217,9 @@ for (const forceWebGL of [false, true]) test(`complete native graph builds on th
     assert.equal(uniforms.cinema_frame.value, 384);
     assert.equal(uniforms.cinema_strength.value, .2);
     assert.ok(Math.abs(uniforms.cinema_emitter.value.y - .3) < 1e-12, 'convert the caller bottom-left shaft UV once');
-    f.pipeline.update(8, {...defaultGrade, ssr: true}, new Vector3(.4, .7, .9), .2);
+    f.pipeline.update(8, {...defaultGrade, ssr: true, emitter: {id: 'beam'}}, new Vector3(.4, .7, .9), .2);
     assert.equal(uniforms.cinema_frame.value, 192);
-    f.pipeline.update(16, {...defaultGrade, ssr: true}, new Vector3(.4, .7, .9), .2);
+    f.pipeline.update(16, {...defaultGrade, ssr: true, emitter: {id: 'beam'}}, new Vector3(.4, .7, .9), .2);
     assert.equal(uniforms.cinema_frame.value, 384);
     assert.ok(codes.length > 8, 'build intermediate materials as well as the final film pass');
     assert.match(codes[0], /mix\(\s*vec3(?:<f32>)?\(\s*dot\(/,
@@ -285,6 +285,73 @@ for (const forceWebGL of [false, true]) test(`default grade and SSR transitions 
     assert.equal(inspect().nodes.some(n => ['SSRNode','GTAONode'].includes(n.constructor.name)),false);
     f.pipeline.setQuality({name:'HIGH',ao:true,bloom:true,film:true});
     assert.equal(inspect().nodes.some(n => n.constructor.name === 'SSRNode'),true,'restoring quality honors the current scene SSR flag');
+  } finally { f.pipeline.dispose(); f.mesh.geometry.dispose(); f.mesh.material.dispose(); }
+});
+
+// Shaft strength is animation state: it crosses zero mid-playback. Rebuilding the graph
+// there cost a ~380 ms main-thread freeze per crossing and leaked a graph each time.
+for (const forceWebGL of [false, true]) test(`shaft strength crossing zero keeps the graph on ${forceWebGL ? 'WebGL' : 'WebGPU'}`, () => {
+  const f = fixture(forceWebGL);
+  const shaftGrade = {...defaultGrade, emitter: {id: 'beam'}};
+  const inspect = () => {
+    f.pipeline.render();
+    const material = f.draws.at(-1).object.material;
+    const queue = [material], visited = new Set(), nodes = new Set();
+    while (queue.length) {
+      const next = queue.shift();
+      if (!next || visited.has(next)) continue;
+      visited.add(next);
+      for (const node of build(f.renderer, next, f.camera).nodes) {
+        nodes.add(node);
+        queue.push(node._quadMesh?.material, node._material, node._ssrMaterial, node._highPassFilterMaterial, node._compositeMaterial);
+      }
+    }
+    const list = [...nodes];
+    return {material,
+      shaftTargets: list.filter(n => n.isRTTNode && n.name?.startsWith('Cinema_shaft') && n.name !== 'Cinema_shaftCombine').length,
+      strength: list.find(n => n.isUniformNode && n.name === 'cinema_strength')?.value};
+  };
+  try {
+    f.pipeline.setQuality({name: 'ULTRA', ao: true, aoScale: .7, bloom: true, film: true});
+    f.pipeline.update(16, shaftGrade, new Vector3(.4, .7, .9), 0);
+    const faded = inspect();
+    assert.equal(faded.shaftTargets, 4, 'a shaft scene keeps its chain while the emitter is faded out');
+    assert.equal(faded.strength, 0, 'a faded shaft contributes nothing through its uniform');
+    f.pipeline.update(16, shaftGrade, new Vector3(.4, .7, .9), .3);
+    const lit = inspect();
+    assert.equal(lit.material, faded.material, 'strength rising above zero must not rebuild the graph');
+    assert.equal(lit.strength, .3);
+    f.pipeline.update(16, shaftGrade, new Vector3(.4, .7, .9), 0);
+    const closed = inspect();
+    assert.equal(closed.material, faded.material, 'strength returning to zero must not rebuild the graph');
+    assert.equal(closed.strength, 0);
+    f.pipeline.update(16, {...defaultGrade}, new Vector3(.4, .7, .9), 0);
+    assert.equal(inspect().shaftTargets, 0, 'scenes without a hero emitter omit the shaft chain');
+  } finally { f.pipeline.dispose(); f.mesh.geometry.dispose(); f.mesh.material.dispose(); }
+});
+
+// buildGraph cannot emit a shaft chain without tier.ao, so the tiers that can never show one
+// must not regenerate the graph when a scene switch crosses the hero-emitter boundary, and a
+// tier change that does gain the chain must cost exactly one rebuild, not two.
+for (const forceWebGL of [false, true]) test(`tiers without ambient occlusion ignore the emitter boundary on ${forceWebGL ? 'WebGL' : 'WebGPU'}`, () => {
+  const f = fixture(forceWebGL);
+  const shown = () => { f.pipeline.render(); return f.draws.at(-1).object.material; };
+  const uv = new Vector3(.4, .7, .9);
+  try {
+    f.pipeline.setQuality({name: 'BALANCED', ao: false, bloom: true, film: true});
+    f.pipeline.update(16, {...defaultGrade}, uv, 0);
+    const plain = shown();
+    f.pipeline.update(16, {...defaultGrade, emitter: {id: 'beam'}}, uv, .3);
+    assert.equal(shown(), plain, 'a tier that cannot render shafts must not rebuild for an emitter');
+    f.pipeline.update(16, {...defaultGrade}, uv, 0);
+    assert.equal(shown(), plain, 'nor when the next scene drops the emitter again');
+    // Gaining ambient occlusion on an emitter scene rebuilds once, then settles.
+    f.pipeline.update(16, {...defaultGrade, emitter: {id: 'beam'}}, uv, .3);
+    f.pipeline.setQuality({name: 'ULTRA', ao: true, aoScale: .7, bloom: true, film: true});
+    const lit = shown();
+    assert.notEqual(lit, plain, 'unlocking ambient occlusion builds the shaft chain');
+    f.pipeline.update(16, {...defaultGrade, emitter: {id: 'beam'}}, uv, .3);
+    assert.equal(shown(), lit, 'the frame after a tier change must not rebuild a second time');
   } finally { f.pipeline.dispose(); f.mesh.geometry.dispose(); f.mesh.material.dispose(); }
 });
 
@@ -410,9 +477,9 @@ test('native and forceWebGL pipeline pixels, flags, resize and disposal', { skip
           const quality = ao => pipeline.setQuality({name:'HIGH',ao,aoScale:1,bloom:true,film:true});
           const projected = lamp.position.clone().project(camera);
           const emitter = new T.Vector2(projected.x*.5+.5,projected.y*.5+.5);
-          const frame = async (time,{ao=true,ssr=false,shaft=0,grain=0} = {}) => {
+          const frame = async (time,{ao=true,ssr=false,shaft=0,grain=0,hero=true} = {}) => {
             quality(ao); draws.length=0;
-            pipeline.update(time,{ssr,grain},emitter,shaft); pipeline.render();
+            pipeline.update(time,{ssr,grain,emitter:hero?{id:'lamp'}:null},emitter,shaft); pipeline.render();
             const bytes = await renderer.readRenderTargetPixelsAsync(output,0,0,output.width,output.height);
             if (renderer.backend.gl) check(renderer.backend.gl.getError() === 0, 'no WebGL draw feedback/error');
             // WebGPU readback retains 256-byte row alignment, except the last row.
@@ -429,6 +496,13 @@ test('native and forceWebGL pipeline pixels, flags, resize and disposal', { skip
           check(depth.opaqueDepthAvailable.value===0,'disabled AO invalidates depth');
           const shaft = await frame(16,{shaft:1}); check(diff(base,shaft)>20,'shaft flag changes pixels');
           check(draws.filter(d=>d.name?.startsWith('Cinema_shaft')&&d.name!=='Cinema_shaftCombine [RTT]').some(d=>d.width===80&&d.height===60),'quarter resolution shafts');
+          // Six catalogue scenes render ao=true with no hero emitter, so that graph variant
+          // needs its own compile: without a shaft chain the GTAO/SSR output feeds bloom directly.
+          const heroless = await frame(16,{hero:false});
+          check(!draws.some(d=>d.name?.startsWith('Cinema_shaft')),'no hero emitter omits the shaft chain');
+          check(diff(base,heroless)<=20,'omitting an unlit shaft chain preserves the image');
+          await frame(16,{hero:false,ssr:true});
+          check(!draws.some(d=>d.name?.startsWith('Cinema_shaft')),'heroless SSR also omits the chain');
           const reflected = await frame(16,{ssr:true}); check(diff(base,reflected)>20,'SSR flag changes receiver pixels');
           const forward = await frame(16,{ssr:true,shaft:.5,grain:.025});
           const backward = await frame(8,{ssr:true,shaft:.5,grain:.025});

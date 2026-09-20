@@ -25,14 +25,68 @@ jobs:
         run: npm test && npm run test:certificates && npm run assets:verify
       - name: Build production site
         run: npm run build
-      - name: Install Chromium headless shell
-        run: npx playwright install --with-deps --only-shell chromium
-      - name: Browser regressions
-        run: npx playwright test --project=chromium --max-failures=1
+  chromium:
+    name: chromium-${{ matrix.shard }}
+    concurrency:
+      group: chromium-${{ matrix.shard }}-${{ github.workflow }}-${{ github.ref }}
+      cancel-in-progress: true
+    strategy:
+      fail-fast: false
+      matrix:
+        shard: [1, 2, 3]
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version-file: .node-version
+          cache: npm
+      - run: npm ci
+      - run: npm run build
+      - run: npx playwright install --with-deps --only-shell chromium
+      # The suite shares one browser process (workers: 1, fullyParallel: false). Sharding it
+      # observably stopped the renderer dying mid-screenshot and made the long-flaky
+      # 'sustained slow frame intervals' spec pass; the precise mechanism was never pinned
+      # down, so treat that as measured behaviour rather than an explanation.
+      # --fully-parallel is load-bearing: it moves sharding from file to test granularity,
+      # and without it this single-file project puts every spec in shard 1 and leaves the
+      # rest as no-ops that pass trivially. The ULTRA 4K spec runs in chromium-ultra.
+      - run: npx playwright test --project=chromium --grep-invert "desktop ULTRA" --fully-parallel --workers=1 --shard=${{ matrix.shard }}/3 --max-failures=1
       - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         if: failure()
         with:
-          name: browser-failure-evidence
+          name: chromium-${{ matrix.shard }}-failure-evidence
+          path: |
+            playwright-report/
+            test-results/
+          retention-days: 7
+  chromium-ultra:
+    name: chromium-ultra
+    concurrency:
+      group: chromium-ultra-${{ github.workflow }}-${{ github.ref }}
+      cancel-in-progress: true
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version-file: .node-version
+          cache: npm
+      - run: npm ci
+      - run: npm run build
+      - run: npx playwright install --with-deps --only-shell chromium
+      # 8.9s on a real GPU; measured at over 204s here just to reach the resize, because
+      # swiftshader puts all 4.1M pixels of the 2560x1600 post chain on the CPU. The global
+      # 180s budget cut it off mid-assertion and disguised a real failure as exhaustion, so
+      # this spec gets a budget matching what it actually costs, the way the node-* projects
+      # already carry one for the same software GPU.
+      - run: npx playwright test --project=chromium --grep "desktop ULTRA" --timeout=600000 --reporter=list --max-failures=1
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        if: failure()
+        with:
+          name: chromium-ultra-failure-evidence
           path: |
             playwright-report/
             test-results/
@@ -69,15 +123,17 @@ jobs:
   quality:
     name: quality
     if: always()
-    needs: [quality-core, native-webgl]
+    needs: [quality-core, chromium, chromium-ultra, native-webgl]
     runs-on: ubuntu-24.04
     timeout-minutes: 1
     steps:
-      - name: Require core and all native fallback checks
+      - name: Require core, every chromium shard, ULTRA and all native fallback checks
         env:
           CORE_RESULT: ${{ needs.quality-core.result }}
+          CHROMIUM_RESULT: ${{ needs.chromium.result }}
+          ULTRA_RESULT: ${{ needs.chromium-ultra.result }}
           NATIVE_RESULT: ${{ needs.native-webgl.result }}
-        run: test "$CORE_RESULT" = success && test "$NATIVE_RESULT" = success
+        run: test "$CORE_RESULT" = success && test "$CHROMIUM_RESULT" = success && test "$ULTRA_RESULT" = success && test "$NATIVE_RESULT" = success
   webkit:
     name: webkit
     runs-on: ubuntu-24.04
