@@ -76,9 +76,12 @@ jobs:
       - run: npm run build
       - run: npx playwright install --with-deps --only-shell chromium
       # The ULTRA spec holds three separate 4K assets and the full post chain at 2560x1600
-      # under swiftshader. It gets an untouched process: sharing one with the deliberate
-      # WEBGL_lose_context spec left data-scene empty and the scene never finished building.
-      - run: npx playwright test --project=chromium --grep "desktop ULTRA" --max-failures=1
+      # under swiftshader, so every one of those 4.1M pixels is CPU work. It takes 8.9s on a
+      # real GPU and has never finished inside the global 180s budget here, so its true cost
+      # is still unmeasured. Run it alone, with room to finish, and let the reporter print
+      # the duration: that number decides whether the spec needs a calibrated timeout like
+      # the node-* projects already carry, or has to be split.
+      - run: npx playwright test --project=chromium --grep "desktop ULTRA" --timeout=600000 --reporter=list --max-failures=1
       - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         if: failure()
         with:
