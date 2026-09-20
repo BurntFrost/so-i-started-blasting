@@ -121,12 +121,19 @@ function loadProduction(){
  if(productionRequested||failed||scenes[selected].world==='space')return;
  productionRequested=true;canvas.dataset.authoredAssets='loading';
  let degraded=false;const initiatingScene=scenes[selected].id;
- createProduction({renderer,nodeRuntime,scene,camera,canvas,city,buildings,ground,ship,core,tower,blast,wave,foam,ocean,landscape,sun,beam,meteor,tail,assetSignal:productionAssets.signal,
-  onAssetError(){degraded=true;reportGraphicsFailure('authored-assets',initiatingScene);}
- }).then(result=>{
+ try { production=createProduction({renderer,nodeRuntime,scene,camera,canvas,city,buildings,ground,ship,core,tower,blast,wave,foam,ocean,landscape,sun,beam,meteor,tail,assetSignal:productionAssets.signal,
+  onAssetError(){degraded=true;reportGraphicsFailure('authored-assets',initiatingScene);},
+  onAssetReady(stage){
+   if(failed)return;
+   if(stage==='sky-hdr'&&production.environment){scene.environment=production.environment;cinema.environment?.dispose();}
+   updateWorld();
+  }
+ }); } catch {
+  canvas.dataset.authoredAssets='degraded';reportGraphicsFailure('authored-assets',initiatingScene);return;
+ }
+ production.ready.then(()=>{
   if(failed)return;
-  production=result;authoredWorkPending=true;
-  if(result.environment){scene.environment=result.environment;cinema.environment?.dispose();}
+  authoredWorkPending=true;
   canvas.dataset.authoredAssets=degraded?'degraded':'ready';
   updateWorld();
  }).catch(()=>{

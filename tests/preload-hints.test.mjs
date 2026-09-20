@@ -51,7 +51,8 @@ test('preload hints are fingerprinted and resolve inside the built output', asyn
   const manifest = await build({ outDir });
   const html = await readFile(path.join(outDir, 'index.html'), 'utf8');
   const hints = links(html).filter(link => ['modulepreload', 'prefetch'].includes(link.rel));
-  assert.ok(hints.length >= 6);
+  assert.ok(hints.length >= 5);
+  assert.ok(!hints.some(link => link.href.includes('/vendor/')), 'bundled engine is discovered through app modules');
   for (const { href } of hints) {
     const [pathname, suffix = ''] = href.split(/(?=\?)/);
     assert.match(pathname, /^\/immutable\//, `${href} should be fingerprinted`);

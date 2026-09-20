@@ -22,8 +22,8 @@ function snapshot(group) {
   const values = [];
   group.traverse(object => {
     values.push(object.name, object.visible, ...object.matrix.elements);
-    if (object.instanceMatrix) values.push(object.count, ...object.instanceMatrix.array);
-    if (object.geometry) values.push(...object.geometry.attributes.position.array);
+    if (object.instanceMatrix) values.push(object.count, Array.from(object.instanceMatrix.array));
+    if (object.geometry) values.push(Array.from(object.geometry.attributes.position.array));
   });
   return createHash('sha256').update(JSON.stringify(values)).digest('hex');
 }
@@ -255,12 +255,12 @@ async function withAssets(failures, run) {
 test('failed optional models and maps preserve baseline city and ship and do not own environment state', async () => {
   await withAssets(['city-kit', 'mothership', 'concrete', 'asphalt'], async () => {
     const world = productionWorld(), initialFog = world.scene.fog.color.getHex();
-    const production = await createProduction(world);
+    const production = createProduction(world); await production.ready;
     assert.equal(production.environment, null);
     assert.equal(world.errors.length, 9);
     assert.equal(new Set(world.errors).size, 9);
     production.update(18, config('war-of-the-worlds'));
-    assert.equal(world.canvas.dataset.authoredAssets, 'degraded');
+    assert.ok(Object.values(production.assetStatus).includes('failed'));
     assert.ok(world.buildings.every(building => building.visible));
     assert.equal(world.tower.visible, true);
     assert.equal(world.baselineShip.visible, true);
@@ -276,15 +276,16 @@ test('stalled optional models settle after 15 seconds and keep procedural fallba
   await withAssets(['concrete', 'asphalt'], async () => {
     GLTFLoader.prototype.loadAsync = () => new Promise(() => {});
     const world = productionWorld();
-    let production;
-    const pending = createProduction(world).then(result => { production = result; });
+    const production = createProduction(world);
+    let ready = false;
+    const pending = production.ready.then(() => { ready = true; });
     await new Promise(setImmediate);
     t.mock.timers.tick(15_000);
     await new Promise(setImmediate);
-    assert.ok(production, 'a stalled optional asset must not keep authored readiness pending');
+    assert.ok(ready, 'a stalled optional asset must not keep authored readiness pending');
     await pending;
     production.update(18, config('war-of-the-worlds'));
-    assert.equal(world.canvas.dataset.authoredAssets, 'degraded');
+    assert.ok(Object.values(production.assetStatus).includes('failed'));
     assert.equal(world.errors.length, 9);
     assert.equal(new Set(world.errors).size, 9);
     assert.ok(world.buildings.every(building => building.visible));
@@ -300,15 +301,73 @@ test('cancelled authored loading cannot mutate the world when a model arrives la
     GLTFLoader.prototype.loadAsync = () => model;
     const controller = new AbortController(), world = productionWorld();
     world.assetSignal = controller.signal;
-    const before = snapshot(world.scene);
-    const pending = assert.rejects(createProduction(world), { name: 'AbortError' });
+    const production = createProduction(world);
+    const pending = assert.rejects(production.ready, { name: 'AbortError' });
     await new Promise(setImmediate);
+    const before = snapshot(world.scene), errors = world.errors.length;
     controller.abort();
     await pending;
     resolveModel(kit());
     await new Promise(setImmediate);
     assert.equal(snapshot(world.scene), before);
-    assert.equal(world.errors.length, 0);
+    assert.equal(world.errors.length, errors, 'cancellation does not report additional asset failures');
+  });
+});
+
+test('material maps attach correctly whether the model or textures arrive first', async () => {
+  for (const modelFirst of [true, false]) await withAssets([], async () => {
+    let release;
+    const gate = new Promise(resolve => { release = resolve; });
+    GLTFLoader.prototype.loadAsync = async url => {
+      if (!modelFirst) await gate;
+      const asset = kit();
+      asset.scene.children.forEach(mesh => { mesh.material.name = 'concrete'; mesh.geometry.deleteAttribute('uv'); });
+      return asset;
+    };
+    THREE.TextureLoader.prototype.loadAsync = async () => {
+      if (modelFirst) await gate;
+      return new THREE.Texture();
+    };
+    const world = productionWorld(), production = createProduction(world);
+    await new Promise(setImmediate);
+    assert.equal(production.assetStatus[modelFirst ? 'city-model' : 'concrete-albedo'], 'ready');
+    assert.equal(production.assetStatus[modelFirst ? 'concrete-albedo' : 'city-model'], 'loading');
+    release(); await production.ready;
+    const meshes = world.city.children.filter(mesh => mesh.material?.userData.concreteMaps);
+    assert.ok(meshes.length > 0);
+    for (const mesh of meshes) {
+      assert.ok(mesh.material.map?.isTexture && mesh.material.normalMap?.isTexture && mesh.material.roughnessMap?.isTexture);
+      assert.ok(mesh.geometry.getAttribute('uv'), 'late texture adoption still has UVs');
+    }
+  });
+});
+
+test('the smaller sky finishes base readiness before the sharper panorama and owns reflections', async () => {
+  await withAssets([], async () => {
+    let resolveUpgrade;
+    const upgrade = new Promise(resolve => { resolveUpgrade = resolve; });
+    const base = new THREE.Texture(), sharp = new THREE.Texture(), requests = [], environments = [];
+    let baseDisposed = 0; base.addEventListener('dispose', () => baseDisposed++);
+    HDRLoader.prototype.loadAsync = async url => { requests.push(url); return url.includes('2k') ? upgrade : base; };
+    const world = productionWorld();
+    world.canvas.dataset.quality = world.canvas.dataset.qualityCeiling = 'ultra';
+    world.nodeRuntime = { PMREMGenerator: class {
+      fromEquirectangular(hdr) { environments.push(hdr); return { texture: new THREE.Texture() }; }
+      dispose() {}
+    } };
+    const production = createProduction(world);
+    await production.ready;
+    await new Promise(setImmediate);
+    assert.deepEqual(requests, ['/assets/dusk.hdr', '/assets/dusk-2k.hdr']);
+    assert.equal(production.assetStatus['sky-hdr'], 'ready');
+    assert.equal(world.canvas.dataset.skyUpgrade, 'loading');
+    const environment = production.environment;
+    resolveUpgrade(sharp); await production.skyReady;
+    assert.equal(world.canvas.dataset.skyUpgrade, 'ready');
+    assert.deepEqual(environments, [base], 'do not regenerate reflections from the larger sky');
+    assert.equal(production.environment, environment);
+    assert.equal(baseDisposed, 1);
+    assert.equal(world.scene.children.find(mesh => mesh.material?.uniforms?.panorama)?.material.uniforms.panorama.value, sharp);
   });
 });
 
@@ -317,7 +376,7 @@ test('only HIGH shows the authored landscape tree; lower tiers keep the procedur
     const world = productionWorld();
     const trees = Array.from({ length: 3 }, proceduralTree);
     world.landscape.add(...trees);
-    const production = await createProduction(world);
+    const production = createProduction(world); await production.ready;
     const authored = tree => tree.children.at(-1), crowns = tree => [tree.children[0], tree.children[2], tree.children[3]];
     assert.ok(trees.every(tree => tree.children.length === 5), 'each tree gained one authored clone');
     production.update(18, config('day-the-earth-stood-still', 'landscape'));
@@ -340,7 +399,7 @@ test('only HIGH shows the authored landscape tree; lower tiers keep the procedur
 
 test('the superstorm glazes the authored facades and paves the streets with ice', async () => {
   await withAssets([], async () => {
-    const world = productionWorld(), production = await createProduction(world);
+    const world = productionWorld(), production = createProduction(world); await production.ready;
     production.update(2, config('day-after-tomorrow'));
     const facades = world.city.children.filter(object => object.isInstancedMesh && object.visible).map(mesh => mesh.material);
     assert.ok(facades.length > 0);
@@ -356,7 +415,7 @@ test('the superstorm glazes the authored facades and paves the streets with ice'
 
 test('BALANCED uses stepped medium geometry and uploads only visible city batches', async () => {
   await withAssets(['concrete-normal'], async () => {
-    const world = productionWorld(), production = await createProduction(world);
+    const world = productionWorld(), production = createProduction(world); await production.ready;
     production.update(18, config('terminator-2'));
     const batches = world.city.children.filter(object => object.isInstancedMesh);
     const balanced = batches.filter(mesh => mesh.visible);

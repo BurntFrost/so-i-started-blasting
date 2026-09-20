@@ -4,6 +4,7 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { vendorThree } from './vendor.mjs';
 import { createReleaseMetadata } from './release-metadata.mjs';
+import { bundleJavaScript } from './bundle.mjs';
 
 const root = fileURLToPath(new URL('../', import.meta.url));
 const hashedExtensions = new Set(['.js', '.css', '.glb', '.webp', '.hdr', '.mp3']);
@@ -122,7 +123,7 @@ function rewriteReferences(text, rewrite, javascript = false) {
     });
 }
 
-export async function build({ sourceDir = path.join(root, 'dist'), outDir = path.join(root, 'build'), development = false } = {}) {
+export async function build({ sourceDir = path.join(root, 'dist'), outDir = path.join(root, 'build'), development = false, optimize = !development } = {}) {
   sourceDir = path.resolve(sourceDir);
   outDir = path.resolve(outDir);
   const overlaps = (a, b) => !path.relative(a, b).startsWith(`..${path.sep}`) && path.relative(a, b) !== '..';
@@ -136,6 +137,22 @@ export async function build({ sourceDir = path.join(root, 'dist'), outDir = path
   const source = new Map(await Promise.all(files.map(async name => [name, await readFile(path.join(sourceDir, name))])));
   if (development) await (await import('./development.mjs')).addDevelopment(source);
   await vendorThree(source);
+  if (optimize) {
+    // Validate source references before tree shaking can erase unreachable mistakes.
+    for (const [name, bytes] of source) if (textExtensions.has(path.posix.extname(name))) {
+      rewriteReferences(bytes.toString(), (url, computed) => {
+        if (url.startsWith('/_vercel/') || (name.startsWith('vendor/three/') && url.startsWith('/*'))) return url;
+        if (computed) throw new Error(`Use literal local asset URLs in ${name}: ${url}`);
+        const pathname = url.split(/[?#]/)[0];
+        if (hashedExtensions.has(path.posix.extname(pathname))) {
+          const dependency = pathname.startsWith('/') ? pathname.slice(1) : path.posix.join(path.posix.dirname(name), pathname);
+          if (!source.has(dependency)) throw new Error(`Missing local asset in ${name}: ${url}`);
+        }
+        return url;
+      }, name.endsWith('.js'));
+    }
+    await bundleJavaScript(source);
+  }
   files = [...source.keys()].sort();
   const emitted = new Map();
   const visiting = new Set();
@@ -149,7 +166,7 @@ export async function build({ sourceDir = path.join(root, 'dist'), outDir = path
     if (textExtensions.has(extension)) {
       const rewritten = rewriteReferences(bytes.toString('utf8'), (url, computed) => {
         // Three's node builder concatenates shader comment delimiters, not asset URLs.
-        if (name.startsWith('vendor/three/') && url.startsWith('/*')) return url;
+        if ((name.startsWith('vendor/three/') || (optimize && name.startsWith('chunks/'))) && url.startsWith('/*')) return url;
         // These scripts are supplied by Vercel at request time, outside the static output.
         if (url.startsWith('/_vercel/')) return url;
         if (computed) throw new Error(`Use literal local asset URLs in ${name}: ${url}`);
@@ -159,7 +176,7 @@ export async function build({ sourceDir = path.join(root, 'dist'), outDir = path
           ? pathname.slice(1)
           : path.posix.normalize(path.posix.join(path.posix.dirname(name), pathname));
         if (!source.has(dependency)) throw new Error(`Missing local asset in ${name}: ${url}`);
-        return `/${emit(dependency).name}${suffix}`;
+        return `/${emit(dependency).name}${optimize && pathname.endsWith('.js') ? '' : suffix}`;
       }, extension === '.js');
       bytes = Buffer.from(rewritten);
     }
