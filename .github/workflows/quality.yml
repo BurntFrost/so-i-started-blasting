@@ -45,11 +45,13 @@ jobs:
       - run: npm ci
       - run: npm run build
       - run: npx playwright install --with-deps --only-shell chromium
-      # Sharded because the suite shares one browser process (workers: 1), and swiftshader
-      # does not return a destroyed context's host allocations. --fully-parallel moves
-      # sharding from file to test granularity; one file would otherwise land in shard 1.
-      # The ULTRA 4K spec runs in chromium-ultra instead: it is the heaviest spec and the
-      # only one that needs a process nothing else has touched.
+      # The suite shares one browser process (workers: 1, fullyParallel: false). Sharding it
+      # observably stopped the renderer dying mid-screenshot and made the long-flaky
+      # 'sustained slow frame intervals' spec pass; the precise mechanism was never pinned
+      # down, so treat that as measured behaviour rather than an explanation.
+      # --fully-parallel is load-bearing: it moves sharding from file to test granularity,
+      # and without it this single-file project puts every spec in shard 1 and leaves the
+      # rest as no-ops that pass trivially. The ULTRA 4K spec runs in chromium-ultra.
       - run: npx playwright test --project=chromium --grep-invert "desktop ULTRA" --fully-parallel --workers=1 --shard=${{ matrix.shard }}/3 --max-failures=1
       - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         if: failure()
