@@ -33,7 +33,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        shard: [1, 2, 3, 4]
+        shard: [1, 2, 3]
     runs-on: ubuntu-24.04
     timeout-minutes: 20
     steps:
@@ -46,13 +46,43 @@ jobs:
       - run: npm run build
       - run: npx playwright install --with-deps --only-shell chromium
       # Sharded because the suite shares one browser process (workers: 1), and swiftshader
-      # does not return a destroyed context's host allocations. The ULTRA 4K test runs last
-      # and used to inherit the whole file's arenas, which killed the renderer mid-screenshot.
-      - run: npx playwright test --project=chromium --fully-parallel --workers=1 --shard=${{ matrix.shard }}/4 --max-failures=1
+      # does not return a destroyed context's host allocations. --fully-parallel moves
+      # sharding from file to test granularity; one file would otherwise land in shard 1.
+      # The ULTRA 4K spec runs in chromium-ultra instead: it is the heaviest spec and the
+      # only one that needs a process nothing else has touched.
+      - run: npx playwright test --project=chromium --grep-invert "desktop ULTRA" --fully-parallel --workers=1 --shard=${{ matrix.shard }}/3 --max-failures=1
       - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         if: failure()
         with:
           name: chromium-${{ matrix.shard }}-failure-evidence
+          path: |
+            playwright-report/
+            test-results/
+          retention-days: 7
+  chromium-ultra:
+    name: chromium-ultra
+    concurrency:
+      group: chromium-ultra-${{ github.workflow }}-${{ github.ref }}
+      cancel-in-progress: true
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version-file: .node-version
+          cache: npm
+      - run: npm ci
+      - run: npm run build
+      - run: npx playwright install --with-deps --only-shell chromium
+      # The ULTRA spec holds three separate 4K assets and the full post chain at 2560x1600
+      # under swiftshader. It gets an untouched process: sharing one with the deliberate
+      # WEBGL_lose_context spec left data-scene empty and the scene never finished building.
+      - run: npx playwright test --project=chromium --grep "desktop ULTRA" --max-failures=1
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        if: failure()
+        with:
+          name: chromium-ultra-failure-evidence
           path: |
             playwright-report/
             test-results/
@@ -89,16 +119,17 @@ jobs:
   quality:
     name: quality
     if: always()
-    needs: [quality-core, chromium, native-webgl]
+    needs: [quality-core, chromium, chromium-ultra, native-webgl]
     runs-on: ubuntu-24.04
     timeout-minutes: 1
     steps:
-      - name: Require core, all chromium and all native fallback checks
+      - name: Require core, every chromium shard, ULTRA and all native fallback checks
         env:
           CORE_RESULT: ${{ needs.quality-core.result }}
           CHROMIUM_RESULT: ${{ needs.chromium.result }}
+          ULTRA_RESULT: ${{ needs.chromium-ultra.result }}
           NATIVE_RESULT: ${{ needs.native-webgl.result }}
-        run: test "$CORE_RESULT" = success && test "$CHROMIUM_RESULT" = success && test "$NATIVE_RESULT" = success
+        run: test "$CORE_RESULT" = success && test "$CHROMIUM_RESULT" = success && test "$ULTRA_RESULT" = success && test "$NATIVE_RESULT" = success
   webkit:
     name: webkit
     runs-on: ubuntu-24.04
