@@ -114,7 +114,9 @@ const surfaceProperties = [
 /**
  * r186 WebGPURenderer pipeline, including its forceWebGL backend. Call after init().
  * setSize takes physical pixels; setQuality takes cinema's tier object.
- * update takes bottom-left shaft UVs and FINAL (envelope/edge-faded) strength.
+ * update takes bottom-left shaft UVs and FINAL (envelope/edge-faded) strength. The shaft
+ * chain exists when tier.ao is set and the grade carries a hero emitter, both per-scene
+ * state; strength alone gates its effect, so a faded shaft never restructures the graph.
  * grade.ssr enables reflections on layer-0 objects tagged userData.ssrReceiver.
  * Shared depth.nodes uses native top-left UVs (screenUV), not gl_FragCoord UVs.
  * Conventional perspective depth is required by r186's GTAO/SSR addons.
@@ -271,8 +273,11 @@ export function createNodePipeline({ renderer, scene, camera, canvas, depth = op
 
   function setQuality(next) {
     if (disposed) return;
-    const changed = tier.name !== next.name || tier.ao !== next.ao || tier.bloom !== next.bloom || tier.film !== next.film || tier.aoScale !== (next.aoScale ?? 1);
+    const nextShaft = Boolean(next.ao) && grade.emitter != null;
+    const changed = tier.name !== next.name || tier.ao !== next.ao || tier.bloom !== next.bloom || tier.film !== next.film
+      || tier.aoScale !== (next.aoScale ?? 1) || nextShaft !== hasShaft;
     tier = { name: next.name, ao: Boolean(next.ao), aoScale: next.aoScale ?? 1, bloom: Boolean(next.bloom), film: Boolean(next.film) };
+    hasShaft = nextShaft;
     u.exposure.value = tier.film ? grade.exposure : 1.3;
     depth.opaqueDepthAvailable.value = 0;
     if (changed) buildGraph();
@@ -280,11 +285,18 @@ export function createNodePipeline({ renderer, scene, camera, canvas, depth = op
 
   function update(time, nextGrade = defaultGrade, shaftUV = null, strength = 0) {
     if (disposed) return;
-    const nextShaft = shaftUV !== null && Number.isFinite(strength) && strength > 0;
+    // Graph structure may depend only on per-scene state. Shaft strength is animation
+    // state that crosses zero mid-playback, and each rebuild stalls the frame while the
+    // whole node graph is regenerated, so the chain follows the scene's hero emitter and
+    // a faded shaft is silenced through its strength uniform instead.
+    // buildGraph cannot emit the chain without tier.ao, so carry that term here too: without
+    // it LITE and BALANCED rebuild a byte-identical graph whenever a scene switch crosses the
+    // emitter boundary, which is the very stall this exists to remove, on the weakest devices.
+    const nextShaft = tier.ao && nextGrade.emitter != null;
     const changed = nextShaft !== hasShaft || (nextGrade.ssr === true) !== (grade.ssr === true);
     grade = { ...defaultGrade, ...nextGrade }; hasShaft = nextShaft;
     if (shaftUV) u.emitter.value.set(shaftUV.x, 1 - shaftUV.y);
-    u.strength.value = nextShaft ? strength : 0;
+    u.strength.value = shaftUV !== null && Number.isFinite(strength) && strength > 0 ? strength : 0;
     u.frame.value = Math.floor(time * 24); u.tint.value.fromArray(grade.tint);
     u.saturation.value = grade.saturation; u.grain.value = grade.grain; u.aberration.value = grade.aberration;
     u.exposure.value = tier.film ? grade.exposure : 1.3;

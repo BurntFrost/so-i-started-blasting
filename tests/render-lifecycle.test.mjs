@@ -68,6 +68,86 @@ test('procedural factories construct only visited IDs and scrub reversibly in an
   }
 });
 
+// Adding or removing a light changes the scene's light signature, and the node renderer
+// regenerates EVERY material's shader when that happens: a ~360 ms freeze mid-playback.
+// Hero lights therefore stay in the visible set and are silenced with intensity alone.
+test('the visible light set stays constant across every scene timeline', () => {
+  for (const [create, ids, world] of [
+    [createTerrestrial, ['war-of-the-worlds', 'terminator-2', '2012', 'twister', 'dantes-peak', 'day-after-tomorrow',
+      'day-the-earth-stood-still', 'evangelion', 'deep-impact'], 'city'],
+    [createCosmic, ['interstellar', 'knowing', 'armageddon', 'gravity', 'wandering-earth'], 'space']
+  ]) {
+    for (const id of ids) {
+      // LightsNode keys its cache on each visible light's id and castShadow, so a count is too
+      // weak: rebuilding a light or flipping a shadow holds the count and still regenerates.
+      // Within one tier the ids are stable, so assert on them; across separately constructed
+      // tiers compare the type/shadow multiset, since ids differ per construction.
+      const acrossTiers = new Map();
+      for (const quality of ['lite', 'balanced', 'high', 'ultra']) {
+        const scene = new THREE.Scene(), canvas = { dataset: { quality, pixelRatio: '2' } }, camera = new THREE.PerspectiveCamera();
+        camera.position.set(122, 78, 155);
+        const renderer = create({ scene, canvas, camera, buildings: cityBuildings(), landscape: parkLandscape() });
+        const withinTier = new Map();
+        for (let t = 0; t <= 30.0001; t += .25) {
+          renderer.update(t, config(id, world)); renderer.updateView?.();
+          const identities = [], kinds = [];
+          scene.traverseVisible(object => {
+            if (!object.isLight) return;
+            const shadow = object.castShadow ? 1 : 0;
+            identities.push(`${object.id}:${shadow}`);
+            kinds.push(`${object.name || object.type}:${shadow}`);
+          });
+          const identity = identities.sort().join(','), kind = kinds.sort().join(',');
+          if (!withinTier.has(identity)) withinTier.set(identity, `t=${t.toFixed(2)}`);
+          if (!acrossTiers.has(kind)) acrossTiers.set(kind, `${quality} t=${t.toFixed(2)}`);
+        }
+        const when = [...withinTier.values()].join(', ');
+        assert.equal(withinTier.size, 1, `${id} at ${quality} changes its light signature mid-timeline (first seen ${when})`);
+      }
+      const detail = [...acrossTiers].map(([kind, at]) => `${at}: ${kind || '(no lights)'}`).join(' | ');
+      assert.equal(acrossTiers.size, 1, `${id} changes its light set across quality tiers (${detail})`);
+    }
+  }
+});
+
+// Hero lights now hang off an always-visible group with a baked world pose, so a frame that
+// writes intensity without writing the pose freezes the light in world space instead of riding
+// its host. That reads as order dependence, which this pins the same way the pixel suite does.
+test('hero light world poses are a pure function of the timeline', () => {
+  for (const [create, ids, world] of [
+    [createTerrestrial, ['war-of-the-worlds', 'terminator-2', '2012', 'twister', 'dantes-peak', 'day-after-tomorrow',
+      'day-the-earth-stood-still', 'evangelion', 'deep-impact'], 'city'],
+    [createCosmic, ['interstellar', 'knowing', 'armageddon', 'gravity', 'wandering-earth'], 'space']
+  ]) {
+    for (const id of ids) {
+      const read = path => {
+        const scene = new THREE.Scene(), canvas = { dataset: { quality: 'ultra', pixelRatio: '2' } }, camera = new THREE.PerspectiveCamera();
+        camera.position.set(122, 78, 155);
+        const renderer = create({ scene, canvas, camera, buildings: cityBuildings(), landscape: parkLandscape() });
+        for (const t of path) { renderer.update(t, config(id, world)); renderer.updateView?.(); }
+        scene.updateMatrixWorld(true);
+        const poses = [];
+        scene.traverseVisible(object => {
+          // Only a LIT light has to be somewhere deterministic. strike() deliberately leaves a
+          // spent flash light's pose stale while its intensity is zero, which costs nothing.
+          if (!object.isLight || !(object.intensity > 0)) return;
+          const at = object.getWorldPosition(new THREE.Vector3()).toArray().map(value => value.toFixed(6)).join(',');
+          poses.push(`${object.name || object.type}@${at}#${object.intensity.toFixed(6)}`);
+        });
+        return poses.sort().join(' | ');
+      };
+      // Paths must PASS THROUGH the frames where each effect is at full strength, or no stale
+      // pose is ever established and the comparison is vacuous.
+      for (const t of [14.55, 14.6, 17, 19.75, 19.78, 21, 23, 25]) {
+        const cold = read([t]);
+        for (const path of [[0, 10, 17, t], [30, 22, 17, t], [Math.max(0, t - 2.5), t], [Math.min(30, t + 2.5), t]]) {
+          assert.equal(read(path), cold, `${id}: reaching t=${t} via ${path.join(' -> ')} must match a cold read`);
+        }
+      }
+    }
+  }
+});
+
 test('the visitor swarm consumes the landscape trees as a function of time and restores them for other scenes', () => {
   const scene = new THREE.Scene(), canvas = { dataset: { quality: 'balanced', pixelRatio: '1.25' } }, camera = new THREE.PerspectiveCamera();
   const landscape = parkLandscape(), trees = landscape.children.slice(1);
