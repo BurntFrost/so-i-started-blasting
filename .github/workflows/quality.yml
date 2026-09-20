@@ -75,12 +75,11 @@ jobs:
       - run: npm ci
       - run: npm run build
       - run: npx playwright install --with-deps --only-shell chromium
-      # The ULTRA spec holds three separate 4K assets and the full post chain at 2560x1600
-      # under swiftshader, so every one of those 4.1M pixels is CPU work. It takes 8.9s on a
-      # real GPU and has never finished inside the global 180s budget here, so its true cost
-      # is still unmeasured. Run it alone, with room to finish, and let the reporter print
-      # the duration: that number decides whether the spec needs a calibrated timeout like
-      # the node-* projects already carry, or has to be split.
+      # 8.9s on a real GPU; measured at over 204s here just to reach the resize, because
+      # swiftshader puts all 4.1M pixels of the 2560x1600 post chain on the CPU. The global
+      # 180s budget cut it off mid-assertion and disguised a real failure as exhaustion, so
+      # this spec gets a budget matching what it actually costs, the way the node-* projects
+      # already carry one for the same software GPU.
       - run: npx playwright test --project=chromium --grep "desktop ULTRA" --timeout=600000 --reporter=list --max-failures=1
       - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         if: failure()

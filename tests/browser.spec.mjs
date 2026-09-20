@@ -349,6 +349,10 @@ for (const privacy of ['doNotTrack', 'globalPrivacyControl']) {
   });
 }
 
+// A resize reaction is measured in frames, and CI's software renderer needs seconds per frame
+// at ULTRA; a real GPU finishes the whole spec in 8.9s and never approaches this.
+const SOFTWARE_RENDER_REACTION = process.env.CI ? 120000 : 20000;
+
 test.describe('desktop ULTRA rendering', () => {
   test.use(QUALITY.ultra);
   test('dense desktop displays render native pixels with the 4K assets and stay reversible', async ({ page }) => {
@@ -384,8 +388,12 @@ test.describe('desktop ULTRA rendering', () => {
     // The asset ceiling is fixed at startup; shrinking only lowers the runtime tier, and the retained
     // ULTRA tessellation must still fit the phone geometry budget.
     await page.setViewportSize({ width: 390, height: 844 });
-    await expect(canvas).toHaveAttribute('data-quality', /balanced|lite/);
-    await expect(canvas).toHaveAttribute('data-quality-ceiling', 'ultra');
+    // Reacting to a resize costs whole frames, and CI software-rasterises evangelion's 3.6M
+    // triangles at 2560x1160, so a frame there runs ~3s against ~10ms on a real GPU. The
+    // default 20s expect window is under seven frames, which is not enough to observe a
+    // tier change; these waits are sized for the slow renderer, not for the assertion.
+    await expect(canvas).toHaveAttribute('data-quality', /balanced|lite/, { timeout: SOFTWARE_RENDER_REACTION });
+    await expect(canvas).toHaveAttribute('data-quality-ceiling', 'ultra', { timeout: SOFTWARE_RENDER_REACTION });
     for (const index of [0, 4, 7, 14]) {
       await select(page, index);
       await seek(page, 18);
@@ -397,7 +405,7 @@ test.describe('desktop ULTRA rendering', () => {
     }
     // Growing again keeps the startup ceiling; promotion back up waits for measured FPS headroom during playback.
     await page.setViewportSize({ width: 1280, height: 800 });
-    await expect(canvas).toHaveAttribute('data-quality-ceiling', 'ultra');
+    await expect(canvas).toHaveAttribute('data-quality-ceiling', 'ultra', { timeout: SOFTWARE_RENDER_REACTION });
     await expect(canvas).toHaveAttribute('data-quality', /balanced|high|ultra/);
     expect(errors).toEqual([]);
   });
