@@ -71,8 +71,11 @@ export async function checkHosted(expected, { origin = expected.url, headers = {
   // The deployed revision decides how many cards its page must render: a ready dispatch can be
   // processed after a later main commit changed the catalogue in the workflow's own checkout.
   if (!manifest['/scenes.js']) fail('missing-scenes-module');
-  const scenes = catalogueSize((await get(manifest['/scenes.js'])).text);
-  if (!scenes) fail('invalid-scenes-module');
+  let catalogue;
+  try { catalogue = JSON.parse((await get('/scene-catalogue.json')).text); }
+  catch { fail('invalid-scene-catalogue'); }
+  const scenes = catalogue.scenes;
+  if (!Number.isInteger(scenes) || scenes < 1 || scenes > 250) fail('invalid-scene-catalogue');
   if (browserSmoke) await browserSmoke(origin, headers, { scenes });
   return { ok: true, ...expected, origin, assets: assets.length, scenes,
     browser: Boolean(browserSmoke), checkedAt: new Date().toISOString(),

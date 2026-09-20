@@ -248,8 +248,11 @@ export function createProduction(world) {
     if(world.assetSignal?.aborted){if(result.status==='fulfilled')disposeAsset(result.value);return;}
     if(result.status==='fulfilled'){
       try { install(result.value);assetStatus[stage]='ready'; }
-      catch { disposeAsset(result.value);assetStatus[stage]='failed'; }
-    } else assetStatus[stage]='failed';
+      catch { disposeAsset(result.value);assetStatus[stage]='failed';console.info(`Optional asset ${stage}: installation failed`); }
+    } else {
+      assetStatus[stage]='failed';
+      console.info(`Optional asset ${stage}: ${result.reason?.message==='Optional asset loading timed out'?'timeout':'load failed'}`);
+    }
     if(assetStatus[stage]==='failed'&&stage!=='sky-upgrade')world.onAssetError?.(stage);
     const attribute={'city-model':'cityAsset','ship-model':'shipAsset','sky-hdr':'skyAsset'}[stage];
     if(attribute)canvas.dataset[attribute]=assetStatus[stage];

@@ -12,16 +12,17 @@ const event = () => ({ action: 'vercel.deployment.ready', sender: { login: 'verc
   repository: { full_name: repository }, client_payload: { id: release.deploymentId, url: release.url,
     git: { sha: release.sha, ref: 'main' }, project: { id: projectId }, environment: 'production', state: { type: 'pending' } } });
 const response = (body, status = 200, headers = {}) => new Response(body, { status, headers });
-function fixture({ metadata = release, missingAsset = false, protectedOrigin = false, manifest = assets, scenesModule = catalogue } = {}) {
+function fixture({ metadata = release, missingAsset = false, protectedOrigin = false, manifest = assets, sceneCount = 3 } = {}) {
   return async (url, options) => {
     assert.equal(options.redirect, 'manual');
     const path = new URL(url).pathname;
     if (protectedOrigin) return response('sign in', 302, { location: 'https://vercel.com/sso-api' });
     if (path === '/release.json') return response(JSON.stringify(metadata));
     if (path === '/asset-manifest.json') return response(JSON.stringify(manifest));
+    if (path === '/scene-catalogue.json') return response(JSON.stringify({ scenes: sceneCount }));
     if (path === '/') return response(`<title>So I Started Blasting</title><canvas id="world"></canvas><script src="${assets['/file.js']}"></script>`);
     if (missingAsset) return response('', 404);
-    return response(path === assets['/scenes.js'] && options.method !== 'HEAD' ? scenesModule : '', 200, { 'cache-control': 'public, max-age=31536000, immutable' });
+    return response('', 200, { 'cache-control': 'public, max-age=31536000, immutable' });
   };
 }
 
@@ -69,7 +70,9 @@ test('the expected scene count comes from the deployed catalogue, never the work
   const { '/scenes.js': omitted, ...withoutScenes } = assets;
   assert.ok(omitted);
   await assert.rejects(checkHosted(release, { fetcher: fixture({ manifest: withoutScenes }) }), /missing-scenes-module/);
-  await assert.rejects(checkHosted(release, { fetcher: fixture({ scenesModule: 'export const scenes = [];' }) }), /invalid-scenes-module/);
+  for (const sceneCount of [0, -1, 1.5, '3', 251]) {
+    await assert.rejects(checkHosted(release, { fetcher: fixture({ sceneCount }) }), /invalid-scene-catalogue/);
+  }
 });
 
 test('hosted smoke fails for SHA/deployment mismatch, missing asset, or protected origin', async () => {

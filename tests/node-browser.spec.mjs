@@ -36,6 +36,7 @@ for(const [index,scene] of scenes.entries())test(`native ${scene.id} renders and
   const backend=info.project.metadata.backend,errors=[];
   page.on('pageerror',e=>errors.push(e.message));
   page.on('console',m=>{
+    if(m.text().startsWith('Optional asset '))console.log(m.text());
     // ANGLE's software backend can flush an internal render pass early. This
     // performance notice is not a shader/validation error or a context loss.
     const queueNotice=m.type()==='warning'&&/GL Driver Message \(OpenGL, Performance, [^)]*\): Running out of reserved outsideRenderPass queueSerial\. ending renderPass now\./.test(m.text());

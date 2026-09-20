@@ -5,6 +5,7 @@ import { fileURLToPath } from 'node:url';
 import { vendorThree } from './vendor.mjs';
 import { createReleaseMetadata } from './release-metadata.mjs';
 import { bundleJavaScript } from './bundle.mjs';
+import { catalogueSize } from './check-deployment.mjs';
 
 const root = fileURLToPath(new URL('../', import.meta.url));
 const hashedExtensions = new Set(['.js', '.css', '.glb', '.webp', '.hdr', '.mp3']);
@@ -135,6 +136,9 @@ export async function build({ sourceDir = path.join(root, 'dist'), outDir = path
   if (files.includes('release.json')) throw new Error('release.json is reserved for deployment identity.');
   const release = createReleaseMetadata();
   const source = new Map(await Promise.all(files.map(async name => [name, await readFile(path.join(sourceDir, name))])));
+  if (source.has('scenes.js')) source.set('scene-catalogue.json', Buffer.from(JSON.stringify({
+    scenes: catalogueSize(source.get('scenes.js').toString()),
+  })));
   if (development) await (await import('./development.mjs')).addDevelopment(source);
   await vendorThree(source);
   if (optimize) {

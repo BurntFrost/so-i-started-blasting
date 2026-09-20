@@ -15,11 +15,13 @@ test('optimized modules share code, remove unused vendor exports, and retain tra
   await mkdir(path.join(sourceDir, 'assets'));
   await writeFile(path.join(sourceDir, 'index.html'), '<link rel="modulepreload" href="/first.js?v=3"><script type="module" src="/boot.js?v=3"></script>');
   await writeFile(path.join(sourceDir, 'boot.js'), "import('./first.js?v=3'); import('./second.js?v=3');");
+  await writeFile(path.join(sourceDir, 'scenes.js'), "export const scenes = [{id:'first'},{id:'second'}];");
   await writeFile(path.join(sourceDir, 'first.js'), "export { value } from './vendor/shared.js';");
   await writeFile(path.join(sourceDir, 'second.js'), "export { value } from './vendor/shared.js';");
   await writeFile(path.join(sourceDir, 'vendor/shared.js'), "export const value = { sky: '/assets/sky.webp', id: Math.random() }; export function unused() { return 'UNUSED_VENDOR_SENTINEL'; }");
   await writeFile(path.join(sourceDir, 'assets/sky.webp'), 'sky version one');
   const manifest = await build({ sourceDir, outDir });
+  assert.deepEqual(JSON.parse(await readFile(path.join(outDir, 'scene-catalogue.json'), 'utf8')), { scenes: 2 });
   assert.deepEqual(await build({ sourceDir, outDir }), manifest);
   assert.ok(!manifest['/vendor/shared.js']);
   await init;
