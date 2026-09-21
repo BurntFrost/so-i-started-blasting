@@ -36,7 +36,7 @@ npm run build
 npm run serve
 ```
 
-Open the localhost URL printed by the server. Node 24, npm, Python 3 (verification), and a WebGL-capable browser are required. Three.js 0.170.0 and its used addons are copied from the locked npm dependency into the hashed build, with their license. Rendering has no runtime CDN dependency; Google Fonts is optional and falls back to system fonts. Models, texture maps, and the HDR environment are included in this repository.
+Open the localhost URL printed by the server. Node 24, npm, Python 3 (verification), and a WebGPU- or WebGL-capable browser are required. Three.js 0.186.0 and its used addons are copied from the locked npm dependency into the hashed build, with their license. Rendering has no runtime CDN dependency; Google Fonts is optional and falls back to system fonts. Models, texture maps, and the HDR environment are included in this repository.
 
 There is no application backend or required environment variable. Edit `dist`, then rebuild; its bare module imports require the build step. Baseline scenes render before optional artwork finishes loading. Failed maps use simpler materials, failed models retain procedural geometry, and each new terrestrial/cosmic scene is constructed only on its first selection. The authored landscape tree is HIGH-tier geometry; BALANCED and LITE keep the procedural crowns so the landscape scenes fit the phone budget.
 
@@ -64,12 +64,16 @@ The gate includes unit tests, certificate-checker tests, committed asset checksu
 | `dist/atmosphere.js`, `dist/audio.js` | Optional atmospheric textures and consent-based synchronized sound |
 | `dist/production.js` | Model loading, instancing, and environment setup |
 | `dist/analytics.js`, `dist/telemetry.js` | Analytics bootstrap and sampled graphics measurements |
+| `dist/node-runtime.js`, `dist/node-pipeline.js`, `dist/node-materials.js`, `dist/node-shadows.js`, `dist/node-surfaces.js` | Default WebGPU renderer: finishing graph, material adapter, shadows, surface descriptors |
+| `dist/node-fields.js` | Generated TSL programs for every custom shader (built by `tools/tsl-generate.mjs`; do not edit) |
+| `dist/classic-runtime.js`, `dist/ao-pass.js`, `dist/light-shafts-pass.js` | Previous WebGL renderer and composer chain, loaded only by `?renderer=classic` |
+| `dist/render-kit.js`, `dist/shader-program.js`, `dist/particle-atlas.js`, `dist/soft-shadows.js`, `dist/light-shafts.js`, `dist/adaptive-quality.js` | Shared effect, particle, shadow and quality helpers |
+| `dist/asset-loading.js`, `dist/sky-loading.js`, `dist/baked-explosion.js` | Optional-asset lifecycle, progressive sky policy, baked explosion sprites |
 | `dist/assets/` | Compressed GLB models, WebP textures, HDR, and provenance |
 | `tools/author-assets.py` | Blender source for the original procedural models |
 | `tools/build.mjs` | Deterministic asset fingerprints and rewritten dependency URLs |
 | `tools/README.md` | Asset rebuilding and compression commands |
 | `tools/check-certificates.py`, `docs/certificate-operations.md` | Verified edge/origin expiry checks and DNS renewal operations |
-| `.openai/hosting.json` | Existing Sites project and static output configuration |
 | `vercel.json` | Static deployment configuration for the connected Vercel project |
 
 See [the asset pipeline](tools/README.md) for rebuilding the models, and [asset sources](dist/assets/SOURCES.md) for Poly Haven texture and environment credits under CC0. Film titles identify visual inspiration; this is an unofficial interactive tribute.
@@ -78,7 +82,7 @@ See [the asset pipeline](tools/README.md) for rebuilding the models, and [asset 
 
 The checked-in `dist` directory remains the editable static source. Vercel runs `npm ci` and `npm run build`, then serves the generated, ignored `build` directory. GitHub `main` deploys to the `so-i-started-blasting` project in `burntfrosts-projects`. Changes reach `main` through pull requests gated by the required `quality` check, or as direct pushes by repository administrators; every push to `main` runs `quality`, and production is assigned only after `release-quality` succeeds for that commit. Previews and direct origins remain protected.
 
-`soistartedblasting.com` and `www.soistartedblasting.com` now use Vercel behind Cloudflare's proxy. Their former Sites custom-domain attachments were removed during the September 12, 2026 cutover; `.openai/hosting.json` retains the original Sites project for historical source continuity.
+`soistartedblasting.com` and `www.soistartedblasting.com` now use Vercel behind Cloudflare's proxy. Their former Sites custom-domain attachments were removed during the September 12, 2026 cutover; that project's configuration is preserved in Git history.
 
 The build fingerprints JavaScript, CSS, models, textures, and HDR files from their SHA-256 content hashes. Local and vendored dependency URLs are rewritten before hashing the importing file, so an asset update changes its importer URLs all the way back to the HTML entrypoint. Runtime asset URLs must be explicit local string literals; dynamically assembled filenames fail the build. Vercel's `/_vercel/` scripts remain provider supplied. `build/asset-manifest.json` records the source-to-output mapping. Dependency resolution validates before staged publication replaces the previous successful build.
 
@@ -104,7 +108,7 @@ This replacement preserves the previous video-clip application in Git history. I
 
 ## Graphics telemetry
 
-Local GPU profiling and renderer comparisons are documented in [the performance lab](docs/performance-lab.md). `npm run build:dev` produces a separate `build-dev/` with opt-in `stats-gl` and a `postprocessing` prototype. The production build excludes both packages. Automatic quality now reduces pixel resolution before dropping scene detail, targets 60 FPS with one-second sample windows, and restores quality only after eight healthy windows.
+Local GPU profiling and renderer comparisons are documented in [the performance lab](docs/performance-lab.md). `npm run build:dev` produces a separate `build-dev/` with opt-in `stats-gl`. The production build excludes it. Automatic quality now reduces pixel resolution before dropping scene detail, targets 60 FPS with one-second sample windows, and restores quality only after eight healthy windows.
 
 Base Web Analytics is enabled for the Vercel project, and `/_vercel/insights/script.js` is available on the public domain. The repository uses the standard HTML analytics API and does not require Analytics Plus. For another project, enable Web Analytics and redeploy to activate its collection endpoint. Vercel Authentication protects previews and production origins; Cloudflare authenticates the public domain's origin requests.
 

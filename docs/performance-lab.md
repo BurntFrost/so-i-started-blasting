@@ -1,6 +1,6 @@
 # Performance lab
 
-Three.js remains pinned to 0.170.0 and the production renderer remains WebGL. The WebGPU migration is a separate project. Both `stats-gl` 4.2.3 and `postprocessing` 6.39.5 are exact development dependencies and support the pinned engine.
+Three.js is pinned to 0.186.0 and the production renderer is the WebGPU node renderer with an automatic WebGL fallback (see [the native renderer](graphics-c2-node-renderer.md)). `stats-gl` 4.2.3 is an exact development dependency and supports the pinned engine.
 
 ## Local profiling
 
@@ -29,7 +29,6 @@ Use these development URLs on the same viewport:
 | URL query | Behavior |
 | --- | --- |
 | `?quality=high` | Current renderer, fixed HIGH |
-| `?quality=high&renderer=postprocessing` | Prototype, fixed HIGH |
 | `?quality=balanced` | Fixed BALANCED for phone emulation |
 | `?quality=ultra` | Fixed ULTRA when the startup device ceiling permits it |
 

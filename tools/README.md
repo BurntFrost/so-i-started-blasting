@@ -11,7 +11,7 @@ npm run build
 npm run serve
 ```
 
-The lockfile pins Three.js 0.170.0, the build-only module lexer, and Playwright,
+The lockfile pins Three.js 0.186.0, the build-only module lexer, and Playwright,
 including package integrity. `vendor.mjs` walks the actual imported engine/addon
 graph, rewrites package imports to local files, and preserves upstream license
 comments. `build.mjs` fingerprints that graph with the application's modules and

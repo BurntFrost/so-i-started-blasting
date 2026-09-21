@@ -1,6 +1,6 @@
 # Progressive assets and production JavaScript — 2026-09-20
 
-Implemented on `codex/progressive-assets-build`. Production deployment is pending.
+Implemented on `codex/progressive-assets-build`, merged to `main` in [#40](https://github.com/BurntFrost/so-i-started-blasting/pull/40).
 
 ## Behavior
 
