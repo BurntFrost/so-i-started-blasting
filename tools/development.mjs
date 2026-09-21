@@ -6,14 +6,12 @@ import { init, parse } from 'es-module-lexer';
 const require=createRequire(import.meta.url);
 const packages={
   'stats-gl': {entry:'dist/main.js',version:'4.2.3'},
-  postprocessing: {entry:'build/index.js',version:'6.39.5'},
 };
 
 // The development graph is injected before the normal Three.js and asset vendoring.
 export async function addDevelopment(source){
   await init;
   source.set('development.js',await readFile(new URL('./performance/development.js',import.meta.url)));
-  source.set('postprocessing-prototype.js',await readFile(new URL('./performance/postprocessing-prototype.js',import.meta.url)));
   const roots={};
   for(const [name,config] of Object.entries(packages)){
     const root=path.resolve(path.dirname(require.resolve(name)),'..');
@@ -47,5 +45,4 @@ export async function addDevelopment(source){
     source.set(name,Buffer.from(text));
   }
   await rewrite('development.js');
-  await rewrite('postprocessing-prototype.js');
 }

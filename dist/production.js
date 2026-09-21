@@ -1,4 +1,4 @@
-import * as THREE from 'three';
+import * as THREE from 'three/webgpu';
 import { createShaderMaterial, recordSurface } from './shader-program.js';
 import { markEffect, markEffects } from './render-kit.js';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
@@ -26,7 +26,7 @@ export function createProduction(world) {
   const anisotropy=Math.min(8,renderer.getMaxAnisotropy?.() ?? renderer.capabilities.getMaxAnisotropy());
   let environment = null, sky = null, skyMaterial = null;
   function installSky(hdr) {
-  const pmrem=new (world.nodeRuntime?.PMREMGenerator || THREE.PMREMGenerator)(renderer);
+  const pmrem=new (world.nodeRuntime?.PMREMGenerator || world.classicRuntime.PMREMGenerator)(renderer);
   try { environment=pmrem.fromEquirectangular(hdr); } finally { pmrem.dispose(); }
   hdr.mapping=THREE.EquirectangularReflectionMapping;
   skyMaterial=createShaderMaterial({side:THREE.BackSide,depthWrite:false,

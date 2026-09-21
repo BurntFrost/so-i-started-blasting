@@ -1,4 +1,4 @@
-import * as THREE from 'three';
+import * as THREE from 'three/webgpu';
 import { createShaderMaterial, recordSurface } from './shader-program.js';
 import { applyParticleAtlas, applyParticlePoints } from './particle-atlas.js';
 import { marchedVolume, setInside, volumeUniforms as sharedVolumeUniforms, markEffects, markEffect } from './render-kit.js';

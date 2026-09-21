@@ -1,4 +1,4 @@
-import * as THREE from 'three';
+import * as THREE from 'three/webgpu';
 import { createShaderMaterial } from './shader-program.js';
 import { markEffect } from './render-kit.js';
 

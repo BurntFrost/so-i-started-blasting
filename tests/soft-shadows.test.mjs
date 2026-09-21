@@ -196,13 +196,13 @@ test('isolated Chrome compiles and renders PCSS with native shadow maps', {
     const results = await page.evaluate(async () => {
       const T = await import('three');
       const S = await import('/soft-shadows.js');
-      S.installSoftSunShadows();
+      S.installSoftSunShadows(T);
       const results = [];
       for (const reversed of T.REVISION === '186' ? [false,true] : [false]) {
         const renderer = new T.WebGLRenderer({reversedDepthBuffer:reversed});
         renderer.setSize(128,128);
         renderer.shadowMap.enabled = true;
-        renderer.shadowMap.type = S.getSoftSunShadowMapType();
+        renderer.shadowMap.type = S.getSoftSunShadowMapType(T);
         const scene = new T.Scene();
         const sun = new T.DirectionalLight('white',3);
         sun.position.set(-8,15,6); sun.castShadow = true;

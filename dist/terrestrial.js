@@ -1,4 +1,4 @@
-import * as THREE from 'three';
+import * as THREE from 'three/webgpu';
 import { createShaderMaterial, recordSurface } from './shader-program.js';
 import { applyParticleAtlas } from './particle-atlas.js';
 import { createBakedExplosion } from './baked-explosion.js';

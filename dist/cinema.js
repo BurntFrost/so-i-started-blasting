@@ -1,18 +1,11 @@
-import * as THREE from 'three';
+import * as THREE from 'three/webgpu';
 import { createShaderMaterial, recordSurface } from './shader-program.js';
 import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
-import { EffectComposer } from 'three/addons/postprocessing/EffectComposer.js';
-import { RenderPass } from 'three/addons/postprocessing/RenderPass.js';
-import { UnrealBloomPass } from 'three/addons/postprocessing/UnrealBloomPass.js';
-import { OutputPass } from 'three/addons/postprocessing/OutputPass.js';
-import { ShaderPass } from 'three/addons/postprocessing/ShaderPass.js';
-import { FXAAShader } from 'three/addons/shaders/FXAAShader.js';
-import { OpaqueGTAOPass } from './ao-pass.js';
 import { EFFECTS_LAYER, markEffects, opaqueDepthUniforms } from './render-kit.js';
 import { createAtmosphere } from './atmosphere.js';
 import { defaultGrade, sceneConfigs } from './scene-config.js';
-import { LightShaftsPass, emitterEnvelope, projectEmitter, emitterScreenFade } from './light-shafts.js';
-import { installSoftSunShadows, fitSunShadowFrustum, getSoftSunShadowMapType } from './soft-shadows.js';
+import { emitterEnvelope, projectEmitter, emitterScreenFade } from './light-shafts.js';
+import { fitSunShadowFrustum } from './soft-shadows.js';
 import { applyParticleAtlas, applyParticlePoints } from './particle-atlas.js';
 import { createAdaptiveQuality } from './adaptive-quality.js';
 
@@ -56,7 +49,6 @@ float fbm(vec3 p){return noise(p)*.57+noise(p*2.03)*.28+noise(p*4.11)*.15;}`;
 
 // Shared, deterministic geometry and GPU particles keep scrubbing reversible.
 export function createCinema(world) {
-  if(!world.nodeRuntime)installSoftSunShadows();
   const { renderer, scene, camera, canvas, sun, buildings, ground, ship, hullMat,
     core, beam, blast, ocean, wave, meteor, landscape, windows, snow,
     debris, foam, clouds, glow, telemetry } = world;
@@ -110,7 +102,7 @@ export function createCinema(world) {
   windows.material.opacity = 0;
   ground.receiveShadow = true;
   ground.material.roughness = .32; ground.material.metalness = .35;
-  const pmrem = new (world.nodeRuntime?.PMREMGenerator || THREE.PMREMGenerator)(renderer);
+  const pmrem = new (world.nodeRuntime?.PMREMGenerator || world.classicRuntime.PMREMGenerator)(renderer);
   const room = new RoomEnvironment();
   const environment = pmrem.fromScene(room, .04);
   room.dispose(); pmrem.dispose();
@@ -142,7 +134,7 @@ export function createCinema(world) {
   const rim = new THREE.DirectionalLight('#7dbeff',2.2);rim.position.set(80,50,-70);scene.add(rim);
   const impactLight = new THREE.PointLight('#ff8138',0,250,1.3);impactLight.position.set(-8,18,-20);scene.add(impactLight);
   const heroLight=new THREE.PointLight('#ffffff',0,200,1.5);scene.add(heroLight);
-  renderer.shadowMap.type=world.nodeRuntime?THREE.PCFShadowMap:getSoftSunShadowMapType();
+  renderer.shadowMap.type=world.nodeRuntime?THREE.PCFShadowMap:world.classicRuntime.shadowMapType;
   world.nodeRuntime?.installNodeSunShadows(sun);
 
   // Roughen the asteroid silhouette.
@@ -226,26 +218,18 @@ export function createCinema(world) {
   const depth=opaqueDepthUniforms(canvas);
   const nodePipeline=world.nodeRuntime?.createNodePipeline({renderer,scene,camera,canvas,depth});
   const nodeMaterials=world.nodeRuntime?.createNodeMaterialAdapter(renderer,depth);
-  const ao=nodePipeline?null:new OpaqueGTAOPass(scene,camera,depth);
+
   const worldBounds={
     city:new THREE.Box3(new THREE.Vector3(-85,-20,-100),new THREE.Vector3(85,160,55)),
     landscape:new THREE.Box3(new THREE.Vector3(-130,-20,-150),new THREE.Vector3(130,200,50)),
     space:new THREE.Box3(new THREE.Vector3(-400,-300,-400),new THREE.Vector3(400,400,400))
   };
-  let composer=null,bloom=null,antialias=null,film=null,shafts=null;
+  let composer=null,bloom=null,antialias=null,film=null,shafts=null,ao=null;
   const shaftUV=new THREE.Vector3(),keyDirection=new THREE.Vector3(-90,85,-110);
   let shaftStrength=0,reflectionScene=false,sceneWorld='city';
   if(!nodePipeline){
-    shafts=new LightShaftsPass();
-    if(world.createPipeline)({composer,bloom,antialias,film}=world.createPipeline({renderer,scene,camera,ao,shafts,filmShader}));
-    else{
-      composer=new EffectComposer(renderer);
-      composer.addPass(new RenderPass(scene,camera));composer.addPass(ao);
-      composer.addPass(shafts);
-      bloom=new UnrealBloomPass(new THREE.Vector2(1,1),.65,.65,1.1);composer.addPass(bloom);composer.addPass(new OutputPass());
-      antialias=new ShaderPass(FXAAShader);composer.addPass(antialias);
-      film=new ShaderPass(filmShader);composer.addPass(film);
-    }
+    ({ao,shafts,composer,bloom,antialias,film}=world.classicRuntime.createClassicPipeline(
+      {renderer,scene,camera,depth,filmShader}));
   }
   // Spray sprites thin out where the crest volume takes over at HIGH and ULTRA.
   const tiers=qualityTiers;

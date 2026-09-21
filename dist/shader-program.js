@@ -1,4 +1,4 @@
-import * as THREE from 'three';
+import * as THREE from 'three/webgpu';
 
 // The offline migration harness visits every factory and captures its final program,
 // including atlas augmentation. Runtime node rendering uses generated TSL only.

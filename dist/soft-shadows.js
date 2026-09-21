@@ -1,4 +1,4 @@
-import * as THREE from 'three';
+import * as THREE from 'three/webgpu';
 
 const MARKER = '// A4_SOFT_SUN_PCSS_V2';
 const CALL = 'getShadow( directionalShadowMap[ i ],';
@@ -98,7 +98,7 @@ ${nativeDepth ? '#if defined( SHADOWMAP_TYPE_BASIC )' : '#if defined( SHADOWMAP_
  * provide that depth. Set renderer.shadowMap.type to this before the first render.
  * r186 other lights retain stock Basic filtering; this does not add PCSS to them.
  */
-export function getSoftSunShadowMapType(three = THREE) {
+export function getSoftSunShadowMapType(three) {
   const revision = String(three.REVISION);
   if (revision === '170') return three.PCFSoftShadowMap;
   if (revision === '186') return three.BasicShadowMap;
@@ -106,7 +106,7 @@ export function getSoftSunShadowMapType(three = THREE) {
 }
 
 /** Call once before compiling materials. Fails atomically on unsupported chunks/revisions. */
-export function installSoftSunShadows(three = THREE) {
+export function installSoftSunShadows(three) {
   getSoftSunShadowMapType(three);
   const revision = String(three.REVISION);
   const chunks = three.ShaderChunk;

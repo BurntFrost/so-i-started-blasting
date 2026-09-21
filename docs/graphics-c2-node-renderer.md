@@ -84,8 +84,25 @@ The startup probe reports three cold-context samples per backend and decoded scr
 bytes on a 390x844 touch viewport. This uses the host's desktop GPU, not a physical
 phone. The larger engine remains a tradeoff: the additional WebGPU engine module is
 about 444 KB gzipped, the TSL entry about 8 KB, and generated custom programs about
-35 KB, plus native display addons. The retained classic comparison path is not
-tree-shaken. No runtime transpiler or bundler was introduced.
+35 KB, plus native display addons. No runtime transpiler or bundler was introduced.
+
+## Engine realms
+
+`three.module.js` and `three.webgpu.js` are separate prebuilt engines, but both
+re-export the shared `three.core.js`, so 436 of the 444 `three` exports are the same
+object in either build. A scene built by the node-engine modules therefore renders
+under the classic `WebGLRenderer` without translation. `PMREMGenerator` is the only
+export whose implementation differs, so each runtime supplies its own; `ShaderChunk`,
+`ShaderLib`, `UniformsLib`, `UniformsUtils`, `WebGLCubeRenderTarget`, `WebGLRenderer`
+and `WebGLUtils` exist only in the classic build.
+
+Application modules import `three/webgpu`; only `classic-runtime.js`, `ao-pass.js` and
+`light-shafts-pass.js` import `three`. Addons import the bare `three` specifier, so
+`tools/vendor.mjs` resolves it per realm from whichever module reached the addon, and
+throws if one addon is pulled into both. `simulation.js` imports the classic runtime
+dynamically, so `?renderer=classic` is the only way to fetch that engine: it keeps
+411,760 bytes (101,536 gzipped, about 20% of the site's JavaScript) out of first load.
+`tests/engine-split.test.mjs` asserts the boundary in both directions.
 
 Review evidence and current cross-browser status are recorded in
 [PR #35](https://github.com/BurntFrost/so-i-started-blasting/pull/35).

@@ -1,4 +1,4 @@
-import * as THREE from 'three';
+import * as THREE from 'three/webgpu';
 import { opaqueDepthUniforms, opaqueDepthGLSL } from './render-kit.js';
 
 // Cell order is top-to-bottom in the authored image. No runtime random numbers.

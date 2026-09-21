@@ -1,4 +1,4 @@
-import * as THREE from 'three';
+import * as THREE from 'three/webgpu';
 import { createShaderMaterial } from './shader-program.js';
 
 // Effects render in colour but never in the shared opaque normal/depth buffer.

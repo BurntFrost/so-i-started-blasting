@@ -1,7 +1,8 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import * as THREE from 'three';
-import { LightShaftsPass, emitterEnvelope, projectEmitter, emitterScreenFade } from '../dist/light-shafts.js';
+import { emitterEnvelope, projectEmitter, emitterScreenFade } from '../dist/light-shafts.js';
+import { LightShaftsPass } from '../dist/light-shafts-pass.js';
 import { heroEmitters, sceneConfigs } from '../dist/scene-config.js';
 import { prepareSunForRender, qualityTiers } from '../dist/cinema.js';
 
