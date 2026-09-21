@@ -11,12 +11,16 @@ const root = fileURLToPath(new URL('../', import.meta.url));
 const hashedExtensions = new Set(['.js', '.css', '.glb', '.webp', '.hdr', '.mp3']);
 const textExtensions = new Set(['.html', '.js', '.css']);
 
+// `dist` is the editable source, so it is browsed in Finder and edited in place and
+// collects metadata that must not be served: `.DS_Store` reveals directory contents,
+// and a stray dotfile is never something a static site means to publish. Dot-prefixed
+// directories are still traversed so a deliberate `.well-known/` payload keeps working.
 async function listFiles(directory, prefix = '') {
   const files = [];
   for (const entry of await readdir(directory, { withFileTypes: true })) {
     const name = path.posix.join(prefix, entry.name);
     if (entry.isDirectory()) files.push(...await listFiles(path.join(directory, entry.name), name));
-    else if (entry.isFile()) files.push(name);
+    else if (entry.isFile() && !entry.name.startsWith('.')) files.push(name);
   }
   return files.sort();
 }

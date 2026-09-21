@@ -40,6 +40,24 @@ test('clean builds are deterministic and all rewritten output URLs resolve', asy
   assert.ok(css.includes(second['/assets/sky.webp']));
 });
 
+test('editor and platform dotfiles never reach the deployed output', async t => {
+  const options = await fixture(t);
+  // `dist` is browsed in Finder and edited in place, so it collects metadata that
+  // has no business being served. A dot-prefixed directory is still traversed, so
+  // a deliberate `.well-known/` payload keeps working.
+  await writeFile(path.join(options.sourceDir, '.DS_Store'), 'finder metadata');
+  await writeFile(path.join(options.sourceDir, 'assets/.DS_Store'), 'finder metadata');
+  await writeFile(path.join(options.sourceDir, '.env'), 'SECRET=value');
+  await mkdir(path.join(options.sourceDir, '.well-known'));
+  await writeFile(path.join(options.sourceDir, '.well-known/security.txt'), 'Contact: mailto:a@b.c');
+  const manifest = await build(options);
+  for (const name of ['.DS_Store', 'assets/.DS_Store', '.env']) {
+    assert.ok(!manifest[`/${name}`], `${name} is not published`);
+    await assert.rejects(readFile(path.join(options.outDir, name)), { code: 'ENOENT' }, `${name} is not emitted`);
+  }
+  assert.equal(await readFile(path.join(options.outDir, '.well-known/security.txt'), 'utf8'), 'Contact: mailto:a@b.c');
+});
+
 test('changing a model invalidates its importing scene and boot module only', async t => {
   const options = await fixture(t);
   const first = await build(options);
