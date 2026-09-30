@@ -31,7 +31,7 @@ const importsBareThree = imports => imports.some(entry => entry.specifier === 't
 export async function vendorThree(source) {
   await init;
   const metadata = JSON.parse(await readFile(path.join(packageDir, 'package.json'), 'utf8'));
-  if (metadata.version !== '0.186.0') throw new Error(`Expected Three.js 0.186.0; installed ${metadata.version}. Run npm ci.`);
+  if (metadata.version !== '0.186.1') throw new Error(`Expected Three.js 0.186.1; installed ${metadata.version}. Run npm ci.`);
   const visited = new Map();
   async function rewrite(name, inherited) {
     let text = source.get(name).toString('utf8');

@@ -195,7 +195,7 @@ test('Three engine and used addons are local, pinned, licensed and fingerprinted
   assert.ok(loaderSource.includes(engine));
   assert.ok(loaderSource.includes(manifest['/vendor/three/examples/jsm/utils/BufferGeometryUtils.js']));
   assert.match(await readFile(path.join(options.outDir, 'vendor/three/LICENSE'), 'utf8'), /MIT License/);
-  assert.equal(await readFile(path.join(options.outDir, 'vendor/three/VERSION'), 'utf8'), '0.186.0\n');
+  assert.equal(await readFile(path.join(options.outDir, 'vendor/three/VERSION'), 'utf8'), '0.186.1\n');
   assert.deepEqual((await readdir(path.dirname(options.outDir))).sort(), ['build', 'dist']);
 });
 

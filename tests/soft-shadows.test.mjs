@@ -173,8 +173,9 @@ test('isolated Chrome compiles and renders PCSS with native shadow maps', {
     ? resolve(process.env.SOFT_SHADOWS_THREE_MODULE) : fileURLToPath(import.meta.resolve('three'));
   const server = createServer(async (req,res) => {
     if (req.url === '/favicon.ico') { res.writeHead(204); res.end(); return; }
+    // This probes classic ShaderChunk PCSS; shared imports must use that engine too.
     const routes = {
-      '/': '<script type="importmap">{"imports":{"three":"/three.module.js"}}</script>'
+      '/': '<script type="importmap">{"imports":{"three":"/three.module.js","three/webgpu":"/three.module.js"}}</script>'
     };
     try {
       if (req.url === '/') {res.setHeader('Content-Type','text/html'); res.end(routes['/']); return;}

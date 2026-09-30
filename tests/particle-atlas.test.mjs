@@ -188,7 +188,9 @@ test('WebGL compiles all factory shaders and verifies depth fade, fallback and r
     try {
       if (req.url === '/') {
         res.setHeader('content-type', 'text/html');
-        res.end('<script type="importmap">{"imports":{"three":"/node_modules/three/build/three.module.js","three/addons/":"/node_modules/three/examples/jsm/"}}</script>'); return;
+        // Legacy shader factories still use the classic WebGL engine in this probe.
+        // Shared helpers now import three/webgpu; keep them on the same fixture engine.
+        res.end('<script type="importmap">{"imports":{"three":"/node_modules/three/build/three.module.js","three/webgpu":"/node_modules/three/build/three.module.js","three/addons/":"/node_modules/three/examples/jsm/"}}</script>'); return;
       }
       const path = req.url.startsWith('/assets/') ? `/dist${req.url}` : req.url;
       res.setHeader('content-type', path.endsWith('.js') ? 'text/javascript' : 'image/webp');

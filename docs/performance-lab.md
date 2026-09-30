@@ -1,6 +1,6 @@
 # Performance lab
 
-Three.js is pinned to 0.186.0 and the production renderer is the WebGPU node renderer with an automatic WebGL fallback (see [the native renderer](graphics-c2-node-renderer.md)). `stats-gl` 4.2.3 is an exact development dependency and supports the pinned engine.
+Three.js is pinned to 0.186.1 and the production renderer is the WebGPU node renderer with an automatic WebGL fallback (see [the native renderer](graphics-c2-node-renderer.md)). `stats-gl` 4.2.3 is an exact development dependency and supports the pinned engine.
 
 ## Local profiling
 
