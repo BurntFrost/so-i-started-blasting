@@ -95,9 +95,12 @@ async function measure(page,variant,profile,scene,repeat){
   await page.evaluate(()=>{window.__benchmark.interacting=false;window.__benchmark.stop=performance.now();});
   await page.waitForTimeout(100);
   const raw=await page.evaluate(()=>{
-    const b=window.__benchmark,canvas=document.querySelector('#world'),gl=canvas.getContext('webgl2');
-    const debug=gl.getExtension('WEBGL_debug_renderer_info');
-    return {...b,endQuality:{...canvas.dataset},renderer:debug?gl.getParameter(debug.UNMASKED_RENDERER_WEBGL):gl.getParameter(gl.RENDERER),gpuTimerSupported:!!gl.getExtension('EXT_disjoint_timer_query_webgl2')};
+    const b=window.__benchmark,canvas=document.querySelector('#world');
+    // A canvas initialized for WebGPU cannot also provide a WebGL context.
+    const gl=canvas.dataset.backend==='webgl'?canvas.getContext('webgl2'):null;
+    const debug=gl?.getExtension('WEBGL_debug_renderer_info');
+    return {...b,endQuality:{...canvas.dataset},renderer:gl?(debug?gl.getParameter(debug.UNMASKED_RENDERER_WEBGL):gl.getParameter(gl.RENDERER)):canvas.dataset.backend,
+      gpuTimerSupported:gl?!!gl.getExtension('EXT_disjoint_timer_query_webgl2'):null};
   });
   const screenshot=`${profile.name}-${scene.id}-${variant.name}-${repeat}.png`;
   await seekTimeline(page,scene.still);await settleFrames(page);await page.locator('#progress').blur();
