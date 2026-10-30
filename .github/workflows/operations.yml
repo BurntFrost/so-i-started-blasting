@@ -16,7 +16,7 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
       - name: Verify served edge and origin certificates
         run: |
-          if timeout 360s python3 tools/check-certificates.py --repeats 10 --timeout 3 > certificate-health.json; then
+          if timeout 360s python3 tools/check-certificates.py --min-days 7 --repeats 10 --timeout 3 > certificate-health.json; then
             exit 0
           else
             result=$?
