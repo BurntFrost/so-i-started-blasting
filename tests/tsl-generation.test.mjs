@@ -130,6 +130,7 @@ test('inline early returns lower to guarded continuations without shader Return 
 
 test('all captured programs match the checked-in deterministic artifact', async () => {
   const records = JSON.parse(await readFile(new URL('../tools/tsl-captured-programs.json', import.meta.url), 'utf8'));
-  assert.equal(records.length, 51);
+  // Ordinary-material cloud and spray batches replace nine retired custom programs.
+  assert.equal(records.length, 42);
   assert.equal(await readFile(new URL('../dist/node-fields.js', import.meta.url), 'utf8'), generateRegistry(records));
 });

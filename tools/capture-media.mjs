@@ -8,10 +8,10 @@ import { spawnSync } from 'node:child_process';
 
 export const SCENES = [
   ['independence-day', 16], ['deep-impact', 22], ['day-after-tomorrow', 24],
-  ['day-the-earth-stood-still', 22], ['terminator-2', 12], ['2012', 22],
-  ['war-of-the-worlds', 20], ['knowing', 18], ['armageddon', 18],
-  ['interstellar', 12], ['twister', 17], ['dantes-peak', 20], ['gravity', 15],
-  ['wandering-earth', 23], ['evangelion', 25],
+  ['day-the-earth-stood-still', 18], ['terminator-2', 18], ['2012', 22],
+  ['war-of-the-worlds', 21.5], ['knowing', 18], ['armageddon', 24],
+  ['interstellar', 12], ['twister', 18], ['dantes-peak', 22], ['gravity', 18],
+  ['wandering-earth', 23], ['evangelion', 28],
 ].map(([id, second]) => ({ id, second }));
 
 export const QUALITY = {
@@ -106,6 +106,8 @@ async function selectAndSeek(page, scene, second) {
     const data = document.querySelector('#world').dataset;
     const pending = [data.weatherTexture, data.nebulaTexture, data.particleAtlas].includes('loading') ||
       (id === 'terminator-2' && data.explosionBake === 'loading') ||
+      (id === 'twister' && data.twisterBake === 'loading') ||
+      (id === 'deep-impact' && data.impactMist === 'loading') ||
       (id === 'evangelion' && data.atFieldTexture === 'loading');
     return data.scene === id && !pending;
   }, scene.id);

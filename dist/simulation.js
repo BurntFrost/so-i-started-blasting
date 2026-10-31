@@ -45,7 +45,8 @@ function random(){seed=(seed*1664525+1013904223)>>>0;return seed/4294967296;}
 const mat=(color,extra={})=>new THREE.MeshStandardMaterial({color,roughness:.8,...extra});
 const ground=new THREE.Mesh(new THREE.BoxGeometry(170,2,155),mat('#141b1d'));ground.position.y=-2;city.add(ground);
 const roadMaterial=mat('#313939');
-for(let n=-4;n<=4;n++){for(const axis of [0,1]){const road=new THREE.Mesh(new THREE.PlaneGeometry(1.7,155),roadMaterial);road.rotation.x=-Math.PI/2;road.position.set(axis?n*17:0,-.92,axis?0:n*17);if(!axis)road.rotation.z=Math.PI/2;city.add(road);}}
+const streets=new THREE.Group();city.add(streets);
+for(let n=-4;n<=4;n++){for(const axis of [0,1]){const road=new THREE.Mesh(new THREE.PlaneGeometry(1.7,155),roadMaterial);road.rotation.x=-Math.PI/2;road.position.set(axis?n*17:0,-.92,axis?0:n*17);if(!axis)road.rotation.z=Math.PI/2;streets.add(road);}}
 const geometry=new THREE.BoxGeometry(1,1,1);geometry.translate(0,.5,0);
 const windowPositions=[];
 for(let x=-4;x<=4;x++)for(let z=-4;z<=4;z++)for(let k=0;k<3;k++){
@@ -85,7 +86,7 @@ const debrisCount=300;const debris=new THREE.InstancedMesh(new THREE.BoxGeometry
 const dev=await development?.(renderer,canvas);
 const cinema=createCinema({renderer,nodeRuntime,classicRuntime,scene,camera,canvas,sun,buildings,ground,ship,hullMat,core,beam,blast,ocean,wave,meteor,landscape,windows,snow,debris,foam,clouds,glow,telemetry,...dev?.cinema});
 scene.environment=cinema.environment;
-const terrestrial=createTerrestrial({scene,canvas,camera,buildings,landscape});
+const terrestrial=createTerrestrial({scene,canvas,camera,buildings,landscape,ground});
 const cosmic=createCosmic({scene,canvas,camera});
 let production=null,productionRequested=false,authoredWorkPending=false,failed=false;
 const productionAssets=new AbortController();
@@ -101,7 +102,7 @@ canvas.addEventListener('atmosphere-ready',()=>{needsRender=true;});
 canvas.addEventListener('explosion-ready',()=>{updateWorld();});
 canvas.addEventListener('at-field-ready',()=>{updateWorld();});
 function resetCamera(){
- const s=scenes[selected];camera.position.set(...s.camera);controls.target.set(...s.target);controls.update();needsRender=true;
+ const s=scenes[selected];camera.position.set(...s.camera);controls.target.set(...s.target);controls.maxDistance=s.cameraMaxDistance||300;controls.update();needsRender=true;
 }
 function syncUI(){
  syncAudio();
@@ -110,7 +111,8 @@ function syncUI(){
  if(play.textContent!==icon)play.textContent=icon;
  play.setAttribute('aria-label',playing?'Pause simulation':'Play simulation');
  $('play-status').textContent=failed?'RENDERER UNAVAILABLE':time===0?'THE CALM BEFORE':time>=30?'END OF SCENE':playing?'SIMULATION RUNNING':'PAUSED';
- $('event-label').textContent=s.phases[time<10?0:time<19?1:2];
+ const [eventStart,aftermathStart]=s.phaseTimes||[10,19];
+ $('event-label').textContent=s.phases[time<eventStart?0:time<aftermathStart?1:2];
  $('blast').innerHTML=time===0?"LET'S DO THIS <span>↗</span>":"BLAST AGAIN <span>↺</span>";
 }
 function failRenderer(stage){
@@ -168,7 +170,7 @@ function applyEnvironment(s,t){
 function updateWorld(){
  if(failed)return;
  needsRender=true;const t=time,s=scenes[selected],id=s.id,hit=ease((t-13)/10);
- const invasion=id==='independence-day',impact=id==='deep-impact',storm=id==='day-after-tomorrow',nuclear=id==='terminator-2',fault=id==='2012';
+ const invasion=id==='independence-day',impact=id==='deep-impact',storm=id==='day-after-tomorrow',nuclear=id==='terminator-2',fault=id==='2012',tripods=id==='war-of-the-worlds';
  city.visible=s.world==='city';landscape.visible=s.world==='landscape';ship.visible=invasion;
  beam.visible=invasion&&t>9&&t<20;core.scale.setScalar(1+ease(t/13)*1.3);ship.position.y=83+(1-ease(t/10))*9;ship.rotation.y=t*.018;
  beam.material.opacity=clamp((t-9)/3)*clamp((20-t)/3)*.8;beam.scale.x=beam.scale.z=.3+ease((t-9)/4)*2;
@@ -176,10 +178,10 @@ function updateWorld(){
  blast.visible=(invasion||impact)&&t>13&&t<26;blast.position.set(invasion?-8:-50,invasion?3:0,invasion?-20:-100);
  const size=.1+hit*(invasion?60:48);blast.scale.set(size,size*.7,size);blast.material.opacity=(1-ease((t-17)/9))*.7;blast.material.color.set(invasion?'#ffdb99':'#fff2d4');
  shockwave.visible=(invasion||impact)&&t>13;shockwave.position.copy(blast.position);shockwave.position.y=2;shockwave.scale.setScalar(1+hit*145);shockwave.material.opacity=1-hit;
- ocean.visible=impact;wave.visible=impact&&t>14;foam.visible=wave.visible;meteor.visible=impact&&t<14;tail.visible=meteor.visible;
+ ocean.visible=impact;wave.visible=impact&&t>14;foam.visible=wave.visible;meteor.visible=impact&&t<13;tail.visible=meteor.visible;
  if(impact){
-  meteor.position.set(85-t*10,145-t*10,-145+t*3);meteor.rotation.set(t*.3,t*.2,0);tail.position.copy(meteor.position).add(new THREE.Vector3(21,21,-6));
-  tail.quaternion.setFromUnitVectors(new THREE.Vector3(0,-1,0),new THREE.Vector3(-1,-1,.3).normalize());
+  meteor.position.set(85-t*135/13,144-t*145/13,-145+t*45/13);meteor.rotation.set(t*.3,t*.2,0);tail.position.copy(meteor.position).add(new THREE.Vector3(21,21,-6));
+  tail.quaternion.setFromUnitVectors(new THREE.Vector3(0,-1,0),new THREE.Vector3(-135,-145,45).normalize());
   wave.position.set(0,-1.2,-115+ease((t-14)/16)*230);ocean.position.y=-1.08+ease((t-25)/5)*13;
  }
  snow.visible=storm;
@@ -187,20 +189,27 @@ function updateWorld(){
   for(let i=0;i<Math.min(snowCount,snowGeo.drawRange.count);i++){const [x,y,z,r]=snowSeeds[i];snowPositions[i*3]=((x+110+t*(9+hit*34))%220)-110;snowPositions[i*3+1]=(y-t*(6+r*9)%130+130)%130;snowPositions[i*3+2]=((z+110+t*(2+hit*9)+Math.sin(t*1.5+r*20)*4)%220)-110;}
   snowGeo.attributes.position.needsUpdate=true;
  }
- snow.material.opacity=.2+ease(t/15)*.8;clouds.visible=!s.space;cloudMat.opacity=storm?.22+hit*.22:.1;clouds.rotation.y=t*.003;
+ snow.material.opacity=.18+.5*ease((t-4)/10)*(1-.6*ease((t-22)/8));clouds.visible=!s.space;cloudMat.opacity=storm?.22+hit*.22:.1;clouds.rotation.y=t*.003;
  if(city.visible){
   buildings.forEach((b,i)=>{
    const u=b.userData;let collapse=0;
-   if(invasion)collapse=ease((t-15-u.delay*7)/7);if(impact)collapse=ease((wave.position.z-u.z)/45)*hit;
-   if(nuclear)collapse=ease((t-12-u.delay*8)/8);if(fault)collapse=ease((t-8-Math.abs(u.x)*.12)/14);
+   if(invasion)collapse=ease((t-15-u.delay*7)/7);if(impact)collapse=ease((wave.position.z+18-u.z)/38)*hit;
+   if(nuclear)collapse=ease((t-12-u.delay*8)/8);
+   const faultCenter=Math.sin(u.z*.045)*10+Math.sin(u.z*.16)*2, faultDistance=Math.abs(u.x-faultCenter);
+   if(fault)collapse=ease((t-9-(u.z+77)*.035-faultDistance*.035)/9)*Math.pow(clamp(1-faultDistance/76),.65);
+   if(tripods){
+    const first=(1-ease((Math.abs(u.z-50)-5)/12))*(1-ease((Math.abs(u.x-16)-24)/16))*ease((t-20.5)/2.4);
+    const second=(1-ease((Math.abs(u.z+6)-4)/11))*(1-ease((Math.abs(u.x+38)-16)/12))*ease((t-23.5)/2.4);
+    collapse=Math.max(first,second)*.92;
+   }
    b.scale.y=u.h*(1-collapse*.87);b.rotation.z=u.tilt*collapse;b.position.set(u.x,-1,u.z);
-   if(fault){b.position.x+=Math.sign(u.x)*collapse*12;b.position.y-=collapse*(4+Math.abs(u.tilt)*10);}
+   if(fault){b.position.x+=Math.sign(u.x-faultCenter)*collapse*10;b.position.y-=collapse*(4+Math.abs(u.tilt)*10);}
    b.material.color.copy(originalColors[i]);if(storm)b.material.color.lerp(freeze,hit);
   });
   tower.scale.y=invasion?1-hit*.85:1;tower.rotation.z=invasion?hit*.25:0;
   ground.material.color.set(storm?'#6e8494':'#141b1d');
  }
- ground.visible=!fault;windows.visible=invasion?t<17:impact?t<22:true;windows.material.opacity=storm||invasion?.8*(1-hit):.8;
+ ground.visible=!fault;streets.visible=!fault;windows.visible=invasion?t<17:impact?t<22:true;windows.material.opacity=storm||invasion?.8*(1-hit):.8;
  debris.visible=invasion&&t>14;
  if(debris.visible){
   for(let i=0;i<debris.count;i++){const [a,r,h,w]=debrisSeeds[i],p=clamp((t-14-r*3)/12);dummy.position.set(-8+Math.sin(a)*p*(40+r*95),Math.max(.1,Math.sin(p*Math.PI)*(15+h*55)),-20+Math.cos(a)*p*(40+r*95));dummy.rotation.set(p*10+r,p*7,p*9);dummy.scale.setScalar(.3+w*1.5);dummy.updateMatrix();debris.setMatrixAt(i,dummy.matrix);}

@@ -53,6 +53,8 @@ for(const [index,scene] of scenes.entries())test(`native ${scene.id} renders and
     await expect(canvas).toHaveAttribute('data-scene',scene.id);
     if(scene.space)await expect(canvas).toHaveAttribute('data-nebula-texture',/ready|fallback/);
     if(scene.id==='terminator-2')await expect(canvas).toHaveAttribute('data-explosion-bake',/ready|fallback/);
+    if(scene.id==='twister')await expect(canvas).toHaveAttribute('data-twister-bake',/ready|fallback/);
+    if(scene.id==='deep-impact')await expect(canvas).toHaveAttribute('data-impact-mist',/ready|fallback/);
     if(scene.id==='evangelion')await expect(canvas).toHaveAttribute('data-at-field-texture',/ready|fallback/);
     for(const t of [6,14,22,27,18]){await seekTimeline(page,t);await settleFrames(page);}
     const image=await captureWorld(canvas);

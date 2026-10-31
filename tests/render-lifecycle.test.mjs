@@ -44,7 +44,10 @@ test('procedural factories construct only visited IDs and scrub reversibly in an
     assert.equal(scene.children.length, 0);
     for (const [i, id] of ids.entries()) {
       renderer.update(18, config(id, world)); renderer.updateView?.();
-      assert.equal(scene.children.length, i + 1 + extra);
+      assert.equal(scene.children.filter(child => !child.isLight).length, i + 1 + extra, 'only visited scene graphs and the shared cosmic star field are allocated');
+      const expectedLights = create === createTerrestrial && i >= ids.indexOf('twister') ? 1 : 0;
+      assert.equal(scene.children.filter(child => child.isLight).length, expectedLights, 'Twister alone owns a persistent scene-level lightning light');
+      for (const unvisited of names.slice(i + 1)) assert.equal(scene.getObjectByName(unvisited), undefined, 'future scenes remain unallocated');
       const group = scene.getObjectByName(names[i]);
       assert.equal(group.visible, true);
       const first = snapshot(group);
@@ -464,37 +467,38 @@ test('BALANCED uses stepped medium geometry and uploads only visible city batche
   });
 });
 
-test('Twister marches its funnel and wall cloud as volumes only at HIGH and above; lower tiers keep the mesh funnel', () => {
+test('Twister retains one continuous funnel while rain, filaments and debris follow the detail tiers', () => {
   const scene = new THREE.Scene(), canvas = { dataset: { quality: 'balanced', pixelRatio: '1.25' } }, camera = new THREE.PerspectiveCamera();
   const renderer = createTerrestrial({ scene, canvas, camera, landscape: parkLandscape() });
-  const twister = () => renderer.update(18, config('twister', 'landscape'));
-  const named = name => scene.getObjectByName('Twister — F5 outbreak').getObjectByName(name);
-  twister();
-  assert.equal(named('Condensation funnel').visible, true);
-  assert.equal(named('Funnel volume').visible, false);
-  assert.equal(named('Wall cloud volume').visible, false);
-  assert.equal(named('Rotating wall cloud').visible, true);
-  const balancedRain = named('Rain curtain').count;
-  canvas.dataset.quality = 'high'; twister();
-  assert.equal(named('Condensation funnel').visible, false);
-  assert.equal(named('Funnel volume').visible, true);
-  assert.equal(named('Wall cloud volume').visible, true);
-  assert.equal(named('Rotating wall cloud').visible, false);
-  assert.equal(named('Funnel volume').material.uniforms.steps.value, 32);
-  assert.equal(named('Wall cloud volume').material.uniforms.steps.value, 14);
-  assert.ok(named('Rain curtain').count > balancedRain, 'HIGH pours more rain');
-  canvas.dataset.quality = 'ultra'; twister();
-  assert.equal(named('Funnel volume').material.uniforms.steps.value, 48);
-  assert.equal(named('Wall cloud volume').material.uniforms.steps.value, 18);
-  // The march starts at the camera when it is inside a hull, so the hull flips to its back faces.
-  camera.position.copy(named('Funnel volume').position).add(new THREE.Vector3(0, 50, 0)); renderer.updateView();
-  assert.equal(named('Funnel volume').material.side, THREE.BackSide);
-  camera.position.set(300, 300, 300); renderer.updateView();
-  assert.equal(named('Funnel volume').material.side, THREE.FrontSide);
-  canvas.dataset.quality = 'lite'; twister();
-  assert.equal(named('Condensation funnel').visible, true);
-  assert.equal(named('Funnel volume').visible, false);
-  assert.ok(named('Rain curtain').count < balancedRain, 'LITE pours less rain');
+  const at = t => renderer.update(t, config('twister', 'landscape'));
+  at(18);
+  const group = scene.getObjectByName('Twister — F5 outbreak'), named = name => group.getObjectByName(name);
+  const funnel = named('Continuous condensation funnel'), geometry = funnel.geometry, childCount = group.children.length;
+  assert.equal(named('Funnel volume'), undefined, 'the obsolete banded volume is no longer allocated');
+  assert.equal(named('Wall cloud volume'), undefined);
+  for (const [quality, rain, planks, panels, wall, filaments] of [
+    ['lite', 270, 60, 12, 24, 42], ['balanced', 540, 100, 24, 36, 63], ['high', 900, 140, 40, 36, 84], ['ultra', 900, 140, 40, 36, 84]
+  ]) {
+    canvas.dataset.quality = quality; at(18);
+    assert.equal(named('Continuous condensation funnel'), funnel, 'changing tier reuses the continuous funnel');
+    assert.equal(funnel.geometry, geometry);
+    assert.equal(funnel.visible, true);
+    assert.equal(group.children.length, childCount, 'tier changes do not allocate replacement scene graphs');
+    assert.equal(named('Rain curtain').count, rain);
+    assert.equal(named('Airborne farm debris').count, planks);
+    assert.equal(named('Airborne roof panels').count, panels);
+    assert.equal(named('Rotating wall cloud').count, wall);
+    assert.equal(named('Condensation filament sources').count, filaments);
+    assert.ok(named('Ground debris cloud').visible, 'touchdown retains a readable ground cloud on every tier');
+    for (const name of ['Rain curtain', 'Airborne farm debris', 'Airborne roof panels']) {
+      assert.ok(named(name).instanceMatrix.array.every(Number.isFinite));
+    }
+  }
+  at(2); assert.equal(named('Rain curtain').count, 0, 'the anticipation stays clear of the rain curtain');
+  renderer.update(8, config('independence-day'));
+  assert.equal(group.visible, false);
+  assert.ok(scene.children.filter(child => child.isLight).every(light => light.visible && light.intensity === 0), 'leaving silences the stable lightning light');
+  at(18); assert.equal(group.visible, true); assert.equal(named('Continuous condensation funnel'), funnel);
 });
 
 test('Twister leans the landscape trees into the inflow as a function of time and restores them on leave', () => {
@@ -517,27 +521,43 @@ test('Twister leans the landscape trees into the inflow as a function of time an
   assert.ok(upright(), 'leaving the scene stands the trees back up for the other landscape scenes');
 });
 
-test('Deep Impact marches its entry trail, water column and crest spray only at HIGH and above', () => {
+test('Deep Impact reserves the entry march for HIGH and ULTRA while every tier retains vapor and crest detail', async () => {
   const scene = new THREE.Scene(), canvas = { dataset: { quality: 'balanced', pixelRatio: '1.25' } }, camera = new THREE.PerspectiveCamera();
   const renderer = createTerrestrial({ scene, canvas, camera, buildings: cityBuildings(), landscape: parkLandscape() });
   const at = t => renderer.update(t, config('deep-impact'));
-  const named = name => scene.getObjectByName('Deep Impact — ocean strike').getObjectByName(name);
-  const volumes = ['Entry trail', 'Impact column', 'Crest spray'];
   at(8);
-  for (const name of volumes) assert.equal(named(name).visible, false, `${name} stays hidden at BALANCED`);
-  canvas.dataset.quality = 'high';
-  at(8); assert.deepEqual(volumes.map(name => named(name).visible), [true, false, false], 'only the comet trail during the approach');
-  at(15); assert.deepEqual(volumes.map(name => named(name).visible), [false, true, true], 'column and spray after the strike');
-  at(27); assert.deepEqual(volumes.map(name => named(name).visible), [false, false, true], 'the column has fallen back by the inundation');
-  assert.deepEqual(volumes.map(name => named(name).material.uniforms.steps.value), [24, 28, 18]);
-  canvas.dataset.quality = 'ultra'; at(27);
-  assert.deepEqual(volumes.map(name => named(name).material.uniforms.steps.value), [32, 40, 24]);
-  const lip = named('Crest spray').material.uniforms.origin.value;
-  assert.ok(lip.y > 60 && lip.z > 80, 'the lip rides high over the city by 27 s');
-  camera.position.copy(lip); renderer.updateView();
-  assert.equal(named('Crest spray').material.side, THREE.BackSide, 'a camera at the lip marches from inside the crest hull');
+  // This DOM-free fixture intentionally cannot load the optional atlas; the fallback must remain useful.
+  await new Promise(resolve => setImmediate(resolve));
+  assert.equal(canvas.dataset.impactMist, 'fallback');
+  const group = scene.getObjectByName('Deep Impact — ocean strike'), named = name => group.getObjectByName(name);
+  const trail = named('Entry trail'), childCount = group.children.length;
+  assert.equal(named('Impact column'), undefined, 'the former clipped impact hull is gone');
+  assert.equal(named('Crest spray'), undefined, 'the former box-shaped spray hull is gone');
+  for (const [quality, marched, steps, foam, drops, vapor, mist] of [
+    ['lite', false, 24, 18, 60, 24, 24], ['balanced', false, 24, 28, 130, 36, 40],
+    ['high', true, 24, 42, 240, 48, 64], ['ultra', true, 32, 42, 240, 48, 64]
+  ]) {
+    canvas.dataset.quality = quality; at(8);
+    assert.equal(trail.visible, marched); assert.equal(trail.material.uniforms.steps.value, steps);
+    at(17);
+    assert.equal(trail.visible, false, 'the entry trail ends at the impact');
+    assert.equal(named('Impact vapor fallback').visible, true);
+    assert.ok(named('Impact vapor fallback').material.opacity > .1, 'failed optional media still gives the impact a visible vapor silhouette');
+    assert.equal(named('Broken crest foam').count, foam); assert.equal(named('Wind-torn crest droplets').count, drops);
+    assert.equal(named('Broken crest foam').visible, true); assert.equal(named('Wind-torn crest droplets').visible, true);
+    assert.equal([0,1,2,3].reduce((sum, cell) => sum + named('Soft impact vapor ' + cell).count, 0), vapor);
+    assert.equal([0,1,2,3].reduce((sum, cell) => sum + named('Windblown crest mist ' + cell).count, 0), mist);
+    assert.equal(group.children.length, childCount, 'quality changes reuse the same allocated scene');
+    at(27); assert.equal(named('Impact vapor fallback').visible, false, 'the short impact yields to the inundation');
+    assert.equal(named('Broken crest foam').visible, true);
+  }
+  canvas.dataset.quality = 'high'; at(8);
+  camera.position.copy(trail.position); renderer.updateView();
+  assert.equal(trail.material.side, THREE.BackSide, 'entry trail still handles a camera inside its hull');
   camera.position.set(400, 300, 400); renderer.updateView();
-  assert.equal(named('Crest spray').material.side, THREE.FrontSide);
+  assert.equal(trail.material.side, THREE.FrontSide);
+  renderer.update(5, config('independence-day')); assert.equal(group.visible, false);
+  at(17); assert.equal(group.visible, true); assert.equal(named('Entry trail'), trail); assert.equal(group.children.length, childCount);
 });
 
 test('Knowing marches its corona, ejection and engulfment only at HIGH and above', () => {
@@ -571,8 +591,8 @@ test('Knowing restores native photosphere radiance when dropping to LITE', () =>
   renderer.update(5, config('knowing', 'space'));
   let photosphere;
   scene.traverse(object => { if (object.material?.uniforms?.radiance) photosphere = object.material.uniforms.radiance; });
-  assert.equal(photosphere.value, 1.35);
-  for (const [quality, value] of [['lite',1],['high',1.35],['ultra',1.35],['lite',1]]) {
+  assert.equal(photosphere.value, .9);
+  for (const [quality, value] of [['lite',.85],['high',.9],['ultra',.9],['lite',.85]]) {
     canvas.dataset.quality = quality;
     renderer.update(5, config('knowing', 'space'));
     assert.equal(photosphere.value, value, quality);

@@ -104,7 +104,8 @@ export function createAtmosphere({ scene, camera, canvas }) {
       const space = Boolean(config.space), storm = config.id === 'day-after-tomorrow';
       const supercell = config.id === 'twister', ashfall = config.id === 'dantes-peak', instrumentality = config.id === 'evangelion';
       const quality = canvas.dataset.quality || 'high';
-      clock.value = t; celestial.visible = space; cloudDome.visible = !space;
+      // The authored sky keeps these focal subjects clear of the extra dome's visible seams.
+      clock.value = t; celestial.visible = space; cloudDome.visible = !space && !storm && !ashfall && !instrumentality && config.id !== 'day-the-earth-stood-still' && config.id !== 'twister' && config.id !== '2012' && config.id !== 'war-of-the-worlds';
       mist.visible = !space && quality !== 'lite'; mist.count = quality === 'high' || quality === 'ultra' ? 12 : 6;
       if (space) requestNebula(); else requestWeather();
       celestialMaterial.uniforms.strength.value = config.id === 'interstellar' ? .22 : .35;
@@ -118,9 +119,9 @@ export function createAtmosphere({ scene, camera, canvas }) {
       if (storm) cloudMaterial.uniforms.tint.value.lerp(whiteout, clamp((t - 8) / 18) * .6);
       if (instrumentality) cloudMaterial.uniforms.tint.value.lerp(dawn, clamp((t - 22) / 8) * .75);
       mistMaterial.uniforms.tint.value.set(config.environment.fog);
-      mistMaterial.uniforms.density.value = storm ? .23 + clamp((t - 6) / 20) * .22 : supercell ? .23 : ashfall ? .18 : instrumentality ? .16 : .11;
+      mistMaterial.uniforms.density.value = storm ? .23 + clamp((t - 6) / 20) * .22 : supercell ? .23 : ashfall ? .06 : instrumentality ? .16 : .11;
       canvas.dataset.atmosphere = space ? 'interstellar-dust' : storm ? 'superstorm' : supercell ? 'supercell' : ashfall ? 'ashfall' : instrumentality ? 'instrumentality' : 'layered-haze';
-      canvas.dataset.atmosphereLayers = String(space || quality === 'lite' ? 1 : 2);
+      canvas.dataset.atmosphereLayers = String(Number(celestial.visible) + Number(cloudDome.visible) + Number(mist.visible));
     }
   };
 }

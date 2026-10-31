@@ -1,0 +1,4 @@
+interface:
+  display_name: "Blasting Scene Media"
+  short_description: "Create cohesive cinematic assets and synchronized sound"
+  default_prompt: "Use $blasting-scene-media to create visually appealing original assets and synchronized sound that support the scene's cinematic style and rhythm."

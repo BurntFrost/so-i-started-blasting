@@ -1,0 +1,4 @@
+interface:
+  display_name: "Blasting Scene Director"
+  short_description: "Direct cinematic scenes with polished visuals and UX"
+  default_prompt: "Use $blasting-scene-director to create or refine a movie scene with cinematic visuals, expressive animation and polished controls, prioritizing the experience over realism."

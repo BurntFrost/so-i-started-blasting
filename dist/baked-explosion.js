@@ -1,76 +1,77 @@
 import * as THREE from 'three/webgpu';
-import { createShaderMaterial } from './shader-program.js';
 import { markEffect } from './render-kit.js';
 
-// 32 Blender volume renders, packed left-to-right in eight columns.
-// Sampling absolute scene time keeps pause, replay, and reverse scrubbing exact.
-export function createBakedExplosion({ canvas, cloud, core }) {
-  let smoke;
-  // ULTRA-capable displays receive the 512-pixel bake; the 256-pixel atlas remains the default.
+// The existing Blender atlas supplies soft edges; the scene owns its solid silhouette.
+// Two ordinary-material batches crossfade adjacent atlas frames on every renderer.
+export function createBakedExplosion({ canvas, cloud, camera }) {
   const cell = canvas.dataset.qualityCeiling === 'ultra' ? 512 : 256;
-  const uniforms = { atlas: { value: null }, frame: { value: 0 }, opacity: { value: 1 }, cell: { value: cell } };
-  const material = createShaderMaterial({
-    uniforms, transparent: true, depthWrite: false,
-    vertexShader: `varying vec2 puffUv;
-    void main(){
-      puffUv=uv;
-      vec4 mvPosition=modelViewMatrix*instanceMatrix*vec4(0.,0.,0.,1.);
-      mvPosition.xy+=position.xy*vec2(length(instanceMatrix[0].xyz),length(instanceMatrix[1].xyz));
-      gl_Position=projectionMatrix*mvPosition;
-    }`,
-    fragmentShader: `uniform sampler2D atlas;uniform float frame,opacity,cell;varying vec2 puffUv;
-    vec4 sampleFrame(float index){
-      vec2 tile=vec2(mod(index,8.),3.-floor(index/8.));
-      vec2 uv=(tile+(puffUv*(cell-1.)+.5)/cell)/vec2(8.,4.);
-      vec4 texel=texture2D(atlas,uv);
-      return vec4(texel.rgb*texel.a,texel.a);
-    }
-    void main(){
-      vec4 puff=mix(sampleFrame(floor(frame)),sampleFrame(min(31.,floor(frame)+1.)),fract(frame));
-      if(puff.a<.003)discard;
-      gl_FragColor=vec4(puff.rgb/max(puff.a,.001),puff.a*opacity);
-      #include <tonemapping_fragment>
-      #include <colorspace_fragment>
-    }`
-  });
+  const layers = [];
+  const matrix = new THREE.Matrix4(), billboard = new THREE.Matrix4();
+  const position = new THREE.Vector3(), scale = new THREE.Vector3();
+  const rotation = new THREE.Quaternion(), facing = new THREE.Quaternion(), parentRotation = new THREE.Quaternion();
+  let lastCamera = camera;
   canvas.dataset.explosionBake = 'loading';
   canvas.dataset.explosionAtlas = String(cell * 8);
-  // loadAsync converts browser/network failures to the existing procedural fallback.
   new THREE.TextureLoader().loadAsync(cell === 512 ? '/assets/explosion-puff-4k.webp' : '/assets/explosion-puff.webp').then(texture => {
     texture.colorSpace = THREE.SRGBColorSpace;
     texture.minFilter = texture.magFilter = THREE.LinearFilter;
     texture.generateMipmaps = false;
-    uniforms.atlas.value = texture;
-    smoke = new THREE.InstancedMesh(new THREE.PlaneGeometry(2.5, 2.5), material, cloud.instanceMatrix.count);
-    smoke.instanceMatrix = cloud.instanceMatrix;
-    smoke.name = 'Baked volumetric mushroom cloud lobes';
-    smoke.frustumCulled = false;
-    smoke.renderOrder = 1;
-    markEffect(smoke); markEffect(cloud);
-    cloud.parent.add(smoke);
-    cloud.material.transparent = true;
-    cloud.material.depthWrite = false;
-    cloud.material.needsUpdate = true;
+    for (let index = 0; index < 2; index++) {
+      const map = index ? texture.clone() : texture;
+      map.repeat.set((cell - 1) / (cell * 8), (cell - 1) / (cell * 4));
+      map.needsUpdate = true;
+      const material = new THREE.MeshBasicMaterial({ map, color: '#e8edf5', transparent: true,
+        depthWrite: false, alphaTest: .003, opacity: 0 });
+      const mesh = new THREE.InstancedMesh(new THREE.PlaneGeometry(2.5, 2.5), material, cloud.instanceMatrix.count);
+      mesh.name = index ? 'Mushroom cloud next atlas frame' : 'Baked volumetric mushroom cloud lobes';
+      mesh.frustumCulled = false;
+      mesh.visible = false;
+      mesh.renderOrder = 1 + index;
+      mesh.instanceMatrix.setUsage(THREE.DynamicDrawUsage);
+      markEffect(mesh);
+      cloud.parent.add(mesh);
+      layers.push(mesh);
+    }
     canvas.dataset.explosionBake = 'ready';
     canvas.dispatchEvent(new Event('explosion-ready'));
   }).catch(() => {
-    material.dispose();
     canvas.dataset.explosionBake = 'fallback';
+    canvas.dispatchEvent?.(new Event('explosion-ready'));
   });
-  return {
-    update(time) {
-      if (!smoke) return;
-      const ignition = THREE.MathUtils.smoothstep(time, 4, 6);
-      const fire = 1 - THREE.MathUtils.smoothstep(time, 10, 18);
-      uniforms.frame.value = THREE.MathUtils.clamp((time - 4) / 16, 0, 1) * 31;
-      // Keep fiery geometry beneath translucent smoke, then hand off to the cooled bake.
-      uniforms.opacity.value = ignition * (1 - .45 * fire);
-      smoke.count = cloud.count;
-      smoke.visible = time > 4;
-      cloud.visible = time > 4 && fire > 0;
-      cloud.material.opacity = fire * .85;
-      core.visible = time > 4 && fire > 0;
-      core.material.opacity = ignition * fire * .32;
+
+  function updateView(viewCamera = lastCamera) {
+    if (!layers.length) return;
+    if (viewCamera) {
+      lastCamera = viewCamera;
+      viewCamera.getWorldQuaternion(facing);
+      cloud.parent.getWorldQuaternion(parentRotation).invert();
+      facing.premultiply(parentRotation);
     }
+    for (let i = 0; i < cloud.count; i++) {
+      cloud.getMatrixAt(i, matrix);
+      matrix.decompose(position, rotation, scale);
+      billboard.compose(position, facing, scale);
+      for (const mesh of layers) mesh.setMatrixAt(i, billboard);
+    }
+    for (const mesh of layers) { mesh.count = cloud.count; mesh.instanceMatrix.needsUpdate = true; }
+  }
+
+  return {
+    get ready() { return layers.length === 2; },
+    update(time, atlasFrame = THREE.MathUtils.clamp((time - 4) / 16, 0, 1) * 31) {
+      if (!layers.length) return;
+      const ignition = THREE.MathUtils.smoothstep(time, 4, 5.2);
+      const frame = atlasFrame;
+      const lower = Math.floor(frame), blend = frame - lower;
+      for (let index = 0; index < layers.length; index++) {
+        const mesh = layers[index], tile = Math.min(31, lower + index), map = mesh.material.map;
+        map.offset.set(((tile % 8) + .5 / cell) / 8, (3 - Math.floor(tile / 8) + .5 / cell) / 4);
+        mesh.material.opacity = ignition * (index ? blend : 1 - blend) * .88;
+        mesh.visible = cloud.visible && time > 4 && mesh.material.opacity > .001;
+        mesh.userData.bakeFrame = frame;
+      }
+      updateView();
+    },
+    updateView
   };
 }

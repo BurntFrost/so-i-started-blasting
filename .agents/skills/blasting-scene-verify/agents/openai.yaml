@@ -1,0 +1,4 @@
+interface:
+  display_name: "Blasting Scene Review"
+  short_description: "Review cinematic appeal, animation, UI and scene behavior"
+  default_prompt: "Use $blasting-scene-verify to review cinematic visuals, normal-speed playback and UI usability alongside browser frames and technical regression checks."

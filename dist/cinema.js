@@ -315,10 +315,11 @@ export function createCinema(world) {
     atmosphere.update(t,config);
     waterTime.value=t;
     const age=t-13;
-    sparks.visible=impact&&age>0&&age<(id==='deep-impact'?4:12);smoke.visible=impact&&age>0;
+    sparks.visible=impact&&age>0&&age<(id==='deep-impact'?4:12);smoke.visible=id==='independence-day'&&age>0;
     for(const p of [sparks,smoke]){p.material.uniforms.time.value=age;p.material.uniforms.origin.value.set(id==='independence-day'?-8:-50,3,id==='independence-day'?-20:-100);}
     const travel=clamp((t-14)/16),smoothTravel=travel*travel*(3-2*travel);
-    spray.visible=id==='deep-impact'&&t>14;spray.material.uniforms.time.value=t;spray.material.uniforms.origin.value.set(0,Math.sin(Math.PI*.53)*(22+smoothTravel*60),wave.position.z+17);
+    // Deep Impact owns crest-following spindrift; the legacy level spray would detach from its folded lip.
+    spray.visible=false;spray.material.uniforms.time.value=t;spray.material.uniforms.origin.value.set(0,Math.sin(Math.PI*.53)*(22+smoothTravel*60),wave.position.z+17);
     impactLight.intensity=impact?Math.sin(clamp(age/12)*Math.PI)*1700:0;
     impactLight.position.copy(sparks.material.uniforms.origin.value);impactLight.position.y=18;
     glow.intensity*=7;

@@ -1,0 +1,34 @@
+{
+  "version": 1,
+  "id": "independence-day",
+  "operation": "refine",
+  "film": {
+    "title": "Independence Day",
+    "year": 1996,
+    "moment": "An original interpretation of an enormous ship charging a beam over a city.",
+    "sources": [{"url": "https://soistartedblasting.com/", "observation": "The existing scene presents a mothership, energy beam and collapsing skyline."}]
+  },
+  "intent": "Make the quiet skyline and visible charging core establish scale before the city-wide shockwave.",
+  "world": "city",
+  "renderer": "original",
+  "duration": 30,
+  "signature": ["Wide disk-shaped ship silhouetted above a readable skyline", "Green-white charging core as the focal point against a muted cool sky", "Warm expanding shock front with clear foreground/background separation"],
+  "beats": [
+    {"start": 0, "end": 9, "label": "ARRIVAL", "action": "Hold the ship above the readable skyline while its core slowly brightens."},
+    {"start": 9, "end": 20, "label": "CONTACT", "action": "Bring up the beam, flash at 13 seconds, then spread the shockwave and begin collapse."},
+    {"start": 20, "end": 30, "label": "AFTERMATH", "action": "Fade the beam and debris while retaining the broken skyline silhouette."}
+  ],
+  "camera": {"position": [122, 58, 155], "target": [-8, 35, -15]},
+  "look": {"accent": "#ff6138", "sky": "#171f22"},
+  "quality": {
+    "lite": "Keep the ship silhouette, beam and collapse with minimal debris.",
+    "balanced": "Retain the event timing with reduced particles and phone geometry below 150000 triangles.",
+    "high": "Use existing authored city detail and finishing effects.",
+    "ultra": "Keep the same timing and use existing dense-display quality support."
+  },
+  "audio": {"direction": "Retain the existing original bed and synchronized charge/blast cues.", "cues": [{"at": 13, "description": "Blast transient aligned to the visual flash."}]},
+  "assets": [],
+  "captureSeconds": [3, 16, 27],
+  "acceptance": ["Charging core is visible before the beam", "The skyline remains readable at BALANCED", "Normal-speed playback builds anticipation, delivers a brief flash and reveals the collapse without prolonged glare", "Title and phase text stay legible against the moving scene; pause, scrub and replay give immediate feedback", "A paused 16 → 27 → 16 seek restores exact pixels", "Sound stays off until enabled"],
+  "assumptions": ["This is an example brief derived from this site's interpretation, not shot-by-shot film research or an implemented refinement.", "Ship scale, fill lighting and shockwave timing may be stylized to improve cinematic composition and readability."]
+}

@@ -24,6 +24,7 @@
     "assets:verify": "node tools/asset-baseline.mjs"
   },
   "dependencies": {
+    "@typesafe-ai/sdk": "0.6.0",
     "three": "0.186.1"
   },
   "devDependencies": {

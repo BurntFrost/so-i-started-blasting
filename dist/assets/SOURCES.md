@@ -1,5 +1,44 @@
 # Cinema environment and surface assets
 
+## Original Armageddon fracture geometry, 2026-10-30
+
+`dist/armageddon-geometry.js` contains original static mesh data generated with
+Blender 5.2.3 LTS by `tools/author-armageddon.py`. No downloaded model, texture or
+film asset is used. A coordinate-noise-deformed icosphere receives broad sculpted
+planes and asymmetric ridges, is reduced for the browser, then warped and bisected
+into complementary halves. A constrained Delaunay triangulation fills the shared
+fracture field with irregular, layered relief instead of a radial center fan.
+These are deliberate cinematic shape choices, not a physical fracture simulation.
+Blender noise is explicitly seeded with 77495; two independent Blender runs
+produced identical source-module bytes. The two closed pieces total 3,864
+triangles and share a 154-vertex seam. Exterior and fracture material groups
+remain separate; runtime code owns materials and reversible motion.
+
+Rebuild from the repository root with:
+
+```sh
+blender --background --factory-startup --python tools/author-armageddon.py
+```
+
+The generator writes the local-coordinate positions/normals, assembled pivots and
+seam to the ESM source module (572,317 bytes before bundling; 107,292 bytes with
+gzip in the verified run). The module follows the normal JavaScript build hash
+graph; it is source geometry, not an optional downloaded graphics asset, so it
+is not added to the binary asset baseline. The saved `.blend`, assembled
+inspection `.glb`, split inspection render and geometry statistics are under
+`work/scene-authoring/armageddon/cinematic/media/`. The previous refinement's
+evidence remains under `work/scene-authoring/armageddon/media/`.
+The Blender scene displays the separated
+pieces for inspection and retains each original assembled pivot as a custom
+property. The GLB and data module preserve the site's Y-up coordinate frame.
+
+The existing Armageddon sound bed and cues remain unchanged: countdown at 13 s,
+detonation at 16 s, and fragment flybys at 21, 24 and 27 s. The bed is exactly
+30 seconds; all four files are stereo MP3 at 44.1 kHz. The synthesis source and
+prior soundtrack provenance below still apply.
+
+## Poly Haven environment and surface maps
+
 The HDR environment and texture maps below are CC0 1.0 under Poly Haven's verified asset license: https://polyhaven.com/license
 
 Downloaded 2026-09-13. Every original payload's MD5 matched Poly Haven's public API metadata. The table below records the original downloads. The six JPEG texture maps were converted to the corresponding `.webp` files with ImageMagick at quality 86 for deployment; `dusk.hdr` is unchanged.
@@ -81,10 +120,15 @@ FFmpeg packs the frames into a single 8×4 WebP atlas (2048×1024, quality 85).
 It contains no stock or film footage and uses no downloaded model.
 
 The nuclear scene samples and interpolates these frames over seconds 4–20,
-then holds the cooled smoke frame. The existing three-dimensional cloud lobe
-positions remain live. Camera-facing smoke cards share the lobe transforms with
-the original flame geometry; both are visible early, with the original fireball
-at reduced intensity. The flames fade between seconds 10 and 18 as smoke takes over.
+then holds the cooled smoke frame. Two ordinary-material instanced batches blend
+adjacent tiles, with camera-facing transforms updated during paused orbit as well
+as playback. Low-opacity three-dimensional geometry supports the silhouette;
+the separate bright fireball fades by 6.2 seconds as the rolling cloud takes over.
+Dante's Peak reuses cooled frames 26–31 for its ash column, crown and ground surge.
+Twister reuses cooled frames 27–30 for its soft wall cloud and rotating funnel
+filaments; its lower opaque funnel and procedural cloud fallback remain scene-owned.
+Each layer retains procedural geometry when its optional atlas fails. This reuse
+changes no asset bytes and adds no downloaded content.
 This is an artistic volume approximation, not a fluid simulation. The atlas
 has fixed baked lighting and cannot reproduce correct volumetric parallax.
 The original procedural geometry remains the fallback if the atlas fails.
@@ -99,7 +143,7 @@ the original assets above.
 |---|---:|---|
 | `dusk-2k.hdr` | 5996454 | Poly Haven "The Sky Is On Fire" 2K Radiance HDR, CC0 1.0, unchanged. Download: https://dl.polyhaven.org/file/ph-assets/HDRIs/hdr/2k/the_sky_is_on_fire_2k.hdr. MD5 `ca2a97070f1bbac3d35300c245b430da` matched the public API metadata at download time. Serves both the visible sky and the PMREM environment in place of `dusk.hdr`. |
 | `nebula-4k.webp` | 99096 | Local Real-ESRGAN x4plus (`realesrgan-ncnn-vulkan`) upscale of the shipped `nebula.webp`. The 1536×768 source was padded with a 96-pixel wrapped strip on each side so the panorama seam survives the upscale, cropped back to 6144×3072, Lanczos-resized to 4096×2048 with ImageMagick, and encoded with `cwebp -q 88 -m 6`. No new generation prompt; the dust field is the same original artwork at higher sampling. |
-| `explosion-puff-4k.webp` | 2539662 | Same original Blender Cycles volume as `explosion-puff.webp`, rendered by `tools/bake-explosion.py --size 512`: 32 RGBA frames at 512×512, 32 samples per frame with denoising, packed 8×4 into a 4096×2048 atlas by FFmpeg at WebP quality 85. The shader samples the atlas at the cell size it was built for, so both atlases share one timeline. |
+| `explosion-puff-4k.webp` | 2539662 | Same original Blender Cycles volume as `explosion-puff.webp`, rendered by `tools/bake-explosion.py --size 512`: 32 RGBA frames at 512×512, 32 samples per frame with denoising, packed 8×4 into a 4096×2048 atlas by FFmpeg at WebP quality 85. The renderer samples the atlas at the cell size it was built for, so both atlases share one timeline. |
 | `at-field-4k.webp` | 348276 | The A.T. field lattice at its native 4096×4096 render from `tools/author-at-field.py` (added 2026-09-15), cwebp quality 90. Requested only by The End of Evangelion when the ceiling is ULTRA; `at-field.webp` is its Lanczos downscale, so both tiers tile the same lattice. |
 
 ## Original particle atlas, 2026-09-19
@@ -113,3 +157,6 @@ bleed; coverage is sampled from red, not alpha. No photography, downloaded
 models, stock imagery or film frames are included. NumPy's fixed seed is
 20260916; regeneration requires only Pillow and NumPy. The checked-in image is
 97,906 bytes; its checksum is recorded in `tools/asset-baseline.json`.
+Deep Impact also uses the four puff cells through ordinary material alpha maps
+for its impact vapor and crest mist. Alpha maps read the equivalent green
+coverage channel in this grayscale RGB atlas; the file has not changed.

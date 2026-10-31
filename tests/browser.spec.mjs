@@ -49,6 +49,8 @@ async function select(page, index) {
   await page.locator(`.scene-card[data-scene="${index}"]`).click();
   await expect(page.locator('#world')).toHaveAttribute('data-scene', scenes[index].id);
   if (index === 4) await expect(page.locator('#world')).toHaveAttribute('data-explosion-bake', /ready|fallback/);
+  if (scenes[index].id === 'twister') await expect(page.locator('#world')).toHaveAttribute('data-twister-bake', /ready|fallback/);
+  if (scenes[index].id === 'deep-impact') await expect(page.locator('#world')).toHaveAttribute('data-impact-mist', /ready|fallback/);
   // The A.T. field mask arrives asynchronously; screenshots must not straddle its arrival.
   if (scenes[index].id === 'evangelion') await expect(page.locator('#world')).toHaveAttribute('data-at-field-texture', /ready|fallback/);
   await expect(page.locator('.scene-card[aria-pressed="true"]')).toHaveCount(1);
@@ -59,6 +61,25 @@ async function expectFailure(page, stage) {
   for (const selector of ['#play', '#progress', '#replay']) await expect(page.locator(selector)).toBeDisabled();
   await expect.poll(() => page.evaluate(stage => window.__graphicsEvents.filter(event => event.name === 'Scene Load Failed' && event.data.stage === stage).length, stage)).toBe(1);
 }
+
+test('an optional font stylesheet can finish after the scene is already usable', async ({ page }) => {
+  let release;
+  const pending = new Promise(resolve => { release = resolve; });
+  await page.route('https://fonts.googleapis.com/**', async route => {
+    await pending;
+    await route.fulfill({ contentType: 'text/css', body: 'body { --optional-font-loaded: 1; }' });
+  });
+  try {
+    await page.goto('/', { waitUntil: 'domcontentloaded', timeout: 10000 });
+    await expect(page.locator('#world')).toHaveAttribute('data-render-state', 'ready');
+    await expect(page.locator('#loading')).toBeHidden();
+    await expect(page.locator('#optional-fonts')).toHaveAttribute('media', 'print');
+    await expect(page.locator('#play')).toBeEnabled();
+    release();
+    await expect(page.locator('#optional-fonts')).toHaveAttribute('media', 'all');
+    await expect.poll(() => page.evaluate(() => getComputedStyle(document.body).getPropertyValue('--optional-font-loaded').trim())).toBe('1');
+  } finally { release(); }
+});
 
 test('particle atlas failure retains a reversible procedural scene', async ({ page }) => {
   const errors = await observe(page);

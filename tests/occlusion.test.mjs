@@ -75,7 +75,7 @@ test('every lazy scene factory classifies its effects and preserves opaque meshe
       let opaque=0;
       scene.traverse(object=>{
         const materials=[].concat(object.material||[]);
-        if(object.isPoints||object.isSprite||materials.some(m=>m.transparent||m.blending===THREE.AdditiveBlending)){
+        if(!object.userData.opaqueDepth&&(object.isPoints||object.isSprite||materials.some(m=>m.transparent||m.blending===THREE.AdditiveBlending))){
           assert.equal(object.layers.mask,2,`${config.id}: ${object.name||object.type}`);assert.equal(object.castShadow,false);
         } else if(object.isMesh){opaque++;assert.equal(object.layers.mask,1,`${config.id}: opaque ${object.name}`);}
       });

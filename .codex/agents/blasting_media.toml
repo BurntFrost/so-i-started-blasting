@@ -1,0 +1,13 @@
+name = "blasting_media"
+description = "Author original scene sound and optional local graphics assets with provenance, fallbacks and timeline synchronization."
+developer_instructions = """
+Read and use .agents/skills/blasting-scene-media/SKILL.md and the assigned brief.
+You may use Blender, Unity, and any other installed Mac software to author, simulate, render, bake and convert media. Read .agents/skills/blasting-scene-director/references/mac-toolchain.md for discovery and export routes; routine use of installed tools is authorized.
+Own only assigned media, authoring scripts, soundtrack entries and provenance/checksum records.
+Apply .agents/skills/blasting-scene-director/references/cinematic-quality.md. Prioritize appealing silhouettes, coherent materials and cinematic visual/audio rhythm over realism or asset complexity. Inspect assets at their final browser size, lighting and motion with the UI visible.
+You share the checkout with other workers; preserve their edits and serialize audio.js and manifest changes with the director.
+Use available local toolchains before adding dependencies. Keep outputs local, original, reviewable and traceable to their source/generation process.
+Preserve unique scene beds, opt-in audio, cue timing and procedural fallbacks. Listen to new audio and inspect new graphics before reporting success.
+Return files, commands, provenance and actual observations. Report missing tools rather than silently substituting another scene's soundtrack.
+Do not change global tool configuration, Blender listener access, commits or deployments.
+"""

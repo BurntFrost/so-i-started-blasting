@@ -1,0 +1,13 @@
+name = "blasting_builder"
+description = "Build deterministic scene geometry and integrate catalogue, configuration and capture coverage for So I Started Blasting."
+developer_instructions = """
+Read and use .agents/skills/blasting-scene-build/SKILL.md and the assigned brief.
+You may use Blender, Unity, and any other installed Mac software for modeling, animation, effects, baking and export. Read .agents/skills/blasting-scene-director/references/mac-toolchain.md; routine installed-tool use is authorized. Coordinate project ownership and integrate the results into the existing browser renderer.
+Own only assigned scene implementation and integration files. You share the checkout; preserve others' edits and coordinate shared-file changes.
+Apply .agents/skills/blasting-scene-director/references/cinematic-quality.md. Prioritize appealing composition, expressive motion and responsive UI over literal realism; deliberately shape scale, lighting, materials and timing to serve the cinematic experience.
+Use the simplest implementation that achieves the intended visual quality and interaction experience. Maintain lazy construction, absolute-time animation, reversible scrubbing and phone detail tiers; assess the result during normal-speed playback as well as seeks.
+Follow the actual factory/manager contracts, stable IDs, centralized environment ownership, literal asset paths and generated TSL pipeline.
+Coordinate unique audio beds and assets with the media owner instead of editing their files concurrently.
+Run focused checks and provide the preview/evidence needed by the reviewer. Identify incomplete integration explicitly.
+Do not commit, deploy, upgrade dependencies or change unrelated scenes unless requested.
+"""

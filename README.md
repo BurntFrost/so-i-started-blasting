@@ -5,20 +5,20 @@ An interactive 3D apocalypse cinema at [soistartedblasting.com](https://soistart
 | Film inspiration | Visualization |
 | --- | --- |
 | Independence Day | Mothership, energy beam, collapsing skyline |
-| Deep Impact | Comet strike, tsunami, sea spray |
-| The Day After Tomorrow | Whiteout blizzard, spindrift, snow drifts, glazed streets, icicles |
-| The Day the Earth Stood Still | Luminous sphere landing, GORT, nanite swarm consuming the park, departing arks |
-| Terminator 2 | Nuclear fireball, mushroom cloud, expanding shockwave |
-| 2012 | Fractured crust, glowing chasm, tumbling debris |
-| War of the Worlds | Walking tripods, scanning heat rays, red growth |
-| Knowing | Active region, flare flash, eruptive prominence, corona, CME front, engulfed Earth |
-| Armageddon | Rugged asteroid, glowing fissures, fragment field |
+| Deep Impact | Coastal skyline, broad impact vapor, folding wave and wind-torn spray |
+| The Day After Tomorrow | Directional blizzard, windward frost, descending facade ice, frozen streets |
+| The Day the Earth Stood Still | Luminous sphere, sculpted metallic GORT, sweeping nanite ribbons, departing arks |
+| Terminator 2 | Brief thermal flash, rising volumetric mushroom cloud, pressure front and lingering fallout |
+| 2012 | Travelling fault surges, buckling freeway, low dust and a surviving skyline |
+| War of the Worlds | Dominant metallic tripod, staggered steps, staggered heat rays and damaged streets |
+| Knowing | Textured Sun, directed accelerating flare, timed engulfment and a settling aftermath |
+| Armageddon | Angular fractured asteroid, brief core blast, asymmetric fragments, backlit Earth |
 | Interstellar | Black hole, accretion disk, lensed halo, orbiting craft |
-| Twister | Rotating wall cloud, F5 funnel, debris spiral, shredded farmstead |
-| Dante's Peak | Plinian eruption column, volcanic lightning, lava bombs, pyroclastic surge |
-| Gravity | Earth from low orbit, station, Kessler debris storm, tumbling wreckage |
-| The Wandering Earth | Frozen Earth, fusion engine plumes, siphoned atmosphere, Jupiter ignition |
-| The End of Evangelion | White winged units circling, red lance, crosses of light, 4K A.T. field lattice, luminous giant rising from the geofront |
+| Twister | Soft rotating storm ceiling, continuous F5 funnel, clustered debris and settling farm wreckage |
+| Dante's Peak | Ridged volcano, rolling ash crown, volcanic lightning and advancing ground-hugging surge |
+| Gravity | Backlit Earth, articulated station breakup, directional debris, astronaut drifting from the wreckage |
+| The Wandering Earth | Jupiter storm belts, clustered fusion exhaust, surface ignition and Earth’s escape |
+| The End of Evangelion | Winged procession, staggered coral crosses, restrained A.T. field, sculpted pale giant rising above Tokyo-3 |
 
 All scenes use the same reversible 30-second timeline and adaptive quality tiers, including an ULTRA tier that renders native Retina and 4K pixels with higher-resolution sky, nebula and explosion assets on dense desktop displays (see [the 4K upgrade](docs/ultra-4k.md)). Cosmic visuals are cinematic interpretations; the black-hole halo is a geometric lensing approximation. No new remote model downloads are needed for the ten scenes added after the original four; the newest four reuse the landscape and space worlds, and The Day the Earth Stood Still replaced Melancholia in the landscape world. The End of Evangelion joins the city world and is the first scene with an ULTRA asset of its own: a 4096-pixel A.T. field lattice with a 1K fallback for every other tier.
 
@@ -27,6 +27,10 @@ The simulation includes authored architectural and spacecraft models, physically
 Enable **Sound** beneath the player for an original film-signature soundscape for every scene (each bed composed against its timeline, with synchronized transients; see [the audio design](docs/film-audio.md)) and a short synthetic introduction. Volume, pause, replay, speed changes, and timeline scrubbing share the simulation clock. Audio downloads only after consent; missing sounds do not interrupt rendering. Layered storm clouds, distant haze, planetary cloud decks, wave foam, and a generated nebula backdrop add depth while respecting the adaptive quality tiers. See [the media upgrade](docs/media-upgrade.md) for tooling, provenance, and verification.
 
 ## Run locally
+
+To create or refine scenes with Codex, use `$blasting-scene-director`. The
+[scene authoring guide](docs/scene-authoring.md) covers the five reusable skills,
+matching agents, creative briefs, starter factory and browser verification.
 
 From the repository root:
 

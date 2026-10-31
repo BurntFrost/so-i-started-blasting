@@ -1,0 +1,4 @@
+interface:
+  display_name: "Blasting Scene Builder"
+  short_description: "Build appealing scenes with expressive, reversible motion"
+  default_prompt: "Use $blasting-scene-build to implement the brief with cinematic composition, expressive reversible animation, responsive controls and complete integration."

@@ -1,0 +1,4 @@
+interface:
+  display_name: "Blasting Scene Research"
+  short_description: "Research film composition, mood and cinematic timing"
+  default_prompt: "Use $blasting-scene-research to prepare a sourced brief with cinematic art direction, expressive beats and clear visual and interaction criteria."

@@ -29,3 +29,17 @@ test('every catalogue scene supplies a complete finite grade', () => {
     assert.ok(grade.grain <= .05 && grade.aberration <= .01, `${id}: subtle film effects`);
   }
 });
+
+test('authored phase boundaries and wide camera limits stay within the player contract', () => {
+  for (const scene of scenes) {
+    if (scene.phaseTimes) {
+      assert.equal(scene.phaseTimes.length, 2, scene.id);
+      const [event, aftermath] = scene.phaseTimes;
+      assert.ok(Number.isFinite(event) && Number.isFinite(aftermath) && event > 0 && event < aftermath && aftermath < 30, scene.id);
+    }
+    if (scene.cameraMaxDistance) {
+      const distance = Math.hypot(...scene.camera.map((value, i) => value - scene.target[i]));
+      assert.ok(Number.isFinite(scene.cameraMaxDistance) && scene.cameraMaxDistance >= distance, `${scene.id}: default camera must not be clamped`);
+    }
+  }
+});
