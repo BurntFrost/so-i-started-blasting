@@ -24,13 +24,13 @@ async function ready(page) {
 
 async function capturePixels(page, canvas, time) {
   // Apply capture styling before the seek. Linux WebKit can snapshot the previous
-  // compositor buffer, so require two identical presented frames at this paused time.
+  // compositor buffer. Re-render the same paused time before each capture, then
+  // require two identical images; idle RAFs alone do not refresh that buffer.
   const style = await page.addStyleTag({ content: 'body * { visibility:hidden!important } #world { visibility:visible!important }' });
   try {
-    await seekTimeline(page, time);
     let previous;
     for (let attempt = 0; attempt < 5; attempt++) {
-      await settleFrames(page);
+      await seekTimeline(page, time); await settleFrames(page);
       const image = await canvas.screenshot();
       const pixels = await page.evaluate(async encoded => {
         const image = new Image(); image.src = `data:image/png;base64,${encoded}`; await image.decode();
