@@ -23,17 +23,31 @@ async function ready(page) {
 }
 
 async function capturePixels(page, canvas, time) {
-  await seekTimeline(page, time); await settleFrames(page);
-  const image = await canvas.screenshot({ style: 'body * { visibility:hidden!important } #world { visibility:visible!important }' });
-  const pixels = await page.evaluate(async encoded => {
-    const image = new Image(); image.src = `data:image/png;base64,${encoded}`; await image.decode();
-    const canvas = document.createElement('canvas'); canvas.width = image.naturalWidth; canvas.height = image.naturalHeight;
-    const context = canvas.getContext('2d'); context.drawImage(image, 0, 0);
-    const rgba = context.getImageData(0, 0, canvas.width, canvas.height).data;
-    const digest = await crypto.subtle.digest('SHA-256', rgba);
-    return { width: canvas.width, height: canvas.height, hash: Array.from(new Uint8Array(digest), byte => byte.toString(16).padStart(2, '0')).join('') };
-  }, image.toString('base64'));
-  return { image, pixels, pngHash: createHash('sha256').update(image).digest('hex'), state: await canvas.evaluate(element => ({ ...element.dataset })) };
+  // Apply capture styling before the seek. Linux WebKit can snapshot the previous
+  // compositor buffer, so require two identical presented frames at this paused time.
+  const style = await page.addStyleTag({ content: 'body * { visibility:hidden!important } #world { visibility:visible!important }' });
+  try {
+    await seekTimeline(page, time);
+    let previous;
+    for (let attempt = 0; attempt < 5; attempt++) {
+      await settleFrames(page);
+      const image = await canvas.screenshot();
+      const pixels = await page.evaluate(async encoded => {
+        const image = new Image(); image.src = `data:image/png;base64,${encoded}`; await image.decode();
+        const canvas = document.createElement('canvas'); canvas.width = image.naturalWidth; canvas.height = image.naturalHeight;
+        const context = canvas.getContext('2d'); context.drawImage(image, 0, 0);
+        const rgba = context.getImageData(0, 0, canvas.width, canvas.height).data;
+        const digest = await crypto.subtle.digest('SHA-256', rgba);
+        return { width: canvas.width, height: canvas.height, hash: Array.from(new Uint8Array(digest), byte => byte.toString(16).padStart(2, '0')).join('') };
+      }, image.toString('base64'));
+      const current = { image, pixels, pngHash: createHash('sha256').update(image).digest('hex'), state: await canvas.evaluate(element => ({ ...element.dataset })) };
+      if (previous && JSON.stringify(previous.pixels) === JSON.stringify(current.pixels)) return current;
+      if (attempt === 4) await expectSamePixels(previous, current, 'WebKit paused capture must settle');
+      previous = current;
+    }
+  } finally {
+    await style.evaluate(element => element.remove());
+  }
 }
 
 async function expectSamePixels(before, restored, label) {
@@ -102,7 +116,7 @@ test('WebKit restores a usable player after real history navigation', async ({ p
   });
   await page.goto('/', { waitUntil: 'domcontentloaded' });
   await ready(page);
-  await page.locator('#sound-toggle').click();
+  await page.locator('#sound-toggle').tap();
   await expect(page.locator('#player')).toHaveAttribute('data-audio-state', 'paused');
   await page.locator('#play').click();
   await expect(page.locator('#player')).toHaveAttribute('data-audio-state', 'playing');
@@ -113,10 +127,10 @@ test('WebKit restores a usable player after real history navigation', async ({ p
   test.info().annotations.push({ type: 'history-restoration', description: persisted ? 'BFCache document restored' : 'Browser reloaded the history entry' });
   if (persisted) {
     await expect(page.locator('#player')).toHaveAttribute('data-audio-state', /playing|blocked/);
-    if (await page.locator('#player').getAttribute('data-audio-state') === 'blocked') await page.locator('#sound-toggle').click();
+    if (await page.locator('#player').getAttribute('data-audio-state') === 'blocked') await page.locator('#sound-toggle').tap();
   } else {
     await expect(page.locator('#player')).toHaveAttribute('data-audio-state', 'off');
-    await page.locator('#sound-toggle').click();
+    await page.locator('#sound-toggle').tap();
     await expect(page.locator('#player')).toHaveAttribute('data-audio-state', 'paused');
     await page.locator('#play').click();
   }
@@ -145,7 +159,7 @@ test('compatible enforced CSP runs the player and retains strict script diagnost
   expect(await page.evaluate(() => window.__edgeInlineRan)).toBe(true);
   await expect.poll(() => page.evaluate(() => window.__policyViolations.some(event => event.disposition === 'report' && event.directive === 'script-src-elem'))).toBe(true);
   expect(await page.evaluate(() => window.__policyViolations.filter(event => event.disposition === 'enforce'))).toEqual([]);
-  await page.locator('#sound-toggle').click();
+  await page.locator('#sound-toggle').tap();
   await expect(page.locator('#player')).toHaveAttribute('data-audio-state', 'paused');
   await page.evaluate(async () => {
     try { await fetch('https://outside.invalid/csp-check'); } catch { /* Expected CSP denial. */ }
