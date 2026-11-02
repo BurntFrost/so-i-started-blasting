@@ -129,3 +129,13 @@ test('Evangelion ground continues the city without overlapping or mutating share
     assert.equal(named('Sea of LCL').geometry.parameters.width, 2200, 'the aftermath does not reintroduce a smaller rectangular edge');
   });
 });
+
+test('the embrace overlaps shoulder, elbow, wrist and head gestures', async t => {
+  await withScene(t, 'balanced', true, ({ at, named }) => {
+    const shoulder = named('Left embrace'), elbow = named('Left embrace elbow'), wrist = named('Left embrace wrist'), head = named('Giant head gesture');
+    at(24.5); assert.ok(Math.abs(shoulder.rotation.z) > .14); assert.equal(Math.abs(elbow.rotation.z), 0); assert.equal(Math.abs(wrist.rotation.y), 0);
+    at(27); assert.ok(Math.abs(elbow.rotation.z) > .1); assert.ok(Math.abs(wrist.rotation.y) > 0); assert.ok(head.rotation.x > 0);
+    assert.equal(named('Giant left forearm').parent, elbow); assert.equal(named('Giant left hand').parent, wrist);
+    assert.ok(named('Mass production unit wings').geometry.attributes.position.count < 2000, 'curved feather silhouette stays modest');
+  });
+});

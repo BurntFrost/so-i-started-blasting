@@ -1,7 +1,7 @@
 import { test, expect } from '@playwright/test';
 import { createHash } from 'node:crypto';
 import { scenes } from '../dist/scenes.js';
-import { QUALITY, seekTimeline, settleFrames } from '../tools/capture-media.mjs';
+import { QUALITY, seekTimeline, settleFrames, MOTION_STATUS, waitForSceneMotion } from '../tools/capture-media.mjs';
 
 const digest = bytes => createHash('sha256').update(bytes).digest('hex');
 async function changedPixels(page, before, after) {
@@ -48,9 +48,13 @@ async function seek(page, seconds) {
 async function select(page, index) {
   await page.locator(`.scene-card[data-scene="${index}"]`).click();
   await expect(page.locator('#world')).toHaveAttribute('data-scene', scenes[index].id);
+  await waitForSceneMotion(page, scenes[index].id);
   if (index === 4) await expect(page.locator('#world')).toHaveAttribute('data-explosion-bake', /ready|fallback/);
   if (scenes[index].id === 'twister') await expect(page.locator('#world')).toHaveAttribute('data-twister-bake', /ready|fallback/);
-  if (scenes[index].id === 'deep-impact') await expect(page.locator('#world')).toHaveAttribute('data-impact-mist', /ready|fallback/);
+  if (scenes[index].id === 'deep-impact') {
+    await expect(page.locator('#world')).toHaveAttribute('data-impact-mist', /ready|fallback/);
+    await expect(page.locator('#world')).toHaveAttribute('data-impact-wave', /ready|fallback/);
+  }
   // The A.T. field mask arrives asynchronously; screenshots must not straddle its arrival.
   if (scenes[index].id === 'evangelion') await expect(page.locator('#world')).toHaveAttribute('data-at-field-texture', /ready|fallback/);
   await expect(page.locator('.scene-card[aria-pressed="true"]')).toHaveCount(1);
@@ -111,7 +115,7 @@ test('atlas preserves the phone geometry budget independently of camera reset', 
   const errors=await observe(page);
   await page.setViewportSize({width:390,height:844});
   await load(page);
-  for(const index of [0,2,3,4,5,6,10,11,12,13,14]){
+  for(const index of scenes.keys()){
     await select(page,index);await seek(page,18);
     const canvas=page.locator('#world');
     await expect(canvas).toHaveAttribute('data-quality',/balanced|lite/);
@@ -161,7 +165,7 @@ test('every built scene renders offline from CDNs, scrubs reversibly, and keeps 
   await expect.poll(() => page.evaluate(() => document.fullscreenElement === null)).toBe(true);
   await page.setViewportSize({ width: 390, height: 844 });
   // City scenes (including the superstorm's drifts and icicles, and the Third Impact's giant) and the three landscape scenes carry the most geometry; the space scenes confirm the budget everywhere.
-  for (const index of [0, 2, 3, 4, 5, 6, 10, 11, 12, 13, 14]) {
+  for (const index of scenes.keys()) {
     await select(page, index);
     await seek(page, 18);
     await expect(page.locator('#world')).toHaveAttribute('data-quality', /balanced|lite/);
@@ -319,6 +323,58 @@ test('models become usable while the base sky is still downloading', async ({ pa
   } finally { releaseSky(); }
 });
 
+test('a delayed Deep Impact wave replaces the paused fallback and preserves exact reverse seeking', async ({ page }) => {
+  const errors = await observe(page);
+  let releaseWave;
+  const pending = new Promise(resolve => { releaseWave = resolve; });
+  await page.route(/deep-impact-wave.*\.glb$/, async route => { await pending; await route.continue(); });
+  try {
+    await load(page, '/?quality=balanced');
+    const canvas = page.locator('#world');
+    await expect(canvas).toHaveAttribute('data-authored-assets', 'ready');
+    await page.locator('[data-scene-id="deep-impact"]').click();
+    await expect(canvas).toHaveAttribute('data-impact-wave', 'loading');
+    await expect(canvas).toHaveAttribute('data-impact-mist', /ready|fallback/);
+    await seek(page, 22);
+    const fallback = await canvas.screenshot();
+    releaseWave();
+    await expect(canvas).toHaveAttribute('data-impact-wave', 'ready');
+    await expect(canvas).toHaveAttribute('data-wave-animation', 'baked-morph');
+    await settleFrames(page);
+    await expect(page.locator('#time')).toHaveText('00:22');
+    await expect(page.locator('#play')).toHaveAttribute('aria-label', 'Play simulation');
+    const authored = await canvas.screenshot();
+    expect(await changedPixels(page, fallback, authored)).toBeGreaterThan(500);
+    await seek(page, 28); await seek(page, 22);
+    expect(digest(await canvas.screenshot())).toBe(digest(authored));
+    await canvas.focus(); await page.keyboard.press('ArrowRight'); await settleFrames(page);
+    expect(digest(await canvas.screenshot())).not.toBe(digest(authored));
+    await expect(page.locator('#time')).toHaveText('00:22');
+    expect(Number(await canvas.getAttribute('data-triangles'))).toBeLessThan(150000);
+    expect(errors).toEqual([]);
+  } finally { releaseWave(); }
+});
+
+test('a failed Deep Impact wave download retains reversible water and working controls', async ({ page }) => {
+  const errors = await observe(page);
+  await page.route(/deep-impact-wave.*\.glb$/, route => route.abort());
+  await load(page, '/?quality=balanced');
+  const canvas = page.locator('#world');
+  await expect(canvas).toHaveAttribute('data-authored-assets', 'ready');
+  await select(page, scenes.findIndex(scene => scene.id === 'deep-impact'));
+  await expect(canvas).toHaveAttribute('data-impact-wave', 'fallback');
+  await expect(canvas).toHaveAttribute('data-wave-animation', 'procedural');
+  await seek(page, 22); const before = await canvas.screenshot();
+  await seek(page, 27); const later = await canvas.screenshot();
+  expect(await changedPixels(page, before, later)).toBeGreaterThan(500);
+  await seek(page, 22); expect(digest(await canvas.screenshot())).toBe(digest(before));
+  await expect(page.locator('#error')).toBeHidden();
+  await page.locator('#play').click();
+  await expect.poll(() => page.locator('#progress').inputValue()).not.toBe('22');
+  await page.locator('#play').click();
+  expect(errors).toEqual([]);
+});
+
 test('one optional authored asset failure retains usable procedural scenes', async ({ page }) => {
   const errors = await observe(page);
   await page.route('**/*city-kit*.glb', route => route.abort());
@@ -463,7 +519,7 @@ test.describe('desktop ULTRA rendering', () => {
     // tier change; these waits are sized for the slow renderer, not for the assertion.
     await expect(canvas).toHaveAttribute('data-quality', /balanced|lite/, { timeout: SOFTWARE_RENDER_REACTION });
     await expect(canvas).toHaveAttribute('data-quality-ceiling', 'ultra', { timeout: SOFTWARE_RENDER_REACTION });
-    for (const index of [0, 4, 7, 14]) {
+    for (const index of [0, 4, 5, 7, 9, 10, 14]) {
       await select(page, index);
       await seek(page, 18);
       expect(Number(await canvas.getAttribute('data-triangles')), `${scenes[index].id}: phone budget with ULTRA tessellation`).toBeLessThan(150000);
@@ -479,3 +535,78 @@ test.describe('desktop ULTRA rendering', () => {
     expect(errors).toEqual([]);
   });
 });
+
+const sceneMotionCases = [
+  { id: '2012', asset: 'continental-motion', second: 18, later: 27 },
+  // At authored keys the procedural funnel and GLB intentionally match exactly.
+  // Sample between keys to observe paused adoption of the interpolated pose.
+  { id: 'twister', asset: 'tornado-motion', second: 16, later: 25 },
+  { id: 'knowing', asset: 'knowing-prominence', second: 12, later: 24 },
+  { id: 'interstellar', asset: 'interstellar-craft', second: 17, later: 27 },
+];
+for (const { id, asset, second, later } of sceneMotionCases) {
+  const attribute = `data-${MOTION_STATUS[id].replace(/[A-Z]/g, letter => `-${letter.toLowerCase()}`)}`;
+  test(`delayed authored motion ${id} replaces the paused fallback and preserves orbit and reverse pixels`, async ({ page }) => {
+    const errors = await observe(page);
+    let releaseAsset;
+    const pending = new Promise(resolve => { releaseAsset = resolve; });
+    await page.route(new RegExp(`${asset}[^/]*\\.glb$`), async route => { await pending; await route.continue(); });
+    try {
+      await page.setViewportSize({ width: 390, height: 844 });
+      await load(page, '/?quality=balanced');
+      const canvas = page.locator('#world');
+      await expect(canvas).toHaveAttribute('data-authored-assets', 'ready');
+      // select() deliberately waits for motion readiness; this test needs the loading state.
+      await page.locator(`[data-scene-id="${id}"]`).click();
+      await expect(canvas).toHaveAttribute(attribute, 'loading');
+      if (id === 'twister') await expect(canvas).toHaveAttribute('data-twister-bake', /ready|fallback/);
+      if (id === 'knowing' || id === 'interstellar') await expect(canvas).toHaveAttribute('data-nebula-texture', /ready|fallback/);
+      await seek(page, second);
+      const fallback = await canvas.screenshot();
+      await expect(page.locator('#play')).toHaveAttribute('aria-label', 'Play simulation');
+      releaseAsset();
+      await expect(canvas).toHaveAttribute(attribute, 'ready');
+      await settleFrames(page);
+      await expect(page.locator('#time')).toHaveText(`00:${second}`);
+      await expect(page.locator('#play')).toHaveAttribute('aria-label', 'Play simulation');
+      const authored = await canvas.screenshot();
+      expect(await changedPixels(page, fallback, authored), `${id}: paused adoption changes the visible subject`).toBeGreaterThan(20);
+      await seek(page, later); await seek(page, second);
+      expect(digest(await canvas.screenshot()), `${id}: authored reverse pixels`).toBe(digest(authored));
+      await canvas.focus(); await page.keyboard.press('ArrowRight'); await canvas.blur(); await settleFrames(page);
+      expect(digest(await canvas.screenshot()), `${id}: orbit remains interactive`).not.toBe(digest(authored));
+      await expect(page.locator('#time')).toHaveText(`00:${second}`);
+      await page.locator('#reset-camera').click(); await settleFrames(page);
+      await expect(page.locator('#time')).toHaveText(`00:${second}`);
+      expect(Number(await canvas.getAttribute('data-triangles')), `${id}: loaded phone budget`).toBeLessThan(150000);
+      await expect(page.locator('#error')).toBeHidden();
+      expect(errors).toEqual([]);
+    } finally { releaseAsset(); }
+  });
+
+  test(`failed authored motion ${id} keeps its fallback reversible and interactive`, async ({ page }) => {
+    const errors = await observe(page);
+    await page.route(new RegExp(`${asset}[^/]*\\.glb$`), route => route.abort());
+    await page.setViewportSize({ width: 390, height: 844 });
+    await load(page, '/?quality=balanced');
+    const canvas = page.locator('#world');
+    await expect(canvas).toHaveAttribute('data-authored-assets', 'ready');
+    await select(page, scenes.findIndex(scene => scene.id === id));
+    await expect(canvas).toHaveAttribute(attribute, 'fallback');
+    if (id === 'knowing' || id === 'interstellar') await expect(canvas).toHaveAttribute('data-nebula-texture', /ready|fallback/);
+    await seek(page, second); const fallback = await canvas.screenshot();
+    await seek(page, later);
+    expect(await changedPixels(page, fallback, await canvas.screenshot()), `${id}: fallback still animates`).toBeGreaterThan(100);
+    await seek(page, second);
+    expect(digest(await canvas.screenshot()), `${id}: fallback reverse pixels`).toBe(digest(fallback));
+    await canvas.focus(); await page.keyboard.press('ArrowRight'); await canvas.blur(); await settleFrames(page);
+    expect(digest(await canvas.screenshot()), `${id}: fallback orbit remains available`).not.toBe(digest(fallback));
+    await expect(page.locator('#time')).toHaveText(`00:${second}`);
+    expect(Number(await canvas.getAttribute('data-triangles')), `${id}: fallback phone budget`).toBeLessThan(150000);
+    await page.locator('#play').click();
+    await expect.poll(() => page.locator('#progress').inputValue()).not.toBe(String(second));
+    await page.locator('#play').click();
+    await expect(page.locator('#error')).toBeHidden();
+    expect(errors).toEqual([]);
+  });
+}

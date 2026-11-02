@@ -1,5 +1,7 @@
 import { test, expect } from '@playwright/test';
 import { readFile } from 'node:fs/promises';
+import { createHash } from 'node:crypto';
+import { seekTimeline, settleFrames, MOTION_STATUS, waitForSceneMotion } from '../tools/capture-media.mjs';
 
 const config = JSON.parse(await readFile(new URL('../vercel.json', import.meta.url), 'utf8'));
 const csp = Object.fromEntries(config.headers.find(rule => rule.source === '/(.*)').headers
@@ -19,6 +21,29 @@ async function ready(page) {
   await expect(page.locator('#loading')).toBeHidden();
   await expect(page.locator('#error')).toBeHidden();
 }
+
+test('WebKit loads the authored wave and restores exact reverse pixels within the phone budget', async ({ page }) => {
+  const errors = await observe(page);
+  await page.goto('/', { waitUntil: 'domcontentloaded' });
+  await ready(page);
+  const canvas = page.locator('#world');
+  await expect(canvas).toHaveAttribute('data-authored-assets', 'ready');
+  await expect(canvas).toHaveAttribute('data-particle-atlas', /ready|fallback/);
+  await expect(canvas).toHaveAttribute('data-weather-texture', /ready|fallback/);
+  await page.locator('[data-scene-id="deep-impact"]').click();
+  await expect(canvas).toHaveAttribute('data-impact-wave', 'ready');
+  await expect(canvas).toHaveAttribute('data-impact-mist', 'ready');
+  const shot = async time => {
+    await seekTimeline(page, time); await settleFrames(page);
+    const bytes = await canvas.screenshot({ style: 'body * { visibility:hidden!important } #world { visibility:visible!important }' });
+    return createHash('sha256').update(bytes).digest('hex');
+  };
+  const before = await shot(18), later = await shot(25);
+  expect(await shot(18)).toBe(before);
+  expect(later).not.toBe(before);
+  expect(Number(await canvas.getAttribute('data-triangles'))).toBeLessThan(150000);
+  expect(errors).toEqual([]);
+});
 
 test('WebKit initializes and obeys audio consent, pause/resume, and scene changes', async ({ page }) => {
   const errors = await observe(page), requests = [];
@@ -108,3 +133,35 @@ test('compatible enforced CSP runs the player and retains strict script diagnost
   await expect.poll(() => page.evaluate(() => window.__policyViolations.some(event => event.disposition === 'enforce' && event.directive === 'connect-src'))).toBe(true);
   expect(errors).toEqual([]);
 });
+
+for (const [id, second, later] of [['2012', 18, 27], ['twister', 18, 25], ['knowing', 12, 24], ['interstellar', 17, 27]]) {
+  test(`WebKit authored motion ${id} loads, reverses and orbits within the phone budget`, async ({ page }) => {
+    const errors = await observe(page);
+    await page.goto('/', { waitUntil: 'domcontentloaded' });
+    await ready(page);
+    const canvas = page.locator('#world');
+    await expect(canvas).toHaveAttribute('data-authored-assets', 'ready');
+    await expect(canvas).toHaveAttribute('data-particle-atlas', /ready|fallback/);
+    await expect(canvas).toHaveAttribute('data-weather-texture', /ready|fallback/);
+    await page.locator(`[data-scene-id="${id}"]`).click();
+    await waitForSceneMotion(page, id);
+    const attribute = `data-${MOTION_STATUS[id].replace(/[A-Z]/g, letter => `-${letter.toLowerCase()}`)}`;
+    await expect(canvas).toHaveAttribute(attribute, 'ready');
+    if (id === 'twister') await expect(canvas).toHaveAttribute('data-twister-bake', /ready|fallback/);
+    if (id === 'knowing' || id === 'interstellar') await expect(canvas).toHaveAttribute('data-nebula-texture', /ready|fallback/);
+    const shot = async time => {
+      await seekTimeline(page, time); await settleFrames(page);
+      return createHash('sha256').update(await canvas.screenshot({ style: 'body * { visibility:hidden!important } #world { visibility:visible!important }' })).digest('hex');
+    };
+    const before = await shot(second), after = await shot(later);
+    expect(await shot(second), `${id}: authored reverse pixels`).toBe(before);
+    expect(after, `${id}: timeline changes pixels`).not.toBe(before);
+    await canvas.focus(); await page.keyboard.press('ArrowRight'); await canvas.blur();
+    expect(await shot(second), `${id}: paused orbit changes the view`).not.toBe(before);
+    await expect(page.locator('#time')).toHaveText(`00:${second}`);
+    await page.locator('#reset-camera').click(); await settleFrames(page);
+    expect(Number(await canvas.getAttribute('data-triangles')), `${id}: phone geometry`).toBeLessThan(150000);
+    await expect(page.locator('#play')).toBeEnabled();
+    expect(errors).toEqual([]);
+  });
+}

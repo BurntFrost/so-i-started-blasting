@@ -26,3 +26,10 @@ test('quake geometry restores exactly after reverse seeking and scene switching 
   const f=fixture(),root=f.named('2012 — continental rupture');f.at(18);const before=snapshot(root);f.at(27);assert.notDeepEqual(snapshot(root),before);f.at(18);assert.deepEqual(snapshot(root),before);
   f.manager.update(0,{id:'independence-day',world:'city'});assert.equal(root.visible,false);f.at(18);assert.equal(f.named('2012 — continental rupture'),root);assert.deepEqual(snapshot(root),before);
 });
+
+test('continental crust opens progressively along the street instead of all rows at once', () => {
+  const f = fixture(); f.at(6);
+  const p = f.named('Eastern continental crust').geometry.attributes.position;
+  const openingAt = row => { const z = p.getZ(row * 4); return p.getX(row * 4) - Math.sin(z * .045) * 10 - Math.sin(z * .16) * 2; };
+  assert.ok(openingAt(174) > openingAt(146) + 1, 'near rows rupture before distant rows');
+});

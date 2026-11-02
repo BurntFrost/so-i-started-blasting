@@ -186,11 +186,13 @@ export function createCinema(world) {
   const waterTime={value:0};
   // Water is dielectric: no metalness, a glossy surface that reflects the sky, two octaves of flowing normals, a
   // deep-to-shallow gradient up the wave face, turquoise backlight through the thin curl and rough foam lace.
-  const waveColor=`diffuseColor.rgb=mix(vec3(.04,.15,.19),vec3(.1,.38,.4),smoothstep(.15,.95,waterUv.y));
-        float lip=smoothstep(.8,.99,waterUv.y);
-        float lace=smoothstep(.52,.74,fbm(waterPoint*vec3(.9,.32,.6)+vec3(0.,-waterTime*2.5,0.)))*smoothstep(.35,.85,waterUv.y);
-        float streak=pow(.5+.5*sin(waterUv.x*210.+waterCrest*11.),8.)*smoothstep(.55,.9,waterUv.y)*.32;
-        waterFoam=clamp(lip*(.6+.4*smoothstep(.3,.7,waterCrest))+lace*.55+streak,0.,1.);`;
+  const waveColor=`diffuseColor.rgb=mix(vec3(.018,.08,.105),vec3(.035,.22,.24),smoothstep(.15,.95,waterUv.y));
+        float breaking=fbm(vec3(waterUv.x*34.,waterUv.y*3.-waterTime*.13,2.));
+        float churn=fbm(vec3(waterUv.x*110.+breaking*5.,waterUv.y*36.-waterTime*.9,3.));
+        float lip=smoothstep(.91+(.5-breaking)*.05,.999,waterUv.y);
+        float islands=smoothstep(.42,.68,churn);
+        float lace=smoothstep(.59,.77,churn)*smoothstep(.48,.95,waterUv.y);
+        waterFoam=clamp(lip*(.15+islands*.85)*smoothstep(.38,.62,breaking)+lace*.35,0.,1.);`;
   const oceanColor=`diffuseColor.rgb=mix(diffuseColor.rgb,vec3(.15,.36,.4),smoothstep(.55,.8,waterCrest)*.3);
         waterFoam=smoothstep(.7,.85,fbm(waterPoint*.12+vec3(waterTime*.1,waterTime*.05,0.)))*.14;`;
   const waterNormals=`#include <normal_fragment_maps>
@@ -198,7 +200,7 @@ export function createCinema(world) {
   for(const mesh of [ocean,wave]){
     recordSurface(mesh.material, {kind:mesh===wave?'wave':'ocean',uniforms:{waterTime}});
     mesh.userData.ssrReceiver=true;
-    mesh.material.color.set('#0e3441');mesh.material.metalness=0;mesh.material.roughness=mesh===wave?.2:.19;mesh.material.envMapIntensity=mesh===wave?.9:1.1;
+    mesh.material.color.set('#0e3441');mesh.material.metalness=0;mesh.material.roughness=mesh===wave?.26:.19;mesh.material.envMapIntensity=mesh===wave?.7:1.1;
     mesh.material.onBeforeCompile=shader=>{
       shader.uniforms.waterTime=waterTime;
       shader.vertexShader=shader.vertexShader.replace('#include <common>','#include <common>\nvarying vec3 waterPoint;varying vec2 waterUv;').replace('#include <begin_vertex>','#include <begin_vertex>\nwaterPoint=position;waterUv=uv;');
@@ -206,10 +208,10 @@ export function createCinema(world) {
         .replace('#include <normal_fragment_maps>',waterNormals)
         .replace('#include <roughnessmap_fragment>','#include <roughnessmap_fragment>\nroughnessFactor=mix(roughnessFactor,.92,waterFoam);')
         .replace('#include <color_fragment>','#include <color_fragment>\nwaterCrest=fbm(waterPoint*.16+vec3(waterTime*.15,0.,0.));\n'+(mesh===wave?waveColor:oceanColor)+'\ndiffuseColor.rgb=mix(diffuseColor.rgb,vec3(.86,.93,.95),waterFoam);');
-      if(mesh===wave)fragment=fragment.replace('#include <emissivemap_fragment>','#include <emissivemap_fragment>\ntotalEmissiveRadiance+=vec3(.05,.28,.26)*smoothstep(.55,.97,waterUv.y)*(1.-waterFoam*.8)*(.6+.4*waterCrest);');
+      if(mesh===wave)fragment=fragment.replace('#include <emissivemap_fragment>','#include <emissivemap_fragment>\ntotalEmissiveRadiance+=vec3(.025,.12,.1)*smoothstep(.55,.97,waterUv.y)*(1.-waterFoam*.8)*(.6+.4*waterCrest);');
       shader.fragmentShader=fragment;
     };
-    mesh.material.customProgramCacheKey=()=>mesh===wave?'cinema-wave-foam-v3':'cinema-ocean-v3';
+    mesh.material.customProgramCacheKey=()=>mesh===wave?'cinema-wave-foam-v4':'cinema-ocean-v3';
     mesh.material.needsUpdate=true;
   }
 
@@ -334,8 +336,6 @@ export function createCinema(world) {
     if(bloom){bloom.strength=grade.bloomStrength;bloom.radius=grade.bloomRadius;bloom.threshold=grade.bloomThreshold;}
     if(film)applyFilmGrade(film.uniforms,t,grade);
     canvas.dataset.cinematicLook=tiers[quality].bloom?'graded':'native';
-    // Keep the alien craft inside the narrow phone framing.
-    if(phone()&&id==='independence-day')ship.position.y-=12;
     ground.material.envMapIntensity=id==='day-after-tomorrow'?.2:.6;
   }
   setQuality(quality);

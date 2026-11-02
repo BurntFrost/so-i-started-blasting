@@ -15,7 +15,7 @@ function fixture(quality = 'high') {
   const scene = new THREE.Scene(), canvas = { dataset: { quality, pixelRatio: '1' } };
   const camera = new THREE.PerspectiveCamera(45, 1280 / 580, .1, 1600);
   camera.position.fromArray(config.camera); camera.lookAt(...config.target); camera.updateMatrixWorld(true);
-  const cosmic = createCosmic({ scene, canvas, camera });
+  const cosmic = createCosmic({ scene, canvas, camera, assetSignal: AbortSignal.abort() });
   const at = time => cosmic.update(time, { id: 'wandering-earth', ...config });
   at(0);
   return { scene, canvas, camera, cosmic, at, named: name => scene.getObjectByName(name) };
@@ -144,4 +144,20 @@ test('Wandering Earth restores exact state after reverse seeks, tier changes and
     f.canvas.dataset.quality = quality; f.at(time);
     assert.deepEqual(snapshot(root), before, `restore ${quality} at ${time}`);
   }
+});
+
+test('all six engine clusters stage their power and remain attached to rotating surface anchors', () => {
+  const f = fixture('lite'), jets = f.named('Fusion engine plumes'), anchors = f.named('Planetary engine anchors');
+  f.at(15.7); const powers = [...jets.userData.clusterPowers];
+  assert.ok(powers[0] > powers[5] + .4, 'successive clusters receive a visible staggered ignition');
+  assert.equal(anchors.count, jets.count);
+  for (const time of [5, 17.5, 27]) {
+    f.at(time); f.scene.updateMatrixWorld(true);
+    for (let i = 0; i < jets.count; i++) {
+      const anchorDirection = pose(anchors, i).position.applyMatrix4(anchors.matrixWorld).sub(f.named('Frozen Earth').position).normalize();
+      const plumeDirection = pose(jets, i).position.sub(f.named('Frozen Earth').position).normalize();
+      assert.ok(anchorDirection.angleTo(plumeDirection) < .000001, 'plume roots follow the same rotating anchor');
+    }
+  }
+  f.at(15.7); assert.deepEqual(jets.userData.clusterPowers, powers);
 });

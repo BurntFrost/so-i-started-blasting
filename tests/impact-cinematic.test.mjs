@@ -2,11 +2,11 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
 import * as THREE from 'three/webgpu';
+import { impactWaveProfile as waveProfile } from '../dist/impact-wave.js';
 
 const candidate = process.env.IMPACT_CANDIDATE;
 const moduleURL = new URL('../dist/terrestrial.js', import.meta.url);
 let source = await readFile(moduleURL, 'utf8');
-let productionSource = await readFile(new URL('../dist/production.js', import.meta.url), 'utf8');
 if (candidate) {
   const factory = await readFile(candidate, 'utf8');
   const start = source.indexOf('  function createTsunami() {'), end = source.indexOf('  const factories =', start);
@@ -17,17 +17,11 @@ if (candidate) {
       if (source.includes(old)) source = source.replace(old, replacement);
       else assert.ok(source.includes(replacement), `${file}: staged patch has a current integration anchor`);
     }
-    if (file === 'dist/production.js') {
-      if (productionSource.includes(old)) productionSource = productionSource.replace(old, replacement);
-      else assert.ok(productionSource.includes(replacement), `${file}: staged patch has a current integration anchor`);
-    }
   }
 }
 source = source.replace(/from '([^']+)'/g, (_, name) => `from '${name.startsWith('.') ? new URL(name, moduleURL).href : import.meta.resolve(name)}'`);
 const { createTerrestrial } = await import(`data:text/javascript,${encodeURIComponent(source)}`);
 const smooth = value => { const t = Math.max(0, Math.min(1, value)); return t * t * (3 - 2 * t); };
-const profileStart = productionSource.search(/const waveProfile\s*=/), profileEnd = productionSource.indexOf('  const freezeColor', profileStart);
-const waveProfile = new Function('smooth', productionSource.slice(profileStart, profileEnd) + ';return waveProfile;')(smooth);
 
 function fixture(quality = 'high', { atlasRequest, refreshOnWake = false } = {}) {
   const scene = new THREE.Scene(), camera = new THREE.PerspectiveCamera();
@@ -84,7 +78,7 @@ test('wave crest overhangs and turns down with asymmetric ridges instead of a ve
   const heights = [-150,-80,0,60,140].map(x => waveProfile(.76, 60, x, 23).y);
   assert.ok(Math.max(...heights) - Math.min(...heights) > 5, 'the silhouette has long uneven ridges');
   for (const time of [0,14,20,25,30]) for (const x of [-181,0,181]) {
-    assert.deepEqual(waveProfile(0, 60, x, time), { y: 0, z: 0 }, 'the water foot stays anchored to its traveling base');
+    assert.deepEqual(waveProfile(0, 60, x, time), { x, y: 0, z: 0 }, 'the water foot stays anchored to its traveling base');
   }
 });
 
@@ -123,6 +117,23 @@ test('crest mist tracks the moving folded wave and updates while orbiting a paus
   const before = mesh.instanceMatrix.array.slice();
   f.camera.position.set(180, 80, 130); f.camera.lookAt(0, 35, -30); f.manager.updateView();
   assert.notDeepEqual(mesh.instanceMatrix.array, before, 'billboards turn toward the camera while paused');
+});
+
+test('paused mist and vapor matrices do not depend on the number of rendered views', async () => {
+  const f = fixture('high', { atlasRequest: async () => new THREE.Texture() });
+  f.camera.position.set(148, 76, 204); f.camera.lookAt(-5, 33, -22); f.camera.updateMatrixWorld();
+  for (const time of [6,14,22,27,18]) f.at(time);
+  await new Promise(setImmediate);
+  f.at(18);
+  const batches = ['Soft impact vapor', 'Windblown crest mist'].flatMap(name =>
+    Array.from({ length: 4 }, (_, index) => f.named(`${name} ${index}`)));
+  const expected = batches.map(mesh => mesh.instanceMatrix.array.slice());
+  for (let frame = 0; frame < 12; frame++) {
+    f.manager.updateView();
+    for (const [index, mesh] of batches.entries()) assert.equal(mesh.instanceMatrix.array.findIndex((value, i) => !Object.is(value, expected[index][i])), -1, `${mesh.name}: paused view ${frame}`);
+  }
+  f.at(25); f.at(18);
+  for (const [index, mesh] of batches.entries()) assert.equal(mesh.instanceMatrix.array.findIndex((value, i) => !Object.is(value, expected[index][i])), -1, `${mesh.name}: reversed view`);
 });
 
 test('foam, volumes and vapor exactly reverse and remain finite on all numeric detail tiers', () => {

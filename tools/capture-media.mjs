@@ -20,6 +20,20 @@ export const QUALITY = {
   ultra: { viewport: { width: 1280, height: 800 }, deviceScaleFactor: 2, hasTouch: false },
 };
 
+// Optional scene motion must settle before captures, reverse-pixel checks or budgets.
+export const MOTION_STATUS = Object.freeze({
+  '2012': 'continentalMotion', twister: 'tornadoMotion',
+  knowing: 'solarMotion', interstellar: 'interstellarCraft',
+});
+export async function waitForSceneMotion(page, id) {
+  const key = MOTION_STATUS[id];
+  if (!key) return;
+  await page.waitForFunction(({ id, key }) => {
+    const data = document.querySelector('#world').dataset;
+    return data.scene === id && ['ready', 'fallback'].includes(data[key]);
+  }, { id, key });
+}
+
 // Two one-second active samples plus startup/resize settling; idle frames do not count.
 const PROBE_SAMPLES = 2, PROBE_SECONDS = 4;
 
@@ -102,12 +116,13 @@ export function settleFrames(page) {
 async function selectAndSeek(page, scene, second) {
   await page.locator(`.scene-card[data-scene-id="${scene.id}"]`).click();
   await seekTimeline(page, second);
+  await waitForSceneMotion(page, scene.id);
   await page.waitForFunction(id => {
     const data = document.querySelector('#world').dataset;
     const pending = [data.weatherTexture, data.nebulaTexture, data.particleAtlas].includes('loading') ||
       (id === 'terminator-2' && data.explosionBake === 'loading') ||
       (id === 'twister' && data.twisterBake === 'loading') ||
-      (id === 'deep-impact' && data.impactMist === 'loading') ||
+      (id === 'deep-impact' && [data.impactMist, data.impactWave].includes('loading')) ||
       (id === 'evangelion' && data.atFieldTexture === 'loading');
     return data.scene === id && !pending;
   }, scene.id);

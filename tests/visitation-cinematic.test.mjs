@@ -104,3 +104,17 @@ test('physical sentinel and sphere retain depth and grounding through the cinema
   const terrain = -.5 + (Math.sin(x*.022)*Math.cos(z*.027)*5-Math.sin(z*.06)*1.5)*Math.max(0,Math.min(1,(Math.hypot(x,z)-25)/80));
   assert.ok(Math.abs(gort.position.y - terrain) < .000001, 'the stance follows the actual meadow height');
 });
+
+test('GORT dissolves from head to feet while the first nanites depart from the upper body', () => {
+  const f = fixture(); f.at(19.7);
+  assert.ok(f.named('GORT smooth head').material.opacity < f.named('GORT continuous torso').material.opacity);
+  assert.equal(f.named('GORT feet').material.opacity, 1);
+  const nanites = f.named('Directional nanite ribbons'), matrix = new THREE.Matrix4(), scale = new THREE.Vector3();
+  let active = 0;
+  for (let i = 0; i < nanites.count; i++) {
+    nanites.getMatrixAt(i, matrix); scale.setFromMatrixScale(matrix);
+    if (scale.x > .02) { active++; assert.ok(matrix.elements[13] > 32, 'early release originates above the torso'); }
+  }
+  assert.ok(active > 40); f.at(22); assert.equal(f.named('GORT smooth head').material.opacity, 0);
+  assert.ok(f.named('GORT feet').material.opacity > 0, 'the feet release last');
+});

@@ -76,3 +76,17 @@ test('T2 reverse seeking restores cloud transforms, baked time and material stat
     }
   });
 });
+
+test('T2 sculpted crown and flared stem overlap without changing their geometry during expansion', async () => {
+  await withScene('balanced', false, ({ at, named }) => {
+    const crown = named('Continuous mushroom crown'), stem = named('Continuous mushroom stem');
+    assert.equal(crown.geometry.type, 'LatheGeometry'); assert.equal(stem.geometry.type, 'LatheGeometry');
+    const positions = Array.from(crown.geometry.attributes.position.array);
+    for (const time of [7, 14, 22, 30]) {
+      at(time); crown.updateMatrixWorld(); stem.updateMatrixWorld();
+      const crownBox = new THREE.Box3().setFromObject(crown), stemBox = new THREE.Box3().setFromObject(stem);
+      assert.ok(stemBox.max.y >= crownBox.min.y, 'stem reaches the underside of the rolling crown');
+    }
+    assert.deepEqual(Array.from(crown.geometry.attributes.position.array), positions);
+  });
+});

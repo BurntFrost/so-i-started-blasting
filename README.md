@@ -5,7 +5,7 @@ An interactive 3D apocalypse cinema at [soistartedblasting.com](https://soistart
 | Film inspiration | Visualization |
 | --- | --- |
 | Independence Day | Mothership, energy beam, collapsing skyline |
-| Deep Impact | Coastal skyline, broad impact vapor, folding wave and wind-torn spray |
+| Deep Impact | Coastal skyline, Blender-authored breaking wave, patchy foam, crest spray and shoreline wash |
 | The Day After Tomorrow | Directional blizzard, windward frost, descending facade ice, frozen streets |
 | The Day the Earth Stood Still | Luminous sphere, sculpted metallic GORT, sweeping nanite ribbons, departing arks |
 | Terminator 2 | Brief thermal flash, rising volumetric mushroom cloud, pressure front and lingering fallout |
@@ -23,6 +23,8 @@ An interactive 3D apocalypse cinema at [soistartedblasting.com](https://soistart
 All scenes use the same reversible 30-second timeline and adaptive quality tiers, including an ULTRA tier that renders native Retina and 4K pixels with higher-resolution sky, nebula and explosion assets on dense desktop displays (see [the 4K upgrade](docs/ultra-4k.md)). Cosmic visuals are cinematic interpretations; the black-hole halo is a geometric lensing approximation. No new remote model downloads are needed for the ten scenes added after the original four; the newest four reuse the landscape and space worlds, and The Day the Earth Stood Still replaced Melancholia in the landscape world. The End of Evangelion joins the city world and is the first scene with an ULTRA asset of its own: a 4096-pixel A.T. field lattice with a 1K fallback for every other tier.
 
 The simulation includes authored architectural and spacecraft models, physically based surface materials, HDR lighting, animated weather and particles, and adaptive graphics quality for phones. Scene playback, timeline scrubbing, camera orbit, replay, and graphics controls run entirely in the browser.
+
+The Deep Impact approach now extends across the other fourteen scenes: authored geometry and poses combine with absolute-time rigid motion, shader effects, and instanced particles. New optional GLBs provide 2012’s fault deformation, Twister’s evolving funnel, Knowing’s braided solar prominence, and Interstellar’s ring craft. The shared baked-motion sampler uses C1-continuous Hermite interpolation between poses; the camera remains freely orbitable during playback and pause. Each asset loads on first use and retains its procedural fallback if unavailable. See [the rollout asset pipeline](tools/README.md#remaining-scenes-web-animation-rollout) for the generators and runtime contracts.
 
 Enable **Sound** beneath the player for an original film-signature soundscape for every scene (each bed composed against its timeline, with synchronized transients; see [the audio design](docs/film-audio.md)) and a short synthetic introduction. Volume, pause, replay, speed changes, and timeline scrubbing share the simulation clock. Audio downloads only after consent; missing sounds do not interrupt rendering. Layered storm clouds, distant haze, planetary cloud decks, wave foam, and a generated nebula backdrop add depth while respecting the adaptive quality tiers. See [the media upgrade](docs/media-upgrade.md) for tooling, provenance, and verification.
 
@@ -73,8 +75,10 @@ The gate includes unit tests, certificate-checker tests, committed asset checksu
 | `dist/classic-runtime.js`, `dist/ao-pass.js`, `dist/light-shafts-pass.js` | Previous WebGL renderer and composer chain, loaded only by `?renderer=classic` |
 | `dist/render-kit.js`, `dist/shader-program.js`, `dist/particle-atlas.js`, `dist/soft-shadows.js`, `dist/light-shafts.js`, `dist/adaptive-quality.js` | Shared effect, particle, shadow and quality helpers |
 | `dist/asset-loading.js`, `dist/sky-loading.js`, `dist/baked-explosion.js` | Optional-asset lifecycle, progressive sky policy, baked explosion sprites |
+| `dist/baked-motion.js`, `dist/terrestrial-motion.js`, `dist/cosmic-motion.js`, `dist/invasion-motion.js` | Absolute-time pose sampling, authored motion paths, and procedural fallbacks |
 | `dist/assets/` | Compressed GLB models, WebP textures, HDR, and provenance |
 | `tools/author-assets.py` | Blender source for the original procedural models |
+| `tools/author-terrestrial-motion.mjs`, `tools/author-cosmic-assets.py` | Original fault, funnel, solar prominence, and ring-craft GLB generators |
 | `tools/build.mjs` | Deterministic asset fingerprints and rewritten dependency URLs |
 | `tools/README.md` | Asset rebuilding and compression commands |
 | `tools/check-certificates.py`, `docs/certificate-operations.md` | Verified edge/origin expiry checks and DNS renewal operations |

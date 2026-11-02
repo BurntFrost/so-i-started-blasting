@@ -138,3 +138,10 @@ test('Twister vapor frames reverse exactly and face a paused orbit after atlas r
   assert.deepEqual(mist.material.map.offset.toArray(),frame,'orbit does not advance the vapor animation');
   assert.ok(mist.instanceMatrix.array.every(Number.isFinite));
 });
+
+test('funnel fine streak motion uses the wrapped vapor map without rewriting vertex colors', () => {
+  const f = fixture(), funnel = f.named('Continuous condensation funnel'), colors = funnel.geometry.attributes.color;
+  f.at(13); const original = Array.from(colors.array), version = colors.version, offset = funnel.material.map.offset.toArray();
+  f.at(24); assert.deepEqual(Array.from(colors.array), original); assert.equal(colors.version, version);
+  assert.notDeepEqual(funnel.material.map.offset.toArray(), offset);
+});

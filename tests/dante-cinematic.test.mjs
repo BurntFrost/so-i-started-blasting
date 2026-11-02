@@ -86,3 +86,13 @@ test('Dante remains exactly reversible after all three ash atlases become ready'
   f.at(30); assert.notDeepEqual(snapshot(root), first);
   f.at(20); assert.deepEqual(snapshot(root), first);
 });
+
+test('pyroclastic routes cache descending terrain samples and remain unchanged during playback', () => {
+  const f = fixture(), surge = f.named('Pyroclastic surge front'), routes = surge.userData.terrainRoutes;
+  assert.equal(routes.length, 48);
+  const before = routes.map(route => Array.from(route));
+  assert.ok(routes.every(route => route.length === 129 * 3 && route.every(Number.isFinite)));
+  assert.ok(routes[0][1] > routes[0].at(-2) + 60, 'the cached path descends from the crater to the valley');
+  f.at(30); f.at(14); f.at(24);
+  assert.deepEqual(routes.map(route => Array.from(route)), before);
+});

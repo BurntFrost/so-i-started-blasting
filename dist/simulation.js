@@ -1,3 +1,4 @@
+import { createInvasionMotion, invasionCollapse } from './invasion-motion.js';
 import * as THREE from 'three/webgpu';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 import { createCinema } from './cinema.js?v=3';
@@ -7,6 +8,7 @@ import { reportGraphicsFailure, markGraphicsFailure, showGraphicsFailure } from 
 import { scenes } from './scenes.js';
 import { createTerrestrial } from './terrestrial.js';
 import { createCosmic } from './cosmic.js';
+import { createImpactWave } from './impact-wave.js';
 import { createSceneAudio } from './audio.js';
 import { development } from './development.js';
 
@@ -74,7 +76,6 @@ const ocean=new THREE.Mesh(new THREE.PlaneGeometry(650,650,80,80),mat('#264451',
 const wave=new THREE.Mesh(new THREE.PlaneGeometry(220,75,90,35),mat('#447783',{metalness:.3,roughness:.3,side:THREE.DoubleSide,transparent:true,opacity:.92}));effects.add(wave);
 // Water is a physical surface: it stays in the opaque depth so occlusion and volume marches stop at it; the AO clip box keeps the 650-unit plane cheap.
 for(const surface of [ocean,wave])surface.userData.opaqueDepth=true;
-const waveBase=wave.geometry.attributes.position.array.slice();
 const foam=new THREE.Points(new THREE.BufferGeometry(),new THREE.PointsMaterial({color:'#d8f6f5',size:1.3,transparent:true,opacity:.8}));const foamPositions=new Float32Array(650*3);foam.geometry.setAttribute('position',new THREE.BufferAttribute(foamPositions,3));effects.add(foam);
 const meteor=new THREE.Mesh(new THREE.IcosahedronGeometry(5,2),mat('#492e20',{emissive:'#ff5b12',emissiveIntensity:2}));effects.add(meteor);
 const tail=new THREE.Mesh(new THREE.ConeGeometry(5,60,24,1,true),new THREE.MeshBasicMaterial({color:'#ffba61',transparent:true,opacity:.38,blending:THREE.AdditiveBlending,depthWrite:false}));effects.add(tail);
@@ -86,10 +87,12 @@ const debrisCount=300;const debris=new THREE.InstancedMesh(new THREE.BoxGeometry
 const dev=await development?.(renderer,canvas);
 const cinema=createCinema({renderer,nodeRuntime,classicRuntime,scene,camera,canvas,sun,buildings,ground,ship,hullMat,core,beam,blast,ocean,wave,meteor,landscape,windows,snow,debris,foam,clouds,glow,telemetry,...dev?.cinema});
 scene.environment=cinema.environment;
-const terrestrial=createTerrestrial({scene,canvas,camera,buildings,landscape,ground});
-const cosmic=createCosmic({scene,canvas,camera});
-let production=null,productionRequested=false,authoredWorkPending=false,failed=false;
+const invasionMotion=createInvasionMotion({scene,ship,core,beam,shockwave});
 const productionAssets=new AbortController();
+const impactWave=createImpactWave({wave,foam,canvas,signal:productionAssets.signal});
+const terrestrial=createTerrestrial({scene,canvas,camera,buildings,landscape,ground,impactWave,assetSignal:productionAssets.signal});
+const cosmic=createCosmic({scene,canvas,camera,assetSignal:productionAssets.signal});
+let production=null,productionRequested=false,authoredWorkPending=false,failed=false;
 let selected=0,time=0,playing=false,speed=1,previous=0,needsRender=true;
 const $=id=>document.getElementById(id),clamp=(v,a=0,b=1)=>Math.max(a,Math.min(b,v)),ease=v=>{v=clamp(v);return v*v*(3-2*v);};
 const audio=createSceneAudio({button:$('sound-toggle'),volumeInput:$('sound-volume'),status:$('sound-status'),player:$('player')});
@@ -100,6 +103,8 @@ const freeze=new THREE.Color('#c0d6e2');
 controls.addEventListener('change',()=>{needsRender=true;});
 canvas.addEventListener('atmosphere-ready',()=>{needsRender=true;});
 canvas.addEventListener('explosion-ready',()=>{updateWorld();});
+canvas.addEventListener('impact-wave-ready',()=>{updateWorld();});
+canvas.addEventListener('animation-ready',()=>{updateWorld();});
 canvas.addEventListener('at-field-ready',()=>{updateWorld();});
 function resetCamera(){
  const s=scenes[selected];camera.position.set(...s.camera);controls.target.set(...s.target);controls.maxDistance=s.cameraMaxDistance||300;controls.update();needsRender=true;
@@ -182,7 +187,7 @@ function updateWorld(){
  if(impact){
   meteor.position.set(85-t*135/13,144-t*145/13,-145+t*45/13);meteor.rotation.set(t*.3,t*.2,0);tail.position.copy(meteor.position).add(new THREE.Vector3(21,21,-6));
   tail.quaternion.setFromUnitVectors(new THREE.Vector3(0,-1,0),new THREE.Vector3(-135,-145,45).normalize());
-  wave.position.set(0,-1.2,-115+ease((t-14)/16)*230);ocean.position.y=-1.08+ease((t-25)/5)*13;
+  impactWave.update(t);ocean.position.y=-1.08+ease((t-25)/5)*13;
  }
  snow.visible=storm;
  if(storm){
@@ -193,7 +198,7 @@ function updateWorld(){
  if(city.visible){
   buildings.forEach((b,i)=>{
    const u=b.userData;let collapse=0;
-   if(invasion)collapse=ease((t-15-u.delay*7)/7);if(impact)collapse=ease((wave.position.z+18-u.z)/38)*hit;
+   if(invasion)collapse=invasionCollapse(t,u.x,u.z);if(impact)collapse=ease((impactWave.contactFront(u.x,t)-u.z)/38)*hit;
    if(nuclear)collapse=ease((t-12-u.delay*8)/8);
    const faultCenter=Math.sin(u.z*.045)*10+Math.sin(u.z*.16)*2, faultDistance=Math.abs(u.x-faultCenter);
    if(fault)collapse=ease((t-9-(u.z+77)*.035-faultDistance*.035)/9)*Math.pow(clamp(1-faultDistance/76),.65);
@@ -215,6 +220,7 @@ function updateWorld(){
   for(let i=0;i<debris.count;i++){const [a,r,h,w]=debrisSeeds[i],p=clamp((t-14-r*3)/12);dummy.position.set(-8+Math.sin(a)*p*(40+r*95),Math.max(.1,Math.sin(p*Math.PI)*(15+h*55)),-20+Math.cos(a)*p*(40+r*95));dummy.rotation.set(p*10+r,p*7,p*9);dummy.scale.setScalar(.3+w*1.5);dummy.updateMatrix();debris.setMatrixAt(i,dummy.matrix);}
   debris.instanceMatrix.needsUpdate=true;
  }
+ invasionMotion.update(t,invasion,canvas.dataset.quality,matchMedia('(pointer: coarse)').matches||canvas.clientWidth<600);
  cinema.update(t,s);production?.update(t,s);terrestrial.update(t,s);cosmic.update(t,s);
  // One owner applies all scene lighting and fog after scene-local geometry updates.
  applyEnvironment(s,t);
@@ -258,7 +264,7 @@ function resize(){
 }
 new ResizeObserver(resize).observe(canvas.parentElement);
 document.addEventListener('visibilitychange',()=>{previous=0;syncAudio(true);});
-addEventListener('pagehide',event=>{if(event.persisted)audio.update({sceneId:scenes[selected].id,time,playing,speed,hidden:true,failed},{discontinuity:true});else audio.dispose();});
+addEventListener('pagehide',event=>{if(event.persisted)audio.update({sceneId:scenes[selected].id,time,playing,speed,hidden:true,failed},{discontinuity:true});else {audio.dispose();productionAssets.abort();}});
 addEventListener('pageshow',event=>{if(event.persisted){previous=0;syncAudio(true);}});
 let lastTime=-1,lastScene=-1,lastUI=0,firstFrame=true;
 renderer.info.autoReset=false;

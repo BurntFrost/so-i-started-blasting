@@ -61,14 +61,15 @@ function configure(material, descriptor) {
     const crest = surfaceFbm(p.mul(.16).add(vec3(t.mul(.15),0,0)));
     let foam;
     if (kind === 'wave') {
-      const lip = smoothstep(.8,.99,tex.y);
-      const lace = smoothstep(.52,.74,surfaceFbm(p.mul(vec3(.9,.32,.6)).add(vec3(0,t.mul(-2.5),0))))
-        .mul(smoothstep(.35,.85,tex.y));
-      const streak = tex.x.mul(210).add(crest.mul(11)).sin().mul(.5).add(.5).pow(8)
-        .mul(smoothstep(.55,.9,tex.y)).mul(.32);
-      foam = lip.mul(smoothstep(.3,.7,crest).mul(.4).add(.6)).add(lace.mul(.55)).add(streak).clamp(0,1);
-      color = () => mix(vec3(.04,.15,.19),vec3(.1,.38,.4),smoothstep(.15,.95,tex.y));
-      material.emissiveNode = materialEmissive.add(vec3(.05,.28,.26).mul(smoothstep(.55,.97,tex.y))
+      // Surface UVs follow the baked curl, so foam breaks into moving patches without sliding off morphs.
+      const breaking = surfaceFbm(vec3(tex.x.mul(34),tex.y.mul(3).sub(t.mul(.13)),2));
+      const churn = surfaceFbm(vec3(tex.x.mul(110).add(breaking.mul(5)),tex.y.mul(36).sub(t.mul(.9)),3));
+      const lip = smoothstep(float(.91).add(float(.5).sub(breaking).mul(.05)),.999,tex.y);
+      const islands = smoothstep(.42,.68,churn);
+      const lace = smoothstep(.59,.77,churn).mul(smoothstep(.48,.95,tex.y));
+      foam = lip.mul(islands.mul(.85).add(.15)).mul(smoothstep(.38,.62,breaking)).add(lace.mul(.35)).clamp(0,1);
+      color = () => mix(vec3(.018,.08,.105),vec3(.035,.22,.24),smoothstep(.15,.95,tex.y));
+      material.emissiveNode = materialEmissive.add(vec3(.025,.12,.1).mul(smoothstep(.55,.97,tex.y))
         .mul(foam.mul(.8).oneMinus()).mul(crest.mul(.4).add(.6)));
     } else {
       foam = smoothstep(.7,.85,surfaceFbm(p.mul(.12).add(vec3(t.mul(.1),t.mul(.05),0)))).mul(.14);

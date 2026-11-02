@@ -8,7 +8,7 @@ import { armageddonFragments, armageddonSeam } from '../dist/armageddon-geometry
 function fixture(quality = 'high') {
   const scene = new THREE.Scene(), canvas = { dataset: { quality, pixelRatio: '1' } };
   const camera = new THREE.PerspectiveCamera(); camera.position.set(...sceneConfigs.armageddon.camera);
-  const cosmic = createCosmic({ scene, canvas, camera });
+  const cosmic = createCosmic({ scene, canvas, camera, assetSignal: AbortSignal.abort() });
   const at = time => cosmic.update(time, { id: 'armageddon', ...sceneConfigs.armageddon });
   at(0);
   return { scene, canvas, cosmic, at, named: name => scene.getObjectByName(name) };
@@ -145,4 +145,20 @@ test('Armageddon poses, glow and debris reverse exactly across time, detail and 
     f.canvas.dataset.quality = 'balanced'; f.at(time);
     assert.deepEqual(snapshot(root), before, `restore t=${time}`);
   }
+});
+
+test('fracture heat travels around the authored seam and dust keeps static GPU seed buffers', () => {
+  const f = fixture(), seam = f.named('Core fracture seam'), tip = f.named('Travelling fracture heat'), dust = f.named('Asteroid fracture dust');
+  f.at(9); const earlyCount = seam.geometry.drawRange.count, earlyTip = tip.position.clone();
+  assert.ok(earlyTip.z > 0, 'the warning begins on the default-camera-facing hemisphere');
+  f.at(10); assert.ok(tip.position.z > 0, 'the first visible propagation stays on the front face');
+  f.at(13); assert.ok(seam.geometry.drawRange.count > earlyCount * 3);
+  assert.ok(tip.position.distanceTo(earlyTip) > 10, 'heat visibly advances around the seam');
+  f.at(15.5); assert.equal(seam.geometry.drawRange.count, seam.geometry.index.count);
+  const positions = dust.geometry.attributes.position, seeds = dust.geometry.attributes.seed;
+  const version = positions.version, before = Array.from(positions.array);
+  assert.equal(seeds.count, 600);
+  for (const t of [16.2, 20, 26, 17, 30]) f.at(t);
+  assert.equal(positions.version, version, 'playback never uploads a replacement dust position buffer');
+  assert.deepEqual(Array.from(positions.array), before);
 });

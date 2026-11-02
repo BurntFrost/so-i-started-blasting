@@ -6,7 +6,7 @@ import { sceneConfigs } from '../dist/scene-config.js';
 
 function fixture(quality = 'high') {
   const scene = new THREE.Scene(), canvas = { dataset: { quality, pixelRatio: '1' } };
-  const cosmic = createCosmic({ scene, canvas, camera: new THREE.PerspectiveCamera() });
+  const cosmic = createCosmic({ scene, canvas, assetSignal: AbortSignal.abort(), camera: new THREE.PerspectiveCamera() });
   const at = time => cosmic.update(time, { id: 'gravity', ...sceneConfigs.gravity });
   at(0);
   return { scene, canvas, cosmic, at, named: name => scene.getObjectByName(name) };
@@ -101,5 +101,25 @@ test('Gravity restores exact poses, glints, dust and counts after reverse seeks,
     assert.equal(root.visible,false);
     f.canvas.dataset.quality=quality; f.at(time);
     assert.deepEqual(snapshot(root),before,`restore ${quality} at ${time}`);
+  }
+});
+
+test('astronaut braces, releases the tether at 19 seconds, recoils and settles each articulated joint', () => {
+  const f = fixture(), shoulder = f.named('Astronaut shoulder -1'), elbow = f.named('Astronaut elbow -1');
+  const tether = f.named('Releasing safety tether'), astronaut = f.named('Untethered astronaut');
+  f.at(16); const relaxed = elbow.rotation.x;
+  f.at(18.9); assert.ok(Math.abs(elbow.rotation.x - relaxed) > .7, 'elbow bends before release');
+  const beforeRelease = Array.from(tether.instanceMatrix.array);
+  f.at(19); const releasePosition = astronaut.position.clone();
+  assert.equal(tether.material.opacity, 1); assert.equal(tether.visible, true);
+  f.at(19.4); assert.ok(astronaut.position.distanceTo(releasePosition) > .1);
+  assert.notDeepEqual(Array.from(tether.instanceMatrix.array), beforeRelease);
+  const recoil = shoulder.rotation.z;
+  f.at(23); assert.equal(tether.visible, false); assert.ok(Math.abs(shoulder.rotation.z - recoil) > .05);
+  const settled = elbow.rotation.x; f.at(30);
+  assert.ok(Math.abs(elbow.rotation.x - settled) < .1, 'limb flutter decays into a quiet drift pose');
+  for (const time of [18.99, 19, 19.01, 19.4, 21]) {
+    f.at(time); const pose = snapshot(f.named('gravity-debris-cascade')); f.at(29); f.at(time);
+    assert.deepEqual(snapshot(f.named('gravity-debris-cascade')), pose);
   }
 });

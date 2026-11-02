@@ -2,6 +2,9 @@ import * as THREE from 'three/webgpu';
 import { createShaderMaterial, recordSurface } from './shader-program.js';
 import { applyParticleAtlas } from './particle-atlas.js';
 import { createBakedExplosion } from './baked-explosion.js';
+import { createBakedMotion } from './baked-motion.js';
+import { createFaultCrustGeometry, poseFaultCrust, poseFaultFloor, createFunnelGeometry, poseFunnel, sculptedLathe, createSnowDriftGeometry, tripodRoot, tripodFoot, sampleRoute } from './terrestrial-motion.js';
+import { impactWaveProfile, impactWaveState } from './impact-wave.js';
 import { marchedVolume, setInside, volumeFrame, volumeUniforms as sharedVolumeUniforms, markEffects, markEffect } from './render-kit.js';
 
 const clamp = value => Math.max(0, Math.min(1, value));
@@ -27,7 +30,7 @@ float fbm(vec3 p){return noise(p)*.57+noise(p*2.03)*.28+noise(p*4.11)*.15;}`;
 // Fixed geometry, seeded variation, and absolute-time poses make reverse scrubbing exact.
 // The baseline city buildings and the landscape group are shared with the simulation: the superstorm
 // hangs icicles from the roof edges and the visitor's swarm consumes the park trees.
-export function createTerrestrial({ scene, canvas, camera, buildings = [], landscape, ground }) {
+export function createTerrestrial({ scene, canvas, camera, buildings = [], landscape, ground, impactWave, assetSignal }) {
   const volumeUniforms = extra => sharedVolumeUniforms(extra, canvas);
   // ULTRA-capable displays get twice the silhouette tessellation; geometry is built once per module.
   const fine = canvas.dataset.qualityCeiling === 'ultra' ? 2 : 1;
@@ -170,9 +173,9 @@ export function createTerrestrial({ scene, canvas, camera, buildings = [], lands
     const bodySurface = texturedMaterial('#a5aeb8', '#f7a15d', .1, true);
     const bodyMaterial = bodySurface.material;
     bodyMaterial.transparent = true; bodyMaterial.depthWrite = false; bodyMaterial.opacity = .2;
-    const crown = new THREE.Mesh(new THREE.SphereGeometry(1, 28, 16), bodyMaterial);
+    const crown = new THREE.Mesh(sculptedLathe([[0,-.45],[.36,-.48],[.72,-.32],[.98,-.08],[1.04,.23],[.94,.58],[.67,.9],[.3,1.08],[0,1.12]], 48, 9, .055), bodyMaterial);
     crown.name = 'Continuous mushroom crown'; nuclear.add(crown);
-    const column = new THREE.Mesh(new THREE.SphereGeometry(1, 20, 14), bodyMaterial);
+    const column = new THREE.Mesh(sculptedLathe([[0,-1],[.65,-1],[.78,-.85],[.55,-.55],[.4,-.15],[.45,.25],[.62,.65],[1.05,1],[0,1.05]], 32, 6, .07), bodyMaterial);
     column.name = 'Continuous mushroom stem'; nuclear.add(column);
     const nuclearCore = new THREE.Mesh(new THREE.SphereGeometry(1, 32 * fine, 20 * fine), glow(new THREE.Color(3.2, 1.4, .38), .7));
     nuclearCore.name = 'Nuclear fireball'; nuclear.add(nuclearCore);
@@ -215,8 +218,10 @@ export function createTerrestrial({ scene, canvas, camera, buildings = [], lands
       cloud.instanceMatrix.needsUpdate = true; cloud.instanceColor.needsUpdate = true;
       crown.visible = column.visible = t > 4;
       crown.position.set(centerX, capY + 2, centerZ);
+      crown.rotation.set(Math.sin(t * .13) * .025, t * .018, Math.sin(t * .1) * .025);
       crown.scale.set((capRadius + 1) * ignition, (6 + growth * 4) * ignition, (capRadius + 1) * ignition);
-      column.position.set(centerX, capY * .46, centerZ);
+      column.position.set(centerX - drift * .12, capY * .46, centerZ);
+      column.rotation.z = -drift * .0018;
       column.scale.set((5 + growth * 5) * ignition, capY * .48 * ignition, (5 + growth * 5) * ignition);
       bodyMaterial.color.set('#a5aeb8').lerp(fireColor, heat * .2);
       bodyMaterial.opacity = canvas.dataset.explosionBake === 'ready' ? .13 : .42;
@@ -252,23 +257,12 @@ export function createTerrestrial({ scene, canvas, camera, buildings = [], lands
   plates.castShadow = true; plates.receiveShadow = true;
   const plateSeeds = Array.from({ length: 42 }, (_, i) => ({ z: -77 + ((Math.floor(i / 2) * 8) % 21) * 7.7,
     side: i % 2 ? 1 : -1, width: 3 + random() * 4, height: .8 + random() * 1.8, phase: random() * tau }));
-  const faultRows = 320, faultLength = 2000;
+  const faultRows = 320;
   const crustMaterial = texturedMaterial('#283137', '#2a1c15', .015).material;
   crustMaterial.flatShading = true;
   crustMaterial.side = THREE.DoubleSide;
   const crust = [-1, 1].map(side => {
-    const geometry = new THREE.BufferGeometry(), indices = [];
-    geometry.setAttribute('position', new THREE.BufferAttribute(new Float32Array((faultRows + 1) * 12), 3));
-    for (let row = 0; row < faultRows; row++) {
-      const a = row * 4, b = a + 4;
-      indices.push(a, b, a + 1, a + 1, b, b + 1,
-        a, a + 2, b, b, a + 2, b + 2,
-        a + 1, b + 1, a + 3, a + 3, b + 1, b + 3,
-        a + 2, a + 3, b + 2, b + 2, a + 3, b + 3);
-    }
-    indices.push(0, 1, 2, 1, 3, 2);
-    const end = faultRows * 4; indices.push(end, end + 2, end + 1, end + 1, end + 2, end + 3);
-    geometry.setIndex(indices);
+    const geometry = createFaultCrustGeometry(side, faultRows);
     const mesh = new THREE.Mesh(geometry, crustMaterial);
     mesh.name = side < 0 ? 'Western continental crust' : 'Eastern continental crust';
     mesh.receiveShadow = true; mesh.frustumCulled = false; rupture.add(mesh);
@@ -285,7 +279,10 @@ export function createTerrestrial({ scene, canvas, camera, buildings = [], lands
     float pulse=.7+.3*sin(faultUv.y*40.-time*1.8);
     vec3 hot=mix(vec3(.035,.006,.002),vec3(.85,.21,.025),veins*edge*pulse);
     gl_FragColor=vec4(hot,(edge*.56+smoothstep(.64,.86,veins)*.08)*smoothstep(0.,4.,time));}` });
-  const fault = new THREE.Mesh(faultGeometry, faultMaterial); rupture.add(fault);
+  const fault = new THREE.Mesh(faultGeometry, faultMaterial); fault.name = 'Fault glow'; rupture.add(fault);
+  const faultMotion = createBakedMotion({ url: '/assets/continental-motion.glb',
+    targets: { WestCrust: crust[0].mesh, EastCrust: crust[1].mesh, Chasm: chasm },
+    canvas, statusKey: 'continentalMotion', signal: assetSignal });
   const rubble = instances(rupture, rock, mat('#737779', { roughness: .95 }), 150, 'Airborne earthquake masonry');
   const rubbleSeeds = Array.from({ length: 150 }, () => ({ x: (random() - .5) * 55, z: (random() - .5) * 158,
     speed: 3 + random() * 5, launch: [3, 10, 21][Math.floor(random() * 3)] + random() * 2, spin: random() * tau, size: .25 + random() * 1.3 }));
@@ -307,30 +304,14 @@ export function createTerrestrial({ scene, canvas, camera, buildings = [], lands
   const faultDust = particles(rupture, 'rupture', 420, '#8a8f91', 19);
 
   function updateRupture(t, detail) {
-    const opening = ease((t - 3) / 5) * .25 + ease((t - 10) / 5) * .45 + ease((t - 21) / 6) * .3, violence = ease((t - 6) / 16);
+    const violence = ease((t - 6) / 16);
     basalt.clock.value = t; faultMaterial.uniforms.time.value = t;
-    for (const { mesh, side } of crust) {
-      const p = mesh.geometry.attributes.position;
-      for (let row = 0; row <= faultRows; row++) {
-        const z = faultLength * (.5 - row / faultRows);
-        const center = Math.sin(z * .045) * 10 + Math.sin(z * .16) * 2;
-        const inner = center + side * (.35 + opening * (13 + Math.sin(z * .11) * 3));
-        const a = row * 4;
-        p.setXYZ(a, inner, -1.05, z); p.setXYZ(a + 1, side * 1200, -1.05, z);
-        p.setXYZ(a + 2, inner + side * 9, -80, z); p.setXYZ(a + 3, side * 1200, -80, z);
-      }
-      p.needsUpdate = true; mesh.geometry.computeVertexNormals();
+    if (!faultMotion.update(t)) {
+      for (const { mesh, side } of crust) poseFaultCrust(mesh.geometry, side, t);
+      poseFaultFloor(chasm.geometry, t, -3.8);
     }
-    for (const mesh of [chasm, fault]) {
-      const p = mesh.geometry.attributes.position;
-      for (let i = 0; i < p.count; i++) {
-        const row = Math.floor(i / 2), z = faultLength * (.5 - row / faultRows);
-        const center = Math.sin(z * .045) * 10 + Math.sin(z * .16) * 2;
-        const halfWidth = .35 + opening * (13 + Math.sin(z * .11) * 3);
-        p.setXYZ(i, center + (i % 2 ? 1 : -1) * halfWidth, mesh === chasm ? -3.8 : -3.6, z);
-      }
-      p.needsUpdate = true;
-    }
+    // The small emissive veil keeps its custom shader; only its aperture follows the fault.
+    poseFaultFloor(fault.geometry, t, -3.6, false);
     plates.count = detail === 0 ? 28 : 42;
     for (let i = 0; i < plates.count; i++) {
       const s = plateSeeds[i];
@@ -411,6 +392,7 @@ export function createTerrestrial({ scene, canvas, camera, buildings = [], lands
   const weedSeeds = Array.from({ length: 360 }, () => ({ x: (random() - .5) * 164, z: (random() - .5) * 150,
     size: .8 + random() * 2.6, angle: random() * tau, threshold: random() }));
   const invasionDust = particles(invasion, 'invasion', 140, '#7b8795', 13);
+  const footDust = instances(invasion, new THREE.IcosahedronGeometry(1, 1), mat('#a0a2a0', { transparent: true, opacity: .22, depthWrite: false }), 9, 'Tripod foot contact dust');
 
   const scars = [[16,50,58,9],[-38,-6,38,8],[48,-38,28,7]].map(([x,z,width,depth], i) => {
     const scar = new THREE.Mesh(new THREE.PlaneGeometry(width,depth), new THREE.MeshStandardMaterial({color:'#171116',emissive:'#a43818',emissiveIntensity:0,roughness:1,transparent:true,opacity:0,depthWrite:false}));
@@ -421,20 +403,22 @@ export function createTerrestrial({ scene, canvas, camera, buildings = [], lands
     walkers.forEach(w => {
       w.walker.visible = detail > 0 || w.index < 2;
       if (!w.walker.visible) { w.rayLight.intensity = 0; return; }
-      const stride = Math.max(0,t-6) * .72 + w.index * 2;
-      w.walker.position.set(w.x + Math.sin(stride * .3) * 5, 0, w.z + Math.max(0,t-6) * 1.5);
-      w.walker.rotation.y = -.22 + Math.sin(t * .12 + w.index) * .2;
-      w.head.position.set(0, 48 + waking * 12 + Math.sin(stride * 2) * .8, 0);
-      w.head.rotation.z = Math.sin(stride) * .035;
+      const root = tripodRoot(t, w.index, w.x, w.z), stride = root.stride;
+      w.walker.position.set(root.x, 0, root.z); w.walker.rotation.y = root.yaw;
+      w.walker.updateWorldMatrix(true, false);
+      w.head.position.set(Math.sin(stride) * .65, 48 + waking * 12 + Math.sin(stride * 2) * .65, 0);
+      w.head.rotation.z = Math.sin(stride) * .025; w.head.rotation.x = Math.cos(stride) * .018;
       let limb = 0, joint = 0;
       for (let leg = 0; leg < 3; leg++) {
-        const a = leg / 3 * tau + Math.PI, swing = stride + leg * tau / 3;
+        const a = leg / 3 * tau + Math.PI;
         const hip = w.positions[leg * 3], knee = w.positions[leg * 3 + 1], foot = w.positions[leg * 3 + 2];
         hip.set(Math.sin(a) * 5, w.head.position.y - 3, Math.cos(a) * 4);
-        knee.set(Math.sin(a + .18) * 18, 29 + Math.sin(swing) * 3, Math.cos(a + .18) * 17 + Math.cos(swing) * 2);
-        const step = (Math.max(0,t-6)*.22 + leg/3 + w.index*.28)%1, lift = clamp((step-.7)/.3);
-        const reach = step<.7 ? 3-step/.7*6 : -3+ease(lift)*6;
-        foot.set(Math.sin(a) * 27, .5+Math.sin(lift*Math.PI)*7, Math.cos(a) * 25+reach);
+        const contact = tripodFoot(t, w.index, leg, w.x, w.z, w.scale);
+        foot.set(contact.x, .5 * w.scale + contact.lift, contact.z); w.walker.worldToLocal(foot);
+        knee.set(foot.x * .67 + Math.sin(a + .18) * 3, 29 + contact.lift * .22, foot.z * .65 + Math.cos(a + .18) * 3);
+        const puff = t > 6 ? (1 - ease(contact.phase / .18)) : 0;
+        const spread = 1 + (1 - puff) * 3;
+        pose(footDust, w.index * 3 + leg, contact.x, .6, contact.z, spread * w.scale * puff, .7 * puff, spread * w.scale * puff);
         segment(w.limbs, limb++, hip, knee, 1.05); segment(w.limbs, limb++, knee, foot, .65);
         segmentStart.set(hip.x + 1.15, hip.y - 2, hip.z + .4);
         segmentEnd.set(knee.x + 1.15, knee.y + 1, knee.z + .4);
@@ -477,6 +461,7 @@ export function createTerrestrial({ scene, canvas, camera, buildings = [], lands
       w.scorch.position.copy(target); w.scorch.scale.setScalar(1 + beamPower * .7); w.scorch.material.opacity = firing * .75; w.scorch.material.color.set('#ffbb7b');
       hostLight(w.rayLight, w.walker, target.x, target.y + 2, target.z); w.rayLight.intensity = detail === 0 ? 0 : firing * 210;
     });
+    footDust.count = detail === 0 ? 6 : 9; footDust.instanceMatrix.needsUpdate = true;
     scars.forEach((scar,i)=>{scar.visible=detail>0||i<2;const age=t-[20.5,23.5,26][i];scar.material.opacity=ease(age/1.5)*.82;scar.material.emissiveIntensity=ease(age/.4)*(1-ease((age-1)/4))*.65;});
     weed.count = detail === 0 ? 60 : detail === 1 ? 110 : 180;
     for (let i = 0; i < weed.count; i++) {
@@ -522,13 +507,7 @@ export function createTerrestrial({ scene, canvas, camera, buildings = [], lands
   const base = t => [-95 + t * 4, -95 + t * 2.2];
   // One continuous silhouette at every tier. Broad, travelling lobes avoid the
   // horizontal march bands of the former volume and keep the farm visible below.
-  const funnelGeometry = new THREE.CylinderGeometry(1, 1, 1, 64 * fine, 48, true);
-  const funnelVertex = funnelGeometry.attributes.position;
-  const funnelUV = Array.from({ length: funnelVertex.count }, (_, i) => ({
-    h: funnelVertex.getY(i) + .5, a: Math.atan2(funnelVertex.getZ(i), funnelVertex.getX(i))
-  }));
-  const funnelColors = new THREE.Float32BufferAttribute(new Float32Array(funnelVertex.count * 3), 3);
-  funnelGeometry.setAttribute('color', funnelColors);
+  const funnelGeometry = createFunnelGeometry(64 * fine);
   // A wrapped, repeatable veil supplies moving fine streaks without another shader.
   const vaporPixels = new Uint8Array(128 * 256 * 4);
   for (let y = 0; y < 256; y++) for (let x = 0; x < 128; x++) {
@@ -555,24 +534,12 @@ export function createTerrestrial({ scene, canvas, camera, buildings = [], lands
     roughness: 1, vertexColors: true, side: THREE.DoubleSide }));
   funnel.name = 'Continuous condensation funnel'; funnel.frustumCulled = false; funnel.userData.opaqueDepth = true;
   funnel.castShadow = true; funnel.receiveShadow = true; outbreak.add(funnel);
-  const shadeLow = new THREE.Color('#59534d'), shadeHigh = new THREE.Color('#778d9a');
-  function shapeFunnel(t, bx, bz, ground, height, spread, ropeOut, lx, lz) {
-    const foot = (2.6 + spread * 8.5) * (1 - ropeOut * .72), shoulder = 32 + spread * 8;
+  const funnelMotion = createBakedMotion({ url: '/assets/tornado-motion.glb', targets: { Funnel: funnel },
+    canvas, statusKey: 'tornadoMotion', signal: assetSignal });
+  function shapeFunnel(t, bx, bz, ground, height) {
     funnel.position.set(bx, ground + 96 - height, bz);
     vaporMap.offset.set(-t * .065, -t * .038);
-    for (let i = 0; i < funnelVertex.count; i++) {
-      const { h, a } = funnelUV[i], twist = a - t * (.85 + (1 - h) * .55) - h * 4.8;
-      const profile = foot + (shoulder - foot) * Math.pow(h, 1.65 + ropeOut * .45);
-      const ripple = 1 + Math.sin(twist * 3 + h * 3.8) * .052 + Math.sin(twist * 7 - h * 5.1) * .019;
-      const r = profile * ripple, bend = h * h;
-      const crown = ease((h - .82) / .18) * (4 + Math.sin(a * 5 - t * .3) * 1.8 + Math.sin(a * 9 + t * .2));
-      funnelVertex.setXYZ(i, Math.cos(a) * r + lx * bend, h * height + crown, Math.sin(a) * r + lz * bend);
-      // Large soft tonal strokes follow the helix, never independent horizontal rings.
-      color.copy(shadeLow).lerp(shadeHigh, ease(h * 1.6)).multiplyScalar(.84 + .13 * Math.sin(twist * 3 + h * 3.8) + .035 * Math.sin(twist * 9 - h * 6));
-      funnelColors.setXYZ(i, color.r, color.g, color.b);
-    }
-    funnelVertex.needsUpdate = true; funnelColors.needsUpdate = true;
-    funnelGeometry.computeVertexNormals();
+    if (!funnelMotion.update(t)) poseFunnel(funnel.geometry, t);
   }
 
   const cloudSurface = texturedMaterial('#657886', '#000000', 0, true);
@@ -685,7 +652,7 @@ export function createTerrestrial({ scene, canvas, camera, buildings = [], lands
     const down = ease((t - 8) / 5), spread = ease((t - 13) / 5), ropeOut = ease((t - 25) / 5);
     const [bx, bz] = base(t), ground = terrainHeight(bx, bz), height = 22 + down * 74;
     const lx = -8 + Math.sin(t * .34) * (4 + ropeOut * 7), lz = -4 + Math.cos(t * .29) * (3 + ropeOut * 5);
-    shapeFunnel(t, bx, bz, ground, height, spread, ropeOut, lx, lz);
+    shapeFunnel(t, bx, bz, ground, height);
     cloudSurface.clock.value = t; dustSurface.clock.value = t;
     strike(t, strikes, bolts, flashLight);
     const cx = bx + lx, cz = bz + lz;
@@ -884,6 +851,27 @@ export function createTerrestrial({ scene, canvas, camera, buildings = [], lands
       trail: i < 16 ? .93 + random() * .07 : .06 + ((i - 16) * .618034 % 1) * .88 + (random() - .5) * .025,
       across: i < 16 ? (i / 15 * 2 - 1) + (random() - .5) * .09 : (random() - .5) * (i < 28 ? .5 : 1.3),
       size: .85 + random() * .3, phase: random() * tau }));
+    // Terrain intersections are authored once. Playback samples cached routes and impact times.
+    for (const seed of bombSeeds) {
+      const above = age => 100 + seed.vertical * age - 13 * age * age - flank(
+        vent.x + 7 + Math.cos(seed.angle) * seed.lateral * age, vent.z - 4 + Math.sin(seed.angle) * seed.lateral * age) + 2;
+      let low = .1, high = 8;
+      for (let step = 0; step < 18; step++) { const age = (low + high) / 2; if (above(age) > 0) low = age; else high = age; }
+      seed.impact = high;
+    }
+    const surgeRoutes = surgeSeeds.map((seed, i) => {
+      const route = new Float32Array(129 * 3), channel = i % 3 - 1;
+      for (let step = 0; step <= 128; step++) {
+        const progress = step / 128, reach = progress * 245 * seed.trail * (1 - Math.abs(seed.across) * .09);
+        const spread = 6 + reach * .25;
+        const x = vent.x + 7 + reach * .12 + seed.across * spread + channel * Math.sin(progress * Math.PI * .85) * 10;
+        const z = vent.z + reach + Math.sin(progress * Math.PI) * channel * 4;
+        route.set([x, flank(x, z), z], step * 3);
+      }
+      return route;
+    });
+    surge.userData.terrainRoutes = surgeRoutes;
+    const surgePoint = new THREE.Vector3();
     const bolts = [bolt(eruption, new THREE.Vector3(vent.x + 29, 153, vent.z - 10), new THREE.Vector3(vent.x + 8, 101, vent.z + 5), 'Volcanic lightning east'),
       bolt(eruption, new THREE.Vector3(vent.x - 24, 188, vent.z + 8), new THREE.Vector3(vent.x - 8, 119, vent.z), 'Volcanic lightning west'),
       bolt(eruption, new THREE.Vector3(vent.x + 36, 234, vent.z + 16), new THREE.Vector3(vent.x + 13, 160, vent.z + 9), 'Volcanic lightning south')];
@@ -925,17 +913,17 @@ export function createTerrestrial({ scene, canvas, camera, buildings = [], lands
       for (let i = 0; i < bombs.count; i++) {
         const s = bombSeeds[i], age = t - s.launch;
         const x = vent.x + 7 + Math.cos(s.angle) * s.lateral * age, z = vent.z - 4 + Math.sin(s.angle) * s.lateral * age, y = 100 + s.vertical * age - 13 * age * age;
-        const size = age > 0 && age < 8 && y > flank(x, z) - 2 ? s.size : .001;
+        const size = age > 0 && age < s.impact ? s.size : .001;
         pose(bombs, i, x, y, z, size, size * .8, size * 1.2, age * 3 + s.spin, age * 2, s.spin);
       }
       bombs.instanceMatrix.needsUpdate = true;
       surge.visible = t > 13.5; surge.count = detail === 0 ? 24 : detail === 1 ? 36 : 48;
       for (let i = 0; i < surge.count; i++) {
         const s = surgeSeeds[i], reach = front * 245 * s.trail * (1 - Math.abs(s.across) * .09);
-        const width = 15 + reach * .29, x = vent.x + 7 + reach * .12 + s.across * width, z = vent.z + reach;
+        sampleRoute(surgeRoutes[i], front, surgePoint);
         const size = (13 + reach * .06) * s.size * ease((t - 13.5) / 2.5);
         const height = bakedSurge.ready ? (s.lead ? .95 : 1.15) : (s.lead ? .52 : .64);
-        pose(surge, i, x, flank(x, z) + size * .06 + Math.sin(t * .8 + s.phase) * front, z,
+        pose(surge, i, surgePoint.x, surgePoint.y + size * .06 + Math.sin(t * .8 + s.phase) * front, surgePoint.z,
           size * 1.65, size * height, size * 1.6, Math.sin(t * .15 + s.phase) * .08, s.phase, 0);
         color.set('#82837e').lerp(rearAshColor, (1 - s.trail) * .7).multiplyScalar(.94 + Math.sin(s.phase) * .06); surge.setColorAt(i, color);
       }
@@ -961,14 +949,16 @@ export function createTerrestrial({ scene, canvas, camera, buildings = [], lands
   // The storm travels across the skyline, leaving readable frozen architecture in its wake.
   const superstorm = group('The Day After Tomorrow — superstorm');
   const snowMaterial = mat('#dae8f1', { roughness: .8 });
-  const drifts = instances(superstorm, new THREE.SphereGeometry(1, 10 * fine, 6 * fine), snowMaterial, 132, 'Snow drifts');
+  const drifts = instances(superstorm, createSnowDriftGeometry(), snowMaterial, 132, 'Snow drifts');
   drifts.receiveShadow = true;
   // Drifts pile against the building fronts along the 17-unit street grid.
   const driftSeeds = Array.from({ length: 132 }, (_, i) => {
     const road = -4 + (i % 9), along = -72 + Math.floor(i / 9) * 10.3 + random() * 6, side = i % 2 ? 1 : -1, offset = 1.9 + random() * 1.4;
     const crossStreet = i % 3 === 0;
-    return { x: crossStreet ? along : road * 17 + side * offset, z: crossStreet ? road * 17 + side * offset : along,
-      w: 3 + random() * 4.5, h: .7 + random() * 1.1, d: 2 + random() * 3, spin: random() * tau, onset: random() };
+    const building = buildings.length ? buildings[(i * 7) % buildings.length].userData : null;
+    return { x: building ? building.x + building.w * .5 + 1.2 : crossStreet ? along : road * 17 + side * offset,
+      z: building ? building.z + (random() - .5) * building.d : crossStreet ? road * 17 + side * offset : along,
+      w: 3 + random() * 4.5, h: .7 + random() * 1.1, d: 2 + random() * 3, spin: -.27 + (random() - .5) * .28, onset: random() };
   });
   const iceMaterial = new THREE.MeshStandardMaterial({ color: '#8fbbd2', roughness: .1, metalness: .06, transparent: true, opacity: 0, envMapIntensity: 1.3, depthWrite: false });
   iceMaterial.onBeforeCompile = shader => {
@@ -1006,7 +996,7 @@ export function createTerrestrial({ scene, canvas, camera, buildings = [], lands
     // Existing particle shaders provide the gusts; translating their finite field gives the front a direction.
     blizzard.mesh.position.set(frontX, 0, -10);
     blizzard.count = Math.floor(700 + 9300 * storm);
-    spindrift.mesh.position.set(-210 + ease((t - 9) / 15) * 330, 0, 0);
+    spindrift.mesh.position.set(frontX - 22, 0, 0);
     spindrift.count = Math.floor(100 + 600 * storm);
     streakMaterial.opacity = .48 * ease((t - 8) / 4) * (1 - ease((t - 20) / 7));
     streaks.visible = streakMaterial.opacity > 0;
@@ -1014,7 +1004,7 @@ export function createTerrestrial({ scene, canvas, camera, buildings = [], lands
     const gust = 18 + ease((t - 8) / 10) * 28;
     for (let i = 0; i < streaks.count; i++) {
       const s = streakSeeds[i];
-      const x = (s.x * 320 + t * gust) % 320 - 160 + frontX;
+      const x = (s.x * 320 + t * gust) % 320 - 160 + frontX + Math.sin(s.z * Math.PI) * 18;
       const y = ((s.y * 100 - t * (5 + s.z * 7)) % 100 + 100) % 100 + 2;
       const z = (s.z * 280 + t * gust * .28) % 280 - 140;
       pose(streaks, i, x, y, z, s.length * (1 + storm), .12, .12, 0, -.27, -.14);
@@ -1023,8 +1013,8 @@ export function createTerrestrial({ scene, canvas, camera, buildings = [], lands
     drifts.count = detail === 0 ? 60 : detail === 1 ? 96 : 132;
     for (let i = 0; i < drifts.count; i++) {
       const s = driftSeeds[i], arrival = 10 + (s.x + 85) / 170 * 8;
-      const pile = ease((t - arrival - s.onset * 2) / 9), h = s.h * pile;
-      pose(drifts, i, s.x, -1 + h * .35, s.z, s.w * (.6 + pile * .4), Math.max(.001, h), s.d * (.6 + pile * .4), 0, s.spin, 0);
+      const pile = ease((t - arrival - s.onset * 2) / 9), h = s.h * pile, footprint = ease(pile * 2);
+      pose(drifts, i, s.x, -.96, s.z, s.w * (.6 + pile * .4) * footprint, Math.max(.001, h), s.d * (.6 + pile * .4) * footprint, 0, s.spin, 0);
     }
     drifts.instanceMatrix.needsUpdate = true;
     ice.visible = glaze > 0; iceMaterial.opacity = glaze * .65;
@@ -1094,9 +1084,9 @@ export function createTerrestrial({ scene, canvas, camera, buildings = [], lands
     const joints = instances(gort, softSphere, shell, 12, 'GORT joints');
     const feet = instances(gort, softSphere, shell, 2, 'GORT feet');
     const torsoProfile = [[0,12],[1.9,12],[2.8,13.4],[2.6,15.5],[3.2,18],[4.2,20.8],[4.1,22],[3.2,23.2],[1.5,24],[0,24]].map(([x,y]) => new THREE.Vector2(x,y));
-    const torso = new THREE.Mesh(new THREE.LatheGeometry(torsoProfile, 32 * fine), shell);
+    const torso = new THREE.Mesh(new THREE.LatheGeometry(torsoProfile, 32 * fine), shell.clone());
     torso.name = 'GORT continuous torso'; torso.scale.z = .64; gort.add(torso);
-    const head = new THREE.Mesh(new THREE.CapsuleGeometry(1.75, 2.2, 6, 16 * fine), shell);
+    const head = new THREE.Mesh(new THREE.CapsuleGeometry(1.75, 2.2, 6, 16 * fine), shell.clone());
     head.name = 'GORT smooth head'; head.position.set(0, 26.1, 0); gort.add(head);
     const visor = new THREE.Mesh(new THREE.SphereGeometry(1, 16, 8), glow(new THREE.Color(.85, 2.0, 1.65), 0));
     visor.name = 'GORT visor'; visor.scale.set(1.65, .16, .42); visor.position.set(0, 26.4, 1.55); gort.add(visor);
@@ -1135,7 +1125,10 @@ export function createTerrestrial({ scene, canvas, camera, buildings = [], lands
       gort.position.y = groundHeight(gort.position.x, gort.position.z);
       gort.rotation.y = .35 + ease((t - 16.3) / 1.2) * .2;
       gort.scale.setScalar(1.7);
-      shell.opacity = 1 - gone;
+      // The release travels down the body; each ribbon starts at the region dissolving now.
+      head.material.opacity = 1 - ease((t - 19) / 1.1);
+      torso.material.opacity = 1 - ease((t - 19.5) / 1.9);
+      shell.opacity = 1 - ease((t - 20.8) / 2.2);
       const stride = walk * 12.2;
       let limb = 0, joint = 0;
       for (const side of [0, 1]) {
@@ -1165,13 +1158,17 @@ export function createTerrestrial({ scene, canvas, camera, buildings = [], lands
       scorch.position.copy(segmentEnd); scorch.scale.setScalar(.8 + beamPower * .5); scorch.material.opacity = beamPower * .38;
       beamLight.intensity = detail === 0 ? 0 : beamPower * 100;
       nanites.count = [900, 1600, 2400][detail]; nanites.visible = t > 18.6;
-      const release = ease((t - 18.6) / 2.3), travel = clamp((t - 19) / 11);
       for (let i = 0; i < nanites.count; i++) {
-        const s = seeds[i], end = paths[s.lane], p = ease(travel * (.24 + .76 * s.u));
-        const radius = (1 + s.v * 4) * (1 + p * 1.1), angle = s.angle + t * (1.2 + s.w * 1.8);
-        const x = stand.x + (end.x - stand.x) * p + Math.sin(p * Math.PI) * (s.lane === 0 ? 20 : -15);
-        const z = stand.z + (end.z - stand.z) * p;
-        const y = (1 - p) * (1 + s.u * 44) * (1 - release * .7) + p * end.y + Math.sin(p * Math.PI) * (s.lane === 0 ? 8 : 15);
+        const s = seeds[i], end = paths[s.lane], height = 1 + s.u * 46;
+        const releaseAt = 19 + (1 - s.u) * 3, release = ease((t - releaseAt) / .65);
+        const p = ease(clamp((t - releaseAt) / (30 - releaseAt)) * (.34 + .66 * s.v));
+        const bodyRadius = height > 40 ? 2.5 : height > 21 ? 4.7 : 2.7;
+        const sourceX = stand.x + Math.cos(s.angle + .55) * bodyRadius;
+        const sourceZ = stand.z + Math.sin(s.angle + .55) * bodyRadius * .65;
+        const radius = p * (1 + s.v * 5), angle = s.angle + (t - releaseAt) * (1.2 + s.w * 1.8);
+        const x = sourceX + (end.x - sourceX) * p + Math.sin(p * Math.PI) * (s.lane === 0 ? 20 : -15);
+        const z = sourceZ + (end.z - sourceZ) * p;
+        const y = (1 - p) * (height + groundHeight(stand.x, stand.z)) + p * end.y + Math.sin(p * Math.PI) * (s.lane === 0 ? 8 : 15);
         const size = (.26 + s.w * .5) * release * (.7 + .3 * Math.sin(s.u * Math.PI));
         pose(nanites, i, x + Math.cos(angle) * radius, Math.max(.3, y + Math.sin(angle) * radius), z + Math.sin(angle * .8) * radius, size, size * .6, size * (1.2 + p * 2.8), angle, s.angle + t, angle * .6);
       }
@@ -1212,9 +1209,11 @@ export function createTerrestrial({ scene, canvas, camera, buildings = [], lands
   const unitMaterial = mat('#cbd1dd', { roughness: .48, emissive: '#79728b', emissiveIntensity: .12 });
   const units = instances(impact, new THREE.CapsuleGeometry(1, 2.4, 4, 10 * fine), unitMaterial, 9, 'Mass production units');
   const wingShape = new THREE.Shape();
-  wingShape.moveTo(-3.8, 0); wingShape.lineTo(-1.4, .48); wingShape.lineTo(2.7, .28);
-  wingShape.lineTo(4, -.2); wingShape.lineTo(1.2, -.44); wingShape.lineTo(-2.2, -.23); wingShape.closePath();
-  const wingGeometry = new THREE.ExtrudeGeometry(wingShape, { depth: .16, bevelEnabled: false });
+  wingShape.moveTo(-3.8, 0); wingShape.bezierCurveTo(-2.3, .55, -.5, .9, 1.1, .65);
+  wingShape.bezierCurveTo(2.2, .6, 3.4, .05, 4.2, -.5);
+  for (const [x, y] of [[3.2,-.2],[3.6,-.8],[2.6,-.42],[2.85,-1.02],[1.9,-.59],[1.95,-1.13],[1,-.65],[.95,-1.08],[0,-.61],[-.12,-.93],[-1.1,-.48],[-1.4,-.69],[-2.4,-.25]]) wingShape.lineTo(x, y);
+  wingShape.quadraticCurveTo(-3.2, -.1, -3.8, 0); wingShape.closePath();
+  const wingGeometry = new THREE.ExtrudeGeometry(wingShape, { depth: .16, bevelEnabled: true, bevelThickness: .035, bevelSize: .035, bevelSegments: 1, curveSegments: 8, steps: 1 });
   wingGeometry.center();
   const wings = instances(impact, wingGeometry, unitMaterial, 18, 'Mass production unit wings');
   units.castShadow = true; wings.castShadow = true;
@@ -1275,18 +1274,23 @@ export function createTerrestrial({ scene, canvas, camera, buildings = [], lands
     const pivot = new THREE.Group(); pivot.name = sign < 0 ? 'Left embrace' : 'Right embrace';
     pivot.position.set(sign * 25, 181, 0); giant.add(pivot);
     limb(armGeometry, 0, -23, 0, 6.2, 8.3, 6.2, sign < 0 ? 'Giant left upper arm' : 'Giant right upper arm', pivot);
-    limb(armGeometry, 0, -61, 1, 4.8, 7.6, 4.8, sign < 0 ? 'Giant left forearm' : 'Giant right forearm', pivot);
-    limb(smoothBody, 0, -83, 1, 5.3, 9, 3.5, sign < 0 ? 'Giant left hand' : 'Giant right hand', pivot);
-    return [pivot, sign];
+    const elbowPivot = new THREE.Group(); elbowPivot.name = sign < 0 ? 'Left embrace elbow' : 'Right embrace elbow';
+    elbowPivot.position.set(0, -42, 0); pivot.add(elbowPivot);
+    limb(armGeometry, 0, -19, 1, 4.8, 7.6, 4.8, sign < 0 ? 'Giant left forearm' : 'Giant right forearm', elbowPivot);
+    const wristPivot = new THREE.Group(); wristPivot.name = sign < 0 ? 'Left embrace wrist' : 'Right embrace wrist';
+    wristPivot.position.set(0, -41, 1); elbowPivot.add(wristPivot);
+    limb(smoothBody, 0, 0, 0, 5.3, 9, 3.5, sign < 0 ? 'Giant left hand' : 'Giant right hand', wristPivot);
+    return [pivot, sign, elbowPivot, wristPivot];
   });
   limb(cylinder, 0, 197, 0, 6, 12, 6, 'Giant neck');
-  limb(smoothBody, 0, 216, 0, 11.5, 16, 10.5, 'Giant head');
+  const headPose = new THREE.Group(); headPose.name = 'Giant head gesture'; headPose.position.set(0, 197, 0); giant.add(headPose);
+  limb(smoothBody, 0, 19, 0, 11.5, 16, 10.5, 'Giant head', headPose);
   const eyeMaterial = glow('#b65466', .52);
   for (const sign of [-1, 1]) {
     const eye = new THREE.Mesh(smoothBody, eyeMaterial); eye.name = sign < 0 ? 'Giant left eye' : 'Giant right eye';
-    eye.position.set(sign * 4.2, 217, 9.8); eye.scale.set(2.3, .5, .6); giant.add(eye);
+    eye.position.set(sign * 4.2, 20, 9.8); eye.scale.set(2.3, .5, .6); headPose.add(eye);
   }
-  const headHalo = new THREE.Mesh(smoothBody, rimGlow('#b9d4ff', .24)); headHalo.name = 'Giant head halo'; headHalo.position.set(0, 216, 0); headHalo.scale.set(12.5, 17, 11.5); giant.add(headHalo);
+  const headHalo = new THREE.Mesh(smoothBody, rimGlow('#b9d4ff', .24)); headHalo.name = 'Giant head halo'; headHalo.position.set(0, 19, 0); headHalo.scale.set(12.5, 17, 11.5); headPose.add(headHalo);
   const haloMaterial = glow(new THREE.Color(.7, .88, 1.2), 0);
   const halo = new THREE.Mesh(new THREE.TorusGeometry(1, .05, 8, 96 * fine), haloMaterial); halo.name = 'Halo';
   halo.position.set(0, 243, 0); halo.rotation.x = Math.PI / 2 - .3; halo.scale.setScalar(30); giant.add(halo);
@@ -1344,7 +1348,12 @@ export function createTerrestrial({ scene, canvas, camera, buildings = [], lands
     giant.visible = t > 19;
     giant.position.set(origin.x + 27, -210 + rise * 210 + embrace * 4, origin.z - 30); giant.rotation.set(0, .35, Math.sin(t * .3) * .008);
     hostLight(giantLight, giant, 0, 150, 34);
-    for (const [pivot, sign] of arms) pivot.rotation.z = sign * (.14 + embrace * 1.3);
+    for (const [pivot, sign, elbow, wrist] of arms) {
+      pivot.rotation.set(-embrace * .08, 0, sign * (.14 + embrace * 1.16));
+      elbow.rotation.set(-ease((t - 24.6) / 4.6) * .2, 0, sign * ease((t - 24.6) / 4.6) * .4);
+      wrist.rotation.set(ease((t - 25.5) / 4.5) * .12, sign * ease((t - 25.5) / 4.5) * .18, 0);
+    }
+    headPose.rotation.set(ease((t - 25) / 5) * .09, Math.sin(t * .15) * embrace * .025, -embrace * .025);
     bodyMaterial.emissiveIntensity = .2 + embrace * .12 + Math.sin(t * 1.4) * .012;
     haloMaterial.opacity = ease((t - 22) / 3) * .45; halo.rotation.z = t * .1; halo.scale.setScalar(30 * (1 + embrace * .35));
     headHalo.material.uniforms.strength.value = .24 + embrace * .18;
@@ -1355,7 +1364,7 @@ export function createTerrestrial({ scene, canvas, camera, buildings = [], lands
   function createTsunami() {
     seed = 19981998;
   // Broad coastal staging, a short spreading ocean strike, and a folding wave with wind-torn foam.
-  // The simulation owns the water and comet; production uses this same absolute-time crest profile.
+  // The simulation owns the water and comet; the wave controller supplies their shared crest.
   const surge = group('Deep Impact — ocean strike');
   // A continuous headland joins the city footprint to the foreground and reaches past both frame edges.
   const coastOutline = new THREE.Shape();
@@ -1390,18 +1399,22 @@ export function createTerrestrial({ scene, canvas, camera, buildings = [], lands
   shoreGeometry.setAttribute('position', new THREE.Float32BufferAttribute(shoreVertices, 3)); shoreGeometry.setIndex(shoreIndices); shoreGeometry.computeVertexNormals();
   const shore = new THREE.Mesh(shoreGeometry, mat('#405057', { roughness: .4, metalness: .12, side: THREE.DoubleSide }));
   shore.name = 'Wet Atlantic shoreline'; surge.add(shore);
-  const waveProfile = (v, height, x, t) => {
-    const fold = ease((t - 17) / 9);
-    const ridge = 1 + Math.sin(x * .026 + .7) * .075 + Math.sin(x * .071 - t * .35) * .028;
-    return { y: Math.sin(v * Math.PI * .68) * height * ridge - Math.pow(v, 10) * fold * 7 + Math.sin(x * .13 + t) * .65 * v,
-      z: Math.sin(v * Math.PI) * 18 + Math.pow(v, 5) * (16 + fold * 28) };
-  };
+  const crestPoint = {};
+  const crestAt = (x, t) => impactWave ? impactWave.crestAt(x, t, crestPoint) : impactWaveProfile(1, impactWaveState(t).height, x, t, crestPoint);
+  const contactFront = (x, t) => impactWave ? impactWave.contactFront(x, t) : impactWaveState(t).front + crestAt(x, t).z * .55 + 9;
   const froth = instances(surge, rock, mat('#b9d7d7', { roughness: .88 }), 42, 'Broken crest foam');
   const droplets = instances(surge, rock, mat('#c6e4e4', { roughness: .6 }), 240, 'Wind-torn crest droplets');
+  const splash = instances(surge, rock, mat('#d1e5e2', { roughness: .65 }), 120, 'Coastal collision spray');
+  const flotsam = instances(surge, box, mat('#526365', { roughness: .38, metalness: .08 }), 72, 'Surge-carried city fragments');
   const foamSeeds = Array.from({ length: 42 }, () => [random(), random(), random(), random()]);
   const spraySeeds = Array.from({ length: 240 }, () => [random(), random(), random(), random()]);
   const vaporSeeds = Array.from({ length: 48 }, (_, i) => [i * 2.399963, random(), random(), random()]);
   const mistSeeds = Array.from({ length: 64 }, () => [random(), random(), random(), random()]);
+  const contactSeeds = Array.from({ length: 120 }, (_, i) => {
+    const building = buildings[i % Math.max(1, buildings.length)]?.userData;
+    return [building?.x ?? (random() - .5) * 150, building?.z ?? (random() - .5) * 135, random(), random()];
+  });
+  const washSeeds = Array.from({ length: 48 }, () => [random(), random(), random(), random()]);
   const fallbackVapor = instances(surge, new THREE.IcosahedronGeometry(1, 1), mat('#aabdc0', { transparent: true, opacity: 0, depthWrite: false, roughness: 1 }), 18, 'Impact vapor fallback');
   let atlasReady = false;
   const billboardAxis = new THREE.Vector3(0, 0, 1);
@@ -1414,13 +1427,19 @@ export function createTerrestrial({ scene, canvas, camera, buildings = [], lands
       for (let i = 0; i < uv.count; i++) uv.setXY(i, (cell + .004 + uv.getX(i) * .992) / 4, (.004 + uv.getY(i) * .992) / 4 + .75);
       const material = new THREE.MeshBasicMaterial({ color: tint, transparent: true, opacity: 0, depthWrite: false, alphaTest: .002 });
       const mesh = instances(surge, geometry, material, count / 4, name + ' ' + cell);
-      mesh.userData.rolls = []; mesh.renderOrder = 2;
+      mesh.userData.billboardPoses = new Float64Array(count / 4 * 6); mesh.renderOrder = 2;
       batches.push(mesh); billboards.push(mesh); mistMaterials.push(material);
     }
     return batches;
   }
   const vapor = mistBatch('Soft impact vapor', 48, '#b9cdd1');
   const mist = mistBatch('Windblown crest mist', 64, '#c5e0df');
+  const washGeometry = new THREE.PlaneGeometry(2, 2), washUV = washGeometry.attributes.uv;
+  for (let i = 0; i < washUV.count; i++) washUV.setXY(i, (.004 + washUV.getX(i) * .992) / 4, (.004 + washUV.getY(i) * .992) / 4 + .75);
+  const washMaterial = new THREE.MeshBasicMaterial({ color: '#d5eeea', transparent: true, opacity: 0, depthWrite: false, alphaTest: .002 });
+  const wash = instances(surge, washGeometry, washMaterial, 48, 'Broken shoreline runup');
+  mistMaterials.push(washMaterial);
+  const movingMeshes = [froth, droplets, splash, flotsam, wash, fallbackVapor, ...billboards];
   // Reuse the existing grayscale smoke atlas as alpha, with ordinary materials on every renderer.
   canvas.dataset.impactMist = 'loading';
   new THREE.TextureLoader().loadAsync('/assets/particle-atlas.webp').then(texture => {
@@ -1433,7 +1452,9 @@ export function createTerrestrial({ scene, canvas, camera, buildings = [], lands
     canvas.dataset.impactMist = 'fallback'; canvas.dispatchEvent?.(new Event('explosion-ready'));
   });
   function billboard(mesh, index, x, y, z, sx, sy, roll) {
-    pose(mesh, index, x, y, z, sx, sy, 1); mesh.userData.rolls[index] = roll;
+    const values = mesh.userData.billboardPoses, offset = index * 6;
+    values[offset] = x; values[offset + 1] = y; values[offset + 2] = z;
+    values[offset + 3] = sx; values[offset + 4] = sy; values[offset + 5] = roll;
   }
   const trailAxis = new THREE.Vector3(135, 145, -45).normalize(), comet = new THREE.Vector3();
   const defaults = { fog: '#5a6364', fogDensity: .0024, fogGrowth: 0 };
@@ -1458,7 +1479,7 @@ export function createTerrestrial({ scene, canvas, camera, buildings = [], lands
   surge.add(trail);
 
   function updateTsunami(t, detail, config) {
-    const travel = ease((t - 14) / 16), height = (22 + travel * 60) * (1 - .38 * ease((t - 25) / 5)), front = -115 + travel * 230;
+    const { front } = impactWaveState(t);
     const reveal = ease((t - 14) / 1.3), breakup = ease((t - 23) / 7), age = Math.max(0, t - 13);
     comet.set(85 - t * 135 / 13, 144 - t * 145 / 13, -145 + t * 45 / 13);
     trail.visible = detail === 2 && t < 13;
@@ -1470,16 +1491,44 @@ export function createTerrestrial({ scene, canvas, camera, buildings = [], lands
     for (let i = 0; i < froth.count; i++) {
       const [a, b, c, d] = foamSeeds[i], x = ((i + a) / froth.count - .5) * 363;
       const phase = (t * (.22 + b * .18) + c) % 1, age = phase * (1.1 + d * 1.1);
-      const crest = waveProfile(.96 + b * .04, height, x, t), envelope = Math.sin(Math.PI * phase) * reveal;
+      const crest = crestAt(x, t), envelope = Math.sin(Math.PI * phase) * reveal;
       pose(froth, i, x + age * (1 + d * 3), -1.2 + crest.y + age * (2 + c * 3) - age * age * (2 + breakup * 2),
         front + crest.z + age * (2 + a * 4), (.35 + a * .8) * envelope, (.12 + b * .22) * envelope, (.3 + c * .45) * envelope, age * .4, d, c * .3);
     }
     for (let i = 0; i < droplets.count; i++) {
       const [a, b, c, d] = spraySeeds[i], x = (a - .5) * 360;
       const phase = (t * (.3 + b * .24) + c) % 1, age = phase * (1.4 + d * 1.4);
-      const crest = waveProfile(1, height, x, t), envelope = Math.sin(Math.PI * phase) * reveal, radius = (.1 + b * .23) * envelope;
+      const crest = crestAt(x, t), envelope = Math.sin(Math.PI * phase) * reveal, radius = (.1 + b * .23) * envelope;
       pose(droplets, i, x + age * (2 + d * 5), -1.2 + crest.y + age * (4 + c * 6) - age * age * 2.2,
         front + crest.z - age * (1 + b * 3), radius, radius * (1.5 + d * 2), radius, age, c * 4, age * .4);
+    }
+    // Local impacts travel along the coast and into individual blocks rather than
+    // firing across the entire city at once. Distance behind the same wave front
+    // drives each splash and fragment, so arbitrary reverse seeks remain exact.
+    splash.count = [36, 72, 120][detail]; flotsam.count = [24, 42, 72][detail];
+    splash.visible = flotsam.visible = t > 16;
+    const waterLevel = -.7 + ease((t - 25) / 5) * 13;
+    for (let i = 0; i < splash.count; i++) {
+      const [x, z, a, b] = contactSeeds[i], age = (contactFront(x, t) - z) / 18;
+      const active = age > 0 && age < 2.8, flight = Math.max(0, age), size = active ? (.14 + b * .22) * Math.sin(flight / 2.8 * Math.PI) : 0;
+      pose(splash, i, x + (a - .5) * flight * 9, waterLevel + (active ? Math.max(0, flight * (7 + b * 8) - flight * flight * 4) : 0),
+        z + flight * (6 + a * 8), size, size * (3 + a * 3), size, flight * .3, a * tau, -.4 + b * .8);
+    }
+    for (let i = 0; i < flotsam.count; i++) {
+      const [x, z, a, b] = contactSeeds[i], age = Math.max(0, (contactFront(x, t) - z) / 18), appear = ease(age / .8);
+      const size = appear * (.3 + a * .7);
+      pose(flotsam, i, x + Math.sin(a * tau + age) * age * 2, waterLevel + .25 + Math.sin(age * 2 + b * tau) * .12,
+        z + age * (4 + b * 4), size * (1.8 + b), size * .35, size, appear * .2, a * tau + age * .16, appear * .12);
+    }
+    wash.count = [20, 32, 48][detail]; wash.visible = atlasReady && t > 15;
+    washMaterial.opacity = reveal * .34;
+    for (let i = 0; i < wash.count; i++) {
+      const [a, b, c, d] = washSeeds[i], x = (a - .5) * 345, ahead = contactFront(x, t);
+      const shoreZ = -102 + Math.sin(x * .012 + .7) * 8 + Math.sin(x * .027) * 2;
+      const arrived = ease((ahead - shoreZ) / 24), phase = (t * (.17 + b * .06) + c) % 1;
+      const size = Math.sin(phase * Math.PI) * arrived;
+      pose(wash, i, x + Math.sin(t * .5 + d * tau) * 2, waterLevel, ahead + 4 - b * 27,
+        (3 + c * 6) * size, (1.2 + d * 3) * size, 1, -Math.PI / 2, 0, (b - .5) * .5);
     }
     const vaporCount = [24, 36, 48][detail], mistCount = [24, 40, 64][detail];
     const lift = ease(age / 2.2), spread = ease(age / 4), fade = ease(age / .35) * (1 - ease((t - 17) / 4));
@@ -1492,7 +1541,7 @@ export function createTerrestrial({ scene, canvas, camera, buildings = [], lands
     }
     for (let i = 0; i < mistCount; i++) {
       const [a, b, c, d] = mistSeeds[i], x = ((i + a) / mistCount - .5) * 360, phase = (t * (.22 + b * .16) + c) % 1, drift = phase * (1.5 + d * 1.6);
-      const lip = waveProfile(1, height, x, t), size = (1.8 + c * 2.3) * Math.sin(phase * Math.PI) * reveal;
+      const lip = crestAt(x, t), size = (1.8 + c * 2.3) * Math.sin(phase * Math.PI) * reveal;
       billboard(mist[i % 4], Math.floor(i / 4), x + drift * (2 + c * 3), -1.2 + lip.y + drift * (2 + d * 2) - drift * drift * .7,
         front + lip.z - drift * 3, size * (1.1 + b * .4), size, d * tau + t * (b - .5) * .1);
     }
@@ -1501,7 +1550,7 @@ export function createTerrestrial({ scene, canvas, camera, buildings = [], lands
       const [a, b, c] = vaporSeeds[i], radius = (5 + Math.sqrt(b) * 32) * spread, size = (5 + c * 8) * lift;
       pose(fallbackVapor, i, -50 + Math.cos(a) * radius, 3 + (12 + c * 42) * lift, -100 + Math.sin(a) * radius, size, size, size);
     }
-    for (const mesh of [froth, droplets, fallbackVapor, ...billboards]) mesh.instanceMatrix.needsUpdate = true;
+    for (const mesh of movingMeshes) mesh.instanceMatrix.needsUpdate = true;
     updateTsunamiView(camera);
   }
   function updateTsunamiView(viewCamera) {
@@ -1509,8 +1558,12 @@ export function createTerrestrial({ scene, canvas, camera, buildings = [], lands
     viewCamera.getWorldQuaternion(facing);
     for (const mesh of billboards) {
       for (let i = 0; i < mesh.count; i++) {
-        mesh.getMatrixAt(i, billboardMatrix); billboardMatrix.decompose(billboardPosition, billboardRotation, billboardScale);
-        spin.setFromAxisAngle(billboardAxis, mesh.userData.rolls[i] || 0);
+        // Rebuild from the authored pose, never the already-rounded Float32 matrix:
+        // paused redraws must not repeatedly change the scale through decomposition.
+        const values = mesh.userData.billboardPoses, offset = i * 6;
+        billboardPosition.set(values[offset], values[offset + 1], values[offset + 2]);
+        billboardScale.set(values[offset + 3], values[offset + 4], 1);
+        spin.setFromAxisAngle(billboardAxis, values[offset + 5]);
         billboardRotation.copy(facing).multiply(spin); billboardMatrix.compose(billboardPosition, billboardRotation, billboardScale); mesh.setMatrixAt(i, billboardMatrix);
       }
       mesh.instanceMatrix.needsUpdate = true;

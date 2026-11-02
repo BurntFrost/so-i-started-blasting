@@ -1,7 +1,7 @@
 {
   "schema": 1,
   "status": "Current checked-in asset baseline; original byte-for-byte toolchain provenance is not asserted.",
-  "verifiedAt": "2026-09-15",
+  "verifiedAt": "2026-11-01",
   "tools": {
     "blender": "5.2.1 LTS (build 2026-08-25)",
     "gltf-transform": "4.5.0",
@@ -319,6 +319,26 @@
     "dist/assets/particle-atlas.webp": {
       "sha256": "d40095065643950de08418ed14805e3eb4aab3a2e0800760343db4c825702e64",
       "bytes": 97906
+    },
+    "dist/assets/deep-impact-wave.glb": {
+      "sha256": "6377718d09037dc943619058080694bab9b0308ed2965c59eb1c819f2f203d1d",
+      "bytes": 628116
+    },
+    "dist/assets/continental-motion.glb": {
+      "sha256": "85f557aa7d25c9b5c43b1d0ee80971eb4398948d77b80a778d15dc643defcf30",
+      "bytes": 983636
+    },
+    "dist/assets/tornado-motion.glb": {
+      "sha256": "211051275ed9acc1f5f98f6d0055bbd5af169a7dda1a0175d0e546f2b719e019",
+      "bytes": 1102952
+    },
+    "dist/assets/knowing-prominence.glb": {
+      "sha256": "80edd67f772f43bbe41e2e290f2e06206c51126b5dfbd6e4fd80cb413e0f742d",
+      "bytes": 345608
+    },
+    "dist/assets/interstellar-craft.glb": {
+      "sha256": "cba59c66d9e0f85a49ec34e87063509b2a7484c681ca73ca0acd2fcfa5a2869a",
+      "bytes": 194236
     }
   }
 }

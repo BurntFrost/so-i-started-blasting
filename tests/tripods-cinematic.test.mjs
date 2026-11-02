@@ -18,3 +18,13 @@ test('lower tiers retain the lead and secondary attack with a clear size hierarc
 test('tripod pose, rays and consequences restore after reverse seeking and scene switching',()=>{
  const f=fixture(),root=f.named('War of the Worlds — tripod invasion');f.at(21);const before=snapshot(root);f.at(27);assert.notDeepEqual(snapshot(root),before);f.at(21);assert.deepEqual(snapshot(root),before);f.manager.update(0,{id:'independence-day',world:'city'});assert.equal(root.visible,false);f.at(21);assert.deepEqual(snapshot(root),before);
 });
+
+test('tripod joints hold planted feet in world space while the body advances', () => {
+  const f = fixture(), walker = f.named('Articulated tripod 1'), joints = walker.getObjectByName('Tripod articulated joints');
+  const matrix = new THREE.Matrix4();
+  const foot = time => { f.at(time); walker.updateMatrixWorld(); joints.getMatrixAt(2, matrix); return new THREE.Vector3().setFromMatrixPosition(matrix).applyMatrix4(walker.matrixWorld); };
+  const first = foot(8), second = foot(8.5);
+  assert.ok(first.distanceTo(second) < .00001, 'the stance foot stays planted despite root translation and yaw');
+  assert.ok(foot(10.2).y > first.y + 5, 'the same foot lifts during the swing interval');
+  assert.ok(f.named('Tripod foot contact dust'));
+});

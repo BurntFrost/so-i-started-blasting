@@ -16,8 +16,7 @@ float fbm(vec3 p){return noise(p)*.53+noise(p*2.03)*.27+noise(p*4.07)*.13+noise(
 
 export function createProduction(world) {
   const {renderer,scene,camera,canvas,city,buildings,ground,ship,core,tower,blast,
-    wave,foam,landscape,beam,meteor,tail} = world;
-  const waveBase=wave.geometry.attributes.position.array.slice();
+    landscape,beam,meteor,tail} = world;
   const loader=new GLTFLoader().setMeshoptDecoder(MeshoptDecoder);
   const textureLoader=new THREE.TextureLoader();
   const assetStatus = {}, maps = [];
@@ -180,13 +179,6 @@ export function createProduction(world) {
     float rows=.8+.2*smoothstep(.3,.7,fract(terrainPoint.x*.28+fbm(terrainPoint*.04)*1.6));
     diffuseColor.rgb=mix(diffuseColor.rgb*meadow,vec3(.2,.155,.11)*rows*(.7+fbm(terrainPoint*.4)*.4),plots);`);};
   lawn.material.customProgramCacheKey=()=>'production-lawn-v2';
-  // Coordinates are initially planar; the same profile is used by spray below.
-  const waveProfile = (v, height, x, t) => {
-    const fold = smooth((t - 17) / 9);
-    const ridge = 1 + Math.sin(x * .026 + .7) * .075 + Math.sin(x * .071 - t * .35) * .028;
-    return { y: Math.sin(v * Math.PI * .68) * height * ridge - Math.pow(v, 10) * fold * 7 + Math.sin(x * .13 + t) * .65 * v,
-      z: Math.sin(v * Math.PI) * 18 + Math.pow(v, 5) * (16 + fold * 28) };
-  };
   const freezeColor=new THREE.Color('#e6eff3');
   let lastQuality;
   function update(t, config){
@@ -228,20 +220,9 @@ export function createProduction(world) {
     const collapse=id==='independence-day'?smooth((t-15)/10):id==='terminator-2'?smooth((t-13)/10):id==='2012'?smooth((t-11)/12)*.84:0;
     landmark.scale.y=1-collapse*.85;landmark.rotation.z=collapse*.18;
     if(authoredShip){authoredShip.visible=true;previousShipChildren.forEach(c=>{if(c!==core)c.visible=false;});}
-    core.material.color.setRGB(.3,2.4,1.4);beam.material.color.setRGB(.22,1.3,.75);
     blast.visible=false;fire.visible=t>13&&((id==='independence-day'&&t<28)||(id==='deep-impact'&&t<16.5));fire.position.copy(blast.position);const radius=1+smooth((t-13)/12)*(id==='independence-day'?48:30);fire.scale.set(radius,radius*.85,radius);fire.position.y+=radius*.22;
     fireUniforms.time.value=t;fireUniforms.fade.value=1-smooth((t-21)/7);fireUniforms.heat.value=1-smooth((t-17)/12)*.78;
     meteor.material.emissiveIntensity=1.4;tail.material.opacity=.15;
-    if(id==='deep-impact'){const travel=smooth((t-14)/16),height=(22+travel*60)*(1-.38*smooth((t-25)/5));const positions=wave.geometry.attributes.position;
-      for(let i=0;i<positions.count;i++){const x=waveBase[i*3]*1.65,v=(waveBase[i*3+1]+37.5)/75,p=waveProfile(v,height,x,t);positions.setXYZ(i,x,p.y,p.z);}positions.needsUpdate=true;wave.geometry.computeVertexNormals();
-      const p=foam.geometry.attributes.position;
-      for(let i=0;i<p.count;i++){
-        const a=(i*.61803398875)%1,b=(i*.754877666)%1,c=(i*.569840296)%1,x=(a-.5)*363;
-        const phase=(t*(.3+b*.22)+c)%1,age=phase*(1.2+c*1.8),lip=waveProfile(1,height,x,t);
-        p.setXYZ(i,x+age*(2+b*4),wave.position.y+lip.y+age*(3+c*6)-age*age*2.1,wave.position.z+lip.z-age*(1+b*3));
-      }
-      foam.material.opacity=.6*smooth((t-14)/1.2);p.needsUpdate=true;
-    }
   }
   markEffects(cityDetails); markEffects(ship);
   function installMap(map, index) {

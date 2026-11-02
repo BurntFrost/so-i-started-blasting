@@ -160,3 +160,55 @@ models, stock imagery or film frames are included. NumPy's fixed seed is
 Deep Impact also uses the four puff cells through ordinary material alpha maps
 for its impact vapor and crest mist. Alpha maps read the equivalent green
 coverage channel in this grayscale RGB atlas; the file has not changed.
+
+## Original Deep Impact wave animation, 2026-11-01
+
+`deep-impact-wave.glb` is original geometry and animation authored with
+`tools/author-impact-wave.py` in Blender 5.2.3 LTS. It contains one closed wave
+mesh (6,314 triangles), six position/normal morph targets and a linear 16-second
+animation. The seven poses correspond to simulation seconds 14, 17, 20, 23, 25,
+27 and 30. Matching crest curves in mesh extras keep browser spray attached to
+the deformed lip. The browser keeps its own water material and samples all poses
+from absolute time, including reverse seeking.
+
+The broad shoulder, staggered curling lip and tapered sides are a theatrical
+interpretation, not a fluid simulation. No third-party models, film footage or
+textures were used. Two independent Blender processes produced the same GLB
+checksum. Editable `.blend`, generation report and inspection render are retained
+under `work/scene-authoring/deep-impact/web-pilot/media/`; the committed Python
+generator reproduces them. The procedural wave remains usable when the optional
+GLB is unavailable. Asset bytes and SHA-256 are recorded in `tools/asset-baseline.json`.
+
+
+## Original web animation rollout, 2026-11-01
+
+These four GLBs extend the Deep Impact workflow to the remaining scenes. They
+are original project geometry and animation, with no downloaded models,
+textures, film frames, soundtrack material or other copied film assets. Film
+titles describe visual inspiration. Existing Poly Haven credits above remain
+applicable to the shared environment and surface maps.
+
+| File | Bytes | Triangles | Authoring source |
+| --- | ---: | ---: | --- |
+| `continental-motion.glb` | 983,636 | 5,768 | `tools/author-terrestrial-motion.mjs`: two fault crusts and a chasm floor, twelve position/normal poses |
+| `tornado-motion.glb` | 1,102,952 | 6,144 | `tools/author-terrestrial-motion.mjs`: one shaped funnel, thirteen position/normal poses |
+| `knowing-prominence.glb` | 345,608 | 3,108 | `tools/author-cosmic-assets.py`: three closed braided strands, eight position/normal poses |
+| `interstellar-craft.glb` | 194,236 | 4,328 | `tools/author-cosmic-assets.py`: original segmented ring, pods, spokes, forward cabin and aft engines; five material groups |
+
+The terrestrial generator uses Node 24 and the locked Three.js GLTFExporter,
+sampling original functions in `dist/terrestrial-motion.js`. The cosmic generator
+uses Blender 5.2.3 LTS with Python and Blender noise seed 77494. Two independent
+Blender processes produced identical cosmic GLB checksums. Editable `.blend`
+files, reports and CPU geometry previews are retained under
+`work/scene-authoring/web-rollout/media/`; the committed generators reproduce
+the exports. The prominence keeps its root rings attached through second 8,
+then lifts, twists and recoils. The craft uses Y-up coordinates, an XY ring plane
+and +Z forward, with its origin at the hub.
+
+The three deforming assets carry `motionTimes` extras. The browser preserves its
+scene materials and uses `dist/baked-motion.js` to sample C1-continuous Hermite
+pose weights from absolute time; the static craft follows a runtime flight path.
+All remain real-time, orbitable 3D, loaded on demand with procedural fallbacks.
+Exact SHA-256 values and sizes are in `tools/asset-baseline.json`. Asset integrity
+and offline geometry inspection do not establish browser visual quality or
+frame-rate performance; rollout acceptance still requires browser review.

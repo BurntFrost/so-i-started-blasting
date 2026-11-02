@@ -69,7 +69,7 @@ aarch64**, build `8309dc92a:20260903`. These describe the verified local toolcha
 the original asset build did not retain a complete toolchain lock. Rebuilding with
 these versions must be visually reviewed before replacing checked-in files.
 
-`asset-baseline.json` records SHA-256 and size for all 68 deployed graphics and audio files.
+`asset-baseline.json` records SHA-256 and size for all 83 deployed graphics and audio files.
 `npm run assets:verify` checks them without regenerating anything. It is an accurate
 baseline of current checked-in bytes, not a claim of byte-for-byte reconstruction
 from the original toolchain. When intentionally replacing an asset, verify its
@@ -166,3 +166,69 @@ After building and starting the server, `node tools/capture-media.mjs capture --
 captures the fifteen scene frames into ignored `work/media-review-high`; `balanced` is the
 phone tier and `ultra` renders native Retina pixels. This uses installed Chrome and reports
 shader/page errors in `capture.json`.
+
+## Deep Impact animated wave
+
+The wave is a compact Blender mesh with six morph targets and baked normals.
+Its matching crest curves keep spray attached while the browser samples the
+30-second timeline in either direction. The optional GLB retains the procedural
+fallback and uses the existing browser water material.
+
+```sh
+blender --background --factory-startup --python tools/author-impact-wave.py -- --render
+```
+
+This writes the editable `.blend`, GLB, generation report and preview to
+`work/scene-authoring/deep-impact/web-pilot/media/`. Use `-- --output DIR` for
+an independent reproduction. Review the exported geometry and animation before
+copying `deep-impact-wave.glb` into `dist/assets/` and updating its checksum.
+Blender 5.2.3 produced identical exports in two independent processes. The runtime
+needs one mesh with identity transforms, UV V=0 at its foot and V=1 at its lip,
+position/normal morph targets, and the `waveTimes`/`crestFrames` mesh extras.
+
+## Remaining scenes: web animation rollout
+
+The remaining fourteen scenes follow the Deep Impact approach while retaining
+real-time 3D, free camera orbit, the reversible 30-second clock, and adaptive
+quality tiers. Authored poses handle broad deformation; rigid transforms,
+instancing and shader motion handle articulated subjects, particles and fine
+surface detail. Four original GLBs supplement the existing scene geometry:
+
+| Asset | Scene and contents | Triangles | Bytes |
+| --- | --- | ---: | ---: |
+| `continental-motion.glb` | 2012: `WestCrust`, `EastCrust`, `Chasm`; twelve poses | 5,768 | 983,636 |
+| `tornado-motion.glb` | Twister: `Funnel`; thirteen poses | 6,144 | 1,102,952 |
+| `knowing-prominence.glb` | Knowing: `Prominence`; three closed strands, eight poses | 3,108 | 345,608 |
+| `interstellar-craft.glb` | Interstellar: `SurveyCraft`; static ring craft, five material groups | 4,328 | 194,236 |
+
+Rebuild the terrestrial files with the locked Three.js exporter under Node 24;
+this writes directly to `dist/assets/`. The Blender generator writes editable
+`.blend` files, exports and a report under
+`work/scene-authoring/web-rollout/media/`:
+
+```sh
+node tools/author-terrestrial-motion.mjs
+blender --background --factory-startup --python tools/author-cosmic-assets.py
+```
+
+`author-terrestrial-motion.mjs` samples the original geometry functions in
+`dist/terrestrial-motion.js`. `author-cosmic-assets.py` uses Blender 5.2.3 LTS
+with seed 77494; two separate Blender processes produced identical GLB bytes.
+Pass `-- --output DIR` to retain an independent Blender export. Review those
+exports before copying the two cosmic GLBs into `dist/assets/` and updating
+`asset-baseline.json`. These additions use no external models, textures, film
+frames or other copied film assets.
+
+`dist/baked-motion.js` adopts identity-transform meshes with relative position
+and normal morph targets and strictly increasing `motionTimes` node extras.
+It preserves each live scene material and refreshes its shader when morph inputs
+arrive after the fallback has rendered. It samples nonuniform cubic Hermite weights
+from absolute simulation time, with C1-continuous velocity at interior keys. GPU morphing needs no accumulated simulation state; repeated and reverse
+seeks select the same pose. The Interstellar craft instead follows its runtime
+three-dimensional path at constant scale.
+
+Optional assets load only when their scene is first updated, with the shared
+15-second timeout, abort handling and procedural fallback. Completion refreshes
+a paused scene without moving the camera. Checksums establish file integrity;
+normal-speed playback, reverse scrubbing, orbit, fallback behavior and renderer
+performance still require the browser checks and visual review described above.

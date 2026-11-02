@@ -5,7 +5,8 @@ const space = {world:'space',space:true,camera:[122,58,155],target:[0,35,0]};
 const daylight = {fog:'#5a6364',fogDensity:.0024,fogGrowth:0,sun:'#ffc596',sunIntensity:2.7,hemi:'#9eafbe',hemiIntensity:.38,rim:'#8cb7ef',rimIntensity:2.2,environmentIntensity:.72,skyTint:'#b4c7c4',skyExposure:.65,skyStorm:.3};
 const starlight = {...daylight,fogDensity:0,sun:'#e4ebff',sunIntensity:1.5,hemiIntensity:.12,environmentIntensity:.2,skyTint:'#ffffff'};
 export const sceneConfigs = {
-  'independence-day': {...city,renderer:'original',environment:{...daylight,rim:'#4aaca2'}},
+  'independence-day': {
+    phaseTimes: [7.5,13],...city,renderer:'original',environment:{...daylight,rim:'#4aaca2'}},
   'deep-impact': {...city,renderer:'terrestrial',camera:[148,76,204],target:[-5,33,-22],phaseTimes:[13,20],environment:{...daylight,skyTint:'#bba899',rim:'#77b8d9'}},
   'day-after-tomorrow': {...city,renderer:'terrestrial',camera:[122,52,155],target:[-8,33,-15],environment:{...daylight,fog:"#526c83",fogDensity:0.0013,fogGrowth:0.0007,sun:"#d6e7f3",sunIntensity:2.1,hemi:"#7298b5",hemiIntensity:0.3,rim:"#abdafa",rimIntensity:2.8,environmentIntensity:0.55,skyTint:"#6c8fa9",skyExposure:0.25,skyStorm:0.9}},
   'day-the-earth-stood-still': {world:'landscape',renderer:'terrestrial',camera:[84,47,142],target:[-4,35,-22],phaseTimes:[10,19],environment:{...daylight,fog:"#263d40",fogDensity:0.0012,fogGrowth:0.0003,sun:"#c9d4d9",sunIntensity:1.65,hemi:"#729398",hemiIntensity:0.36,rim:"#a8e4d8",rimIntensity:2.4,environmentIntensity:0.6,skyTint:"#617d83",skyExposure:0.22,skyStorm:0.84}},

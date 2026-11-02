@@ -85,3 +85,33 @@ test('storm refinement preserves shared building transforms through timeline and
   }
   assert.deepEqual(f.buildings.map(building => ({ position: building.position.toArray(), scale: building.scale.toArray(), color: building.material.color.toArray() })), buildingsBefore);
 });
+
+test('snow drifts have flattened ground contact and gather on the downwind sides of buildings', () => {
+  const f = fixture(), drifts = f.named('Snow drifts'); f.at(30);
+  drifts.geometry.computeBoundingBox(); const bounds = drifts.geometry.boundingBox;
+  assert.equal(bounds.min.y, 0); assert.ok(bounds.max.x > Math.abs(bounds.min.x) * 1.5, 'the drift has a long lee tail');
+  const matrix = new THREE.Matrix4();
+  for (let i = 0; i < drifts.count; i++) {
+    drifts.getMatrixAt(i, matrix); const u = f.buildings[(i * 7) % f.buildings.length].userData;
+    assert.ok(matrix.elements[12] > u.x + u.w / 2, 'accumulation sits beyond the downwind facade');
+    assert.ok(Math.abs(matrix.elements[13] + .96) < .000001, 'flat underside stays at street level');
+  }
+});
+
+
+test('flattened drift bases have no visible footprint before accumulation', () => {
+  const f = fixture(), drifts = f.named('Snow drifts'), matrix = new THREE.Matrix4(), scale = new THREE.Vector3();
+  for (const time of [0, 6]) {
+    f.at(time);
+    for (let i = 0; i < drifts.count; i++) {
+      drifts.getMatrixAt(i, matrix); scale.setFromMatrixScale(matrix);
+      assert.equal(scale.x, 0); assert.equal(scale.z, 0);
+    }
+  }
+  f.at(30); const mature = Array.from(drifts.instanceMatrix.array);
+  for (let i = 0; i < drifts.count; i++) {
+    drifts.getMatrixAt(i, matrix); scale.setFromMatrixScale(matrix);
+    assert.ok(scale.x > 2 && scale.y > .5 && scale.z > 1, 'mature accumulation keeps its broad sculpted footprint');
+  }
+  f.at(0); f.at(30); assert.deepEqual(Array.from(drifts.instanceMatrix.array), mature);
+});
