@@ -4,13 +4,39 @@ Production domain assignment requires the imported `release-quality` GitHub chec
 
 ## Delivery contract
 
-1. A push to `main` builds in Vercel and runs GitHub Quality. The main-only `release-quality` job fails unless both Chromium and WebKit jobs succeed, including failure or cancellation. Vercel imports this GitHub check for the merged commit and assigns production domains once it succeeds.
+1. A push to `main` builds in Vercel and runs Essential checks. The `quality` job requires Build & assets, Chromium/WebGL essentials and WebKit essentials to succeed. The main-only `release-quality` job requires that result. Failed, skipped or cancelled essentials cannot pass the gate; the summaries run even after failures or cancellation to avoid a skipped check being treated as permission to publish. Vercel imports this GitHub check for the merged commit and assigns production domains once it succeeds.
 2. Vercel emits `vercel.deployment.ready` once the immutable build is available, before production assignment. Release validates the Vercel bot's numeric identity, repository, project, production environment, main branch, and commit ancestry. It executes default-branch workflow code and never checks out a payload PR ref.
 3. The workflow obtains short-lived GitHub OIDC. Authenticated HTTPS first checks `/release.json` against the event's deployment ID, URL, SHA, project, and environment. It then checks the entry page, manifest, every hashed asset, and browser startup/scene selection, expecting as many scene cards as the deployed catalogue module declares (read as text from the manifest, never the workflow checkout, since a ready dispatch can trail a later main commit). External browser requests are blocked. Protected browser fetches permit zero redirects, and redirect responses are aborted before credentials can follow them.
 4. The workflow writes diagnostic `release-ready` status to `client_payload.git.sha`, which may differ from the dispatch workflow's current main SHA. It uploads `release-ready-{deploymentId}` with bounded test evidence. A failing smoke shows as a failed status and a failed workflow run; it does not roll production back or prevent assignment.
 5. Release listens only for the ready event; success/promoted events do not trigger public-domain HTTP checks. Public delivery can be inspected on demand with `npm run check:public`.
 
 Generated `/release.json` contains five nonsecret identity fields from documented Vercel build variables. Local builds omit it; incomplete Vercel metadata fails before staged publication. HTML and metadata revalidate while content-hashed assets remain immutable. Release artifacts contain bounded JSON and expire after 30 days. They contain no tokens, authenticated response bodies, traces, screenshots, or raw provider API responses.
+
+## Required and manual checks
+
+`quality.yml` runs three test jobs plus the stable `quality` and main-only `release-quality` summaries. Their check names are retained for GitHub branch protection and Vercel's imported production gate. The browser commands select explicit `@essential` tags; an empty selection fails. No essential job uses `continue-on-error`.
+
+| Required job | Coverage |
+| --- | --- |
+| Build & assets | Source/unit tests, certificate-tool tests, asset checksums, production build |
+| Browser controls (Chromium + WebGL) | Lightweight scene catalogue/controls checks, audio and failure/fallback handling, isolated authored-mesh adoption regression |
+| Browser controls (WebKit) | Lightweight scene catalogue/controls checks, touch audio consent, history restoration and CSP compatibility |
+
+Run the required browser selection locally after `npm run build` (with no existing server on port 4174):
+
+```sh
+npx playwright test --project=chromium --project=node-webgl --project=webkit --grep @essential
+```
+
+`graphics.yml` is **workflow_dispatch only**. To run the full visual regression suite, open GitHub **Actions → Graphics regression (manual) → Run workflow** and choose the branch, or run:
+
+```sh
+gh workflow run graphics.yml --ref main
+```
+
+It preserves the full Chromium suite in three shards, the separate ULTRA suite, four native-WebGL shards and the full WebKit suite, including exhaustive reverse-pixel comparisons. It is not a dependency of `quality` or `release-quality` and does not change the deployed site's quality settings. Native WebGPU checks remain available locally through `npm run test:node:webgpu` on a supported GPU. The existing `npm run check` still runs the full local validation; it is not the minimal required CI selection.
+
+The Release hosted smoke and daily/manual Operations workflows retain their existing triggers and purposes. Superseded browser work is cancelled together. Summary jobs still run and require explicit success, so a failed, skipped or cancelled essential check cannot authorize publication.
 
 ## Retired artifact gate (2026-09-13)
 

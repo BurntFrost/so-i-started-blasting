@@ -242,7 +242,7 @@ test('sustained slow frame intervals lower resolution while retaining scene deta
   expect(errors).toEqual([]);
 });
 
-test('local soundtrack obeys consent, playback, scrubbing, volume and scene changes', async ({ page }) => {
+test('local soundtrack obeys consent, playback, scrubbing, volume and scene changes', { tag: '@essential' }, async ({ page }) => {
   const errors = await observe(page), audioRequests = [];
   page.on('request', request => { if (/\.mp3(?:\?|$)/.test(request.url())) audioRequests.push(request.url()); });
   await load(page);
@@ -285,7 +285,7 @@ test('local soundtrack obeys consent, playback, scrubbing, volume and scene chan
   expect(errors).toEqual([]);
 });
 
-test('missing audio and atmosphere textures retain working graphics and controls', async ({ page }) => {
+test('missing audio and atmosphere textures retain working graphics and controls', { tag: '@essential' }, async ({ page }) => {
   const errors = await observe(page);
   await page.route('**/*.mp3', route => route.abort());
   await page.route('**/*storm-noise*.webp', route => route.abort());
@@ -375,7 +375,7 @@ test('a failed Deep Impact wave download retains reversible water and working co
   expect(errors).toEqual([]);
 });
 
-test('one optional authored asset failure retains usable procedural scenes', async ({ page }) => {
+test('one optional authored asset failure retains usable procedural scenes', { tag: '@essential' }, async ({ page }) => {
   const errors = await observe(page);
   await page.route('**/*city-kit*.glb', route => route.abort());
   await load(page);
@@ -388,14 +388,14 @@ test('one optional authored asset failure retains usable procedural scenes', asy
   expect(errors).toEqual([]);
 });
 
-test('module download failure reports a bounded startup category and disables playback', async ({ page }) => {
+test('module download failure reports a bounded startup category and disables playback', { tag: '@essential' }, async ({ page }) => {
   await observe(page);
   await page.route('**/*simulation*.js*', route => route.abort());
   await page.goto('/', { waitUntil: 'domcontentloaded' });
   await expectFailure(page, 'module-load');
 });
 
-test('unavailable graphics devices are reported distinctly', async ({ page }) => {
+test('unavailable graphics devices are reported distinctly', { tag: '@essential' }, async ({ page }) => {
   await observe(page);
   await page.addInitScript(() => {
     Object.defineProperty(navigator, 'gpu', { configurable: true, value: undefined });
@@ -408,7 +408,7 @@ test('unavailable graphics devices are reported distinctly', async ({ page }) =>
   await expectFailure(page, 'device-init');
 });
 
-test('native renderer automatically falls back when WebGPU is unavailable', async ({ page }) => {
+test('native renderer automatically falls back when WebGPU is unavailable', { tag: '@essential' }, async ({ page }) => {
   const errors = await observe(page);
   await page.addInitScript(() => Object.defineProperty(navigator, 'gpu', { configurable: true, value: undefined }));
   await load(page, '/?renderer=webgpu');
@@ -436,7 +436,7 @@ test('a real WebGL context loss stops playback but keeps fullscreen exit usable'
 });
 
 for (const privacy of ['doNotTrack', 'globalPrivacyControl']) {
-  test(`${privacy} suppresses bootstrap failure telemetry`, async ({ page }) => {
+  test(`${privacy} suppresses bootstrap failure telemetry`, { tag: '@essential' }, async ({ page }) => {
     await observe(page);
     await page.addInitScript(property => Object.defineProperty(navigator, property, { configurable: true, get: () => property === 'doNotTrack' ? '1' : true }), privacy);
     await page.route('**/*simulation*.js*', route => route.abort());

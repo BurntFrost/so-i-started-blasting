@@ -110,7 +110,7 @@ test('phone startup preserves the physical primitive budget with instanced parti
   } finally {await context.close();}
 });
 
-test('native baked motion deforms after a rendered fallback and restores isolated reverse pixels', async ({ page }, info) => {
+test('native baked motion deforms after a rendered fallback and restores isolated reverse pixels', { tag: '@essential' }, async ({ page }, info) => {
   const backend = info.project.metadata.backend, errors = [];
   page.on('pageerror', error => errors.push(error.message));
   page.on('console', message => {

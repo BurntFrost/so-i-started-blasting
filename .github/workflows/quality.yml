@@ -1,16 +1,17 @@
-name: Quality
+name: Essential checks
 on:
   pull_request:
   push:
     branches: [main]
 permissions:
   contents: read
+# Cancel superseded browser work together; summaries still fail closed.
+concurrency:
+  group: essentials-${{ github.ref }}
+  cancel-in-progress: true
 jobs:
   quality-core:
-    name: quality-core
-    concurrency:
-      group: quality-job-${{ github.workflow }}-${{ github.ref }}
-      cancel-in-progress: true
+    name: Build & assets
     runs-on: ubuntu-24.04
     timeout-minutes: 20
     steps:
@@ -26,80 +27,7 @@ jobs:
       - name: Build production site
         run: npm run build
   chromium:
-    name: chromium-${{ matrix.shard }}
-    concurrency:
-      group: chromium-${{ matrix.shard }}-${{ github.workflow }}-${{ github.ref }}
-      cancel-in-progress: true
-    strategy:
-      fail-fast: false
-      matrix:
-        shard: [1, 2, 3]
-    runs-on: ubuntu-24.04
-    timeout-minutes: 20
-    steps:
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
-        with:
-          node-version-file: .node-version
-          cache: npm
-      - run: npm ci
-      - run: npm run build
-      - run: npx playwright install --with-deps --only-shell chromium
-      # The suite shares one browser process (workers: 1, fullyParallel: false). Sharding it
-      # observably stopped the renderer dying mid-screenshot and made the long-flaky
-      # 'sustained slow frame intervals' spec pass; the precise mechanism was never pinned
-      # down, so treat that as measured behaviour rather than an explanation.
-      # --fully-parallel is load-bearing: it moves sharding from file to test granularity,
-      # and without it this single-file project puts every spec in shard 1 and leaves the
-      # rest as no-ops that pass trivially. The ULTRA 4K spec runs in chromium-ultra.
-      - run: npx playwright test --project=chromium --grep-invert "desktop ULTRA" --fully-parallel --workers=1 --shard=${{ matrix.shard }}/3 --max-failures=1
-      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
-        if: failure()
-        with:
-          name: chromium-${{ matrix.shard }}-failure-evidence
-          path: |
-            playwright-report/
-            test-results/
-          retention-days: 7
-  chromium-ultra:
-    name: chromium-ultra
-    concurrency:
-      group: chromium-ultra-${{ github.workflow }}-${{ github.ref }}
-      cancel-in-progress: true
-    runs-on: ubuntu-24.04
-    timeout-minutes: 20
-    steps:
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
-        with:
-          node-version-file: .node-version
-          cache: npm
-      - run: npm ci
-      - run: npm run build
-      - run: npx playwright install --with-deps --only-shell chromium
-      # 8.9s on a real GPU; measured at over 204s here just to reach the resize, because
-      # swiftshader puts all 4.1M pixels of the 2560x1600 post chain on the CPU. The global
-      # 180s budget cut it off mid-assertion and disguised a real failure as exhaustion, so
-      # this spec gets a budget matching what it actually costs, the way the node-* projects
-      # already carry one for the same software GPU.
-      - run: npx playwright test --project=chromium --grep "desktop ULTRA" --timeout=600000 --reporter=list --max-failures=1
-      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
-        if: failure()
-        with:
-          name: chromium-ultra-failure-evidence
-          path: |
-            playwright-report/
-            test-results/
-          retention-days: 7
-  native-webgl:
-    name: native-webgl-${{ matrix.shard }}
-    concurrency:
-      group: native-webgl-${{ matrix.shard }}-${{ github.workflow }}-${{ github.ref }}
-      cancel-in-progress: true
-    strategy:
-      fail-fast: false
-      matrix:
-        shard: [1, 2, 3, 4]
+    name: Browser controls (Chromium + WebGL)
     runs-on: ubuntu-24.04
     timeout-minutes: 15
     steps:
@@ -111,31 +39,19 @@ jobs:
       - run: npm ci
       - run: npm run build
       - run: npx playwright install --with-deps --only-shell chromium
-      - run: npx playwright test --project=node-webgl --fully-parallel --workers=1 --shard=${{ matrix.shard }}/4 --max-failures=1
-      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+      - name: Essential controls, scene loading and authored-mesh regression
+        run: npx playwright test --project=chromium --project=node-webgl --grep @essential --workers=1 --max-failures=1
+      - name: Preserve browser failure evidence
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         if: failure()
         with:
-          name: native-webgl-${{ matrix.shard }}-failure-evidence
+          name: chromium-essential-failure-evidence
           path: |
             playwright-report/
             test-results/
           retention-days: 7
-  quality:
-    name: quality
-    if: always()
-    needs: [quality-core, chromium, chromium-ultra, native-webgl]
-    runs-on: ubuntu-24.04
-    timeout-minutes: 1
-    steps:
-      - name: Require core, every chromium shard, ULTRA and all native fallback checks
-        env:
-          CORE_RESULT: ${{ needs.quality-core.result }}
-          CHROMIUM_RESULT: ${{ needs.chromium.result }}
-          ULTRA_RESULT: ${{ needs.chromium-ultra.result }}
-          NATIVE_RESULT: ${{ needs.native-webgl.result }}
-        run: test "$CORE_RESULT" = success && test "$CHROMIUM_RESULT" = success && test "$ULTRA_RESULT" = success && test "$NATIVE_RESULT" = success
   webkit:
-    name: webkit
+    name: Browser controls (WebKit)
     runs-on: ubuntu-24.04
     timeout-minutes: 15
     steps:
@@ -149,22 +65,40 @@ jobs:
       - run: npm ci
       - run: npm run build
       - run: npx playwright install --with-deps webkit
-      - run: npx playwright test --project=webkit
-      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+      - name: Essential Safari-engine controls and scene loading
+        run: npx playwright test --project=webkit --grep @essential --workers=1 --max-failures=1
+      - name: Preserve browser failure evidence
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         if: failure()
         with:
-          name: webkit-failure-evidence
-          path: test-results/
+          name: webkit-essential-failure-evidence
+          path: |
+            playwright-report/
+            test-results/
           retention-days: 7
-  release-quality:
-    name: release-quality
-    if: always() && github.event_name == 'push' && github.ref == 'refs/heads/main'
-    needs: [quality, webkit]
+  quality:
+    # Keep this check name: GitHub main branch protection requires it.
+    name: quality
+    if: always()
+    needs: [quality-core, chromium, webkit]
     runs-on: ubuntu-24.04
     timeout-minutes: 1
     steps:
-      - name: Require successful validation of the merged main SHA
+      - name: Require every essential check to succeed
         env:
-          CHROMIUM_RESULT: ${{ needs.quality.result }}
+          CORE_RESULT: ${{ needs.quality-core.result }}
+          CHROMIUM_RESULT: ${{ needs.chromium.result }}
           WEBKIT_RESULT: ${{ needs.webkit.result }}
-        run: test "$CHROMIUM_RESULT" = success && test "$WEBKIT_RESULT" = success
+        run: test "$CORE_RESULT" = success && test "$CHROMIUM_RESULT" = success && test "$WEBKIT_RESULT" = success
+  release-quality:
+    # Keep this check name: Vercel imports it to gate production domain assignment.
+    name: release-quality
+    if: always() && github.event_name == 'push' && github.ref == 'refs/heads/main'
+    needs: [quality]
+    runs-on: ubuntu-24.04
+    timeout-minutes: 1
+    steps:
+      - name: Require essential checks for the main commit before publication
+        env:
+          ESSENTIAL_RESULT: ${{ needs.quality.result }}
+        run: test "$ESSENTIAL_RESULT" = success

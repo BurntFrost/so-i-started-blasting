@@ -28,7 +28,7 @@ export default defineConfig({
     })),
     {
       name: 'chromium',
-      testMatch: 'browser.spec.mjs',
+      testMatch: ['browser.spec.mjs', 'essential-browser.spec.mjs'],
       use: {
         browserName: 'chromium',
         launchOptions: {
@@ -40,7 +40,7 @@ export default defineConfig({
     },
     {
       name: 'webkit',
-      testMatch: 'webkit.spec.mjs',
+      testMatch: ['webkit.spec.mjs', 'essential-browser.spec.mjs'],
       use: { browserName: 'webkit', viewport: { width: 390, height: 844 } },
     },
   ],

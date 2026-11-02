@@ -79,7 +79,7 @@ test('WebKit loads the authored wave and restores exact reverse pixels within th
   expect(errors).toEqual([]);
 });
 
-test('WebKit initializes and obeys audio consent, pause/resume, and scene changes', async ({ page }) => {
+test('WebKit initializes and obeys audio consent, pause/resume, and scene changes', { tag: '@essential' }, async ({ page }) => {
   const errors = await observe(page), requests = [];
   page.on('request', request => { if (/\.mp3(?:\?|$)/.test(request.url())) requests.push(request.url()); });
   await page.goto('/', { waitUntil: 'domcontentloaded' });
@@ -108,7 +108,7 @@ test('WebKit initializes and obeys audio consent, pause/resume, and scene change
   expect(errors).toEqual([]);
 });
 
-test('WebKit restores a usable player after real history navigation', async ({ page }) => {
+test('WebKit restores a usable player after real history navigation', { tag: '@essential' }, async ({ page }) => {
   const errors = await observe(page);
   await page.addInitScript(() => {
     window.__pageRestored = false;
@@ -140,7 +140,7 @@ test('WebKit restores a usable player after real history navigation', async ({ p
   expect(errors).toEqual([]);
 });
 
-test('compatible enforced CSP runs the player and retains strict script diagnostics', async ({ page }) => {
+test('compatible enforced CSP runs the player and retains strict script diagnostics', { tag: '@essential' }, async ({ page }) => {
   const errors = await observe(page);
   await page.addInitScript(() => {
     window.__policyViolations = [];
