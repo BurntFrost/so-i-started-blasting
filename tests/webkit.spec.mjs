@@ -22,6 +22,31 @@ async function ready(page) {
   await expect(page.locator('#error')).toBeHidden();
 }
 
+async function capturePixels(page, canvas, time) {
+  await seekTimeline(page, time); await settleFrames(page);
+  const image = await canvas.screenshot({ style: 'body * { visibility:hidden!important } #world { visibility:visible!important }' });
+  const pixels = await page.evaluate(async encoded => {
+    const image = new Image(); image.src = `data:image/png;base64,${encoded}`; await image.decode();
+    const canvas = document.createElement('canvas'); canvas.width = image.naturalWidth; canvas.height = image.naturalHeight;
+    const context = canvas.getContext('2d'); context.drawImage(image, 0, 0);
+    const rgba = context.getImageData(0, 0, canvas.width, canvas.height).data;
+    const digest = await crypto.subtle.digest('SHA-256', rgba);
+    return { width: canvas.width, height: canvas.height, hash: Array.from(new Uint8Array(digest), byte => byte.toString(16).padStart(2, '0')).join('') };
+  }, image.toString('base64'));
+  return { image, pixels, pngHash: createHash('sha256').update(image).digest('hex'), state: await canvas.evaluate(element => ({ ...element.dataset })) };
+}
+
+async function expectSamePixels(before, restored, label) {
+  // PNG encoding is not the pixel contract. Compare every decoded RGBA byte,
+  // retaining the original lossless captures to diagnose any platform difference.
+  if (JSON.stringify(before.pixels) !== JSON.stringify(restored.pixels)) {
+    await test.info().attach('world-before', { body: before.image, contentType: 'image/png' });
+    await test.info().attach('world-restored', { body: restored.image, contentType: 'image/png' });
+    await test.info().attach('render-state', { body: JSON.stringify({ before: { pixels: before.pixels, pngHash: before.pngHash, state: before.state }, restored: { pixels: restored.pixels, pngHash: restored.pngHash, state: restored.state } }, null, 2), contentType: 'application/json' });
+  }
+  expect(restored.pixels, label).toEqual(before.pixels);
+}
+
 test('WebKit loads the authored wave and restores exact reverse pixels within the phone budget', async ({ page }) => {
   const errors = await observe(page);
   await page.goto('/', { waitUntil: 'domcontentloaded' });
@@ -33,14 +58,9 @@ test('WebKit loads the authored wave and restores exact reverse pixels within th
   await page.locator('[data-scene-id="deep-impact"]').click();
   await expect(canvas).toHaveAttribute('data-impact-wave', 'ready');
   await expect(canvas).toHaveAttribute('data-impact-mist', 'ready');
-  const shot = async time => {
-    await seekTimeline(page, time); await settleFrames(page);
-    const bytes = await canvas.screenshot({ style: 'body * { visibility:hidden!important } #world { visibility:visible!important }' });
-    return createHash('sha256').update(bytes).digest('hex');
-  };
-  const before = await shot(18), later = await shot(25);
-  expect(await shot(18)).toBe(before);
-  expect(later).not.toBe(before);
+  const before = await capturePixels(page, canvas, 18), later = await capturePixels(page, canvas, 25);
+  await expectSamePixels(before, await capturePixels(page, canvas, 18), 'Deep Impact reverse pixels');
+  expect(later.pixels.hash).not.toBe(before.pixels.hash);
   expect(Number(await canvas.getAttribute('data-triangles'))).toBeLessThan(150000);
   expect(errors).toEqual([]);
 });
@@ -149,15 +169,11 @@ for (const [id, second, later] of [['2012', 18, 27], ['twister', 18, 25], ['know
     await expect(canvas).toHaveAttribute(attribute, 'ready');
     if (id === 'twister') await expect(canvas).toHaveAttribute('data-twister-bake', /ready|fallback/);
     if (id === 'knowing' || id === 'interstellar') await expect(canvas).toHaveAttribute('data-nebula-texture', /ready|fallback/);
-    const shot = async time => {
-      await seekTimeline(page, time); await settleFrames(page);
-      return createHash('sha256').update(await canvas.screenshot({ style: 'body * { visibility:hidden!important } #world { visibility:visible!important }' })).digest('hex');
-    };
-    const before = await shot(second), after = await shot(later);
-    expect(await shot(second), `${id}: authored reverse pixels`).toBe(before);
-    expect(after, `${id}: timeline changes pixels`).not.toBe(before);
+    const before = await capturePixels(page, canvas, second), after = await capturePixels(page, canvas, later);
+    await expectSamePixels(before, await capturePixels(page, canvas, second), `${id}: authored reverse pixels`);
+    expect(after.pixels.hash, `${id}: timeline changes pixels`).not.toBe(before.pixels.hash);
     await canvas.focus(); await page.keyboard.press('ArrowRight'); await canvas.blur();
-    expect(await shot(second), `${id}: paused orbit changes the view`).not.toBe(before);
+    expect((await capturePixels(page, canvas, second)).pixels.hash, `${id}: paused orbit changes the view`).not.toBe(before.pixels.hash);
     await expect(page.locator('#time')).toHaveText(`00:${second}`);
     await page.locator('#reset-camera').click(); await settleFrames(page);
     expect(Number(await canvas.getAttribute('data-triangles')), `${id}: phone geometry`).toBeLessThan(150000);
